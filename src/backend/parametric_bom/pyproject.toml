@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "parametric-bom-inventree"
+version = "0.1.0"
+description = "Parametric BOM plugin for InvenTree"
+authors = [
+    {name = "LiXin Intelligent Technology", email = "jinanlixin168@163.com"},
+]
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+
+[tool.setuptools.packages.find]
+where = [".."]
+include = ["parametric_bom*"]
+
+[tool.setuptools.package-data]
+parametric_bom = ["templates/**/*.html"]
+
+[project.entry-points.inventree_plugins]
+ParametricBomPlugin = "parametric_bom.parametric_bom:ParametricBomPlugin"
