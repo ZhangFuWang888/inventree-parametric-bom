@@ -240,15 +240,18 @@ textarea.input-field{resize:vertical;font-family:monospace;font-size:0.75rem}
 <body>
 
 <!-- ===== HEADER ===== -->
-<header class="bg-gradient-to-r from-slate-900 to-slate-800 text-white px-4 py-2.5 flex items-center justify-between shadow-lg sticky top-0 z-30" style="min-height:52px">
+<header class="flex items-center justify-between px-4 py-2 bg-slate-800 text-white shrink-0">
   <div class="flex items-center gap-2">
     <button class="hamburger" id="hamburger-btn" onclick="toggleSidebar()" title="切换侧栏">☰</button>
-    <span class="text-lg">⚙</span>
     <h1 class="text-sm font-semibold whitespace-nowrap">参数化BOM系统</h1>
     <span class="text-[10px] bg-white/10 px-1.5 py-0.5 rounded hidden sm:inline">v2.0</span>
   </div>
-  <div class="flex items-center gap-2 text-xs text-white/70">
-    <span class="hidden sm:inline">admin</span>
+  <div class="flex items-center gap-3 text-xs">
+    <select id="global-part-select" class="text-[11px] bg-slate-700 text-white border border-slate-600 rounded px-2 py-1 max-w-[200px]" onchange="onGlobalPartChange(this.value)">
+      <option value="">🌐 选择当前产品...</option>
+    </select>
+    <span class="hidden sm:inline text-white/50">|</span>
+    <span class="hidden sm:inline text-white/70">admin</span>
     <span class="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center text-xs font-medium">A</span>
   </div>
 </header>
@@ -258,6 +261,10 @@ textarea.input-field{resize:vertical;font-family:monospace;font-size:0.75rem}
   <!-- Sidebar -->
   <nav class="sidebar" id="sidebar">
     <div class="py-2 flex-1">
+      <!-- 首页 -->
+      <div class="sidebar-item active" data-page="dashboard" onclick="switchPage('dashboard')">
+        🏠 首页
+      </div>
       <!-- Group: 系统管理 -->
       <div class="sidebar-group">
         <div class="sidebar-group-header" onclick="toggleGroup(this)">
@@ -265,7 +272,7 @@ textarea.input-field{resize:vertical;font-family:monospace;font-size:0.75rem}
           <span class="text-[10px]">▾</span>
         </div>
         <div class="sidebar-group-body">
-          <div class="sidebar-item active" data-page="template-library" onclick="switchPage('template-library')">
+          <div class="sidebar-item" data-page="template-library" onclick="switchPage('template-library')">
             📦 模板库
           </div>
           <div class="sidebar-item" data-page="param-types" onclick="switchPage('param-types')">
@@ -315,8 +322,16 @@ textarea.input-field{resize:vertical;font-family:monospace;font-size:0.75rem}
   <!-- Main Content -->
   <div class="main-content">
 
+    <!-- ===== PAGE 0: 首页 ===== -->
+    <div class="page-panel active" id="page-dashboard">
+      <div class="card">
+        <div class="card-header">🏠 首页</div>
+        <div id="dashboard-content"><div class="empty-state"><div class="icon">⏳</div><p>加载中...</p></div></div>
+      </div>
+    </div>
+
     <!-- ===== PAGE 1: 模板库 ===== -->
-    <div class="page-panel active" id="page-template-library">
+    <div class="page-panel" id="page-template-library">
       <div class="card">
         <div class="card-header">📦 模板库</div>
         <div class="page-help"><span class="icon">💡</span><span class="text">管理参数模板，将 InvenTree 的参数模板按分类组织，<strong>批量同步</strong>给同类零件。先选分类→再选目标零件→点"同步"，无需逐个配置。</span></div>
@@ -2662,52 +2677,146 @@ async function openAddAttributeModal() {
   }
 }
 
-// ===== INIT ENHANCEMENT =====
+// ===== GLOBAL PRODUCT CONTEXT =====
+let globalPartId = null;
+let globalPartName = '';
+
+function onGlobalPartChange(partId) {
+  globalPartId = partId || null;
+  const part = parts.find(p => p.pk == partId);
+  globalPartName = part ? (part.name || part.full_name || '') : '';
+  // Auto-refresh current page if it depends on product
+  const activePage = document.querySelector('.page-panel.active')?.id?.replace('page-', '');
+  if (activePage === 'bom-formula') loadBomFormulaConfigs(partId || '');
+  else if (activePage === 'param-types') loadParamConfigs(partId || '');
+  else if (activePage === 'rules') loadRules(partId || '');
+}
+
+// ===== DASHBOARD =====
+async function renderDashboard() {
+  const container = document.getElementById('dashboard-content');
+  // Load stats
+  const [cfgRes, bomRes, ruleRes, configRes] = await Promise.all([
+    apiCall('GET', 'part-config/'),
+    apiCall('GET', 'bom-item-config/'),
+    apiCall('GET', 'rules/'),
+    apiCall('GET', 'configurations/'),
+  ]);
+  const pcfgs = !cfgRes.error ? (cfgRes.data.results || cfgRes.data || []) : [];
+  const boms = !bomRes.error ? (bomRes.data.results || bomRes.data || []) : [];
+  const rules = !ruleRes.error ? (ruleRes.data.results || ruleRes.data || []) : [];
+  const configs = !configRes.error ? (configRes.data.results || configRes.data || []) : [];
+  const products = parts || [];
+
+  // Count products with parametric configs
+  const partIds = new Set(pcfgs.map(c => c.part));
+  const productsWithParams = partIds.size;
+  const modeCounts = {};
+  boms.forEach(b => { const m = b.mode || 'standard'; modeCounts[m] = (modeCounts[m] || 0) + 1; });
+
+  const modeLabels = {standard:'标准', qty_formula:'📐数量公式', conditional:'⚡条件包含', candidate:'🎯候选零件', variant:'🧬变体生成', specification:'📝规格描述', supplier:'🏢供应商选择', structure:'🏗️结构'};
+
+  let html = `
+  <!-- Quick Stats -->
+  <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+    <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 text-center">
+      <div class="text-2xl font-bold text-blue-700">${productsWithParams}</div>
+      <div class="text-[10px] text-blue-600 mt-0.5">已配参数的产品</div>
+    </div>
+    <div class="bg-emerald-50 border border-emerald-200 rounded-lg p-3 text-center">
+      <div class="text-2xl font-bold text-emerald-700">${boms.length}</div>
+      <div class="text-[10px] text-emerald-600 mt-0.5">参数化BOM项</div>
+    </div>
+    <div class="bg-amber-50 border border-amber-200 rounded-lg p-3 text-center">
+      <div class="text-2xl font-bold text-amber-700">${rules.length}</div>
+      <div class="text-[10px] text-amber-600 mt-0.5">约束规则</div>
+    </div>
+    <div class="bg-purple-50 border border-purple-200 rounded-lg p-3 text-center">
+      <div class="text-2xl font-bold text-purple-700">${configs.length}</div>
+      <div class="text-[10px] text-purple-600 mt-0.5">已完成配置</div>
+    </div>
+  </div>
+
+  <!-- Quick Start Guide -->
+  <div class="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-4 mb-4">
+    <div class="text-sm font-semibold text-gray-800 mb-3">🚀 快速开始 — 3步上手</div>
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <div class="bg-white rounded-lg p-3 border border-gray-100">
+        <div class="flex items-center gap-2 mb-1.5"><span class="w-6 h-6 rounded-full bg-blue-600 text-white text-[10px] flex items-center justify-center font-bold">1</span><span class="text-xs font-semibold">配置参数</span></div>
+        <p class="text-[10px] text-gray-500">选择产品 → 在「参数管理」绑定参数模板，设默认值</p>
+      </div>
+      <div class="bg-white rounded-lg p-3 border border-gray-100">
+        <div class="flex items-center gap-2 mb-1.5"><span class="w-6 h-6 rounded-full bg-emerald-600 text-white text-[10px] flex items-center justify-center font-bold">2</span><span class="text-xs font-semibold">设BOM公式</span></div>
+        <p class="text-[10px] text-gray-500">在「BOM公式」为各物料选择模式，编写公式</p>
+      </div>
+      <div class="bg-white rounded-lg p-3 border border-gray-100">
+        <div class="flex items-center gap-2 mb-1.5"><span class="w-6 h-6 rounded-full bg-amber-600 text-white text-[10px] flex items-center justify-center font-bold">3</span><span class="text-xs font-semibold">测试配置器</span></div>
+        <p class="text-[10px] text-gray-500">在「产品配置器」调参数 → 实时看BOM → 生成变体</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mode Distribution -->
+  <div class="bg-white border border-gray-100 rounded-lg p-3 mb-4">
+    <div class="text-xs font-semibold text-gray-700 mb-2">📊 BOM模式分布</div>
+    <div class="flex flex-wrap gap-1.5">
+      ${Object.entries(modeCounts).map(([m, c]) =>
+        `<span class="text-[10px] px-2 py-0.5 rounded-full bg-gray-100 text-gray-700">${modeLabels[m]||m}: ${c}</span>`
+      ).join('') || '<span class="text-[10px] text-gray-400">暂无数据，先创建示例产品试试</span>'}
+    </div>
+  </div>
+
+  <!-- Quick Actions -->
+  <div class="flex flex-wrap gap-2">
+    <button class="btn btn-primary btn-sm" onclick="switchPage('bom-formula')">📋 去配置BOM公式</button>
+    <button class="btn btn-secondary btn-sm" onclick="switchPage('configurator')">🔧 去产品配置器</button>
+  </div>`;
+
+  container.innerHTML = html;
+}
+
+// ===== INIT ENHANCEMENT (overrides previous) =====
 document.addEventListener('DOMContentLoaded', async function() {
   await loadParts();
   await loadConfigList();
   await loadTemplateCategories();
-  await loadTemplateCategories(); // populate category select for page 1
+  await loadTemplateCategories();
 
   // Override goConfigStep(2) to auto-expand BOM
   const origGoStep = goConfigStep;
   goConfigStep = function(step) {
-    if (step === 2) {
-      expandConfigBOM();
-      return;
-    }
+    if (step === 2) { expandConfigBOM(); return; }
     origGoStep.call(this, step);
   };
-
-  // Also keep direct step 2 nav via button
   document.querySelector('[onclick="goConfigStep(2)"]')?.addEventListener('click', function(e) {
-    e.preventDefault();
-    expandConfigBOM();
+    e.preventDefault(); expandConfigBOM();
   });
 
-  // Populate inheritance part select
-  const inhSel = document.getElementById('inh-part-select');
-  if (inhSel && typeof parts !== 'undefined') {
+  // Populate global part select
+  const globalSel = document.getElementById('global-part-select');
+  if (globalSel && typeof parts !== 'undefined') {
     parts.forEach(p => {
       const opt = document.createElement('option');
       opt.value = p.pk;
-      opt.textContent = `${p.name || p.full_name || 'Unnamed'} (ID:${p.pk})`;
-      inhSel.appendChild(opt);
+      opt.textContent = `${p.name || p.full_name || 'Unnamed'}`;
+      globalSel.appendChild(opt);
     });
   }
 
-  // Populate attribute part select
-  const attrSel = document.getElementById('attr-part-select');
-  if (attrSel && typeof parts !== 'undefined') {
-    parts.forEach(p => {
-      const opt = document.createElement('option');
-      opt.value = p.pk;
-      opt.textContent = `${p.name || p.full_name || 'Unnamed'} (ID:${p.pk})`;
-      attrSel.appendChild(opt);
-    });
-  }
+  // Populate other selects
+  ['inh-part-select', 'attr-part-select'].forEach(id => {
+    const sel = document.getElementById(id);
+    if (sel && typeof parts !== 'undefined') {
+      parts.forEach(p => {
+        const opt = document.createElement('option');
+        opt.value = p.pk; opt.textContent = `${p.name || p.full_name || 'Unnamed'} (ID:${p.pk})`;
+        sel.appendChild(opt);
+      });
+    }
+  });
 
   setStatus('idle', '就绪');
+  renderDashboard();
 });
 </script>
 </body>
