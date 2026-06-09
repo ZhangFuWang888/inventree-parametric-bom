@@ -2582,15 +2582,8 @@ async function openAddInheritanceModal() {
   if (!targetParam) return;
   const sourceParam = prompt('源参数名 (父级参数，留空=同名):', targetParam);
   const formula = prompt('转换公式 (留空=直接传递):', '');
-  const res = await apiCall('POST', 'inheritance/', {
-    target_part: parseInt(targetPart),
-    target_template: null, // User needs to provide template ID
-    source_template: null,
-    formula: formula || '',
-    enabled: true,
-  });
-  // Simplified: just use target_template name lookup
-  // Find template by name
+
+  // Find target template by name
   const templateRes = await fetch(`/api/parameter/template/?search=${encodeURIComponent(targetParam)}&limit=5`, {headers:{'Content-Type':'application/json','X-CSRFToken':getCsrfToken()}, credentials:'same-origin'});
   const tmplData = await templateRes.json();
   const tmpls = tmplData.results || tmplData || [];
@@ -2598,17 +2591,19 @@ async function openAddInheritanceModal() {
   if (tmpls.length === 1) targetTmplId = tmpls[0].pk;
   else if (tmpls.length > 1) targetTmplId = parseInt(prompt(`找到多个参数模板:\n${tmpls.map(t=>t.pk+': '+t.name).join('\n')}\n输入ID:`));
   if (!targetTmplId) { alert('参数模板未找到，请在参数管理页先创建'); return; }
+
   let sourceTmplId = null;
-  if (sourceParam) {
+  if (sourceParam && sourceParam !== targetParam) {
     const sRes = await fetch(`/api/parameter/template/?search=${encodeURIComponent(sourceParam)}&limit=5`, {headers:{'Content-Type':'application/json','X-CSRFToken':getCsrfToken()}, credentials:'same-origin'});
     const sData = await sRes.json();
     const sTmpls = sData.results || sData || [];
     if (sTmpls.length === 1) sourceTmplId = sTmpls[0].pk;
     else if (sTmpls.length > 1) sourceTmplId = parseInt(prompt(`找到多个源参数模板:\n${sTmpls.map(t=>t.pk+': '+t.name).join('\n')}\n输入ID:`));
   }
+
   const body = {target_part: parseInt(targetPart), target_template: targetTmplId, source_template: sourceTmplId, formula: formula || '', enabled: true};
-  const res = await apiCall('POST', 'inheritance/', body);
-  if (!res.error) {
+  const saveRes = await apiCall('POST', 'inheritance/', body);
+  if (!saveRes.error) {
     const sel = document.getElementById('inh-part-select');
     loadInheritanceMappings(sel?.value || '');
   }
