@@ -974,7 +974,7 @@ async function loadParts() {
   
   // Load parameter templates
   try {
-    const tmplResp = await fetch('/api/part/parameter/template/', {
+    const tmplResp = await fetch('/api/parameter/template/', {
       headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken()}, credentials: 'same-origin'
     });
     if (tmplResp.ok) {
