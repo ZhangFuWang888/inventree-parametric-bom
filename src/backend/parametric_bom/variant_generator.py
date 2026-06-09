@@ -51,22 +51,52 @@ def _walk_bom_tree(node: dict, items: List[Dict[str, Any]]) -> None:
         if child.get('excluded', False):
             continue
 
-        # Determine the actual part ID (accounting for part_selector)
-        part_id = child.get('actual_part_id') or child.get('part_id')
+        # Determine the actual part ID (mode-aware resolution)
+        part_id = (
+            child.get('variant_part_id')       # variant mode
+            or child.get('selected_candidate_part_id')  # candidate mode
+            or child.get('actual_part_id')     # part_selector mode
+            or child.get('part_id')            # fallback
+        )
+        part_name = (
+            child.get('variant_part_name')
+            or child.get('selected_candidate_part_name')
+            or child.get('actual_part_name')
+            or child.get('part_name', '')
+        )
         qty = child.get('calculated_quantity') or child.get('quantity', 1)
 
-        items.append({
-            'part_id': part_id,
-            'part_name': child.get('actual_part_name') or child.get('part_name', ''),
-            'quantity': qty,
-            'optional': child.get('optional', False),
-            'consumable': child.get('consumable', False),
-            'reference': child.get('reference', ''),
-            'bom_item_id': child.get('bom_item_id'),
-        })
+        # Specification items are "virtual" — no Part record
+        if child.get('mode') == 'specification':
+            spec_fields = child.get('spec_fields_evaluated', [])
+            spec_desc = '; '.join([
+                f"{f['name']}={f['value']}{f.get('unit','')}"
+                for f in spec_fields
+            ])
+            items.append({
+                'part_id': None,
+                'part_name': f"[规格] {child.get('part_name','')}: {spec_desc}",
+                'quantity': qty,
+                'optional': child.get('optional', False),
+                'consumable': child.get('consumable', False),
+                'reference': child.get('reference', ''),
+                'bom_item_id': child.get('bom_item_id'),
+                'is_specification': True,
+            })
+        else:
+            items.append({
+                'part_id': part_id,
+                'part_name': part_name,
+                'quantity': qty,
+                'optional': child.get('optional', False),
+                'consumable': child.get('consumable', False),
+                'reference': child.get('reference', ''),
+                'bom_item_id': child.get('bom_item_id'),
+            })
 
-        # Recurse into sub-children
-        _walk_bom_tree(child, items)
+        # Recurse into sub-children (skip spec items — no sub-BOM)
+        if child.get('mode') != 'specification':
+            _walk_bom_tree(child, items)
 
 
 # ──────────────────────────────────────────────
