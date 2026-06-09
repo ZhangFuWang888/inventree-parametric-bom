@@ -173,6 +173,11 @@ textarea.input-field{resize:vertical;font-family:monospace;font-size:0.75rem}
 .action-result.success{background:#f0fdf4;border:1px solid #bbf7d0;color:#166534}
 .action-result.error{background:#fef2f2;border:1px solid #fecaca;color:#dc2626}
 
+/* Page help cards */
+.page-help{background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:0.625rem 0.875rem;margin-bottom:1rem;display:flex;align-items:flex-start;gap:0.5rem;font-size:0.75rem;color:#0369a1;line-height:1.5}
+.page-help .icon{font-size:1rem;flex-shrink:0;margin-top:0.0625rem}
+.page-help .text{flex:1}
+
 /* Formula editor pills */
 .fe-fn-pill{display:inline-flex;align-items:center;padding:0.1875rem 0.5rem;border-radius:6px;font-size:0.6875rem;font-weight:500;cursor:pointer;transition:all 0.12s;background:#eef2ff;color:#4338ca;border:1px solid #c7d2fe;user-select:none}
 .fe-fn-pill:hover{background:#c7d2fe;border-color:#818cf8}
@@ -314,6 +319,7 @@ textarea.input-field{resize:vertical;font-family:monospace;font-size:0.75rem}
     <div class="page-panel active" id="page-template-library">
       <div class="card">
         <div class="card-header">📦 模板库</div>
+        <div class="page-help"><span class="icon">💡</span><span class="text">管理参数模板，将 InvenTree 的参数模板按分类组织，<strong>批量同步</strong>给同类零件。先选分类→再选目标零件→点"同步"，无需逐个配置。</span></div>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
           <div>
             <label class="block text-xs font-medium text-gray-500 mb-1.5">选择产品分类</label>
@@ -352,6 +358,7 @@ textarea.input-field{resize:vertical;font-family:monospace;font-size:0.75rem}
           <span>🔧 参数管理</span>
           <button class="btn btn-primary btn-sm" onclick="openAddParamModal()">➕ 新增配置</button>
         </div>
+        <div class="page-help"><span class="icon">💡</span><span class="text">给具体零件<strong>绑定参数模板</strong>，设置类型/取值范围/默认值，标记为<strong>驱动参数</strong>（用户填）或<strong>计算参数</strong>（公式自动算）。影响场景①~⑫的所有公式引用。</span></div>
         <div class="form-group mb-3">
           <label class="block text-xs font-medium text-gray-500 mb-1.5">选择产品</label>
           <select class="input-field" id="pm-part-select" onchange="loadParamConfigs(this.value)">
@@ -386,6 +393,7 @@ textarea.input-field{resize:vertical;font-family:monospace;font-size:0.75rem}
     <div class="page-panel" id="page-bom-formula">
       <div class="card">
         <div class="card-header">📋 BOM公式配置</div>
+        <div class="page-help"><span class="icon">💡</span><span class="text">核心配置页。为每个BOM项选择<strong>模式</strong>：📐数量公式 | ⚡条件包含 | 🎯候选零件 | 🧬变体生成 | 📝规格描述 | 🏢供应商选择。选产品后点"配置"打开编辑器，支持公式验证和预览。</span></div>
         <div class="form-group mb-3">
           <label class="block text-xs font-medium text-gray-500 mb-1.5">选择产品</label>
           <select class="input-field" id="bom-part-select" onchange="loadBomFormulaConfigs(this.value)">
@@ -490,6 +498,7 @@ textarea.input-field{resize:vertical;font-family:monospace;font-size:0.75rem}
           <span>📜 规则配置</span>
           <button class="btn btn-primary btn-sm" onclick="openAddRuleModal()">➕ 新增规则</button>
         </div>
+        <div class="page-help"><span class="icon">💡</span><span class="text">定义<strong>参数约束规则</strong>：当条件满足时自动设值、锁定参数、隐藏选项或显示警告。例如：<code>长度>8000</code> → 机架类型强制为"加强型"（场景⑧）。</span></div>
         <div class="form-group mb-3">
           <label class="block text-xs font-medium text-gray-500 mb-1.5">选择产品</label>
           <select class="input-field" id="rule-part-select" onchange="loadRules(this.value)">
@@ -509,6 +518,7 @@ textarea.input-field{resize:vertical;font-family:monospace;font-size:0.75rem}
           <span>⬇️ 参数继承映射</span>
           <button class="btn btn-primary btn-sm" onclick="openAddInheritanceModal()">➕ 新增映射</button>
         </div>
+        <div class="page-help"><span class="icon">💡</span><span class="text">配置参数从<strong>父装配体→子零件</strong>的传递规则（场景⑨）。支持同名直接传递、改名传递或公式转换。例如：父级的"货架高度"自动传给子零件"立柱.高度"。</span></div>
         <div class="mb-3">
           <label class="block text-xs font-medium text-gray-500 mb-1.5">选择目标零件</label>
           <select class="input-field" id="inh-part-select" onchange="loadInheritanceMappings(this.value)">
@@ -526,6 +536,7 @@ textarea.input-field{resize:vertical;font-family:monospace;font-size:0.75rem}
           <span>🏷️ 零件属性公式</span>
           <button class="btn btn-primary btn-sm" onclick="openAddAttributeModal()">➕ 新增属性</button>
         </div>
+        <div class="page-help"><span class="icon">💡</span><span class="text">定义零件的<strong>计算属性</strong>（场景⑪），如重量、颜色编码、检验标准、包装规格等。公式中用 <code>param.xxx</code> 引用配置参数。例如：<code>param.长度 * param.宽度 * 5 * 7.85 / 1000000</code>。</span></div>
         <div class="mb-3">
           <label class="block text-xs font-medium text-gray-500 mb-1.5">选择零件</label>
           <select class="input-field" id="attr-part-select" onchange="loadAttributeFormulas(this.value)">
@@ -538,6 +549,8 @@ textarea.input-field{resize:vertical;font-family:monospace;font-size:0.75rem}
 
     <!-- ===== PAGE 7: 产品配置器 ===== -->
     <div class="page-panel" id="page-configurator">
+      <!-- Step indicators -->
+      <div class="page-help"><span class="icon">🚀</span><span class="text"><strong>最终用户入口</strong>。三步完成：①调参数→②实时BOM展开+成本估算→③保存生成具体变体Part。无需懂公式，像搭积木一样配产品。</span></div>
       <!-- Step indicators -->
       <div class="steps">
         <div class="flex flex-col items-center">
