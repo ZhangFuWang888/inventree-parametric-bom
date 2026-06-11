@@ -109,10 +109,19 @@ class PartParameterConfig(models.Model):
     )
     template = models.ForeignKey(
         'common.ParameterTemplate',
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
         related_name='parametric_configs',
         verbose_name=_('Parameter template'),
-        help_text=_('The parameter template this config is based on'),
+        help_text=_('The parameter template this config is based on (optional)'),
+    )
+    name = models.CharField(
+        max_length=128,
+        blank=True,
+        default='',
+        verbose_name=_('Parameter name'),
+        help_text=_('Display name of this parameter (used when no template is set)'),
     )
     parameter_type = models.CharField(
         max_length=20,
@@ -139,6 +148,13 @@ class PartParameterConfig(models.Model):
         blank=True,
         verbose_name=_('Maximum value'),
         help_text=_('Maximum allowed value (numeric parameters only)'),
+    )
+    step_value = models.FloatField(
+        null=True,
+        blank=True,
+        default=1.0,
+        verbose_name=_('Step value'),
+        help_text=_('Step/increment value for numeric slider and inputs'),
     )
     options = models.JSONField(
         null=True,

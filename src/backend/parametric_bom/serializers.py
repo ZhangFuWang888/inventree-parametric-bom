@@ -22,15 +22,22 @@ class PartParameterConfigSerializer(serializers.ModelSerializer):
     """Serializer for PartParameterConfig."""
 
     part_name = serializers.CharField(source='part.name', read_only=True)
-    template_name = serializers.CharField(source='template.name', read_only=True)
+    template_name = serializers.SerializerMethodField()
+
+    def get_template_name(self, obj):
+        if obj.name:
+            return obj.name
+        if obj.template:
+            return obj.template.name
+        return ''
 
     class Meta:
         """Meta options."""
         model = PartParameterConfig
         fields = [
             'id', 'part', 'part_name', 'template', 'template_name',
-            'parameter_type', 'options',
-            'default_value', 'min_value', 'max_value',
+            'name', 'parameter_type', 'options',
+            'default_value', 'min_value', 'max_value', 'step_value',
             'is_driving', 'is_computed', 'computation_formula',
             'ui_hint', 'display_order', 'visible_on_config',
         ]

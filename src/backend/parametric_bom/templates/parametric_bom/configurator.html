@@ -22,10 +22,11 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Ro
 body{overflow-y:auto}
 
 /* Layout */
-.layout-wrap{display:flex;min-height:calc(100vh - 52px)}
-.sidebar{width:220px;min-width:220px;background:#1e293b;color:#e2e8f0;display:flex;flex-direction:column;overflow-y:auto;transition:all 0.3s}
+.layout-wrap{display:flex;min-height:100vh}
+.sidebar{width:220px;min-width:220px;background:#1e293b;color:#e2e8f0;display:flex;flex-direction:column;position:fixed;left:0;top:52px;bottom:0;overflow-y:auto;transition:all 0.3s;z-index:30}
 .sidebar.collapsed{width:0;min-width:0;overflow:hidden}
-.main-content{flex:1;padding:1.5rem;overflow-y:auto;background:#f1f5f9}
+.main-content{flex:1;padding:1.5rem 1.5rem 3rem;background:#f1f5f9;min-height:100vh;margin-left:220px}
+.main-content.sidebar-collapsed{margin-left:1rem}
 .page-panel{display:none;animation:fadeIn 0.3s ease}
 .page-panel.active{display:block}
 @keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
@@ -111,6 +112,8 @@ body{overflow-y:auto}
 .btn-danger:hover{background:#b91c1c}
 .btn-outline-primary{background:transparent;color:#2563eb;border:1px solid #2563eb}
 .btn-outline-primary:hover{background:#eff6ff}
+.btn-ghost{background:transparent;color:#94a3b8;padding:0.25rem 0.5rem;border-radius:6px;border:1px solid transparent;font-size:0.8125rem;line-height:1}
+.btn-ghost:hover{background:#f1f5f9;color:#475569;border-color:#e2e8f0}
 .btn-sm{padding:0.375rem 0.75rem;font-size:0.75rem}
 .btn-lg{padding:0.625rem 1.5rem;font-size:0.875rem}
 .btn-block{width:100%;justify-content:center}
@@ -189,6 +192,383 @@ textarea.input-field{resize:vertical;font-family:monospace;font-size:0.75rem}
 .empty-state .icon{font-size:2rem;margin-bottom:0.5rem}
 .empty-state p{font-size:0.8125rem}
 
+/* Drag & Drop */
+#param-config-table tbody tr.dragging{opacity:0.4;background:#eff6ff}
+#param-config-table tbody tr.drag-over{border-top:2px solid #2563eb;background:#f0f7ff}
+#param-config-table tbody tr [draggable="true"]{user-select:none}
+
+/* Product Cards */
+.product-card{background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:1rem;cursor:pointer;transition:all 0.2s;position:relative}
+.product-card:hover{border-color:#93c5fd;box-shadow:0 4px 12px rgba(37,99,235,0.08);transform:translateY(-1px)}
+.product-card.selected{border-color:#2563eb;background:#eff6ff;box-shadow:0 0 0 2px rgba(37,99,235,0.12)}
+.product-card .product-icon{width:38px;height:38px;border-radius:8px;background:#eef2ff;display:flex;align-items:center;justify-content:center;font-size:1.125rem;flex-shrink:0}
+.product-card.selected .product-icon{background:#dbeafe}
+.product-card .product-name{font-weight:600;font-size:0.8125rem;color:#1e293b;line-height:1.3}
+.product-card .product-ipn{font-size:0.65rem;color:#94a3b8;margin-top:0.125rem}
+.product-card .product-desc{font-size:0.6875rem;color:#64748b;margin-top:0.25rem;line-height:1.4}
+.product-card .product-meta{display:flex;gap:0.75rem;margin-top:0.625rem;padding-top:0.5rem;border-top:1px solid #f1f5f9}
+.product-card .product-stat{font-size:0.65rem;color:#94a3b8}
+.product-card .active-badge{position:absolute;top:0.5rem;right:0.5rem;padding:0.0625rem 0.5rem;border-radius:9999px;font-size:0.6rem;font-weight:600;background:#2563eb;color:#fff}
+
+/* Product action buttons */
+.product-card .product-actions{display:flex;flex-wrap:wrap;gap:0.375rem;margin-top:0.625rem;padding-top:0.5rem;border-top:1px solid #e2e8f0}
+.product-card .product-actions .btn{padding:0.25rem 0.5rem;font-size:0.65rem;border-radius:6px}
+.product-card .product-actions .btn-outline-primary{background:transparent;color:#2563eb;border:1px solid #93c5fd}
+.product-card .product-actions .btn-outline-primary:hover{background:#eff6ff}
+
+/* Template Pills */
+.tpl-pill{display:inline-flex;align-items:center;gap:0.25rem;padding:0.375rem 0.625rem;border-radius:8px;font-size:0.75rem;font-weight:500;cursor:pointer;transition:all 0.12s;border:1px solid #e2e8f0;background:#f8fafc;color:#334155;user-select:none}
+.tpl-pill:hover{border-color:#93c5fd;background:#eff6ff;color:#1e40af;box-shadow:0 1px 4px rgba(37,99,235,0.08)}
+.tpl-pill.used{background:#f0fdf4;border-color:#bbf7d0;color:#166534;cursor:default;opacity:0.7}
+.tpl-pill.used:hover{background:#f0fdf4;border-color:#bbf7d0;box-shadow:none}
+.tpl-pill .tpl-name{line-height:1.2}
+.tpl-pill .tpl-add-hint{font-size:0.7rem;color:#2563eb;font-weight:700}
+.tpl-pill .tpl-check{font-size:0.65rem}
+.tpl-pill[draggable="true"]{cursor:grab}
+.tpl-pill[draggable="true"]:active{cursor:grabbing}
+/* Drag & Drop */
+
+/* Product Detail Tabs */
+.pd-tab{padding:0.5rem 1rem;font-size:0.75rem;font-weight:500;color:#64748b;background:transparent;border:none;border-bottom:2px solid transparent;cursor:pointer;transition:all 0.12s;white-space:nowrap}
+.pd-tab:hover{color:#334155;background:#f8fafc}
+.pd-tab.active{color:#2563eb;border-bottom-color:#2563eb;font-weight:600}
+.pd-tab-content{display:none;animation:fadeIn 0.25s ease}
+.pd-tab-content.active{display:block}
+
+/* Param Builder Two-Column Layout */
+.param-builder{display:flex;gap:1rem;align-items:flex-start}
+.param-builder-left{flex:0 0 340px;min-width:280px;max-width:380px;position:sticky;top:0;align-self:flex-start;max-height:100vh;overflow-y:auto;z-index:10}
+.param-builder-left::-webkit-scrollbar{width:3px}
+.param-builder-left::-webkit-scrollbar-thumb{background:#e2e8f0;border-radius:3px}
+.param-builder-right{flex:1;min-width:0}
+.param-builder-left .card,.param-builder-right .card{margin-bottom:0}
+.param-builder-left .card{max-height:calc(100vh - 8rem);display:flex;flex-direction:column}
+.param-builder-left #pd-param-types{overflow-y:auto;flex:1;min-height:0;padding-right:2px}
+.param-builder-left #pd-param-types::-webkit-scrollbar{width:3px}
+.param-builder-left #pd-param-types::-webkit-scrollbar-thumb{background:#e2e8f0;border-radius:3px}
+
+/* ── Beautified Type Library Cards ── */
+.type-lib-grid{display:grid;grid-template-columns:1fr 1fr;gap:0.5rem}
+.type-lib-card{display:flex;flex-direction:column;border-radius:10px;padding:0.625rem;cursor:grab;transition:all 0.2s ease;border:1px solid #e2e8f0;position:relative;overflow:hidden}
+.type-lib-card:active{cursor:grabbing}
+.type-lib-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;border-radius:10px 10px 0 0;transition:height 0.2s}
+.type-lib-card:hover{transform:translateY(-2px);box-shadow:0 4px 12px rgba(0,0,0,0.08);border-color:transparent}
+.type-lib-card:hover::before{height:4px}
+.type-lib-card:active{transform:scale(0.97)}
+.type-lib-card .tlc-icon{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:1rem;margin-bottom:0.375rem;flex-shrink:0}
+.type-lib-card .tlc-name{font-size:0.7rem;font-weight:600;color:#1e293b;line-height:1.3}
+.type-lib-card .tlc-meta{font-size:0.6rem;color:#94a3b8;margin-top:0.125rem;line-height:1.3}
+.type-lib-card .tlc-badge{position:absolute;top:0.375rem;right:0.375rem;font-size:0.55rem;padding:0.0625rem 0.3125rem;border-radius:4px;background:#f1f5f9;color:#94a3b8;font-weight:500}
+
+/* Type-specific color themes */
+.type-lib-card.type-number{background:linear-gradient(135deg,#f0f4ff 0%,#e8f0fe 100%)}
+.type-lib-card.type-number::before{background:#3b82f6}
+.type-lib-card.type-number .tlc-icon{background:#dbeafe;color:#1d4ed8}
+.type-lib-card.type-number:hover{background:linear-gradient(135deg,#e8f0fe 0%,#dbeafe 100%)}
+
+.type-lib-card.type-option{background:linear-gradient(135deg,#fffbeb 0%,#fef3c7 100%)}
+.type-lib-card.type-option::before{background:#f59e0b}
+.type-lib-card.type-option .tlc-icon{background:#fef3c7;color:#b45309}
+.type-lib-card.type-option:hover{background:linear-gradient(135deg,#fef3c7 0%,#fde68a 100%)}
+
+.type-lib-card.type-boolean{background:linear-gradient(135deg,#f0fdf4 0%,#dcfce7 100%)}
+.type-lib-card.type-boolean::before{background:#22c55e}
+.type-lib-card.type-boolean .tlc-icon{background:#dcfce7;color:#16a34a}
+.type-lib-card.type-boolean:hover{background:linear-gradient(135deg,#dcfce7 0%,#bbf7d0 100%)}
+
+.type-lib-card.type-text{background:linear-gradient(135deg,#f8fafc 0%,#f1f5f9 100%)}
+.type-lib-card.type-text::before{background:#64748b}
+.type-lib-card.type-text .tlc-icon{background:#f1f5f9;color:#475569}
+.type-lib-card.type-text:hover{background:linear-gradient(135deg,#f1f5f9 0%,#e2e8f0 100%)}
+
+.type-lib-card.type-multi_option{background:linear-gradient(135deg,#faf5ff 0%,#f3e8ff 100%)}
+.type-lib-card.type-multi_option::before{background:#a855f7}
+.type-lib-card.type-multi_option .tlc-icon{background:#f3e8ff;color:#9333ea}
+.type-lib-card.type-multi_option:hover{background:linear-gradient(135deg,#f3e8ff 0%,#e9d5ff 100%)}
+
+.type-lib-card.type-long_text{background:linear-gradient(135deg,#fdf2f8 0%,#fce7f3 100%)}
+.type-lib-card.type-long_text::before{background:#ec4899}
+.type-lib-card.type-long_text .tlc-icon{background:#fce7f3;color:#db2777}
+.type-lib-card.type-long_text:hover{background:linear-gradient(135deg,#fce7f3 0%,#fbcfe8 100%)}
+
+/* Group headers */
+.param-group-header{padding:0.375rem 0.25rem 0.375rem;font-size:0.625rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.04em;display:flex;align-items:center;gap:0.5rem;clear:both}
+.param-group-header::after{content:'';flex:1;height:1px;background:linear-gradient(to right,#e2e8f0,transparent)}
+
+/* ── Drag-n-Drop Enhancements ── */
+#pd-params-canvas.drag-active .param-card { margin-bottom: 6px; transition: margin-bottom 0.15s ease, transform 0.15s ease; }
+#pd-params-canvas.drag-active .param-card:hover { transform: scale(1.01); }
+#pd-params-canvas.drag-hover { outline: 2px dashed #3b82f6; outline-offset: 2px; background: #f8faff; border-radius: 10px; }
+.param-card.drop-before { border-top: 3px solid #3b82f6 !important; margin-top: 6px !important; background: #eff6ff !important; }
+.param-card.drop-after { border-bottom: 3px solid #3b82f6 !important; margin-bottom: 6px !important; background: #eff6ff !important; }
+#drop-indicator {
+  height: 28px; margin: 4px 0; border-radius: 8px;
+  background: linear-gradient(135deg, #dbeafe, #bfdbfe);
+  border: 2px dashed #3b82f6;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 600; color: #1d4ed8;
+  transition: all 0.15s ease; pointer-events: none;
+  box-shadow: 0 0 12px rgba(59,130,246,0.15);
+  animation: dropPulse 1.5s ease-in-out infinite;
+}
+#drop-indicator::before { content: '⬇ 在此插入'; letter-spacing: 0.5px; }
+@keyframes dropPulse {
+  0%, 100% { box-shadow: 0 0 8px rgba(59,130,246,0.1); transform: scale(1); }
+  50% { box-shadow: 0 0 20px rgba(59,130,246,0.25); transform: scale(1.02); }
+}
+/* Dragging ghost - follows cursor on the canvas */
+.drag-ghost {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 10px; border-radius: 6px;
+  font-size: 11px; font-weight: 600; color: #fff;
+  position: fixed; pointer-events: none; z-index: 9999;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  opacity: 0.9; transform: translate(-50%, -50%);
+  transition: none;
+}
+.drag-ghost.type-number { background: #3b82f6; }
+.drag-ghost.type-option { background: #f59e0b; }
+.drag-ghost.type-boolean { background: #22c55e; }
+.drag-ghost.type-text { background: #64748b; }
+.drag-ghost.type-multi_option { background: #a855f7; }
+.drag-ghost.type-long_text { background: #ec4899; }
+
+@media(max-width:900px){
+  .type-lib-grid{grid-template-columns:1fr 1fr}
+}
+@media(max-width:480px){
+  .type-lib-grid{grid-template-columns:1fr}
+}
+
+/* Left panel compact mode */
+.param-builder-left .card{padding:0.875rem}
+.param-builder-left .card-header{margin-bottom:0.5rem;font-size:0.8125rem}
+.param-builder-left .page-help{padding:0.375rem 0.5rem;font-size:0.6rem!important;margin-bottom:0.5rem!important}
+
+/* ── 组件库：模板条目 ── */
+.tpl-scroll-list{display:flex;flex-direction:column;gap:2px;max-height:480px;overflow-y:auto;padding:2px;min-height:100px}
+
+/* 分类筛选按钮 */
+.tpl-cat-btn{padding:0.25rem 0.5rem;border-radius:6px;font-size:0.6875rem;font-weight:500;border:1px solid #e2e8f0;background:#fff;color:#64748b;cursor:pointer;transition:all 0.12s}
+.tpl-cat-btn:hover{border-color:#93c5fd;color:#1e40af;background:#eff6ff}
+.tpl-cat-btn.active{background:#2563eb;color:#fff;border-color:#2563eb}
+
+/* 组件库条目 */
+.tpl-lib-item{display:flex;align-items:center;gap:0.5rem;padding:0.375rem 0.5rem;border-radius:6px;border:1px solid transparent;cursor:default;transition:all 0.12s}
+.tpl-lib-item:hover{background:#f8fafc;border-color:#e2e8f0}
+.tpl-lib-item .tpl-icon{width:22px;height:22px;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:0.7rem;flex-shrink:0}
+.tpl-lib-item .tpl-icon.type-number{background:#dbeafe;color:#1d4ed8}
+.tpl-lib-item .tpl-icon.type-option{background:#fef3c7;color:#92400e}
+.tpl-lib-item .tpl-icon.type-text{background:#f1f5f9;color:#475569}
+.tpl-lib-item .tpl-icon.type-boolean{background:#dcfce7;color:#166534}
+.tpl-lib-item .tpl-icon.type-multi_option{background:#f3e8ff;color:#7c3aed}
+.tpl-lib-item .tpl-icon.type-long_text{background:#fce7f3;color:#be185d}
+.tpl-lib-item .tpl-info{flex:1;min-width:0}
+.tpl-lib-item .tpl-info .tpl-name{font-size:0.75rem;font-weight:500;color:#334155}
+.tpl-lib-item .tpl-info .tpl-meta{font-size:0.625rem;color:#94a3b8}
+.tpl-lib-item .tpl-add-btn{width:22px;height:22px;border-radius:5px;border:1px solid #d1d5db;background:#fff;color:#2563eb;font-size:0.8rem;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all 0.12s;flex-shrink:0;line-height:1}
+.tpl-lib-item .tpl-add-btn:hover{background:#2563eb;color:#fff;border-color:#2563eb}
+.tpl-lib-item .tpl-add-btn.added{background:#dcfce7;color:#166534;border-color:#86efac;cursor:default;opacity:0.7}
+.tpl-lib-item .tpl-add-btn.added:hover{background:#dcfce7;color:#166534}
+.tpl-lib-item.used{opacity:0.6}
+.tpl-lib-item .tpl-grp-header{font-size:0.65rem;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.04em;padding:0.5rem 0.25rem 0.25rem}
+
+/* 参数类型按钮 */
+.param-type-btn{display:flex;align-items:center;gap:0.5rem;padding:0.5rem;border-radius:8px;border:1px solid #e2e8f0;background:#fff;cursor:pointer;transition:all 0.15s}
+.param-type-btn:hover{border-color:#93c5fd;background:#f8faff;box-shadow:0 1px 4px rgba(37,99,235,0.06)}
+.param-type-btn:active{transform:scale(0.98)}
+.param-type-btn .tpl-add-btn{pointer-events:none}
+
+/* ── Enhanced Param Cards ── */
+.param-card{border-radius:10px;margin-bottom:0.625rem;background:#fff;border:1px solid #e2e8f0;transition:all 0.2s;overflow:hidden;position:relative}
+.param-card::before{content:'';position:absolute;top:0;left:0;bottom:0;width:3px;transition:width 0.15s}
+.param-card:hover{box-shadow:0 2px 8px rgba(0,0,0,0.06);border-color:#cbd5e1}
+.param-card:hover::before{width:4px}
+.param-card.dragging{opacity:0.5;border-style:dashed}
+.param-card.drag-over{border-top:2px solid #2563eb}
+
+/* Type-specific left borders */
+.param-card.type-number::before{background:#3b82f6}
+.param-card.type-option::before{background:#f59e0b}
+.param-card.type-boolean::before{background:#22c55e}
+.param-card.type-text::before{background:#64748b}
+.param-card.type-multi_option::before{background:#a855f7}
+.param-card.type-long_text::before{background:#ec4899}
+
+.param-card-header{display:flex;align-items:center;gap:0.5rem;padding:0.5rem 0.75rem 0.5rem 0.625rem;cursor:grab;user-select:none;border-bottom:1px solid #f8fafc}
+.param-card-header:active{cursor:grabbing}
+.param-card-header .pc-drag-handle{color:#d1d5db;font-size:0.75rem;cursor:grab;flex-shrink:0}
+.param-card-header .pc-type-icon{width:22px;height:22px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:0.7rem;flex-shrink:0}
+.param-card-header .pc-name{font-size:0.8125rem;font-weight:600;color:#1e293b;flex:1;min-width:0;cursor:text;padding:0.125rem 0.25rem;border-radius:4px;transition:background 0.1s}
+.param-card-header .pc-name:hover{background:#f1f5f9}
+.param-card-header .pc-name[contenteditable="true"]{background:#f8fafc;outline:2px solid #2563eb;outline-offset:-1px}
+
+.param-card-body{padding:0.5rem 0.75rem 0.5rem 0.875rem}
+.param-card-body .pc-row{display:flex;align-items:center;gap:0.5rem;margin-bottom:0.375rem}
+.param-card-body .pc-row:last-child{margin-bottom:0}
+.param-card-body .pc-label{font-size:0.6rem;font-weight:500;color:#94a3b8;text-transform:uppercase;letter-spacing:0.03em;min-width:3rem;flex-shrink:0}
+.param-card-body .pc-value{flex:1;min-width:0}
+.param-card-body .pc-value input[type="number"],.param-card-body .pc-value input[type="text"],.param-card-body .pc-value select{width:100%;padding:0.3125rem 0.5rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.75rem;transition:all 0.12s;background:#fff}
+.param-card-body .pc-value input:focus,.param-card-body .pc-value select:focus{outline:none;border-color:#2563eb;box-shadow:0 0 0 2px rgba(37,99,235,0.1)}
+.param-card-body .pc-value .pc-slider-row{display:flex;align-items:center;gap:0.5rem}
+.param-card-body .pc-value .pc-slider-row input[type="range"]{flex:1;height:4px;appearance:none;background:#e2e8f0;border-radius:2px;outline:none;margin:0}
+.param-card-body .pc-value .pc-slider-row input[type="range"]::-webkit-slider-thumb{appearance:none;width:14px;height:14px;border-radius:50%;background:#2563eb;cursor:pointer;box-shadow:0 1px 3px rgba(37,99,235,0.3)}
+.param-card-body .pc-value .pc-slider-row .pc-slider-val{font-size:0.8125rem;font-weight:600;color:#2563eb;min-width:2.5rem;text-align:right}
+.param-card-body .pc-value .pc-range-inline{display:flex;align-items:center;gap:0.25rem;margin-top:0.25rem;font-size:0.65rem;color:#94a3b8}
+.param-card-body .pc-value .pc-range-inline input{width:4rem;padding:0.1875rem 0.375rem;border:1px solid #e2e8f0;border-radius:4px;font-size:0.65rem;text-align:center}
+.param-card-body .pc-value .pc-range-inline input:focus{outline:none;border-color:#2563eb}
+
+/* Options editor */
+.pc-opts-editor{display:flex;flex-wrap:wrap;gap:0.25rem;margin-top:0.25rem}
+.pc-opts-editor .pc-opt-tag{display:inline-flex;align-items:center;gap:0.25rem;padding:0.125rem 0.375rem;border-radius:4px;font-size:0.625rem;background:#f8fafc;border:1px solid #e2e8f0;color:#475569}
+.pc-opts-editor .pc-opt-tag .pc-opt-del{color:#94a3b8;cursor:pointer;font-size:0.55rem}
+.pc-opts-editor .pc-opt-tag .pc-opt-del:hover{color:#ef4444}
+.pc-opts-editor .pc-opt-add-inline{display:inline-flex;align-items:center;gap:0.125rem;padding:0.125rem 0.375rem;border-radius:4px;font-size:0.625rem;border:1px dashed #d1d5db;color:#94a3b8;cursor:pointer;background:transparent}
+.pc-opts-editor .pc-opt-add-inline:hover{border-color:#93c5fd;color:#2563eb;background:#f8faff}
+.pc-opts-editor .pc-opt-input{width:6rem;padding:0.125rem 0.375rem;border:1px solid #93c5fd;border-radius:4px;font-size:0.625rem;outline:none}
+
+/* Description */
+.pc-desc-editor{font-size:0.625rem;color:#94a3b8;cursor:pointer;display:flex;align-items:center;gap:0.25rem;margin-top:0.375rem;padding:0.125rem;border-radius:4px}
+.pc-desc-editor:hover{color:#2563eb}
+.pc-desc-editor .pc-desc-input{flex:1;padding:0.1875rem 0.375rem;border:1px solid #93c5fd;border-radius:4px;font-size:0.625rem;color:#475569;outline:none;background:#fff}
+
+.param-card-footer{display:flex;align-items:center;gap:0.25rem;padding:0.375rem 0.75rem;border-top:1px solid #f1f5f9}
+.param-card-footer .pc-action-btn{display:inline-flex;align-items:center;gap:0.25rem;padding:0.1875rem 0.5rem;border-radius:5px;font-size:0.65rem;color:#64748b;background:transparent;border:1px solid transparent;cursor:pointer;transition:all 0.12s}
+.param-card-footer .pc-action-btn:hover{background:#f1f5f9;border-color:#e2e8f0;color:#334155}
+.param-card-footer .pc-action-btn.danger:hover{background:#fef2f2;border-color:#fecaca;color:#dc2626}
+.param-card-footer .pc-action-btn.active{color:#2563eb;background:#eff6ff;border-color:#bfdbfe}
+.param-card-footer .pc-toggle-label{font-size:0.625rem;color:#64748b}
+.param-card-footer .toggle-switch{position:relative;width:26px;height:14px;background:#cbd5e1;border-radius:7px;cursor:pointer;transition:all 0.15s;flex-shrink:0}
+.param-card-footer .toggle-switch.on{background:#2563eb}
+.param-card-footer .toggle-switch .toggle-knob{position:absolute;top:2px;left:2px;width:10px;height:10px;background:#fff;border-radius:50%;transition:all 0.15s;box-shadow:0 1px 2px rgba(0,0,0,0.15)}
+.param-card-footer .toggle-switch.on .toggle-knob{left:14px}
+/* Parameter body toggle (boolean default value) */
+.pc-value .toggle-switch{position:relative;width:26px;height:14px;background:#cbd5e1;border-radius:7px;cursor:pointer;transition:all 0.15s;flex-shrink:0}
+.pc-value .toggle-switch.on{background:#2563eb}
+.pc-value .toggle-switch .toggle-knob{position:absolute;top:2px;left:2px;width:10px;height:10px;background:#fff;border-radius:50%;transition:all 0.15s;box-shadow:0 1px 2px rgba(0,0,0,0.15)}
+.pc-value .toggle-switch.on .toggle-knob{left:14px}
+
+
+/* ── Configurator Redesign ── */
+.cfg-layout{display:flex;gap:1rem;align-items:flex-start}
+.cfg-left{flex:0 0 380px;min-width:320px;max-width:420px;position:sticky;top:1rem;align-self:flex-start;max-height:calc(100vh - 7rem);overflow-y:auto;padding-right:0.25rem}
+.cfg-left::-webkit-scrollbar{width:3px}
+.cfg-left::-webkit-scrollbar-thumb{background:#e2e8f0;border-radius:3px}
+.cfg-right{flex:1;min-width:0}
+
+.cfg-param-group{margin-bottom:0.75rem;padding:0.625rem 0.75rem;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;transition:all 0.15s}
+.cfg-param-group:hover{border-color:#cbd5e1}
+.cfg-param-group .cfg-pg-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:0.375rem}
+.cfg-param-group .cfg-pg-name{font-size:0.8125rem;font-weight:500;color:#1e293b}
+.cfg-param-group .cfg-pg-type{font-size:0.6rem;color:#94a3b8;background:#f1f5f9;padding:0.0625rem 0.375rem;border-radius:4px}
+.cfg-param-group .cfg-pg-slider{display:flex;align-items:center;gap:0.5rem}
+.cfg-param-group .cfg-pg-slider input[type="range"]{flex:1;height:5px;appearance:none;background:#e2e8f0;border-radius:3px;outline:none}
+.cfg-param-group .cfg-pg-slider input[type="range"]::-webkit-slider-thumb{appearance:none;width:18px;height:18px;border-radius:50%;background:#3b82f6;cursor:pointer;box-shadow:0 1px 3px rgba(59,130,246,0.3)}
+.cfg-param-group .cfg-pg-slider .cfg-pg-val{font-size:0.875rem;font-weight:600;color:#2563eb;min-width:2.5rem;text-align:right}
+.cfg-param-group .cfg-pg-hint{font-size:0.6rem;color:#94a3b8;margin-top:0.25rem;display:flex;justify-content:space-between}
+.cfg-param-group .cfg-pg-select{width:100%;padding:0.3125rem 0.5rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.75rem;background:#fff}
+.cfg-param-group .cfg-pg-select:focus{outline:none;border-color:#3b82f6}
+.cfg-param-group .cfg-pg-text{width:100%;padding:0.3125rem 0.5rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.75rem;resize:vertical}
+.cfg-param-group .cfg-pg-text:focus{outline:none;border-color:#3b82f6}
+.cfg-param-group .cfg-pg-textarea{width:100%;padding:0.3125rem 0.5rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.75rem;resize:vertical;min-height:3rem;line-height:1.4}
+.cfg-param-group .cfg-pg-textarea:focus{outline:none;border-color:#3b82f6}
+.cfg-param-group .cfg-pg-bool{display:flex;align-items:center;gap:0.5rem}
+.cfg-param-group .cfg-pg-bool .toggle-switch{position:relative;width:32px;height:18px;background:#cbd5e1;border-radius:9px;cursor:pointer;flex-shrink:0;transition:all 0.15s}
+.cfg-param-group .cfg-pg-bool .toggle-switch.on{background:#2563eb}
+.cfg-param-group .cfg-pg-bool .toggle-switch .toggle-knob{position:absolute;top:2px;left:2px;width:14px;height:14px;background:#fff;border-radius:50%;transition:all 0.15s;box-shadow:0 1px 2px rgba(0,0,0,0.15)}
+.cfg-param-group .cfg-pg-bool .toggle-switch.on .toggle-knob{left:16px}
+
+/* Computed values */
+.cfg-computed-summary{padding:0.5rem 0}
+.cfg-computed-row{display:flex;justify-content:space-between;align-items:center;padding:0.25rem 0;font-size:0.75rem;color:#64748b;border-bottom:1px solid #f1f5f9}
+.cfg-computed-row:last-child{border-bottom:none}
+.cfg-computed-row .cfg-cr-value{font-weight:600;color:#1e293b}
+
+/* BOM Tree */
+.cfg-bom-tree{padding:0.25rem 0}
+.cfg-bom-item{display:flex;align-items:center;gap:0.5rem;padding:0.4375rem 0.5rem;border-radius:6px;transition:all 0.1s;font-size:0.75rem;border-bottom:1px solid #f8fafc}
+.cfg-bom-item:hover{background:#f8fafc}
+.cfg-bom-item .cfg-bi-icon{width:24px;height:24px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:0.65rem;flex-shrink:0;background:#f1f5f9;color:#64748b}
+.cfg-bom-item .cfg-bi-name{flex:1;min-width:0;font-weight:500;color:#334155}
+.cfg-bom-item .cfg-bi-qty{font-weight:600;color:#2563eb;min-width:2.5rem;text-align:right;font-size:0.8125rem}
+.cfg-bom-item .cfg-bi-ref{font-size:0.6rem;color:#94a3b8;min-width:3rem;text-align:right}
+.cfg-bom-depth-0{padding-left:0}
+.cfg-bom-depth-1{padding-left:1.25rem}
+.cfg-bom-depth-2{padding-left:2.5rem}
+.cfg-bom-depth-3{padding-left:3.75rem}
+
+/* Cost cards */
+.cfg-cost-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:0.5rem}
+.cfg-cost-card{background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:0.5rem;text-align:center}
+.cfg-cost-card .cfg-cc-label{font-size:0.6rem;color:#6b7280}
+.cfg-cost-card .cfg-cc-val{font-size:1rem;font-weight:700;color:#166534;margin-top:0.125rem}
+.cfg-cost-card.total{background:#eff6ff;border-color:#93c5fd}
+.cfg-cost-card.total .cfg-cc-val{color:#1d4ed8}
+
+/* Saved configs */
+.cfg-saved-list{display:flex;flex-direction:column;gap:0.375rem}
+.cfg-saved-item{padding:0.5rem 0.625rem;border:1px solid #e2e8f0;border-radius:8px;cursor:pointer;transition:all 0.12s;background:#fff}
+.cfg-saved-item:hover{border-color:#93c5fd;box-shadow:0 1px 4px rgba(0,0,0,0.04)}
+.cfg-saved-item .cfg-si-name{font-size:0.75rem;font-weight:500;color:#334155}
+.cfg-saved-item .cfg-si-meta{font-size:0.625rem;color:#94a3b8;margin-top:0.125rem;display:flex;gap:0.75rem}
+.cfg-saved-item .cfg-si-status{font-size:0.55rem;padding:0.0625rem 0.3125rem;border-radius:4px;font-weight:500}
+.cfg-saved-item .cfg-si-status.draft{background:#f1f5f9;color:#475569}
+.cfg-saved-item .cfg-si-status.completed{background:#dcfce7;color:#166534}
+
+/* Empty state inside cfg */
+.cfg-empty{padding:1.5rem 1rem;text-align:center;color:#94a3b8;font-size:0.75rem}
+.cfg-empty .cfg-empty-icon{font-size:1.5rem;margin-bottom:0.375rem}
+
+@media(max-width:1024px){
+  .cfg-layout{flex-direction:column}
+  .cfg-left{flex:none;max-width:none;width:100%;position:static;max-height:none;overflow:visible}
+}
+
+/* Params header */
+.cfg-params-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:0.625rem}
+.cfg-params-header h3{font-size:0.8125rem;font-weight:600;color:#1e293b}
+.cfg-params-header .cfg-ph-count{font-size:0.65rem;color:#94a3b8}
+
+/* ── Rules Cards ── */
+.rule-card-list{display:flex;flex-direction:column;gap:0.5rem}
+.rule-card{background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:0.75rem;transition:all 0.15s}
+.rule-card:hover{border-color:#cbd5e1;box-shadow:0 1px 4px rgba(0,0,0,0.04)}
+.rule-card .rc-header{display:flex;align-items:center;gap:0.5rem}
+.rule-card .rc-icon{width:28px;height:28px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:0.75rem;flex-shrink:0}
+.rule-card .rc-icon.constraint{background:#fef3c7;color:#92400e}
+.rule-card .rc-icon.calculation{background:#dbeafe;color:#1d4ed8}
+.rule-card .rc-icon.visibility{background:#f3e8ff;color:#7c3aed}
+.rule-card .rc-name{flex:1;font-size:0.75rem;font-weight:500;color:#334155}
+.rule-card .rc-type{font-size:0.6rem;padding:0.0625rem 0.375rem;border-radius:4px;font-weight:500;background:#f1f5f9;color:#475569}
+.rule-card .rc-toggle{flex-shrink:0}
+.rule-card .rc-toggle .toggle-switch{width:26px;height:14px}
+.rule-card .rc-toggle .toggle-switch .toggle-knob{width:10px;height:10px}
+.rule-card .rc-toggle .toggle-switch.on .toggle-knob{left:14px}
+.rule-card .rc-body{margin-top:0.5rem;padding-top:0.5rem;border-top:1px solid #f8fafc}
+.rule-card .rc-row{display:flex;align-items:center;gap:0.5rem;margin-bottom:0.25rem;font-size:0.6875rem;color:#64748b}
+.rule-card .rc-row:last-child{margin-bottom:0}
+.rule-card .rc-row .rc-label{font-size:0.6rem;color:#94a3b8;text-transform:uppercase;min-width:2.5rem;flex-shrink:0}
+.rule-card .rc-row .rc-val{font-family:monospace;color:#2563eb}
+.rule-card .rc-actions{display:flex;gap:0.25rem;margin-top:0.5rem;padding-top:0.5rem;border-top:1px solid #f1f5f9}
+.rule-card .rc-actions .btn{padding:0.1875rem 0.5rem;font-size:0.625rem;border-radius:6px}
+.pc-empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:3rem 1rem;color:#94a3b8;text-align:center}
+.pc-empty-state .pc-empty-icon{font-size:2.5rem;margin-bottom:0.5rem}
+.pc-empty-state .pc-empty-title{font-size:0.875rem;font-weight:500;color:#64748b}
+.pc-empty-state .pc-empty-desc{font-size:0.6875rem;color:#94a3b8;margin-top:0.25rem}
+
+@media(max-width:900px){
+  .param-builder{flex-direction:column}
+  .param-builder-left{flex:none;max-width:none;width:100%}
+}
+/* Parametric product styling */
+.product-card.is-parametric{border-color:#a5f3fc;background:linear-gradient(135deg,#f0fdfa 0%,#ecfeff 100%)}
+.product-card.is-parametric:hover{border-color:#22d3ee;box-shadow:0 4px 12px rgba(6,182,212,0.12)}
+.product-card.is-parametric.selected{border-color:#0891b2;background:#ecfeff;box-shadow:0 0 0 2px rgba(8,145,178,0.15)}
+.product-card .product-icon.parametric-icon{background:#ccfbf1;position:relative}
+.product-card .icon-main{display:inline}
+.product-card .icon-lightning{position:absolute;top:-4px;right:-4px;font-size:0.6rem;filter:drop-shadow(0 1px 2px rgba(0,0,0,0.2))}
+.product-card .parametric-badge{position:absolute;top:0.5rem;right:0.5rem;padding:0.0625rem 0.5rem;border-radius:9999px;font-size:0.6rem;font-weight:600;background:#14b8a6;color:#fff}
+
 /* Parameter groups */
 .param-group{margin-bottom:1rem;padding-bottom:0.75rem;border-bottom:1px solid #f1f5f9}
 .param-group:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}
@@ -221,13 +601,40 @@ textarea.input-field{resize:vertical;font-family:monospace;font-size:0.75rem}
 /* Hamburger */
 .hamburger{display:none;background:none;border:none;color:#fff;font-size:1.25rem;cursor:pointer;padding:0.25rem;line-height:1}
 
+/* InvenTree Navigation */
+.inventree-nav{background:#1a1b2e;border-bottom:1px solid #2d2e4a;padding:0 1rem;position:sticky;top:0;z-index:100}
+.nav-inner{display:flex;align-items:center;justify-content:space-between;height:44px;max-width:100%;margin:0 auto}
+.nav-left{display:flex;align-items:center;gap:0.75rem;overflow:hidden}
+.nav-logo{display:flex;align-items:center;gap:0.375rem;text-decoration:none;flex-shrink:0}
+.logo-icon{font-size:1.125rem;color:#6c8aff}
+.logo-text{font-size:0.85rem;font-weight:700;color:#e2e8f0;letter-spacing:0.02em}
+.nav-divider{width:1px;height:24px;background:#2d2e4a;flex-shrink:0}
+.nav-tabs{display:flex;align-items:center;gap:0.125rem;overflow-x:auto;scrollbar-width:none;-ms-overflow-style:none}
+.nav-tabs::-webkit-scrollbar{display:none}
+.nav-tab{display:flex;align-items:center;gap:0.3rem;padding:0.375rem 0.625rem;border-radius:6px;font-size:0.75rem;font-weight:500;color:#94a3b8;text-decoration:none;transition:all 0.12s;white-space:nowrap}
+.nav-tab:hover{background:#2d2e4a;color:#e2e8f0}
+.nav-right{display:flex;align-items:center;gap:0.5rem;flex-shrink:0}
+.nav-instance-name{font-size:0.72rem;color:#64748b;font-weight:500}
+.nav-badge{font-size:0.6rem;padding:0.0625rem 0.375rem;border-radius:4px;background:#2d2e4a;color:#64748b}
+
+/* Responsive */
+@media(max-width:768px){
+  .inventree-nav{padding:0 0.5rem}
+  .nav-tab{padding:0.25rem 0.375rem;font-size:0.68rem;gap:0.15rem}
+  .nav-instance-name{display:none}
+  .nav-badge{display:none}
+  .nav-left{gap:0.375rem}
+}
+
 /* Responsive */
 @media(max-width:768px){
   .sidebar{position:fixed;left:0;top:52px;bottom:36px;z-index:50;transform:translateX(-100%)}
   .sidebar.mobile-open{transform:translateX(0)}
   .sidebar.collapsed{width:220px;min-width:220px}
   .hamburger{display:block}
-  .main-content{padding:1rem}
+  .main-content{padding:1rem;margin-left:0}
+  .param-builder-left{position:static;max-width:none;width:100%;margin-bottom:1rem;max-height:none}
+  .param-builder-right{margin-left:0}
   .steps{gap:0.25rem}
   .step-circle{width:30px;height:30px;font-size:0.7rem}
   .step-line{max-width:30px}
@@ -239,7 +646,32 @@ textarea.input-field{resize:vertical;font-family:monospace;font-size:0.75rem}
 </head>
 <body>
 
-<!-- ===== HEADER ===== -->
+<!-- ===== INVENTREE NAVIGATION BAR ===== -->
+<nav class="inventree-nav">
+  <div class="nav-inner">
+    <div class="nav-left">
+      <a href="/" class="nav-logo">
+        <span class="logo-icon">◈</span>
+        <span class="logo-text">InvenTree</span>
+      </a>
+      <div class="nav-divider"></div>
+      <div class="nav-tabs">
+        <a href="/" class="nav-tab">📊 Dashboard</a>
+        <a href="/part/" class="nav-tab">📦 Parts</a>
+        <a href="/stock/" class="nav-tab">📦 Stock</a>
+        <a href="/manufacturing/" class="nav-tab">🏭 Manufacturing</a>
+        <a href="/purchasing/" class="nav-tab">🛒 Purchasing</a>
+        <a href="/sales/" class="nav-tab">🚚 Sales</a>
+      </div>
+    </div>
+    <div class="nav-right">
+      <span class="nav-instance-name">参数化BOM</span>
+      <span class="nav-badge">v2.0</span>
+    </div>
+  </div>
+</nav>
+
+<!-- ===== PARAMETRIC BOM HEADER ===== -->
 <header class="flex items-center justify-between px-4 py-2 bg-slate-800 text-white shrink-0">
   <div class="flex items-center gap-2">
     <button class="hamburger" id="hamburger-btn" onclick="toggleSidebar()" title="切换侧栏">☰</button>
@@ -247,10 +679,6 @@ textarea.input-field{resize:vertical;font-family:monospace;font-size:0.75rem}
     <span class="text-[10px] bg-white/10 px-1.5 py-0.5 rounded hidden sm:inline">v2.0</span>
   </div>
   <div class="flex items-center gap-3 text-xs">
-    <select id="global-part-select" class="text-[11px] bg-slate-700 text-white border border-slate-600 rounded px-2 py-1 max-w-[200px]" onchange="onGlobalPartChange(this.value)">
-      <option value="">🌐 选择当前产品...</option>
-    </select>
-    <span class="hidden sm:inline text-white/50">|</span>
     <span class="hidden sm:inline text-white/70">admin</span>
     <span class="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center text-xs font-medium">A</span>
   </div>
@@ -265,53 +693,9 @@ textarea.input-field{resize:vertical;font-family:monospace;font-size:0.75rem}
       <div class="sidebar-item active" data-page="dashboard" onclick="switchPage('dashboard')">
         🏠 首页
       </div>
-      <!-- Group: 系统管理 -->
-      <div class="sidebar-group">
-        <div class="sidebar-group-header" onclick="toggleGroup(this)">
-          <span>系统管理</span>
-          <span class="text-[10px]">▾</span>
-        </div>
-        <div class="sidebar-group-body">
-          <div class="sidebar-item" data-page="template-library" onclick="switchPage('template-library')">
-            📦 模板库
-          </div>
-          <div class="sidebar-item" data-page="param-types" onclick="switchPage('param-types')">
-            🔧 参数管理
-          </div>
-        </div>
-      </div>
-      <!-- Group: 产品设置 -->
-      <div class="sidebar-group">
-        <div class="sidebar-group-header" onclick="toggleGroup(this)">
-          <span>产品设置</span>
-          <span class="text-[10px]">▾</span>
-        </div>
-        <div class="sidebar-group-body">
-          <div class="sidebar-item" data-page="bom-formula" onclick="switchPage('bom-formula')">
-            📋 BOM公式
-          </div>
-          <div class="sidebar-item" data-page="rules" onclick="switchPage('rules')">
-            📜 规则
-          </div>
-          <div class="sidebar-item" data-page="inheritance" onclick="switchPage('inheritance')">
-            ⬇️ 继承
-          </div>
-          <div class="sidebar-item" data-page="attributes" onclick="switchPage('attributes')">
-            🏷️ 属性
-          </div>
-        </div>
-      </div>
-      <!-- Group: 日常使用 -->
-      <div class="sidebar-group">
-        <div class="sidebar-group-header" onclick="toggleGroup(this)">
-          <span>日常使用</span>
-          <span class="text-[10px]">▾</span>
-        </div>
-        <div class="sidebar-group-body">
-          <div class="sidebar-item" data-page="configurator" onclick="switchPage('configurator')">
-            🔧 产品配置器
-          </div>
-        </div>
+      <!-- 产品管理（总入口） -->
+      <div class="sidebar-item" data-page="products" onclick="switchPage('products')">
+        🏷️ 产品管理
       </div>
     </div>
     <div class="p-3 text-[10px] text-slate-600 border-t border-slate-700">
@@ -320,48 +704,255 @@ textarea.input-field{resize:vertical;font-family:monospace;font-size:0.75rem}
   </nav>
 
   <!-- Main Content -->
-  <div class="main-content">
+  <div class="main-content" id="main-content">
 
     <!-- ===== PAGE 0: 首页 ===== -->
     <div class="page-panel active" id="page-dashboard">
       <div class="card">
-        <div class="card-header">🏠 首页</div>
+        <div class="card-header flex items-center justify-between">
+          <span>🏠 首页</span>
+          <button class="btn btn-sm btn-success" onclick="createDemoProduct()" id="btn-demo">🚀 一键创建示例产品</button>
+        </div>
         <div id="dashboard-content"><div class="empty-state"><div class="icon">⏳</div><p>加载中...</p></div></div>
       </div>
     </div>
 
-    <!-- ===== PAGE 1: 模板库 ===== -->
-    <div class="page-panel" id="page-template-library">
+    <!-- ===== PAGE: 产品管理 ===== -->
+    <div class="page-panel" id="page-products">
       <div class="card">
-        <div class="card-header">📦 模板库</div>
-        <div class="page-help"><span class="icon">💡</span><span class="text">管理参数模板，将 InvenTree 的参数模板按分类组织，<strong>批量同步</strong>给同类零件。先选分类→再选目标零件→点"同步"，无需逐个配置。</span></div>
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
-          <div>
-            <label class="block text-xs font-medium text-gray-500 mb-1.5">选择产品分类</label>
-            <select class="input-field" id="tpl-category-select" onchange="loadTemplateLibrary(this.value)">
-              <option value="">-- 请选择分类 --</option>
-            </select>
-          </div>
-          <div class="flex items-end gap-2">
-            <div class="flex-1">
-              <label class="block text-xs font-medium text-gray-500 mb-1.5">同步到零件</label>
-              <select class="input-field" id="tpl-sync-part"><option value="">-- 选择零件 --</option></select>
+        <div class="card-header flex items-center justify-between">
+          <span>🏷️ 产品管理</span>
+          <span class="text-xs text-gray-400" id="product-count-badge"></span>
+        </div>
+        <div class="page-help"><span class="icon">💡</span><span class="text">单击产品卡片进入专属<strong>参数化设置页面</strong>，在一个页面内用Tab切换管理<strong>参数</strong>、<strong>BOM公式</strong>、<strong>规则</strong>和<strong>产品配置器</strong>。🔧⚡标识表示已配置参数化的产品。</span></div>
+        <div id="product-grid" class="min-h-[200px]">
+          <div class="empty-state"><div class="icon">⏳</div><p>加载产品列表...</p></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== PAGE: 产品详情（参数化设置） ===== -->
+    <div class="page-panel" id="page-product-detail">
+      <!-- 产品头部 -->
+      <div class="card">
+        <div class="flex items-center gap-3 mb-3">
+          <button class="btn btn-sm btn-secondary" onclick="window.location.href=window.location.pathname" title="返回产品管理">← 返回</button>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2">
+              <h2 class="text-base font-semibold text-gray-800 truncate" id="pd-product-name">—</h2>
+              <span class="text-[10px] text-gray-400" id="pd-product-ipn"></span>
             </div>
-            <button class="btn btn-primary btn-sm" onclick="syncTemplateToPart()" style="margin-bottom:0">同步</button>
+            <p class="text-xs text-gray-500 truncate" id="pd-product-desc"></p>
+          </div>
+          <div class="flex items-center gap-2 shrink-0">
+            <div class="flex items-center gap-1.5" id="save-params-bar">
+              <button class="btn btn-sm btn-success" onclick="saveAllParams()" id="btn-save-params">
+                💾 保存修改
+              </button>
+            </div>
           </div>
         </div>
-        <div id="tpl-actions" style="display:none" class="mb-3">
-          <div class="flex gap-2 items-end">
-            <div class="flex-1">
-              <label class="block text-xs font-medium text-gray-500 mb-1.5">批量分配 (JSON)</label>
-              <textarea class="input-field" id="tpl-bulk-ids" rows="2" placeholder='[{"template_id":1,"default_value":"10"}]'></textarea>
-            </div>
-            <button class="btn btn-warning btn-sm" onclick="bulkAssignTemplates()">批量分配</button>
-          </div>
-          <div id="tpl-sync-result"></div>
+        <!-- Tab 导航 -->
+        <div class="flex gap-0 border-b border-gray-200 mb-4">
+          <button class="pd-tab active" data-tab="params" onclick="switchProductTab('params')">🔧 参数</button>
+          <button class="pd-tab" data-tab="bom" onclick="switchProductTab('bom')">📋 BOM公式</button>
+          <button class="pd-tab" data-tab="rules" onclick="switchProductTab('rules')">📜 规则</button>
+          <button class="pd-tab" data-tab="configurator" onclick="switchProductTab('configurator')">🔧 配置器</button>
         </div>
-        <div id="tpl-results">
-          <div class="empty-state"><div class="icon">📦</div><p>请选择分类以查看模板</p></div>
+      </div>
+
+      <!-- Tab: 参数管理（表单构建器风格：左=组件库，右=编辑画布） -->
+      <div class="pd-tab-content active" id="pd-tab-params">
+        <div class="param-builder">
+          <!-- ===== 左栏：参数类型库 ===== -->
+          <div class="param-builder-left">
+            <div class="card">
+              <div class="card-header flex items-center justify-between">
+                <span>📦 参数类型库</span>
+                <span class="text-xs text-gray-400">单击或拖拽添加</span>
+              </div>
+              <div class="page-help" style="margin-bottom:0.75rem;font-size:0.65rem;">
+                <span class="icon">💡</span>
+                <span class="text">选择一个参数类型，单击或拖拽到画布中直接创建新参数</span>
+              </div>
+              <div id="pd-param-types">
+                <!-- 基础参数类型 -->
+                <div class="param-group-header">📐 基础参数类型</div>
+                <div class="type-lib-grid mb-2">
+                  <div class="type-lib-card type-number" data-type="number" onclick="addIndependentParam('number')" draggable="true" ondragstart="onTypeDragStart(event, 'number')">
+                    <div class="tlc-icon">🔢</div>
+                    <div class="tlc-name">数值参数</div>
+                    <div class="tlc-meta">整数/浮点数<br>支持范围限制</div>
+                    <span class="tlc-badge">驱动</span>
+                  </div>
+                  <div class="type-lib-card type-option" data-type="option" onclick="addIndependentParam('option')" draggable="true" ondragstart="onTypeDragStart(event, 'option')">
+                    <div class="tlc-icon">🔘</div>
+                    <div class="tlc-name">选项参数</div>
+                    <div class="tlc-meta">单选下拉<br>自定义选项值</div>
+                    <span class="tlc-badge">驱动</span>
+                  </div>
+                  <div class="type-lib-card type-boolean" data-type="boolean" onclick="addIndependentParam('boolean')" draggable="true" ondragstart="onTypeDragStart(event, 'boolean')">
+                    <div class="tlc-icon">☑️</div>
+                    <div class="tlc-name">布尔参数</div>
+                    <div class="tlc-meta">是/否开关<br>二选一</div>
+                    <span class="tlc-badge">驱动</span>
+                  </div>
+                  <div class="type-lib-card type-text" data-type="text" onclick="addIndependentParam('text')" draggable="true" ondragstart="onTypeDragStart(event, 'text')">
+                    <div class="tlc-icon">📝</div>
+                    <div class="tlc-name">文本参数</div>
+                    <div class="tlc-meta">单行文本<br>自定义输入</div>
+                    <span class="tlc-badge">驱动</span>
+                  </div>
+                </div>
+                <!-- 高级参数类型 -->
+                <div class="param-group-header">🔬 高级参数类型</div>
+                <div class="type-lib-grid">
+                  <div class="type-lib-card type-multi_option" data-type="multi_option" onclick="addIndependentParam('multi_option')" draggable="true" ondragstart="onTypeDragStart(event, 'multi_option')">
+                    <div class="tlc-icon">☑️</div>
+                    <div class="tlc-name">多选参数</div>
+                    <div class="tlc-meta">多选复选框<br>组合选项值</div>
+                    <span class="tlc-badge">高级</span>
+                  </div>
+                  <div class="type-lib-card type-long_text" data-type="long_text" onclick="addIndependentParam('long_text')" draggable="true" ondragstart="onTypeDragStart(event, 'long_text')">
+                    <div class="tlc-icon">📄</div>
+                    <div class="tlc-name">长文本参数</div>
+                    <div class="tlc-meta">多行文本<br>详细描述</div>
+                    <span class="tlc-badge">高级</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <!-- ===== 右栏：参数编辑画布 ===== -->
+          <div class="param-builder-right">
+            <div class="card">
+              <div class="card-header flex items-center justify-between">
+                <span>🔧 参数编辑画布 <span class="text-xs text-gray-400" id="pd-param-count"></span></span>
+              </div>
+              <div id="pd-params-canvas">
+                <div class="empty-state"><div class="icon">🔧</div><p>选择产品后加载参数列表</p></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab: BOM公式 -->
+      <div class="pd-tab-content" id="pd-tab-bom">
+        <div class="card" style="padding:0.75rem">
+          <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center gap-2">
+              <span class="text-sm font-semibold text-slate-800">📋 BOM公式配置</span>
+              <span class="text-xs text-slate-400" id="bom-count-badge"></span>
+            </div>
+            <div class="flex items-center gap-2">
+              <button class="btn btn-sm btn-primary text-[10px]" onclick="openAddBomItemModal()">➕ 添加BOM项</button>
+              <button class="btn btn-sm btn-outline-primary text-[10px]" onclick="loadPdBOMM()">🔄 刷新</button>
+            </div>
+          </div>
+          <div class="page-help" style="margin-bottom:0.75rem;font-size:0.65rem">
+            <span class="icon">💡</span>
+            <span class="text">BOM公式为已有的BOM项配置<strong>参数化模式</strong>（数量公式、条件包含等）。BOM项本身需要在InvenTree的<strong>产品→BOM</strong>中添加，这里只能配置公式。点击「✏️ 配置」打开公式编辑器。</span>
+          </div>
+          <div id="pd-bom-list">
+            <div class="flex items-center justify-center py-6"><span class="spinner mr-2"></span><span class="text-sm text-gray-400">加载中...</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab: 规则 -->
+      <div class="pd-tab-content" id="pd-tab-rules">
+        <div class="card" style="padding:0.75rem">
+          <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center gap-2">
+              <span class="text-sm font-semibold text-slate-800">📜 规则</span>
+              <span class="text-xs text-slate-400" id="rule-count-badge"></span>
+            </div>
+            <button class="btn btn-sm btn-primary" onclick="openAddRuleModal(null, configuratorPartId)">➕ 新增规则</button>
+          </div>
+          <div class="page-help" style="margin-bottom:0.75rem;font-size:0.65rem">
+            <span class="icon">💡</span>
+            <span class="text">配置<strong>约束规则</strong>：条件驱动（如 长度>8000 → 需加强框架）、自动计算、可见性控制。单击切换启用/禁用。</span>
+          </div>
+          <div id="pd-rules-list" class="rule-card-list">
+            <div class="flex items-center justify-center py-6"><span class="spinner mr-2"></span><span class="text-sm text-gray-400">加载中...</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab: 配置器 -->
+      <div class="pd-tab-content" id="pd-tab-configurator">
+        <!-- Top actions bar -->
+        <div class="card" style="margin-bottom:0.75rem;padding:0.625rem 1rem">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <span class="font-semibold text-sm text-slate-800">🔧 产品配置器</span>
+              <span class="text-xs text-slate-400" id="cfg-status-dot">● 就绪</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <button class="btn btn-sm btn-outline-primary" onclick="cfgResetParams()" title="恢复默认值">↩️ 重置</button>
+              <button class="btn btn-sm btn-success" onclick="cfgSaveConfig()">💾 保存配置</button>
+              <button class="btn btn-sm btn-primary" onclick="cfgGenerateVariant()">🧬 生成变体</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Two-column layout -->
+        <div class="cfg-layout">
+          <!-- LEFT: Parameter controls + computed + cost -->
+          <div class="cfg-left">
+            <div class="card" style="padding:0.75rem">
+              <div class="cfg-params-header">
+                <h3>🔢 参数设置</h3>
+                <span class="cfg-ph-count" id="cfg-param-count">—</span>
+              </div>
+              <div id="cfg-params-container"><div class="cfg-empty"><div class="cfg-empty-icon">⏳</div>加载参数中...</div></div>
+
+              <!-- Computed values -->
+              <div id="cfg-computed-card" style="display:none;margin-top:0.75rem;padding-top:0.75rem;border-top:1px solid #e2e8f0">
+                <div class="flex items-center gap-1.5 mb-2">
+                  <span class="text-xs font-semibold text-slate-500">📊 计算参数</span>
+                </div>
+                <div class="cfg-computed-summary" id="cfg-computed-list"></div>
+              </div>
+
+              <!-- Cost estimate -->
+              <div id="cfg-cost-card" style="display:none;margin-top:0.75rem;padding-top:0.75rem;border-top:1px solid #e2e8f0">
+                <div class="flex items-center justify-between mb-2">
+                  <span class="text-xs font-semibold text-slate-500">💰 成本估算</span>
+                  <button class="btn btn-sm btn-outline-primary text-[10px] px-1.5 py-0.5" onclick="cfgEstimateCost()">重新计算</button>
+                </div>
+                <div class="cfg-cost-grid" id="cfg-cost-grid">
+                  <div class="cfg-cost-card"><div class="cfg-cc-label">材料成本</div><div class="cfg-cc-val" id="cfg-cost-material">—</div></div>
+                  <div class="cfg-cost-card"><div class="cfg-cc-label">加工成本</div><div class="cfg-cc-val" id="cfg-cost-labor">—</div></div>
+                  <div class="cfg-cost-card total"><div class="cfg-cc-label">总成本</div><div class="cfg-cc-val" id="cfg-cost-total">—</div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- RIGHT: BOM preview + saved configs -->
+          <div class="cfg-right">
+            <div class="card" style="padding:0.75rem">
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-xs font-semibold text-slate-500">🌳 BOM展开</span>
+                <button class="btn btn-sm btn-outline-primary text-[10px] px-1.5 py-0.5" onclick="cfgExpandBOM()">重新计算</button>
+              </div>
+              <div id="cfg-bom-preview" class="cfg-bom-tree">
+                <div class="cfg-empty"><div class="cfg-empty-icon">📋</div>调参数后自动展开BOM</div>
+              </div>
+            </div>
+
+            <div class="card" style="padding:0.75rem;margin-top:0.75rem">
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-xs font-semibold text-slate-500">📁 已有配置</span>
+                <span class="text-[10px] text-slate-400" id="cfg-config-count">0</span>
+              </div>
+              <div id="cfg-configs-list" class="cfg-saved-list">
+                <div class="cfg-empty"><div class="cfg-empty-icon">📁</div>暂无保存的配置</div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -704,15 +1295,13 @@ textarea.input-field{resize:vertical;font-family:monospace;font-size:0.75rem}
 <div class="modal-overlay" id="modal-add-param">
   <div class="modal-box" style="max-width:640px">
     <h3 class="text-base font-semibold text-gray-800 mb-4">➕ 新增参数配置</h3>
-    <div class="grid grid-cols-2 gap-3 mb-3">
-      <div>
-        <label class="block text-xs font-medium text-gray-500 mb-1">零件</label>
-        <select class="input-field" id="ap-part"><option value="">-- 请选择 --</option></select>
-      </div>
-      <div>
-        <label class="block text-xs font-medium text-gray-500 mb-1">参数模板</label>
-        <select class="input-field" id="ap-template" onchange="onAddParamTemplateChange()"><option value="">-- 请选择 --</option></select>
-      </div>
+    <div class="mb-3 p-2 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-700" id="ap-product-info">
+      产品: <strong id="ap-product-name-display">—</strong>
+      <input type="hidden" id="ap-part" value="">
+    </div>
+    <div class="mb-3">
+      <label class="block text-xs font-medium text-gray-500 mb-1">参数模板</label>
+      <select class="input-field" id="ap-template" onchange="onAddParamTemplateChange()"><option value="">-- 请选择 --</option></select>
     </div>
     <div class="mb-3">
       <label class="block text-xs font-medium text-gray-500 mb-1">参数类型</label>
@@ -730,7 +1319,7 @@ textarea.input-field{resize:vertical;font-family:monospace;font-size:0.75rem}
     <!-- Type-conditional fields -->
     <div id="ap-type-fields">
       <!-- Default: number -->
-      <div class="grid grid-cols-3 gap-2 mb-3">
+      <div class="grid grid-cols-4 gap-2 mb-3">
         <div>
           <label class="block text-xs font-medium text-gray-500 mb-1">默认值</label>
           <input class="input-field" id="ap-default" placeholder="默认值">
@@ -742,6 +1331,10 @@ textarea.input-field{resize:vertical;font-family:monospace;font-size:0.75rem}
         <div>
           <label class="block text-xs font-medium text-gray-500 mb-1">最大值</label>
           <input class="input-field" id="ap-max" type="number" placeholder="最大">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-gray-500 mb-1">步长</label>
+          <input class="input-field" id="ap-step" type="number" step="0.01" placeholder="步长">
         </div>
       </div>
       <!-- Options (hidden by default, shown for option/multi_option) -->
@@ -773,8 +1366,73 @@ textarea.input-field{resize:vertical;font-family:monospace;font-size:0.75rem}
       <input class="input-field" id="ap-formula" placeholder="例如: param.载重 * param.速度 / 0.85">
     </div>
     <div class="flex justify-end gap-2">
-      <button class="btn btn-secondary" onclick="closeModal('modal-add-param')">取消</button>
-      <button class="btn btn-primary" onclick="createParamConfig()">创建</button>
+      <button class="btn btn-secondary" onclick="cancelAddParamModal()">取消</button>
+      <button class="btn btn-primary" id="modal-add-param-submit" onclick="createParamConfig()">创建</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODAL: Quick Add Param (双击/拖拽) ===== -->
+<div class="modal-overlay" id="modal-quick-param">
+  <div class="modal-box" style="max-width:420px">
+    <div class="flex items-center justify-between mb-3">
+      <h3 class="text-sm font-semibold text-gray-800">⚡ 添加参数: <span id="qp-name" class="text-blue-600"></span></h3>
+      <button class="text-gray-400 hover:text-gray-600 text-lg leading-none" onclick="closeModal('modal-quick-param')">&times;</button>
+    </div>
+    <input type="hidden" id="qp-tpl-id" value="">
+    <div class="mb-3">
+      <label class="block text-xs font-medium text-gray-500 mb-1.5">参数类型</label>
+      <select class="input-field" id="qp-type" onchange="onQuickParamTypeChange()">
+        <option value="number">数值 (Number)</option>
+        <option value="option">选项 (Option)</option>
+        <option value="multi_option">多选项 (Multi Option)</option>
+        <option value="boolean">布尔 (Boolean)</option>
+        <option value="text">文本 (Text)</option>
+        <option value="long_text">长文本 (Long Text)</option>
+        <option value="file_ref">文件引用 (File Ref)</option>
+        <option value="part_ref">零件引用 (Part Ref)</option>
+      </select>
+    </div>
+    <div class="grid grid-cols-4 gap-2 mb-3" id="qp-num-fields">
+      <div>
+        <label class="block text-xs font-medium text-gray-500 mb-1">默认值</label>
+        <input class="input-field" id="qp-default" placeholder="默认值">
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-gray-500 mb-1">最小值</label>
+        <input class="input-field" id="qp-min" type="number" placeholder="最小">
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-gray-500 mb-1">最大值</label>
+        <input class="input-field" id="qp-max" type="number" placeholder="最大">
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-gray-500 mb-1">步长</label>
+        <input class="input-field" id="qp-step" type="number" step="0.01" placeholder="步长">
+      </div>
+    </div>
+    <div class="mb-3" id="qp-options-group" style="display:none">
+      <label class="block text-xs font-medium text-gray-500 mb-1">选项 (逗号分隔)</label>
+      <input class="input-field" id="qp-options" placeholder="例如: 红色,蓝色,绿色">
+    </div>
+    <div class="mb-3" id="qp-boolean-group" style="display:none">
+      <label class="block text-xs font-medium text-gray-500 mb-1">默认值</label>
+      <select class="input-field" id="qp-boolean-default">
+        <option value="true">是 (True)</option>
+        <option value="false">否 (False)</option>
+      </select>
+    </div>
+    <div class="flex items-center gap-3 mb-3">
+      <label class="flex items-center gap-1.5 text-xs text-gray-600"><input type="checkbox" id="qp-driving" checked> 驱动参数</label>
+      <label class="flex items-center gap-1.5 text-xs text-gray-600"><input type="checkbox" id="qp-computed" onchange="document.getElementById('qp-formula-group').style.display=this.checked?'block':'none'"> 计算参数</label>
+    </div>
+    <div class="mb-3" id="qp-formula-group" style="display:none">
+      <label class="block text-xs font-medium text-gray-500 mb-1">计算公式</label>
+      <input class="input-field" id="qp-formula" placeholder="例如: param.载重 * param.速度 / 0.85">
+    </div>
+    <div class="flex justify-end gap-2">
+      <button class="btn btn-secondary" onclick="closeModal('modal-quick-param')">取消</button>
+      <button class="btn btn-primary" onclick="quickAddParam()">确定添加</button>
     </div>
   </div>
 </div>
@@ -842,6 +1500,33 @@ textarea.input-field{resize:vertical;font-family:monospace;font-size:0.75rem}
   </div>
 </div>
 
+<!-- ===== MODAL: Add BOM Item ===== -->
+<div class="modal-overlay" id="modal-add-bom">
+  <div class="modal-box" style="max-width:480px">
+    <h3 class="text-base font-semibold text-gray-800 mb-4">➕ 添加BOM子件</h3>
+    <div class="mb-3">
+      <label class="block text-xs font-medium text-gray-500 mb-1">当前产品</label>
+      <div class="text-sm font-medium text-slate-700" id="ab-product-name">—</div>
+    </div>
+    <div class="mb-3">
+      <label class="block text-xs font-medium text-gray-500 mb-1">选择子件</label>
+      <input class="input-field mb-1.5" id="ab-search" type="text" placeholder="🔍 搜索零件名称..." oninput="filterAbParts(this.value)">
+      <select class="input-field" id="ab-sub-part" size="6">
+        <option value="">-- 请选择零件 --</option>
+      </select>
+      <div class="text-[10px] text-slate-400 mt-1" id="ab-search-count"></div>
+    </div>
+    <div class="mb-3">
+      <label class="block text-xs font-medium text-gray-500 mb-1">数量</label>
+      <input class="input-field" id="ab-qty" type="number" value="1" min="0.001" step="1">
+    </div>
+    <div class="flex justify-end gap-2">
+      <button class="btn btn-secondary" onclick="closeModal('modal-add-bom')">取消</button>
+      <button class="btn btn-primary" onclick="createBomItem()">添加</button>
+    </div>
+  </div>
+</div>
+
 <!-- ===== MODAL: Cost Detail ===== -->
 <div class="modal-overlay" id="modal-cost">
   <div class="modal-box">
@@ -866,14 +1551,18 @@ let currentCostResult = null;
 let configs = [];
 let selectedConfigId = null;
 let savedConfigId = null;
-let templateCategories = [];
-let selectedTemplateCategoryId = null;
 let currentStep = 1;
 let configuratorPartId = null;
+let initialProductId = {% if initial_product_id %}{{ initial_product_id }}{% else %}null{% endif %};
 
 // ===== API HELPER =====
 async function apiCall(method, endpoint, body, opts = {}) {
-  const url = `/api/parametric-bom/${endpoint}`;
+  // Add cache busting for GET requests
+  let url = `/api/parametric-bom/${endpoint}`;
+  if (method === 'GET') {
+    const separator = url.includes('?') ? '&' : '?';
+    url += `${separator}_t=${Date.now()}`;
+  }
   const options = {
     method,
     headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken()},
@@ -884,9 +1573,18 @@ async function apiCall(method, endpoint, body, opts = {}) {
   setStatus('loading', '请求中...');
   try {
     const resp = await fetch(url, options);
-    const data = await resp.json();
+    // Handle 204 No Content (e.g. DELETE) — no body to parse
+    let data = {};
+    if (resp.status !== 204) {
+      try {
+        data = await resp.json();
+      } catch (parseErr) {
+        // Non-JSON response, keep data as empty object
+      }
+    }
     if (!resp.ok) {
-      setStatus('error', `错误 ${resp.status}: ${data.error || data.detail || JSON.stringify(data).substring(0,120)}`);
+      const errMsg = data.error || data.detail || (typeof data === 'object' ? JSON.stringify(data).substring(0,120) : String(data));
+      setStatus('error', `错误 ${resp.status}: ${errMsg}`);
       return {error: true, status: resp.status, data};
     }
     setStatus('success', '请求成功');
@@ -916,7 +1614,13 @@ function setStatus(type, msg) {
 // ===== SIDEBAR NAVIGATION =====
 function toggleSidebar() {
   const sidebar = document.getElementById('sidebar');
-  sidebar.classList.toggle('mobile-open');
+  const mainContent = document.getElementById('main-content');
+  if (window.innerWidth <= 768) {
+    sidebar.classList.toggle('mobile-open');
+  } else {
+    sidebar.classList.toggle('collapsed');
+    mainContent.classList.toggle('sidebar-collapsed');
+  }
 }
 
 function switchPage(page) {
@@ -933,6 +1637,17 @@ function switchPage(page) {
   document.getElementById('sidebar').classList.remove('mobile-open');
   // Scroll top
   window.scrollTo({top: 0, behavior: 'smooth'});
+  
+  // Auto-load data if a product is active and we navigated to a product-specific page
+  if (configuratorPartId) {
+    if (page === 'param-types') loadParamConfigs(configuratorPartId);
+    else if (page === 'bom-formula') loadBomFormulaConfigs(configuratorPartId);
+    else if (page === 'rules') loadRules(configuratorPartId);
+    else if (page === 'inheritance') loadInheritanceMappings(configuratorPartId);
+    else if (page === 'attributes') loadAttributeFormulas(configuratorPartId);
+    else if (page === 'configurator') onGlobalPartChange(configuratorPartId);
+    else if (page === 'product-detail') { if (!document.querySelector('#page-product-detail .pd-tab-content.active')) switchProductTab('params'); }
+  }
 }
 
 function toggleGroup(header) {
@@ -1024,6 +1739,1638 @@ async function loadParts() {
     });
     if (currentVal) sel.value = currentVal;
   });
+  // Render product management grid
+  renderProductGrid();
+}
+
+// ===== PRODUCT MANAGEMENT =====
+async function renderProductGrid() {
+  const grid = document.getElementById('product-grid');
+  if (!grid) return;
+  
+  if (!parts || parts.length === 0) {
+    grid.innerHTML = '<div class=\"empty-state\"><div class=\"icon\">📦</div><p>暂无产品</p></div>';
+    document.getElementById('product-count-badge').textContent = '';
+    return;
+  }
+  
+  // Fetch parametric config data
+  const [paramRes, bomRes, ruleRes] = await Promise.all([
+    apiCall('GET', 'part-config/'),
+    apiCall('GET', 'bom-item-config/'),
+    apiCall('GET', 'rules/'),
+  ]);
+  
+  // Build a map: partId → { paramCount, bomCount, ruleCount, isParametric }
+  const configMap = {};
+  
+  const paramCfgs = paramRes.error ? [] : (paramRes.data.results || paramRes.data || []);
+  paramCfgs.forEach(c => {
+    const pid = c.part;
+    if (!configMap[pid]) configMap[pid] = { paramCount: 0, bomCount: 0, ruleCount: 0 };
+    configMap[pid].paramCount = (configMap[pid].paramCount || 0) + 1;
+  });
+  
+  const bomCfgs = bomRes.error ? [] : (bomRes.data.results || bomRes.data || []);
+  bomCfgs.forEach(c => {
+    const pid = c.bom_item ? (c.part || c.bom_item_part || 0) : 0;
+    // Try to get part id from bom_item reference - we'll track by bom_item.part
+  });
+  
+  const ruleCfgs = ruleRes.error ? [] : (ruleRes.data.results || ruleRes.data || []);
+  ruleCfgs.forEach(c => {
+    const pid = c.product_part;
+    if (!configMap[pid]) configMap[pid] = { paramCount: 0, bomCount: 0, ruleCount: 0 };
+    configMap[pid].ruleCount = (configMap[pid].ruleCount || 0) + 1;
+  });
+  
+  // Count products with any parametric config
+  let withConfigCount = 0;
+  parts.forEach(p => {
+    if (configMap[p.pk] && (configMap[p.pk].paramCount > 0 || configMap[p.pk].ruleCount > 0)) {
+      withConfigCount++;
+    }
+  });
+  
+  document.getElementById('product-count-badge').textContent = `共 ${parts.length} 个产品（${withConfigCount} 个已参数化）`;
+  
+  let html = '<div class=\"grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3\">';
+  parts.forEach(p => {
+    const name = p.name || p.full_name || 'Unnamed';
+    const isActive = configuratorPartId === p.pk;
+    const cfg = configMap[p.pk] || { paramCount: 0, bomCount: 0, ruleCount: 0 };
+    const isParametric = cfg.paramCount > 0 || cfg.ruleCount > 0;
+    const ipn = p.IPN || p.ipn || '';
+    const description = p.description || '';
+    
+    html += `<div class="product-card ${isActive ? 'selected' : ''} ${isParametric ? 'is-parametric' : ''}" onclick="window.location.href='?product=${p.pk}'">
+      <div class="flex items-start gap-3">
+        <div class="product-icon ${isParametric ? 'parametric-icon' : ''}">
+          <span class="icon-main">${isParametric ? '🔧' : '⚙️'}</span>
+          ${isParametric ? '<span class="icon-lightning">⚡</span>' : ''}
+        </div>
+        <div class="flex-1 min-w-0">
+          <div class="product-name">${name}</div>
+          ${ipn ? `<div class="product-ipn">${ipn}</div>` : ''}
+          ${description ? `<div class="product-desc">${description.substring(0, 60)}${description.length > 60 ? '...' : ''}</div>` : ''}
+        </div>
+        ${isActive ? '<div class="active-badge">当前</div>' : ''}
+        ${isParametric && !isActive ? '<div class="parametric-badge">参数化</div>' : ''}
+      </div>
+      <div class="product-meta">
+        <span class="product-stat">📐 ${cfg.paramCount} 参数</span>
+        ${cfg.ruleCount > 0 ? `<span class="product-stat">📜 ${cfg.ruleCount} 规则</span>` : ''}
+      </div>
+    </div>`;
+  });
+  html += '</div>';
+  grid.innerHTML = html;
+}
+
+function selectActiveProduct(partId, partName) {
+  if (configuratorPartId === partId) {
+    // Already selected, just open detail page
+    loadProductDetail(partId);
+    switchPage('product-detail');
+    return;
+  }
+  
+  configuratorPartId = partId;
+  
+  // Update part selectors on all pages
+  const selectors = ['cfg-part-select', 'pm-part-select', 'bom-part-select', 'rule-part-select'];
+  selectors.forEach(id => {
+    const sel = document.getElementById(id);
+    if (sel) { sel.value = partId; }
+  });
+  
+  // Open product detail page
+  renderProductGrid();
+  loadProductDetail(partId);
+  switchPage('product-detail');
+  setStatus('success', `已打开: ${partName}`);
+}
+
+// ===== PRODUCT DETAIL PAGE =====
+function switchProductTab(tab) {
+  // Update tab buttons
+  document.querySelectorAll('.pd-tab').forEach(el => el.classList.remove('active'));
+  document.querySelector(`.pd-tab[data-tab="${tab}"]`)?.classList.add('active');
+  // Update content
+  document.querySelectorAll('.pd-tab-content').forEach(el => el.classList.remove('active'));
+  document.getElementById(`pd-tab-${tab}`)?.classList.add('active');
+  // Load data for this tab
+  if (!configuratorPartId) return;
+  if (tab === 'params') loadPdParams();
+  else if (tab === 'bom') loadPdBOMM();
+  else if (tab === 'rules') loadPdRules();
+  else if (tab === 'configurator') loadPdConfigurator();
+}
+
+async function loadProductDetail(partId) {
+  if (!partId) return;
+  const part = parts.find(p => p.pk == partId);
+  if (part) {
+    document.getElementById('pd-product-name').textContent = part.name || part.full_name || '—';
+    document.getElementById('pd-product-ipn').textContent = part.IPN || part.ipn || '';
+    document.getElementById('pd-product-desc').textContent = part.description || '';
+  }
+  // Load first tab
+  switchProductTab('params');
+}
+
+// ── Dirty tracking for Save/Cancel ──
+let __dirtyUpdates = {}; // {configId: {field: newValue, ...}}
+let __hasDirty = false;
+
+function markDirty(cfgId, updates) {
+  if (!__dirtyUpdates[cfgId]) __dirtyUpdates[cfgId] = {};
+  Object.assign(__dirtyUpdates[cfgId], updates);
+  __hasDirty = true;
+  showDirtyButtons();
+}
+
+function clearDirty() {
+  __dirtyUpdates = {};
+  __hasDirty = false;
+  showDirtyButtons();
+}
+
+function showDirtyButtons() {
+  // Save button is always visible, no show/hide needed
+}
+
+async function saveAllParams() {
+  const entries = Object.entries(__dirtyUpdates);
+  if (!entries.length) {
+    setStatus('info', '💡 当前没有需要保存的修改');
+    return;
+  }
+
+  const btn = document.getElementById('btn-save-params');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ 保存中...'; }
+
+  setStatus('loading', `正在保存 ${entries.length} 项修改...`);
+  let success = 0, fail = 0;
+
+  for (const [cfgId, updates] of entries) {
+    const res = await apiCall('PATCH', `part-config/${cfgId}/`, updates);
+    if (!res.error) success++;
+    else fail++;
+  }
+
+  if (btn) { btn.disabled = false; btn.textContent = '💾 保存修改'; }
+
+  if (fail === 0) {
+    setStatus('success', `✅ 全部 ${success} 项修改已保存`);
+  } else {
+    setStatus('warning', `已保存 ${success} 项，${fail} 项失败`);
+  }
+
+  clearDirty();
+  // Wait a moment then reload data
+  await new Promise(r => setTimeout(r, 100));
+  await loadPdParams();
+}
+
+function cancelAllParams() {
+  if (__hasDirty && !confirm('有未保存的修改，确定要取消吗？')) return;
+  clearDirty();
+  loadPdParams();
+}
+
+async function loadPdParams() {
+  const pid = configuratorPartId;
+  if (!pid) return;
+  const container = document.getElementById('pd-params-canvas');
+  const countBadge = document.getElementById('pd-param-count');
+  container.innerHTML = '<div class="flex items-center justify-center py-3"><span class="spinner mr-2"></span><span class="text-sm text-gray-400">加载中...</span></div>';
+
+  const res = await apiCall('GET', `part-config/?part=${parseInt(pid)}`);
+  if (res.error) { container.innerHTML = '<div class="text-red-500 text-sm p-3">❌ 加载失败</div>'; return; }
+  const configs = res.data.results || (Array.isArray(res.data) ? res.data : []);
+  
+  window.__paramConfigs = configs;
+  window.__currentPartId = pid;
+  
+  const sorted = (configs || []).sort((a,b) => (a.display_order||0) - (b.display_order||0));
+  
+  if (!sorted.length) {
+    if (countBadge) countBadge.textContent = '0 个参数';
+    container.innerHTML = `<div class="pc-empty-state">
+      <div class="pc-empty-icon">🎨</div>
+      <div class="pc-empty-title">画布为空</div>
+      <div class="pc-empty-desc">从左栏组件库单击或拖拽添加参数</div>
+    </div>`;
+    renderPdTemplateList();
+    return;
+  }
+  
+  if (countBadge) countBadge.textContent = `${sorted.length} 个参数`;
+  
+  let html = '';
+  sorted.forEach((cfg, idx) => {
+    html += renderParamCard(cfg, idx);
+  });
+  container.innerHTML = html;
+  
+  // No template list needed — types are static
+}
+
+// Template list rendering is replaced by type buttons
+function renderPdTemplateList() {}
+
+function renderParamCard(cfg, idx) {
+  const type = cfg.parameter_type || 'number';
+  const safeName = (cfg.name||'参数').replace(/'/g, "\\'");
+  const cfgId = cfg.id;
+  const typeLabels = {number:'数值', option:'选项', multi_option:'多选', boolean:'布尔', text:'文本', long_text:'长文本'};
+  const typeLabel = typeLabels[type] || type;
+  const defVal = cfg.default_value != null ? cfg.default_value : '';
+  
+  const typeIconMap = {number:'🔢', option:'🔘', multi_option:'☑️', boolean:'☑️', text:'📝', long_text:'📄'};
+  const icon = typeIconMap[type] || '🔢';
+  
+  // ── Input control (row 1: default value) ──
+  let inputHtml = '';
+  
+  if (type === 'number') {
+    const min = cfg.min_value != null ? parseFloat(cfg.min_value) : 0;
+    const max = cfg.max_value != null ? parseFloat(cfg.max_value) : 10000;
+    const step = cfg.step_value != null ? parseFloat(cfg.step_value) : (max - min > 100 ? 1 : 0.1);
+    const val = defVal || min;
+    inputHtml = `<div class="pc-value">
+      <div class="pc-slider-row">
+        <input type="range" min="${min}" max="${max}" step="${step}" value="${val}"
+          oninput="document.getElementById('pc-slider-val-${cfgId}').textContent=this.value; markDirty(${cfgId},{default_value:String(this.value)})"
+          onchange="markDirty(${cfgId},{default_value:String(this.value)})">
+        <span class="pc-slider-val" id="pc-slider-val-${cfgId}">${val}</span>
+      </div>
+      <div class="pc-range-inline">
+        <span>范围</span>
+        <input type="number" value="${min}" placeholder="最小值"
+          onchange="markDirty(${cfgId},{min_value:this.value}); showDirtyButtons()">
+        <span>~</span>
+        <input type="number" value="${max}" placeholder="最大值"
+          onchange="markDirty(${cfgId},{max_value:this.value}); showDirtyButtons()">
+        <span class="ml-1">步长</span>
+        <input type="number" value="${cfg.step_value != null ? cfg.step_value : ''}" step="0.01" placeholder="自动"
+          style="width:60px;padding:0.125rem 0.25rem;font-size:0.65rem"
+          onchange="markDirty(${cfgId},{step_value:this.value||null}); showDirtyButtons()">
+      </div>
+    </div>`;
+    
+  } else if (type === 'option') {
+    const opts = cfg.options ? (Array.isArray(cfg.options) ? cfg.options : []) : [];
+    inputHtml = `<div class="pc-value">
+      <select onchange="markDirty(${cfgId},{default_value:this.value}); showDirtyButtons()">
+        <option value="">-- 请选择 --</option>
+        ${opts.map(o => `<option value="${o}"${o === defVal ? ' selected' : ''}>${o}</option>`).join('')}
+      </select>
+      <div class="pc-opts-editor" id="pc-opts-${cfgId}">
+        ${opts.map(o => `<span class="pc-opt-tag">${o}<span class="pc-opt-del" onclick="removeOption(${cfgId},'${o.replace(/'/g,"\\'")}')">✕</span></span>`).join('')}
+        <span class="pc-opt-add-inline" onclick="startAddOption(${cfgId})">➕ 选项</span>
+      </div>
+    </div>`;
+    
+  } else if (type === 'multi_option') {
+    const opts = cfg.options ? (Array.isArray(cfg.options) ? cfg.options : []) : [];
+    const selected = defVal ? defVal.split(',') : [];
+    inputHtml = `<div class="pc-value">
+      <div class="pc-opts-editor" style="margin-bottom:0.25rem">
+        ${opts.map(o => `<label class="flex items-center gap-1 text-xs cursor-pointer" style="padding:2px 6px;border:1px solid #e2e8f0;border-radius:4px;background:${selected.includes(o)?'#dbeafe':'#fff'}">
+          <input type="checkbox" value="${o}" ${selected.includes(o)?'checked':''}
+            onchange="updateMultiDefault(${cfgId}, '${cfgId}')" data-multi-${cfgId}>
+          <span>${o}</span>
+        </label>`).join('')}
+      </div>
+      <div class="pc-opts-editor">
+        ${opts.map(o => `<span class="pc-opt-tag">${o}<span class="pc-opt-del" onclick="removeOption(${cfgId},'${o.replace(/'/g,"\\'")}')">✕</span></span>`).join('')}
+        <span class="pc-opt-add-inline" onclick="startAddOption(${cfgId})">➕ 选项</span>
+      </div>
+    </div>`;
+    
+  } else if (type === 'boolean') {
+    const isTrue = defVal === 'true' || defVal === true || defVal === '1';
+    inputHtml = `<div class="pc-value">
+      <div class="flex items-center gap-2">
+        <div class="toggle-switch ${isTrue ? 'on' : ''}"
+          onclick="toggleBooleanParam(${cfgId}, this)">
+          <div class="toggle-knob"></div>
+        </div>
+        <span class="text-xs bool-label" style="color:#64748b">${isTrue ? '是' : '否'}</span>
+      </div>
+    </div>`;
+    
+  } else if (type === 'long_text') {
+    inputHtml = `<div class="pc-value">
+      <textarea class="input-field" rows="2" placeholder="输入${safeName}"
+        onchange="markDirty(${cfgId},{default_value:this.value}); showDirtyButtons()"
+        style="font-size:0.7rem;padding:0.3125rem 0.5rem;min-height:2.5rem">${defVal}</textarea>
+    </div>`;
+    
+  } else {
+    // text
+    inputHtml = `<div class="pc-value">
+      <input type="text" value="${defVal}" placeholder="输入${safeName}"
+        onchange="markDirty(${cfgId},{default_value:this.value}); showDirtyButtons()">
+    </div>`;
+  }
+  
+  // ── Description (uses ui_hint field) ──
+  const desc = cfg.ui_hint || '';
+  const descHtml = desc
+    ? `<div class="pc-desc-editor" onclick="startEditDesc(${cfgId}, this)">
+        📝 <span class="pc-desc-text">${desc}</span>
+       </div>`
+    : `<div class="pc-desc-editor" onclick="startEditDesc(${cfgId}, this)" style="color:#cbd5e1">
+        ➕ 添加描述
+       </div>`;
+  
+  // ── Footer toggles ──
+  const isDriving = cfg.is_driving;
+  const isComputed = cfg.is_computed;
+  
+  return `<div class="param-card type-${type}" draggable="true"
+    data-config-id="${cfgId}" data-display-order="${cfg.display_order||0}"
+    ondragstart="onCardDragStart(event, ${cfgId})"
+    ondragover="onCardDragOver(event)"
+    ondrop="onCardDrop(event, ${cfgId})"
+    ondragend="onCardDragEnd(event)">
+    <div class="param-card-header">
+      <span class="pc-drag-handle">⠿</span>
+      <span class="pc-type-icon type-${type}">${icon}</span>
+      <span class="pc-name" id="pc-name-${cfgId}" onclick="startRenameParam(${cfgId})" title="单击重命名">${safeName}</span>
+      <span class="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded font-medium">${typeLabel}</span>
+    </div>
+    <div class="param-card-body">
+      <div class="pc-row">
+        <span class="pc-label">默认值</span>
+        ${inputHtml}
+      </div>
+      ${descHtml}
+    </div>
+    <div class="param-card-footer">
+      <div class="flex items-center gap-1.5">
+        <div class="toggle-switch ${isDriving ? 'on' : ''}" onclick="this.classList.toggle('on'); markDirty(${cfgId},{is_driving:this.classList.contains('on')}); showDirtyButtons()"><div class="toggle-knob"></div></div>
+        <span class="pc-toggle-label">驱动</span>
+      </div>
+      <div class="flex items-center gap-1.5">
+        <div class="toggle-switch ${isComputed ? 'on' : ''}" onclick="this.classList.toggle('on'); markDirty(${cfgId},{is_computed:this.classList.contains('on')}); showDirtyButtons()"><div class="toggle-knob"></div></div>
+        <span class="pc-toggle-label">计算</span>
+      </div>
+      <div style="flex:1"></div>
+      <button class="pc-action-btn danger" onclick="deleteParamConfig(${cfgId}, '${safeName}')" title="删除">🗑️ 删除</button>
+    </div>
+  </div>`;
+}
+
+// ── Boolean toggle helper ──
+function toggleBooleanParam(cfgId, el) {
+  try {
+    el.classList.toggle('on');
+    const isOn = el.classList.contains('on');
+    const label = el.parentElement.querySelector('.bool-label');
+    if (label) label.textContent = isOn ? '是' : '否';
+    markDirty(cfgId, {default_value: isOn ? 'true' : 'false'});
+    showDirtyButtons();
+  } catch(e) {
+    console.error('toggleBooleanParam error:', e);
+  }
+}
+
+// ── Options editor helpers ──
+function startAddOption(cfgId) {
+  console.log('startAddOption called', cfgId);
+  const editor = document.getElementById(`pc-opts-${cfgId}`);
+  if (!editor) { console.warn('startAddOption: editor not found', cfgId); return; }
+
+  // If there's already an input, auto-submit its value before creating a new one
+  const existingInput = editor.querySelector('.pc-opt-input');
+  if (existingInput) {
+    const val = existingInput.value.trim();
+    console.log('startAddOption: existing input value:', val);
+    if (val) {
+      existingInput.onblur = null;
+      addOption(cfgId, val);
+    }
+    existingInput.remove();
+  }
+
+  console.log('startAddOption: creating new input');
+  const input = document.createElement('input');
+  input.className = 'pc-opt-input';
+  input.placeholder = '输入...';
+  input.onkeydown = (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      const val = input.value.trim();
+      input.onblur = null;
+      if (val) addOption(cfgId, val);
+      if (input.parentNode) input.remove();
+    }
+    if (e.key === 'Escape') input.remove();
+  };
+  // No onblur auto-remove — let next startAddOption call handle cleanup
+  const addBtn = editor.querySelector('.pc-opt-add-inline');
+  if (addBtn) editor.insertBefore(input, addBtn);
+  input.focus();
+}
+
+async function addOption(cfgId, newOption) {
+  try {
+    console.log('addOption called', {cfgId, newOption});
+    const cfg = window.__paramConfigs.find(c => c.id === cfgId);
+    if (!cfg) { console.warn('addOption: cfg not found', cfgId); return; }
+    console.log('addOption: cfg found', {id: cfg.id, currentOptions: cfg.options});
+    const opts = cfg.options ? (Array.isArray(cfg.options) ? [...cfg.options] : []) : [];
+    if (opts.includes(newOption)) { setStatus('error', '选项已存在'); return; }
+    opts.push(newOption);
+    markDirty(cfgId, {options: opts});
+    cfg.options = opts;
+    showDirtyButtons();
+    const sel = document.querySelector(`#pd-params-canvas .param-card[data-config-id="${cfgId}"] select`);
+    console.log('addOption: select found:', !!sel);
+    if (sel) {
+      const opt = document.createElement('option');
+      opt.value = newOption;
+      opt.textContent = newOption;
+      sel.appendChild(opt);
+      sel.value = '';
+    }
+    const editor = document.getElementById(`pc-opts-${cfgId}`);
+    console.log('addOption: editor found:', !!editor);
+    if (editor) {
+      const addBtn = editor.querySelector('.pc-opt-add-inline');
+      console.log('addOption: addBtn found:', !!addBtn);
+      const tag = document.createElement('span');
+      tag.className = 'pc-opt-tag';
+      tag.innerHTML = `${newOption}<span class="pc-opt-del" onclick="removeOption(${cfgId},'${newOption.replace(/'/g,"\\'")}')">✕</span>`;
+      editor.insertBefore(tag, addBtn);
+      console.log('addOption: tag inserted successfully');
+    }
+  } catch(e) {
+    console.error('addOption error:', e, {cfgId, newOption});
+  }
+}
+
+function removeOption(cfgId, opt) {
+  const cfg = window.__paramConfigs.find(c => c.id === cfgId);
+  if (!cfg) return;
+  const opts = cfg.options ? (Array.isArray(cfg.options) ? [...cfg.options] : []) : [];
+  const idx = opts.indexOf(opt);
+  if (idx === -1) return;
+  opts.splice(idx, 1);
+  markDirty(cfgId, {options: opts});
+  cfg.options = opts;
+  showDirtyButtons();
+  // ── Direct DOM removal ──
+  // 1) Remove option from select
+  const sel = document.querySelector(`#pd-params-canvas .param-card[data-config-id="${cfgId}"] select`);
+  if (sel) {
+    const optEl = Array.from(sel.options).find(o => o.value === opt);
+    if (optEl) optEl.remove();
+  }
+  // 2) Remove option tag from editor
+  const editor = document.getElementById(`pc-opts-${cfgId}`);
+  if (editor) {
+    const tags = editor.querySelectorAll('.pc-opt-tag');
+    for (const tag of tags) {
+      if (tag.textContent.replace('✕','').trim() === opt) {
+        tag.remove();
+        break;
+      }
+    }
+  }
+}
+
+function updateMultiDefault(cfgId, mark) {
+  const checkboxes = document.querySelectorAll(`input[data-multi-${cfgId}]:checked`);
+  const vals = Array.from(checkboxes).map(cb => cb.value).join(',');
+  markDirty(cfgId, {default_value: vals});
+  showDirtyButtons();
+}
+
+// ── Description editor ──
+function startEditDesc(cfgId, el) {
+  const textEl = el.querySelector('.pc-desc-text');
+  const currentText = textEl ? textEl.textContent : '';
+  el.innerHTML = `<span class="pc-label" style="min-width:0;margin-right:0.25rem">📝</span>
+    <input class="pc-desc-input" type="text" value="${currentText}" placeholder="添加描述..."
+      onblur="finishEditDesc(${cfgId}, this)"
+      onkeydown="if(event.key==='Enter')this.blur();if(event.key==='Escape'){this.value='${currentText.replace(/'/g,"\\'")}';this.blur()}">`;
+  const input = el.querySelector('input');
+  if (input) input.focus();
+}
+
+function finishEditDesc(cfgId, input) {
+  const val = input.value.trim();
+  const parent = input.parentElement;
+  if (val) {
+    markDirty(cfgId, {ui_hint: val});
+    showDirtyButtons();
+    parent.innerHTML = `📝 <span class="pc-desc-text">${val}</span>`;
+    parent.onclick = () => startEditDesc(cfgId, parent);
+    parent.style.color = '#94a3b8';
+  } else {
+    parent.innerHTML = `➕ 添加描述`;
+    parent.onclick = () => startEditDesc(cfgId, parent);
+    parent.style.color = '#cbd5e1';
+  }
+}
+
+// ── Append new param card without full reload ──
+function appendParamCard(config) {
+  if (!window.__paramConfigs) window.__paramConfigs = [];
+  window.__paramConfigs.push(config);
+  const sorted = window.__paramConfigs.sort((a,b)=>(a.display_order||0)-(b.display_order||0));
+  const canvas = document.getElementById('pd-params-canvas');
+  const countBadge = document.getElementById('pd-param-count');
+  canvas.innerHTML = sorted.map((c,i)=>renderParamCard(c,i)).join('');
+  if (countBadge) countBadge.textContent = `${sorted.length} 个参数`;
+  // Scroll to bottom to show new card
+  canvas.scrollTop = canvas.scrollHeight;
+}
+
+async function loadPdBOMM() {
+  const pid = configuratorPartId;
+  if (!pid) return;
+  const container = document.getElementById('pd-bom-list');
+  const countBadge = document.getElementById('bom-count-badge');
+  container.innerHTML = '<div class="flex items-center justify-center py-6"><span class="spinner mr-2"></span><span class="text-sm text-gray-400">加载中...</span></div>';
+  
+  const [bomRes, pcfgRes] = await Promise.all([
+    fetch(`/api/bom/?part=${pid}`, {headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken()}, credentials: 'same-origin'}),
+    apiCall('GET', `bom-item-config/?bom_item__part=${pid}`),
+  ]);
+  
+  const bomItems = bomRes.ok ? (await bomRes.json()) : [];
+  const items = Array.isArray(bomItems) ? bomItems : (bomItems.results || []);
+  const pcfgs = pcfgRes.error ? [] : (Array.isArray(pcfgRes.data) ? pcfgRes.data : (pcfgRes.data.results || []));
+  const pcfgMap = {};
+  pcfgs.forEach(c => { pcfgMap[c.bom_item] = c; });
+  
+  if (countBadge) countBadge.textContent = `共 ${items.length} 项`;
+  
+  if (!items.length) {
+    container.innerHTML = '<div class="empty-state"><div class="icon">📋</div><p>该产品暂无BOM项，先在InvenTree的<strong>产品→BOM标签页</strong>中添加子件</p></div>';
+    return;
+  }
+  
+  const modeLabels = {standard:'—', qty_formula:'📐数量公式', conditional:'⚡条件包含', candidate:'🎯候选零件', variant:'🧬变体生成', specification:'📝规格描述', supplier:'🏢供应商选择', structure:'🔗结构控制'};
+  
+  let html = `<table class="w-full text-xs border-collapse">
+    <thead>
+      <tr class="bg-slate-50 border-b border-slate-200">
+        <th class="text-left p-2 font-semibold text-slate-600">物料</th>
+        <th class="text-center p-2 font-semibold text-slate-600" style="width:50px">数量</th>
+        <th class="text-center p-2 font-semibold text-slate-600" style="width:100px">模式</th>
+        <th class="text-left p-2 font-semibold text-slate-600" style="width:35%">公式</th>
+        <th class="text-center p-2 font-semibold text-slate-600" style="width:80px">操作</th>
+      </tr>
+    </thead>
+    <tbody>`;
+  
+  for (const item of items) {
+    const subPartName = item.sub_part_detail ? item.sub_part_detail.name : `#${item.sub_part}`;
+    const subPartRef = item.sub_part_detail ? (item.sub_part_detail.ipn || '') : '';
+    const cfg = pcfgMap[item.pk];
+    const mode = cfg ? (cfg.mode || 'qty_formula') : 'standard';
+    const modeLabel = modeLabels[mode] || mode;
+    
+    let formulaDisplay = '<span class="text-slate-300 italic">未配置</span>';
+    if (cfg) {
+      const parts = [];
+      if (cfg.qty_formula) parts.push(`📐 ${cfg.qty_formula}`);
+      if (cfg.condition_formula) parts.push(`⚡ ${cfg.condition_formula}`);
+      if (cfg.part_selector_formula) parts.push(`🎯 ${cfg.part_selector_formula}`);
+      formulaDisplay = parts.length
+        ? `<span class="text-blue-600 font-mono">${parts.join(' | ')}</span>`
+        : '<span class="text-slate-300 italic">已创建，未设公式</span>';
+    }
+    
+    const configBtn = cfg
+      ? `<button class="btn btn-sm btn-outline-primary text-[10px] px-2 py-0.5" onclick="openFormulaEditor(${item.pk}, ${item.sub_part}, '${subPartName.replace(/'/g, "\\'")}')">✏️ 编辑</button>
+         <button class="btn btn-sm btn-secondary text-[10px] px-2 py-0.5 ml-1" onclick="resetBomConfig(${item.pk}, '${subPartName.replace(/'/g, "\\'")}')">重置</button>`
+      : `<button class="btn btn-sm btn-primary text-[10px] px-2 py-0.5" onclick="openFormulaEditor(${item.pk}, ${item.sub_part}, '${subPartName.replace(/'/g, "\\'")}')">✏️ 配置</button>`;
+    
+    html += `<tr class="border-b border-slate-100 hover:bg-slate-50 transition-colors" data-bom-id="${item.pk}">
+      <td class="p-2">
+        <div class="font-medium text-slate-700">${subPartName}</div>
+        ${subPartRef ? `<div class="text-[10px] text-slate-400">${subPartRef}</div>` : ''}
+      </td>
+      <td class="p-2 text-center font-semibold text-blue-600">${item.quantity}</td>
+      <td class="p-2 text-center">
+        <span class="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 whitespace-nowrap">${modeLabel}</span>
+      </td>
+      <td class="p-2 text-[11px]">${formulaDisplay}</td>
+      <td class="p-2 text-center whitespace-nowrap">${configBtn}</td>
+    </tr>`;
+  }
+  html += '</tbody></table>';
+  container.innerHTML = html;
+}
+
+async function loadPdRules() {
+  const pid = configuratorPartId;
+  if (!pid) return;
+  const container = document.getElementById('pd-rules-list');
+  const countBadge = document.getElementById('rule-count-badge');
+  container.innerHTML = '<div class="flex items-center justify-center py-6"><span class="spinner mr-2"></span><span class="text-sm text-gray-400">加载中...</span></div>';
+  
+  const res = await apiCall('GET', `rules/?product_part=${pid}`);
+  if (res.error) { container.innerHTML = '<div class="text-red-500 text-sm p-3">加载失败</div>'; return; }
+  const rules = res.data.results || (Array.isArray(res.data) ? res.data : []);
+  
+  if (countBadge) countBadge.textContent = `共 ${rules.length} 条`;
+  
+  if (!rules.length) {
+    container.innerHTML = '<div class="rule-card-list"><div class="empty-state"><div class="icon">📜</div><p>暂无规则，点击「➕ 新增规则」创建</p></div></div>';
+    return;
+  }
+  
+  const ruleTypeIcons = {constraint:'🔒', calculation:'🧮', visibility:'👁️'};
+  const ruleTypeLabels = {constraint:'约束', calculation:'计算', visibility:'可见性'};
+  const actionLabels = {set_value:'设值', set_min:'设最小', set_max:'设最大', show:'显示', hide:'隐藏', require:'必填'};
+  
+  let html = '';
+  rules.forEach(r => {
+    const typeIcon = ruleTypeIcons[r.rule_type] || '📜';
+    const typeLabel = ruleTypeLabels[r.rule_type] || r.rule_type;
+    const actionLabel = actionLabels[r.action] || r.action;
+    
+    html += `<div class="rule-card">
+      <div class="rc-header">
+        <span class="rc-icon ${r.rule_type}">${typeIcon}</span>
+        <span class="rc-name">${r.name || r.condition_formula || '规则'}</span>
+        <span class="rc-type">${typeLabel}</span>
+        <div class="rc-toggle">
+          <div class="toggle-switch ${r.enabled ? 'on' : ''}"
+            onclick="toggleRule(${r.id}, this)">
+            <div class="toggle-knob"></div>
+          </div>
+        </div>
+      </div>
+      <div class="rc-body">
+        <div class="rc-row">
+          <span class="rc-label">条件</span>
+          <code class="rc-val">${r.condition_formula || '始终'}</code>
+        </div>
+        <div class="rc-row">
+          <span class="rc-label">动作</span>
+          <span>${actionLabel}</span>
+          ${r.value_formula ? `<code class="rc-val" style="margin-left:0.5rem">${r.value_formula}</code>` : ''}
+        </div>
+      </div>
+      <div class="rc-actions">
+        <button class="btn btn-sm btn-outline-primary" onclick="openAddRuleModal(${r.id}, ${r.product_part})">✏️ 编辑</button>
+        <button class="btn btn-sm btn-danger" onclick="deleteRule(${r.id})">🗑️ 删除</button>
+      </div>
+    </div>`;
+  });
+  container.innerHTML = html;
+}
+
+function resetBomConfig(bomItemId, name) {
+  if (!confirm(`重置「${name}」的参数化配置？`)) return;
+  apiCall('DELETE', `bom-item-config/${bomItemId}/`).then(res => {
+    if (!res.error) { setStatus('success', `✅ 已重置「${name}」`); loadPdBOMM(); }
+    else setStatus('error', '重置失败');
+  });
+}
+
+// ── Add BOM Item ──
+let _allPartsCache = null;
+let _abAllParts = []; // full list for filtering
+
+async function openAddBomItemModal() {
+  const pid = configuratorPartId;
+  if (!pid) { setStatus('error', '请先选择产品'); return; }
+  
+  const product = parts.find(p => p.pk == pid);
+  document.getElementById('ab-product-name').textContent = product ? (product.name || `#${pid}`) : `#${pid}`;
+  
+  if (!_allPartsCache) {
+    try {
+      const res = await fetch(`/api/part/?limit=500`, {
+        headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken()},
+        credentials: 'same-origin'
+      });
+      _allPartsCache = res.ok ? (await res.json()) : [];
+    } catch(e) { _allPartsCache = []; }
+  }
+  const allParts = Array.isArray(_allPartsCache) ? _allPartsCache : (_allPartsCache.results || []);
+  
+  // Filter out current product itself
+  _abAllParts = allParts.filter(p => p.pk != pid);
+  
+  // Clear search and render all
+  document.getElementById('ab-search').value = '';
+  renderAbPartList();
+  
+  openModal('modal-add-bom');
+}
+
+function renderAbPartList(filter) {
+  const sel = document.getElementById('ab-sub-part');
+  const countEl = document.getElementById('ab-search-count');
+  
+  let filtered = _abAllParts;
+  if (filter) {
+    const q = filter.toLowerCase();
+    filtered = _abAllParts.filter(p =>
+      (p.name || '').toLowerCase().includes(q) ||
+      (p.ipn || '').toLowerCase().includes(q) ||
+      (p.description || '').toLowerCase().includes(q)
+    );
+  }
+  
+  sel.innerHTML = '<option value="">-- 请选择零件 --</option>';
+  filtered.forEach(p => {
+    const label = `${p.name || p.full_name || `#${p.pk}`}${p.ipn ? ` (${p.ipn})` : ''}`;
+    sel.innerHTML += `<option value="${p.pk}">${label}</option>`;
+  });
+  
+  if (countEl) {
+    countEl.textContent = filter
+      ? `找到 ${filtered.length} / ${_abAllParts.length} 个零件`
+      : `共 ${_abAllParts.length} 个零件`;
+  }
+}
+
+function filterAbParts(value) {
+  renderAbPartList(value.trim());
+}
+
+async function createBomItem() {
+  const pid = configuratorPartId;
+  const subPartId = document.getElementById('ab-sub-part').value;
+  const qty = parseFloat(document.getElementById('ab-qty').value);
+  
+  if (!pid || !subPartId) { setStatus('error', '请选择子件'); return; }
+  if (!qty || qty <= 0) { setStatus('error', '请输入有效数量'); return; }
+  
+  setStatus('loading', '正在添加BOM项...');
+  
+  try {
+    const res = await fetch('/api/bom/', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken()},
+      credentials: 'same-origin',
+      body: JSON.stringify({
+        part: pid,
+        sub_part: parseInt(subPartId),
+        quantity: qty,
+      }),
+    });
+    
+    if (res.ok) {
+      setStatus('success', '✅ BOM项已添加');
+      closeModal('modal-add-bom');
+      loadPdBOMM();
+    } else {
+      const err = await res.json();
+      setStatus('error', `添加失败: ${err.message || JSON.stringify(err)}`);
+    }
+  } catch(e) {
+    setStatus('error', `网络错误: ${e.message}`);
+  }
+}
+
+function toggleRule(ruleId, el) {
+  const enabled = !el.classList.contains('on');
+  el.classList.toggle('on');
+  apiCall('PATCH', `rules/${ruleId}/`, {enabled});
+  setStatus('success', `规则已${enabled ? '启用' : '禁用'}`);
+}
+
+async function deleteRule(ruleId) {
+  if (!confirm('确定删除此规则？')) return;
+  const res = await apiCall('DELETE', `rules/${ruleId}/`);
+  if (!res.error) { setStatus('success', '✅ 规则已删除'); loadPdRules(); }
+  else setStatus('error', '删除失败');
+}
+
+// ── Configurator: State ──
+let cfgParams = []; // full sorted param configs
+let cfgParamValues = {}; // {configId: value}
+let cfgBOMItems = [];
+
+async function loadPdConfigurator() {
+  const pid = configuratorPartId;
+  if (!pid) return;
+  const container = document.getElementById('cfg-params-container');
+  container.innerHTML = '<div class="cfg-empty"><div class="cfg-empty-icon">⏳</div>加载参数中...</div>';
+  
+  const res = await apiCall('GET', `part-config/?part=${parseInt(pid)}`);
+  if (res.error) { container.innerHTML = '<div class="cfg-empty" style="color:#dc2626">❌ 加载失败</div>'; return; }
+  const configs = res.data.results || (Array.isArray(res.data) ? res.data : []);
+  
+  cfgParams = configs.sort((a,b) => (a.display_order||0) - (b.display_order||0));
+  cfgParamValues = {};
+  cfgParams.forEach(c => { cfgParamValues[c.id] = c.default_value != null ? c.default_value : ''; });
+  
+  renderCfgParams();
+  document.getElementById('cfg-param-count').textContent = `${cfgParams.length} 个参数`;
+  
+  // Auto-expand BOM
+  await cfgExpandBOM();
+  await cfgLoadConfigs();
+}
+
+function renderCfgParams() {
+  const container = document.getElementById('cfg-params-container');
+  const computedCard = document.getElementById('cfg-computed-card');
+  const computedList = document.getElementById('cfg-computed-list');
+  
+  const drivingParams = cfgParams.filter(c => c.is_driving);
+  const computedParams = cfgParams.filter(c => c.is_computed);
+  
+  if (!drivingParams.length && !computedParams.length) {
+    container.innerHTML = '<div class="cfg-empty"><div class="cfg-empty-icon">🔧</div>该产品没有参数，先在参数Tab中添加</div>';
+    return;
+  }
+  
+  // Driving params
+  let html = '';
+  drivingParams.forEach(cfg => {
+    const name = cfg.name || '参数';
+    const type = cfg.parameter_type || 'number';
+    const val = cfgParamValues[cfg.id] != null ? cfgParamValues[cfg.id] : '';
+    
+    html += renderCfgParamControl(cfg, name, type, val);
+  });
+  container.innerHTML = html;
+  
+  // Computed params
+  if (computedParams.length) {
+    computedCard.style.display = 'block';
+    let ch = '';
+    computedParams.forEach(cfg => {
+      const name = cfg.name || '计算参数';
+      const val = cfg.default_value || '—';
+      ch += `<div class="cfg-computed-row">
+        <span>${name}</span>
+        <span class="cfg-cr-value" id="cfg-comp-${cfg.id}">${val}</span>
+      </div>`;
+    });
+    computedList.innerHTML = ch;
+  } else {
+    computedCard.style.display = 'none';
+  }
+}
+
+function renderCfgParamControl(cfg, name, type, val) {
+  const cid = cfg.id;
+  const safeName = name.replace(/'/g, "\\'");
+  const typeLabels = {number:'🔢 数值', option:'🔘 选项', boolean:'☑️ 布尔', text:'📝 文本', multi_option:'多选', long_text:'长文本'};
+  const tlabel = typeLabels[type] || type;
+  const changeFn = `cfgOnParamChange(${cid}, this)`;
+  
+  let controlHtml = '';
+  
+  if (type === 'number') {
+    const min = cfg.min_value != null ? parseFloat(cfg.min_value) : 0;
+    const max = cfg.max_value != null ? parseFloat(cfg.max_value) : 10000;
+    const step = cfg.step_value != null ? parseFloat(cfg.step_value) : (max - min > 100 ? 1 : 0.1);
+    const v = val !== '' ? parseFloat(val) : min;
+    controlHtml = `<div class="cfg-pg-slider">
+      <input type="range" min="${min}" max="${max}" step="${step}" value="${v}" data-cfg-id="${cid}"
+        oninput="cfgSliderInput(this, ${cid})" onchange="${changeFn}">
+      <span class="cfg-pg-val" id="cfg-val-${cid}">${v}</span>
+    </div>
+    <div class="cfg-pg-hint"><span>${min}</span><span>${max}</span></div>`;
+    
+  } else if (type === 'option') {
+    const opts = cfg.options ? (Array.isArray(cfg.options) ? cfg.options : []) : [];
+    controlHtml = `<select class="cfg-pg-select" onchange="${changeFn}">
+      <option value="">-- 请选择 --</option>
+      ${opts.map(o => `<option value="${o}"${o === val ? ' selected' : ''}>${o}</option>`).join('')}
+    </select>`;
+    
+  } else if (type === 'multi_option') {
+    const opts = cfg.options ? (Array.isArray(cfg.options) ? cfg.options : []) : [];
+    const selected = val ? val.split(',') : [];
+    controlHtml = `<div class="flex flex-wrap gap-1">
+      ${opts.map(o => `<label class="flex items-center gap-1 text-xs cursor-pointer px-2 py-1 rounded border ${selected.includes(o)?'bg-blue-50 border-blue-300 text-blue-700':'bg-white border-slate-200 text-slate-600'}" style="transition:all 0.1s">
+        <input type="checkbox" value="${o}" ${selected.includes(o)?'checked':''}
+          onchange="cfgOnMultiChange(${cid})" data-cfg-multi-${cid}>
+        <span>${o}</span>
+      </label>`).join('')}
+    </div>`;
+    
+  } else if (type === 'boolean') {
+    const isTrue = val === 'true' || val === true || val === '1';
+    controlHtml = `<div class="cfg-pg-bool">
+      <div class="toggle-switch ${isTrue ? 'on' : ''}"
+        onclick="this.classList.toggle('on'); this.nextElementSibling.textContent=this.classList.contains('on')?'是':'否'; cfgOnParamChange(${cid}, {value: this.classList.contains('on')?'true':'false'})">
+        <div class="toggle-knob"></div>
+      </div>
+      <span class="text-xs text-slate-500">${isTrue ? '是' : '否'}</span>
+    </div>`;
+    
+  } else if (type === 'long_text') {
+    controlHtml = `<textarea class="cfg-pg-textarea" rows="3" placeholder="输入${safeName}" onchange="${changeFn}">${val}</textarea>`;
+
+  } else {
+    controlHtml = `<input class="cfg-pg-text" type="text" value="${val}" placeholder="输入${safeName}"
+      onchange="${changeFn}">`;
+  }
+  
+  return `<div class="cfg-param-group">
+    <div class="cfg-pg-header">
+      <span class="cfg-pg-name">${name}</span>
+      <span class="cfg-pg-type">${tlabel}</span>
+    </div>
+    ${controlHtml}
+  </div>`;
+}
+
+function cfgSliderInput(input, cid) {
+  const valSpan = document.getElementById(`cfg-val-${cid}`);
+  if (valSpan) valSpan.textContent = input.value;
+}
+
+function cfgOnParamChange(cid, el) {
+  let val;
+  if (el.value !== undefined) val = el.value;
+  else if (el.dataset && el.dataset.value) val = el.dataset.value;
+  else if (typeof el === 'object' && el.value) val = el.value;
+  else if (typeof el === 'string') val = el;
+  
+  if (val === undefined && el && el.classList) {
+    val = el.classList.contains('on') ? 'true' : 'false';
+  }
+  
+  cfgParamValues[cid] = val != null ? String(val) : '';
+  document.getElementById('cfg-status-dot').textContent = '● 已修改';
+  
+  // Debounced BOM refresh
+  clearTimeout(window.__cfgDebounce);
+  window.__cfgDebounce = setTimeout(() => cfgExpandBOM(), 500);
+}
+
+function cfgOnMultiChange(cid) {
+  const checked = document.querySelectorAll(`input[data-cfg-multi-${cid}]:checked`);
+  const vals = Array.from(checked).map(cb => cb.value).join(',');
+  cfgParamValues[cid] = vals;
+  document.getElementById('cfg-status-dot').textContent = '● 已修改';
+  clearTimeout(window.__cfgDebounce);
+  window.__cfgDebounce = setTimeout(() => cfgExpandBOM(), 500);
+}
+
+function cfgGetParamContext() {
+  const ctx = {};
+  cfgParams.forEach(c => {
+    const name = c.name || `param_${c.id}`;
+    ctx[name] = cfgParamValues[c.id] != null ? cfgParamValues[c.id] : '';
+  });
+  return ctx;
+}
+
+async function cfgExpandBOM() {
+  const pid = configuratorPartId;
+  if (!pid) return;
+  const container = document.getElementById('cfg-bom-preview');
+  container.innerHTML = '<div class="cfg-empty"><span class="spinner inline-block mr-1"></span>计算中...</div>';
+  
+  const ctx = cfgGetParamContext();
+  try {
+    const res = await apiCall('POST', 'evaluate/', {part_id: parseInt(pid), param_context: ctx});
+    if (res.error) { container.innerHTML = '<div class="cfg-empty" style="color:#dc2626">❌ BOM展开失败</div>'; return; }
+    const bom = res.data.bom || res.data.results || [];
+    cfgBOMItems = Array.isArray(bom) ? bom : [];
+    renderCfgBOM();
+    document.getElementById('cfg-status-dot').textContent = '● 就绪';
+    // Also estimate cost
+    await cfgEstimateCost();
+  } catch(e) {
+    container.innerHTML = '<div class="cfg-empty" style="color:#dc2626">❌ 展开出错</div>';
+  }
+}
+
+function renderCfgBOM() {
+  const container = document.getElementById('cfg-bom-preview');
+  if (!cfgBOMItems.length) {
+    container.innerHTML = '<div class="cfg-empty"><div class="cfg-empty-icon">📋</div>BOM展开为空</div>';
+    return;
+  }
+  
+  let html = '';
+  // Helper to render tree
+  function renderTree(items, depth) {
+    if (!items || !items.length) return '';
+    let h = '';
+    items.forEach(item => {
+      const icon = item.is_parametric ? '⚡' : '📦';
+      const name = item.part_name || item.name || '未知';
+      const qty = item.quantity != null ? item.quantity : (item.required_quantity || 1);
+      const ref = item.ipn || item.part_ipn || '';
+      h += `<div class="cfg-bom-item cfg-bom-depth-${Math.min(depth,3)}">
+        <span class="cfg-bi-icon">${icon}</span>
+        <span class="cfg-bi-name">${name}</span>
+        <span class="cfg-bi-ref">${ref}</span>
+        <span class="cfg-bi-qty">×${qty}</span>
+      </div>`;
+      if (item.children && item.children.length) {
+        h += renderTree(item.children, depth + 1);
+      }
+    });
+    return h;
+  }
+  html = renderTree(cfgBOMItems, 0);
+  container.innerHTML = html;
+}
+
+async function cfgEstimateCost() {
+  const pid = configuratorPartId;
+  if (!pid) return;
+  const costCard = document.getElementById('cfg-cost-card');
+  costCard.style.display = 'block';
+  
+  const ctx = cfgGetParamContext();
+  try {
+    const res = await apiCall('POST', 'estimate-cost/', {part_id: parseInt(pid), param_context: ctx});
+    if (res.error) return;
+    const data = res.data;
+    document.getElementById('cfg-cost-material').textContent = data.material_cost != null ? `¥${data.material_cost}` : '—';
+    document.getElementById('cfg-cost-labor').textContent = data.labor_cost != null ? `¥${data.labor_cost}` : '—';
+    document.getElementById('cfg-cost-total').textContent = data.total_cost != null ? `¥${data.total_cost}` : '—';
+  } catch(e) {}
+}
+
+async function cfgSaveConfig() {
+  const pid = configuratorPartId;
+  if (!pid) { setStatus('error', '请先选择产品'); return; }
+  const name = prompt('配置名称（可选）:', `配置 ${new Date().toLocaleString('zh-CN')}`);
+  if (name === null) return;
+  
+  setStatus('loading', '保存配置...');
+  const ctx = cfgGetParamContext();
+  const res = await apiCall('POST', 'configurations/', {
+    part: parseInt(pid),
+    name: name || `配置 ${Date.now()}`,
+    parameters: ctx,
+    status: 'draft',
+  });
+  if (!res.error) {
+    setStatus('success', `✅ 配置「${name}」已保存`);
+    await cfgLoadConfigs();
+  } else {
+    setStatus('error', `保存失败: ${res.error}`);
+  }
+}
+
+async function cfgGenerateVariant() {
+  const pid = configuratorPartId;
+  if (!pid) { setStatus('error', '请先选择产品'); return; }
+  const name = prompt('变体名称（可选）:', `变体 ${new Date().toLocaleString('zh-CN')}`);
+  if (name === null) return;
+  
+  setStatus('loading', '正在生成变体...');
+  const ctx = cfgGetParamContext();
+  const res = await apiCall('POST', 'generate-variant/', {
+    part_id: parseInt(pid),
+    variant_name: name || `变体 ${Date.now()}`,
+    param_context: ctx,
+  });
+  if (!res.error) {
+    setStatus('success', `✅ 变体「${name}」已生成`);
+  } else {
+    setStatus('error', `生成失败: ${res.error}`);
+  }
+}
+
+function cfgResetParams() {
+  if (!confirm('重置所有参数为默认值？')) return;
+  cfgParams.forEach(c => {
+    cfgParamValues[c.id] = c.default_value != null ? c.default_value : '';
+  });
+  renderCfgParams();
+  cfgExpandBOM();
+  document.getElementById('cfg-status-dot').textContent = '● 就绪';
+}
+
+async function cfgLoadConfigs() {
+  const pid = configuratorPartId;
+  if (!pid) return;
+  const listEl = document.getElementById('cfg-configs-list');
+  const countEl = document.getElementById('cfg-config-count');
+  const res = await apiCall('GET', `configurations/?part=${pid}`);
+  if (res.error) return;
+  const configs = res.data.results || (Array.isArray(res.data) ? res.data : []);
+  if (countEl) countEl.textContent = configs.length;
+  if (!configs.length) {
+    listEl.innerHTML = '<div class="cfg-empty"><div class="cfg-empty-icon">📁</div>暂无保存的配置</div>';
+    return;
+  }
+  let html = '';
+  configs.forEach(c => {
+    const statusClass = c.status === 'completed' ? 'completed' : 'draft';
+    const statusLabel = c.status === 'completed' ? '已完成' : '草稿';
+    html += `<div class="cfg-saved-item" onclick="loadConfigParams(${c.id})" title="点击加载此配置">
+      <div class="flex items-center justify-between">
+        <span class="cfg-si-name">${c.name || `配置 #${c.id}`}</span>
+        <span class="cfg-si-status ${statusClass}">${statusLabel}</span>
+      </div>
+      <div class="cfg-si-meta">
+        <span>${new Date(c.created_at || c.created || Date.now()).toLocaleDateString('zh-CN')}</span>
+        <span>${Object.keys(c.parameters || {}).length} 个参数</span>
+      </div>
+    </div>`;
+  });
+  listEl.innerHTML = html;
+}
+
+function loadConfigParams(configId) {
+  // Load a saved config's parameters
+  apiCall('GET', `configurations/${configId}/`).then(res => {
+    if (res.error || !res.data) return;
+    const params = res.data.parameters || {};
+    cfgParams.forEach(c => {
+      const name = c.name || `param_${c.id}`;
+      if (params[name] !== undefined) {
+        cfgParamValues[c.id] = String(params[name]);
+      }
+    });
+    renderCfgParams();
+    cfgExpandBOM();
+    document.getElementById('cfg-status-dot').textContent = '● 已加载配置';
+    setStatus('success', `✅ 已加载配置「${res.data.name || configId}」`);
+  });
+}
+
+function pdTestFormula() {
+  const formula = document.getElementById('pd-formula').value;
+  const ctxRaw = document.getElementById('pd-fm-context').value;
+  const resultDiv = document.getElementById('pd-fm-result');
+  resultDiv.style.display = 'block';
+  
+  let context = {};
+  try { context = ctxRaw ? JSON.parse(ctxRaw) : {}; } catch(e) { resultDiv.innerHTML = '<div class="action-result error">JSON 格式错误</div>'; return; }
+  if (!formula.trim()) { resultDiv.innerHTML = '<div class="action-result error">请输入公式</div>'; return; }
+  
+  fetch('/api/parametric-bom/formula/preview/', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken()},
+    credentials: 'same-origin',
+    body: JSON.stringify({formula, context}),
+  }).then(r => r.json()).then(data => {
+    resultDiv.innerHTML = data.success
+      ? `<div class="action-result success">✅ 结果: ${data.result}</div>`
+      : `<div class="action-result error">❌ ${data.error}</div>`;
+  }).catch(e => {
+    resultDiv.innerHTML = `<div class="action-result error">网络错误: ${e.message}</div>`;
+  });
+}
+
+function pdValidateFormula() {
+  const formula = document.getElementById('pd-formula').value;
+  const resultDiv = document.getElementById('pd-fm-result');
+  resultDiv.style.display = 'block';
+  if (!formula.trim()) { resultDiv.innerHTML = '<div class="action-result error">请输入公式</div>'; return; }
+  
+  fetch('/api/parametric-bom/formula/validate/', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken()},
+    credentials: 'same-origin',
+    body: JSON.stringify({formula}),
+  }).then(r => r.json()).then(data => {
+    resultDiv.innerHTML = data.valid
+      ? '<div class="action-result success">✅ 公式语法正确</div>'
+      : `<div class="action-result error">❌ ${data.error || '语法错误'}</div>`;
+  }).catch(e => {
+    resultDiv.innerHTML = `<div class="action-result error">网络错误: ${e.message}</div>`;
+  });
+}
+
+// ===== PRODUCT DETAIL: Template List =====
+// ── Category filter state ──
+let _tplCategoryFilter = 'all';
+
+// Infer template category from name + units
+function inferTplCategory(tpl) {
+  const name = (tpl.name || '').toLowerCase();
+  const units = (tpl.units || '').toLowerCase();
+  // Common (常用) patterns
+  const commonNames = ['长度','宽度','高度','厚度','直径','材质','颜色','数量','重量','型号','规格'];
+  if (commonNames.some(k => name.includes(k))) return '常用';
+  // Numeric patterns
+  const numUnits = ['mm','cm','m','kg','g','n','kn','mpa','hz','rpm','°','℃','l','ml','㎡','m³'];
+  if (numUnits.some(u => units.includes(u))) return '数值';
+  if (['长度','宽度','高度','厚度','直径','数量','重量','面积','体积','密度','功率','速度','压力','温度','角度'].some(k => name.includes(k))) return '数值';
+  // Option patterns
+  if (['材质','颜色','型号','规格','类型','等级','状态','方式','方向','位置'].some(k => name.includes(k))) return '选项';
+  // Boolean patterns
+  if (['是否','有无','需要','启用','允许','包含'].some(k => name.includes(k))) return '布尔';
+  // Text patterns
+  if (['备注','说明','描述','名称','编号','编码','注释'].some(k => name.includes(k))) return '文本';
+  return '数值'; // default
+}
+
+function onTplCategoryFilter(cat) {
+  _tplCategoryFilter = cat;
+  document.querySelectorAll('#pd-tpl-categories .tpl-cat-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.cat === cat);
+  });
+}
+
+// Template list rendering is no longer used — replaced by type buttons
+function renderPdTemplateList() {}
+
+let _quickAddTplId = null;
+
+async function quickAddTemplate(tplId, tplName) {
+  const partId = configuratorPartId;
+  if (!partId) { setStatus('error', '请先选择产品'); return; }
+  
+  // Check duplicate
+  const configs = window.__paramConfigs || [];
+  if (configs.some(c => c.template === tplId)) {
+    setStatus('error', `❌ 「${tplName}」已存在`);
+    return;
+  }
+  
+  // Smart default type based on name keywords
+  const name = (tplName || '').toLowerCase();
+  let defaultType = 'number';
+  if (name.includes('颜色') || name.includes('材质') || name.includes('型号') || name.includes('规格')) {
+    defaultType = 'option';
+  } else if (name.includes('布尔') || name.includes('是否') || name.includes('有无') || name.includes('需要')) {
+    defaultType = 'boolean';
+  }
+  
+  setStatus('loading', `正在添加「${tplName}」...`);
+  
+  const body = {
+    part: parseInt(partId),
+    template: tplId,
+    parameter_type: defaultType,
+    is_driving: true,
+    is_computed: false,
+    display_order: 100,
+  };
+  
+  const res = await apiCall('POST', 'part-config/', body);
+  if (!res.error) {
+    setStatus('success', `✅ 已添加「${tplName}」`);
+    loadPdParams();
+  } else {
+    setStatus('error', `添加失败: ${res.error}`);
+  }
+}
+
+function onQuickParamTypeChange() {
+  const type = document.getElementById('qp-type').value;
+  document.getElementById('qp-num-fields').style.display = (type === 'number') ? 'grid' : 'none';
+  document.getElementById('qp-options-group').style.display = (type === 'option' || type === 'multi_option') ? 'block' : 'none';
+  document.getElementById('qp-boolean-group').style.display = (type === 'boolean') ? 'block' : 'none';
+}
+
+async function quickAddParam() {
+  const tplId = _quickAddTplId;
+  const partId = configuratorPartId;
+  if (!partId || !tplId) { setStatus('error', '参数错误'); return; }
+  
+  const type = document.getElementById('qp-type').value;
+  const body = {
+    part: parseInt(partId),
+    template: tplId,
+    parameter_type: type,
+    default_value: type === 'boolean' ? document.getElementById('qp-boolean-default').value : document.getElementById('qp-default').value,
+    min_value: (type === 'number' && document.getElementById('qp-min').value) ? parseFloat(document.getElementById('qp-min').value) : null,
+    max_value: (type === 'number' && document.getElementById('qp-max').value) ? parseFloat(document.getElementById('qp-max').value) : null,
+    step_value: (type === 'number' && document.getElementById('qp-step').value) ? parseFloat(document.getElementById('qp-step').value) : null,
+    options: (type === 'option' || type === 'multi_option') ? document.getElementById('qp-options').value.split(',').map(s=>s.trim()).filter(Boolean) : null,
+    is_driving: document.getElementById('qp-driving').checked,
+    is_computed: document.getElementById('qp-computed').checked,
+    computation_formula: document.getElementById('qp-formula').value || '',
+    display_order: 100,
+  };
+  
+  const tpl = templates.find(t => t.pk == tplId);
+  const tplName = tpl ? tpl.name : '';
+  setStatus('loading', `正在添加「${tplName}」...`);
+  
+  const res = await apiCall('POST', 'part-config/', body);
+  if (!res.error) {
+    setStatus('success', `✅ 已添加「${tplName}」`);
+    closeModal('modal-quick-param');
+    _quickAddTplId = null;
+    loadPdParams();
+  } else {
+    setStatus('error', `添加失败: ${res.error}`);
+  }
+}
+
+async function addTemplateToProduct(templateId, templateName) {
+  const partId = configuratorPartId;
+  if (!partId) { setStatus('error', '请先选择产品'); return; }
+  
+  // Check for duplicates using current config list
+  const configs = window.__paramConfigs || [];
+  const isDuplicate = configs.some(c => c.template === templateId);
+  if (isDuplicate) {
+    setStatus('error', `❌ 「${templateName}」已存在，不能重复添加`);
+    return;
+  }
+  
+  setStatus('loading', `正在添加「${templateName}」...`);
+  const body = {
+    part: parseInt(partId),
+    template: templateId,
+    parameter_type: 'number',
+    is_driving: true,
+    is_computed: false,
+    display_order: 100,
+  };
+  
+  const res = await apiCall('POST', 'part-config/', body);
+  if (!res.error) {
+    setStatus('success', `✅ 已添加「${templateName}」`);
+    loadPdParams();
+  } else {
+    setStatus('error', `添加失败: ${res.error}`);
+  }
+}
+
+function onTplDragStart(event, tplId, tplName) {
+  event.dataTransfer.setData('text/plain', JSON.stringify({tplId, tplName}));
+  event.dataTransfer.effectAllowed = 'copy';
+}
+
+// Set up drop target on canvas for type drag
+document.addEventListener('DOMContentLoaded', function() {
+  const canvasDrop = document.getElementById('pd-params-canvas');
+  if (canvasDrop) {
+    let ghostEl = null; // floating badge
+    let typeLabels = {number:'🔢数值', option:'🔘选项', boolean:'☑️布尔', text:'📝文本', multi_option:'☑️多选', long_text:'📄长文本'};
+
+    canvasDrop.addEventListener('dragover', function(e) {
+      e.preventDefault();
+      if (!e.dataTransfer.types) return;
+
+      // Add visual hover state to canvas
+      this.classList.add('drag-hover', 'drag-active');
+
+      // Create or reposition floating ghost badge
+      if (!ghostEl) {
+        ghostEl = document.createElement('div');
+        ghostEl.className = 'drag-ghost';
+        document.body.appendChild(ghostEl);
+      }
+      try {
+        const raw = e.dataTransfer.getData('text/plain');
+        const data = JSON.parse(raw);
+        const type = data.type || data.tplType;
+        if (type && typeLabels[type]) {
+          ghostEl.textContent = typeLabels[type];
+          ghostEl.className = 'drag-ghost type-' + type;
+        } else if (type) {
+          ghostEl.textContent = '➕' + type;
+          ghostEl.className = 'drag-ghost';
+        } else {
+          ghostEl.textContent = '➕新建';
+        }
+      } catch(e) {
+        ghostEl.textContent = '➕新建';
+      }
+      ghostEl.style.left = e.clientX + 'px';
+      ghostEl.style.top = e.clientY + 'px';
+      ghostEl.style.display = 'flex';
+
+      // Show insert indicator + card highlighting
+      const indicator = document.getElementById('drop-indicator') || (() => {
+        const el = document.createElement('div');
+        el.id = 'drop-indicator';
+        this.appendChild(el);
+        return el;
+      })();
+      const cards = this.querySelectorAll('.param-card');
+      let found = false;
+      cards.forEach(c => c.classList.remove('drop-before', 'drop-after'));
+      for (const card of cards) {
+        const rect = card.getBoundingClientRect();
+        const mid = rect.top + rect.height / 2;
+        if (e.clientY < mid) {
+          card.classList.add('drop-before');
+          card.before(indicator);
+          found = true;
+          break;
+        }
+      }
+      if (!found) {
+        this.appendChild(indicator);
+        const lastCard = cards[cards.length - 1];
+        if (lastCard) lastCard.classList.add('drop-after');
+      }
+      indicator.style.display = 'flex';
+    });
+
+    canvasDrop.addEventListener('dragleave', function(e) {
+      // Only clear if actually leaving the canvas (not entering a child)
+      if (!this.contains(e.relatedTarget)) {
+        this.classList.remove('drag-hover', 'drag-active');
+        if (ghostEl) { ghostEl.style.display = 'none'; }
+        const ind = document.getElementById('drop-indicator');
+        if (ind) ind.style.display = 'none';
+        this.querySelectorAll('.param-card').forEach(c =>
+          c.classList.remove('drop-before', 'drop-after'));
+      }
+    });
+
+    canvasDrop.addEventListener('drop', async function(e) {
+      e.preventDefault();
+      this.classList.remove('drag-hover', 'drag-active');
+      if (ghostEl) { ghostEl.style.display = 'none'; }
+      this.querySelectorAll('.param-card').forEach(c =>
+        c.classList.remove('drop-before', 'drop-after'));
+
+      const ind = document.getElementById('drop-indicator');
+      if (ind) ind.remove();
+
+      try {
+        const data = JSON.parse(e.dataTransfer.getData('text/plain'));
+        if (data && data.tplId) {
+          quickAddTemplate(data.tplId, data.tplName);
+        } else if (data && data.type) {
+          const insertBeforeId = getInsertPosition(e.clientY);
+          addIndependentParam(data.type, insertBeforeId);
+        }
+      } catch(err) {}
+    });
+
+    // Global mouse move to update ghost position even when not over canvas
+    document.addEventListener('dragover', function(e) {
+      if (ghostEl && ghostEl.style.display !== 'none') {
+        ghostEl.style.left = e.clientX + 'px';
+        ghostEl.style.top = e.clientY + 'px';
+      }
+    });
+
+    // Clean up ghost on drag end
+    document.addEventListener('dragend', function() {
+      if (ghostEl) { ghostEl.remove(); ghostEl = null; }
+      const ind = document.getElementById('drop-indicator');
+      if (ind) ind.style.display = 'none';
+      if (canvasDrop) {
+        canvasDrop.classList.remove('drag-hover', 'drag-active');
+        canvasDrop.querySelectorAll('.param-card').forEach(c =>
+          c.classList.remove('drop-before', 'drop-after'));
+      }
+    });
+  }
+});
+
+/**
+ * Determine where to insert a new param based on mouse Y position
+ * Returns: config ID to insert before, or null to append at end
+ */
+function getInsertPosition(mouseY) {
+  const cards = document.querySelectorAll('#pd-params-canvas .param-card');
+  if (!cards.length) return null;
+  
+  const canvas = document.getElementById('pd-params-canvas');
+  const canvasRect = canvas.getBoundingClientRect();
+  const relY = mouseY - canvasRect.top;
+  
+  for (const card of cards) {
+    const rect = card.getBoundingClientRect();
+    const cardTop = rect.top - canvasRect.top;
+    const cardMid = cardTop + rect.height / 2;
+    if (relY < cardMid) {
+      return parseInt(card.dataset.configId);
+    }
+  }
+  return null; // append at end
+}
+
+// ── Independent Param: create template + config in one shot ──
+let _paramCounter = {};
+
+async function addIndependentParam(type, insertBeforeId) {
+  const partId = configuratorPartId;
+  if (!partId) { setStatus('error', '请先选择产品'); return; }
+
+  // Generate unique name
+  if (!_paramCounter[type]) _paramCounter[type] = 0;
+  _paramCounter[type]++;
+  const typeLabels = {number:'数值', option:'选项', boolean:'布尔', text:'文本', multi_option:'多选', long_text:'长文本'};
+  const label = typeLabels[type] || type;
+  const paramName = `${label}参数${_paramCounter[type]}`;
+
+  // Calculate display_order based on insert position
+  let displayOrder = 100;
+  if (insertBeforeId && window.__paramConfigs) {
+    const configs = window.__paramConfigs.sort((a,b)=>(a.display_order||0)-(b.display_order||0));
+    const idx = configs.findIndex(c => c.id === insertBeforeId);
+    if (idx > 0) {
+      // Between previous and target
+      const prev = configs[idx - 1].display_order || 0;
+      const next = configs[idx].display_order || 100;
+      displayOrder = Math.round((prev + next) / 2);
+      // If no space, re-number
+      if (displayOrder <= prev) displayOrder = prev + 5;
+    } else if (idx === 0) {
+      // Insert before first
+      displayOrder = Math.round((configs[0].display_order || 100) / 2) - 5;
+      if (displayOrder < 0) displayOrder = 5;
+    }
+    // else idx === -1, append at end (default 100)
+  }
+
+  setStatus('loading', `正在创建「${paramName}」...`);
+
+  const body = {
+    part: parseInt(partId),
+    name: paramName,
+    parameter_type: type,
+    is_driving: true,
+    is_computed: false,
+    display_order: displayOrder,
+  };
+
+  const res = await apiCall('POST', 'part-config/', body);
+  if (!res.error) {
+    setStatus('success', `✅ 已创建「${paramName}」`);
+    // Insert at correct position in local array
+    if (window.__paramConfigs && insertBeforeId) {
+      const idx = window.__paramConfigs.findIndex(c => c.id === insertBeforeId);
+      if (idx >= 0) {
+        window.__paramConfigs.splice(idx, 0, res.data);
+      } else {
+        window.__paramConfigs.push(res.data);
+      }
+    } else {
+      if (!window.__paramConfigs) window.__paramConfigs = [];
+      window.__paramConfigs.push(res.data);
+    }
+    // Re-sort and re-render
+    const sorted = window.__paramConfigs.sort((a,b)=>(a.display_order||0)-(b.display_order||0));
+    const canvas = document.getElementById('pd-params-canvas');
+    const countBadge = document.getElementById('pd-param-count');
+    canvas.innerHTML = sorted.map((c,i)=>renderParamCard(c,i)).join('');
+    if (countBadge) countBadge.textContent = `${sorted.length} 个参数`;
+  } else {
+    setStatus('error', `创建失败: ${res.error}`);
+    _paramCounter[type]--;
+  }
+}
+
+function onTypeDragStart(event, type) {
+  event.dataTransfer.setData('text/plain', JSON.stringify({type}));
+  event.dataTransfer.effectAllowed = 'copy';
+}
+
+// ── Rename parameter name inline ──
+function startRenameParam(cfgId) {
+  const nameEl = document.getElementById(`pc-name-${cfgId}`);
+  if (!nameEl) return;
+  const currentName = nameEl.textContent.trim();
+  
+  nameEl.contentEditable = true;
+  nameEl.focus();
+  
+  const range = document.createRange();
+  range.selectNodeContents(nameEl);
+  const sel = window.getSelection();
+  sel.removeAllRanges();
+  sel.addRange(range);
+  
+  nameEl.onblur = () => finishRename(cfgId, nameEl);
+  nameEl.onkeydown = (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); nameEl.blur(); }
+    if (e.key === 'Escape') { nameEl.textContent = currentName; nameEl.blur(); }
+  };
+}
+
+async function finishRename(cfgId, el) {
+  el.contentEditable = false;
+  el.onblur = null;
+  el.onkeydown = null;
+  
+  const newName = el.textContent.trim();
+  if (!newName) return;
+  
+  markDirty(cfgId, {name: newName});
+  setStatus('success', `✏️ 已记录重命名为「${newName}」，点击「💾 保存」提交`);
+}
+
+function clearActiveProduct() {
+  configuratorPartId = null;
+  
+  // Update selectors
+  const selectors = ['cfg-part-select', 'pm-part-select', 'bom-part-select', 'rule-part-select'];
+  selectors.forEach(id => {
+    const sel = document.getElementById(id);
+    if (sel) sel.value = '';
+  });
+  
+  // Re-render grid
+  renderProductGrid();
+  
+  switchPage('products');
+  setStatus('success', '已取消产品选择');
 }
 
 // ===== TYPE BADGE HELPER =====
@@ -1044,7 +3391,7 @@ function renderTypeAwareInput(cfg, paramName, defVal) {
     case 'number':
       const sliderId = `cfg-slider-${paramName.replace(/\\s+/g,'_')}`;
       const numId = `cfg-num-${paramName.replace(/\\s+/g,'_')}`;
-      const step = (maxVal - minVal) > 100 ? 'any' : '1';
+      const step = cfg.step_value != null ? cfg.step_value : ((maxVal - minVal) > 100 ? 'any' : '1');
       return `<div class="param-group">
         <div class="param-label">
           <span>${paramName} ${typeBadge(type)}</span>
@@ -1058,6 +3405,7 @@ function renderTypeAwareInput(cfg, paramName, defVal) {
         </div>
         <div class="param-range-hint">
           <span>最小: ${minVal}</span>
+          <span>步长: ${cfg.step_value != null ? cfg.step_value : ((maxVal - minVal) > 100 ? '自动' : '1')}</span>
           <span>最大: ${maxVal}</span>
         </div>
         ${hint}
@@ -1631,88 +3979,6 @@ function selectSidebarConfig(id) {
   }
 }
 
-// ===== PAGE 1: TEMPLATE LIBRARY =====
-async function loadTemplateCategories() {
-  try {
-    const resp = await fetch('/api/part/category/?limit=500', {credentials: 'same-origin'});
-    if (resp.ok) {
-      const data = await resp.json();
-      const cats = data.results || [];
-      if (cats.length > 0) templateCategories = cats;
-    }
-  } catch(e) {}
-  const sel = document.getElementById('tpl-category-select');
-  if (!sel) return;
-  sel.innerHTML = '<option value="">-- 请选择分类 --</option>';
-  templateCategories.forEach(c => {
-    const opt = document.createElement('option');
-    opt.value = c.pk || c.id;
-    opt.textContent = `${c.name || c.label || 'Category'} (ID:${c.pk || c.id})`;
-    sel.appendChild(opt);
-  });
-}
-
-async function loadTemplateLibrary(categoryId) {
-  if (!categoryId) {
-    document.getElementById('tpl-results').innerHTML = '<div class="empty-state"><div class="icon">📦</div><p>请选择分类</p></div>';
-    document.getElementById('tpl-actions').style.display = 'none';
-    selectedTemplateCategoryId = null;
-    return;
-  }
-  selectedTemplateCategoryId = parseInt(categoryId);
-  document.getElementById('tpl-actions').style.display = 'block';
-  const container = document.getElementById('tpl-results');
-  container.innerHTML = '<div class="flex items-center justify-center py-4"><span class="spinner mr-2"></span><span class="text-sm text-gray-400">加载中...</span></div>';
-  const res = await apiCall('GET', `template-library/category/${selectedTemplateCategoryId}/`);
-  if (res.error) { container.innerHTML = '<div class="text-red-500 text-sm">加载失败</div>'; return; }
-  const data = res.data;
-  const templates = data.templates || data.results || (data.category_templates || []);
-  renderTemplateLibrary(templates);
-}
-
-function renderTemplateLibrary(templates) {
-  const container = document.getElementById('tpl-results');
-  if (!templates || templates.length === 0) {
-    container.innerHTML = '<div class="empty-state"><div class="icon">📭</div><p>该分类没有参数模板</p></div>';
-    return;
-  }
-  let html = '<div class="overflow-x-auto"><table class="w-full text-xs border-collapse"><thead><tr class="bg-gray-50"><th class="p-2 text-left font-semibold text-gray-600 border-b">模板名称</th><th class="p-2 text-left font-semibold text-gray-600 border-b">默认值</th><th class="p-2 text-left font-semibold text-gray-600 border-b">单位</th><th class="p-2 text-left font-semibold text-gray-600 border-b">描述</th></tr></thead><tbody>';
-  templates.forEach(t => {
-    const tpl = t.template || t;
-    const name = tpl.name || t.template_name || tpl.label || '-';
-    const defVal = t.default_value != null ? t.default_value : (tpl.default_value || '-');
-    const unit = tpl.units || t.units || '-';
-    const desc = tpl.description || t.description || '-';
-    html += `<tr class="border-b border-gray-50"><td class="p-2 font-medium">${name}</td><td class="p-2">${defVal}</td><td class="p-2">${unit}</td><td class="p-2 text-gray-500">${desc}</td></tr>`;
-  });
-  html += '</tbody></table></div>';
-  container.innerHTML = html;
-}
-
-async function syncTemplateToPart() {
-  const partId = document.getElementById('tpl-sync-part').value;
-  if (!partId) { setStatus('error', '请选择零件'); return; }
-  const res = await apiCall('POST', 'template-library/sync/', {part_id: parseInt(partId)});
-  const resultDiv = document.getElementById('tpl-sync-result');
-  if (res.error) { resultDiv.innerHTML = `<div class="action-result error">同步失败: ${JSON.stringify(res.data).substring(0,120)}</div>`; return; }
-  const d = res.data;
-  resultDiv.innerHTML = `<div class="action-result success">✅ 同步成功: 创建 ${d.created||0}, 更新 ${d.updated||0}, 跳过 ${d.skipped||0}</div>`;
-  setStatus('success', '模板同步成功');
-}
-
-async function bulkAssignTemplates() {
-  if (!selectedTemplateCategoryId) { setStatus('error', '请先选择分类'); return; }
-  let templates = [];
-  try { templates = JSON.parse(document.getElementById('tpl-bulk-ids').value || '[]'); } catch(e) { setStatus('error', 'JSON格式错误'); return; }
-  if (!Array.isArray(templates) || templates.length === 0) { setStatus('error', '无效的模板列表'); return; }
-  const res = await apiCall('POST', 'template-library/bulk-assign/', {category_id: selectedTemplateCategoryId, templates});
-  const resultDiv = document.getElementById('tpl-sync-result');
-  if (res.error) { resultDiv.innerHTML = '<div class="action-result error">批量分配失败</div>'; return; }
-  resultDiv.innerHTML = '<div class="action-result success">✅ 批量分配成功</div>';
-  setStatus('success', '批量分配成功');
-  loadTemplateLibrary(selectedTemplateCategoryId);
-}
-
 // ===== PAGE 2: PARAM MANAGEMENT =====
 async function loadParamConfigs(partId) {
   if (!partId) { document.getElementById('pm-config-list').innerHTML = '<div class="text-gray-400 text-sm p-2">请选择产品</div>'; return; }
@@ -1721,11 +3987,23 @@ async function loadParamConfigs(partId) {
   const res = await apiCall('GET', `part-config/?part=${parseInt(partId)}`);
   if (res.error) { container.innerHTML = '<div class="text-red-500 text-sm">加载失败</div>'; return; }
   const configs = res.data.results || (Array.isArray(res.data) ? res.data : []);
-  let html = '<div class="overflow-x-auto"><table class="w-full text-xs border-collapse"><thead><tr class="bg-gray-50"><th class="p-2 text-left font-semibold text-gray-600 border-b">参数</th><th class="p-2 text-center font-semibold text-gray-600 border-b">类型</th><th class="p-2 text-center font-semibold text-gray-600 border-b">驱动</th><th class="p-2 text-center font-semibold text-gray-600 border-b">计算</th><th class="p-2 text-right font-semibold text-gray-600 border-b">默认值</th><th class="p-2 text-right font-semibold text-gray-600 border-b">最小</th><th class="p-2 text-right font-semibold text-gray-600 border-b">最大</th><th class="p-2 text-left font-semibold text-gray-600 border-b">选项</th><th class="p-2 text-left font-semibold text-gray-600 border-b">公式</th></tr></thead><tbody>';
-  (configs || []).sort((a,b) => (a.display_order||0) - (b.display_order||0)).forEach(cfg => {
+  let html = `<div class="flex items-center gap-2 mb-2">
+    <span class="text-xs text-gray-400">共 ${configs.length} 个参数</span>
+    <span class="text-xs text-gray-300">|</span>
+    <span class="text-xs text-gray-400">💡 拖拽行头 <span class="text-gray-300">⠿</span> 可调整排序</span>
+  </div>`;
+  html += '<div class="overflow-x-auto"><table class="w-full text-xs border-collapse" id="param-config-table"><thead><tr class="bg-gray-50"><th class="p-2 text-center font-semibold text-gray-600 border-b w-8">#</th><th class="p-2 text-left font-semibold text-gray-600 border-b">参数</th><th class="p-2 text-center font-semibold text-gray-600 border-b">类型</th><th class="p-2 text-center font-semibold text-gray-600 border-b">驱动</th><th class="p-2 text-center font-semibold text-gray-600 border-b">计算</th><th class="p-2 text-right font-semibold text-gray-600 border-b">默认值</th><th class="p-2 text-right font-semibold text-gray-600 border-b">最小</th><th class="p-2 text-right font-semibold text-gray-600 border-b">最大</th><th class="p-2 text-right font-semibold text-gray-600 border-b">步长</th><th class="p-2 text-left font-semibold text-gray-600 border-b">选项</th><th class="p-2 text-left font-semibold text-gray-600 border-b">公式</th><th class="p-2 text-center font-semibold text-gray-600 border-b w-20">操作</th></tr></thead><tbody>';
+  const sorted = (configs || []).sort((a,b) => (a.display_order||0) - (b.display_order||0));
+  sorted.forEach((cfg, idx) => {
     const type = cfg.parameter_type || 'number';
     const optStr = cfg.options ? (Array.isArray(cfg.options) ? cfg.options.join(', ') : (typeof cfg.options === 'string' ? cfg.options : JSON.stringify(cfg.options))) : '-';
-    html += `<tr class="border-b border-gray-50">
+    html += `<tr class="border-b border-gray-50 hover:bg-gray-50/50" draggable="true"
+      data-config-id="${cfg.id}" data-display-order="${cfg.display_order||0}"
+      ondragstart="onParamDragStart(event, ${cfg.id})"
+      ondragover="onParamDragOver(event)"
+      ondrop="onParamDrop(event, ${cfg.id})"
+      ondragend="onParamDragEnd(event)">
+      <td class="p-2 text-center cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-500 select-none" title="拖拽排序">⠿</td>
       <td class="p-2 font-medium">${cfg.template_name||''}</td>
       <td class="p-2 text-center">${typeBadge(type)}</td>
       <td class="p-2 text-center">${cfg.is_driving ? '✅' : '❌'}</td>
@@ -1733,29 +4011,245 @@ async function loadParamConfigs(partId) {
       <td class="p-2 text-right">${cfg.default_value||'-'}</td>
       <td class="p-2 text-right text-gray-500">${cfg.min_value != null ? cfg.min_value : '-'}</td>
       <td class="p-2 text-right text-gray-500">${cfg.max_value != null ? cfg.max_value : '-'}</td>
+      <td class="p-2 text-right text-gray-500">${cfg.step_value != null ? cfg.step_value : '-'}</td>
       <td class="p-2 text-gray-500 max-w-[100px] truncate" title="${optStr}">${optStr}</td>
       <td class="p-2 text-gray-500 max-w-[120px] truncate" title="${cfg.computation_formula||''}">${cfg.computation_formula||'-'}</td>
+      <td class="p-2 text-center">
+        <div class="flex items-center justify-center gap-1">
+          <button class="btn btn-sm text-[11px] px-1.5 py-0.5 bg-transparent text-blue-500 hover:text-blue-700 hover:bg-blue-50 border-0" onclick="openEditParamModal(${cfg.id})" title="编辑">✏️</button>
+          <button class="btn btn-sm text-[11px] px-1.5 py-0.5 bg-transparent text-red-400 hover:text-red-600 hover:bg-red-50 border-0" onclick="deleteParamConfig(${cfg.id}, '${(cfg.template_name||'').replace(/'/g, "\\'")}')" title="删除">🗑️</button>
+        </div>
+      </td>
     </tr>`;
   });
   html += '</tbody></table></div>';
   container.innerHTML = html;
+  // Store for drag-and-drop reordering
+  window.__paramConfigs = configs;
+  window.__currentPartId = partId;
+}
+
+// ── Card Drag & Drop Reorder ──
+let _dragCardSourceId = null;
+
+function onCardDragStart(event, configId) {
+  _dragCardSourceId = configId;
+  event.dataTransfer.effectAllowed = 'move';
+  event.dataTransfer.setData('text/plain', String(configId));
+  const card = event.target.closest('.param-card');
+  if (card) card.classList.add('dragging');
+}
+
+function onCardDragOver(event) {
+  event.preventDefault();
+  event.dataTransfer.dropEffect = 'move';
+  const targetCard = event.target.closest('.param-card');
+  if (targetCard) {
+    document.querySelectorAll('#pd-params-canvas .param-card').forEach(c => c.classList.remove('drag-over'));
+    targetCard.classList.add('drag-over');
+  }
+}
+
+async function onCardDrop(event, targetId) {
+  event.preventDefault();
+  _dragCardSourceId = null;
+  document.querySelectorAll('#pd-params-canvas .param-card').forEach(c => {
+    c.classList.remove('drag-over', 'dragging');
+  });
+  const sourceId = parseInt(event.dataTransfer.getData('text/plain'));
+  if (!sourceId || sourceId === targetId) return;
+  await reorderParams(sourceId, targetId);
+}
+
+function onCardDragEnd(event) {
+  _dragCardSourceId = null;
+  document.querySelectorAll('#pd-params-canvas .param-card').forEach(c => {
+    c.classList.remove('drag-over', 'dragging');
+  });
+}
+
+async function reorderParams(sourceId, targetId) {
+  const configs = window.__paramConfigs;
+  if (!configs || !configs.length) return;
+
+  const srcIdx = configs.findIndex(c => c.id === sourceId);
+  const tgtIdx = configs.findIndex(c => c.id === targetId);
+  if (srcIdx === -1 || tgtIdx === -1) return;
+
+  // Move source to target position in array
+  const [moved] = configs.splice(srcIdx, 1);
+  const newIdx = tgtIdx > srcIdx ? tgtIdx - 1 : tgtIdx;
+  configs.splice(newIdx, 0, moved);
+
+  // Re-assign display_order
+  const updates = configs.map((cfg, i) => ({
+    id: cfg.id,
+    display_order: (i + 1) * 10,
+  }));
+
+  setStatus('loading', '正在更新排序...');
+  let errors = 0;
+  for (const upd of updates) {
+    const res = await apiCall('PATCH', `part-config/${upd.id}/`, { display_order: upd.display_order });
+    if (res.error) errors++;
+  }
+
+  if (errors) {
+    setStatus('error', `${errors} 个参数排序更新失败`);
+  } else {
+    setStatus('success', '排序已更新 ✅');
+    if (window.__currentPartId) loadPdParams();
+  }
+}
+
+// ── Delete ────────────────────────────────────────────────
+async function deleteParamConfig(configId, paramName) {
+  if (!confirm(`确定要删除参数「${paramName}」吗？此操作不可撤销。`)) return;
+  setStatus('loading', `正在删除「${paramName}」...`);
+  const res = await apiCall('DELETE', `part-config/${configId}/`);
+  if (res.error) {
+    if (res.status === 404) {
+      // 参数已被删除，从本地清理 + 全量刷新
+      setStatus('warning', `「${paramName}」不存在，正在刷新数据...`);
+      await loadPdParams(); // 全量重新加载，保证同步
+    } else {
+      setStatus('error', `删除失败: ${res.status} - ${JSON.stringify(res.data).substring(0,100)}`);
+    }
+    return;
+  }
+  setStatus('success', `「${paramName}」已删除 ✅`);
+  // Remove from local array and re-render
+  if (window.__paramConfigs) {
+    window.__paramConfigs = window.__paramConfigs.filter(c => c.id !== configId);
+    const sorted = window.__paramConfigs.sort((a,b)=>(a.display_order||0)-(b.display_order||0));
+    const canvas = document.getElementById('pd-params-canvas');
+    const countBadge = document.getElementById('pd-param-count');
+    if (sorted.length === 0) {
+      canvas.innerHTML = `<div class=\"pc-empty-state\">
+        <div class=\"pc-empty-icon\">🎨</div>
+        <div class=\"pc-empty-title\">画布为空</div>
+        <div class=\"pc-empty-desc\">从左栏组件库单击或拖拽添加参数</div>
+      </div>`;
+    } else {
+      canvas.innerHTML = sorted.map((c,i)=>renderParamCard(c,i)).join('');
+    }
+    if (countBadge) countBadge.textContent = `${sorted.length} 个参数`;
+  }
+}
+
+// ── Edit Param Modal ──
+let _editingConfigId = null;
+
+async function openEditParamModal(configId) {
+  _editingConfigId = configId;
+  
+  // Fetch the config data
+  const res = await apiCall('GET', `part-config/${configId}/`);
+  if (res.error) { setStatus('error', '加载参数配置失败'); return; }
+  const cfg = res.data;
+  
+  // Populate form
+  if (document.getElementById('ap-part')) {
+    // Set hidden field to existing part
+    document.getElementById('ap-part').value = cfg.part;
+    const part = parts.find(p => p.pk == cfg.part);
+    document.getElementById('ap-product-name-display').textContent = part ? (part.name || part.full_name || '—') : `#${cfg.part}`;
+  }
+  
+  // Template selector — show all for editing, filter out used ones for create
+  const tmplSel = document.getElementById('ap-template');
+  tmplSel.innerHTML = '<option value="">-- 请选择 --</option>';
+  const currentConfigs = window.__paramConfigs || [];
+  const existingIds = new Set();
+  currentConfigs.forEach(c => { if (c.id !== configId) existingIds.add(c.template); });
+  templates.forEach(t => {
+    if (existingIds.has(t.pk) && t.pk !== cfg.template) return;
+    const opt = document.createElement('option');
+    opt.value = t.pk;
+    opt.textContent = `${t.name}${t.units ? ' ('+t.units+')' : ''}`;
+    if (t.pk === cfg.template) opt.selected = true;
+    tmplSel.appendChild(opt);
+  });
+  
+  // Fill in values
+  document.getElementById('ap-type').value = cfg.parameter_type || 'number';
+  document.getElementById('ap-default').value = cfg.default_value || '';
+  document.getElementById('ap-min').value = cfg.min_value != null ? cfg.min_value : '';
+  document.getElementById('ap-max').value = cfg.max_value != null ? cfg.max_value : '';
+  document.getElementById('ap-step').value = cfg.step_value != null ? cfg.step_value : '';
+  document.getElementById('ap-options').value = cfg.options ? (Array.isArray(cfg.options) ? cfg.options.join(', ') : cfg.options) : '';
+  document.getElementById('ap-driving').checked = cfg.is_driving;
+  document.getElementById('ap-computed').checked = cfg.is_computed;
+  document.getElementById('ap-formula').value = cfg.computation_formula || '';
+  document.getElementById('ap-order').value = cfg.display_order || 100;
+  
+  // Show/hide conditional sections
+  onAddParamTypeChange();
+  document.getElementById('ap-formula-group').style.display = cfg.is_computed ? 'block' : 'none';
+  
+  // Change modal title and button
+  document.querySelector('#modal-add-param h3').textContent = `✏️ 编辑参数配置: ${cfg.template_name || ''}`;
+  const btn = document.querySelector('#modal-add-param .btn-primary');
+  btn.textContent = '保存修改';
+  btn.onclick = updateParamConfig;
+  
+  openModal('modal-add-param');
+}
+
+async function updateParamConfig() {
+  const configId = _editingConfigId;
+  if (!configId) return;
+  
+  const type = document.getElementById('ap-type').value;
+  const body = {
+    parameter_type: type,
+    default_value: type === 'boolean' ? document.getElementById('ap-boolean-default').value : document.getElementById('ap-default').value,
+    min_value: (type === 'number' && document.getElementById('ap-min').value) ? parseFloat(document.getElementById('ap-min').value) : null,
+    max_value: (type === 'number' && document.getElementById('ap-max').value) ? parseFloat(document.getElementById('ap-max').value) : null,
+    step_value: (type === 'number' && document.getElementById('ap-step').value) ? parseFloat(document.getElementById('ap-step').value) : null,
+    options: (type === 'option' || type === 'multi_option') ? document.getElementById('ap-options').value.split(',').map(s=>s.trim()).filter(Boolean) : null,
+    is_driving: document.getElementById('ap-driving').checked,
+    is_computed: document.getElementById('ap-computed').checked,
+    computation_formula: document.getElementById('ap-formula').value || '',
+    display_order: parseInt(document.getElementById('ap-order').value) || 100,
+  };
+
+  const res = await apiCall('PATCH', `part-config/${configId}/`, body);
+  if (!res.error) {
+    setStatus('success', '参数配置已更新 ✅');
+    closeModal('modal-add-param');
+    // Reset edit state
+    _editingConfigId = null;
+    document.querySelector('#modal-add-param h3').textContent = '➕ 新增参数配置';
+    document.querySelector('#modal-add-param .btn-primary').textContent = '创建';
+    document.querySelector('#modal-add-param .btn-primary').onclick = createParamConfig;
+    // Reload
+    if (window.__currentPartId) loadParamConfigs(window.__currentPartId);
+  } else {
+    setStatus('error', `更新失败: ${res.error}`);
+  }
 }
 
 function openAddParamModal() {
-  // Populate the modal selects
-  const partSel = document.getElementById('ap-part');
-  partSel.innerHTML = '<option value="">-- 请选择 --</option>';
-  parts.forEach(p => {
-    const opt = document.createElement('option');
-    opt.value = p.pk;
-    opt.textContent = `${p.name || p.full_name || 'Unnamed'} (ID:${p.pk})`;
-    partSel.appendChild(opt);
-  });
-  if (configuratorPartId) partSel.value = configuratorPartId;
+  // Reset edit state
+  _editingConfigId = null;
+  document.querySelector('#modal-add-param h3').textContent = '➕ 新增参数配置';
+  const btn = document.querySelector('#modal-add-param .btn-primary');
+  btn.textContent = '创建';
+  btn.onclick = createParamConfig;
+
+  // Auto-set current product
+  const partId = configuratorPartId;
+  const part = parts.find(p => p.pk == partId);
+  document.getElementById('ap-part').value = partId || '';
+  document.getElementById('ap-product-name-display').textContent = part ? (part.name || part.full_name || '—') : '—';
   
   const tmplSel = document.getElementById('ap-template');
   tmplSel.innerHTML = '<option value="">-- 请选择 --</option>';
+  const configs = window.__paramConfigs || [];
+  const existingTemplateIds = new Set(configs.map(c => c.template));
   templates.forEach(t => {
+    if (existingTemplateIds.has(t.pk)) return; // skip already added
     const opt = document.createElement('option');
     opt.value = t.pk;
     opt.textContent = `${t.name}${t.units ? ' ('+t.units+')' : ''}`;
@@ -1767,6 +4261,7 @@ function openAddParamModal() {
   document.getElementById('ap-default').value = '';
   document.getElementById('ap-min').value = '';
   document.getElementById('ap-max').value = '';
+  document.getElementById('ap-step').value = '';
   document.getElementById('ap-options').value = '';
   document.getElementById('ap-driving').checked = true;
   document.getElementById('ap-computed').checked = false;
@@ -1776,6 +4271,14 @@ function openAddParamModal() {
   onAddParamTypeChange();
   
   openModal('modal-add-param');
+}
+
+function cancelAddParamModal() {
+  _editingConfigId = null;
+  document.querySelector('#modal-add-param h3').textContent = '➕ 新增参数配置';
+  const btn = document.querySelector('#modal-add-param .btn-primary');
+  if (btn) { btn.textContent = '创建'; btn.onclick = createParamConfig; }
+  closeModal('modal-add-param');
 }
 
 function onAddParamTemplateChange() {
@@ -1801,13 +4304,14 @@ function onAddParamTypeChange() {
     booleanGroup.style.display = 'none';
   }
   
-  // Show/hide min/max for number
+  // Show/hide min/max/step for number
   const minField = document.getElementById('ap-min').closest('.grid');
   if (minField) {
     const numberFields = minField.querySelectorAll('div');
-    if (numberFields.length >= 3) {
+    if (numberFields.length >= 4) {
       numberFields[1].style.display = (type === 'number') ? 'block' : 'none';
       numberFields[2].style.display = (type === 'number') ? 'block' : 'none';
+      numberFields[3].style.display = (type === 'number') ? 'block' : 'none';
     }
   }
 }
@@ -1817,6 +4321,14 @@ async function createParamConfig() {
   const templateId = document.getElementById('ap-template').value;
   if (!partId || !templateId) { setStatus('error', '请选择零件和参数模板'); return; }
   
+  // Check for duplicates
+  const configs = window.__paramConfigs || [];
+  if (configs.some(c => c.template == templateId)) {
+    const tpl = templates.find(t => t.pk == templateId);
+    setStatus('error', `❌ 「${tpl ? tpl.name : '该参数'}」已存在，不能重复添加`);
+    return;
+  }
+  
   const type = document.getElementById('ap-type').value;
   const body = {
     part: parseInt(partId),
@@ -1825,6 +4337,7 @@ async function createParamConfig() {
     default_value: type === 'boolean' ? document.getElementById('ap-boolean-default').value : document.getElementById('ap-default').value,
     min_value: (type === 'number' && document.getElementById('ap-min').value) ? parseFloat(document.getElementById('ap-min').value) : null,
     max_value: (type === 'number' && document.getElementById('ap-max').value) ? parseFloat(document.getElementById('ap-max').value) : null,
+    step_value: (type === 'number' && document.getElementById('ap-step').value) ? parseFloat(document.getElementById('ap-step').value) : null,
     options: (type === 'option' || type === 'multi_option') ? document.getElementById('ap-options').value.split(',').map(s=>s.trim()).filter(Boolean) : null,
     is_driving: document.getElementById('ap-driving').checked,
     is_computed: document.getElementById('ap-computed').checked,
@@ -1974,25 +4487,54 @@ async function loadRules(partId) {
   container.innerHTML = html;
 }
 
-function openAddRuleModal() {
+// ── Rule CRUD ──
+let _editingRuleId = null;
+
+function openAddRuleModal(ruleId, productId) {
+  _editingRuleId = ruleId || null;
+  
+  // Update modal title
+  const title = document.querySelector('#modal-add-rule h3');
+  if (title) title.textContent = ruleId ? '✏️ 编辑规则' : '📜 新增规则';
+  const saveBtn = document.querySelector('#modal-add-rule .btn-primary');
+  if (saveBtn) saveBtn.textContent = ruleId ? '💾 保存修改' : '创建';
+  
+  const pid = productId || configuratorPartId;
+  
+  // Product select
   const partSel = document.getElementById('ar-part');
   partSel.innerHTML = '<option value="">-- 请选择 --</option>';
   parts.forEach(p => {
     const opt = document.createElement('option');
     opt.value = p.pk;
     opt.textContent = `${p.name || p.full_name || 'Unnamed'} (ID:${p.pk})`;
+    if (pid && p.pk == pid) opt.selected = true;
     partSel.appendChild(opt);
   });
   
-  // Target param select
+  // Target param: use product's own params if in product detail, else global templates
   const targetSel = document.getElementById('ar-target-param');
   targetSel.innerHTML = '<option value="">-- 选择 --</option>';
-  templates.forEach(t => {
-    const opt = document.createElement('option');
-    opt.value = t.pk;
-    opt.textContent = t.name;
-    targetSel.appendChild(opt);
-  });
+  
+  if (pid) {
+    // Use current product's part-configs as targets
+    const configs = window.__paramConfigs || [];
+    const sorted = configs.sort((a,b)=>(a.display_order||0)-(b.display_order||0));
+    sorted.forEach(c => {
+      const opt = document.createElement('option');
+      opt.value = c.id;
+      opt.textContent = c.name || `参数 #${c.id}`;
+      targetSel.appendChild(opt);
+    });
+  } else {
+    // Fallback: use templates
+    templates.forEach(t => {
+      const opt = document.createElement('option');
+      opt.value = t.pk;
+      opt.textContent = t.name;
+      targetSel.appendChild(opt);
+    });
+  }
   
   // Reset form
   document.getElementById('ar-condition').value = '';
@@ -2001,6 +4543,26 @@ function openAddRuleModal() {
   document.getElementById('ar-error-msg').value = '';
   document.getElementById('ar-priority').value = '100';
   document.getElementById('ar-enabled').checked = true;
+  
+  // If editing, load rule data
+  if (ruleId) {
+    apiCall('GET', `rules/${ruleId}/`).then(res => {
+      if (res.error) return;
+      const r = res.data;
+      if (r.product_part && partSel.querySelector(`option[value="${r.product_part}"]`)) {
+        partSel.value = r.product_part;
+      }
+      document.getElementById('ar-condition').value = r.condition_formula || '';
+      document.getElementById('ar-action').value = r.action || 'set_value';
+      document.getElementById('ar-value-formula').value = r.value_formula || '';
+      document.getElementById('ar-error-msg').value = r.error_message || '';
+      document.getElementById('ar-priority').value = r.priority || 100;
+      document.getElementById('ar-enabled').checked = r.enabled !== false;
+      if (r.target_param && targetSel.querySelector(`option[value="${r.target_param}"]`)) {
+        targetSel.value = r.target_param;
+      }
+    });
+  }
   
   openModal('modal-add-rule');
 }
@@ -2013,6 +4575,7 @@ async function createRule() {
   const body = {
     product_part: parseInt(partId),
     condition_formula: condition,
+    rule_type: document.getElementById('ar-type').value,
     action: document.getElementById('ar-action').value,
     target_param: document.getElementById('ar-target-param').value ? parseInt(document.getElementById('ar-target-param').value) : null,
     value_formula: document.getElementById('ar-value-formula').value.trim(),
@@ -2021,12 +4584,38 @@ async function createRule() {
     enabled: document.getElementById('ar-enabled').checked,
   };
   
-  const res = await apiCall('POST', 'rules/', body);
+  if (body.target_param) {
+    // Get param name from product configs
+    const configs = window.__paramConfigs || [];
+    const cfg = configs.find(c => c.id == body.target_param);
+    if (cfg) body.target_param_name = cfg.name;
+    else {
+      // Try templates
+      const tpl = templates.find(t => t.pk == body.target_param);
+      if (tpl) body.target_param_name = tpl.name;
+    }
+  }
+  
+  let res;
+  if (_editingRuleId) {
+    res = await apiCall('PATCH', `rules/${_editingRuleId}/`, body);
+  } else {
+    res = await apiCall('POST', 'rules/', body);
+  }
+  
   if (!res.error) {
-    setStatus('success', `规则已创建 (ID: ${res.data.id})`);
+    setStatus('success', _editingRuleId ? '✅ 规则已更新' : '✅ 规则已创建');
     closeModal('modal-add-rule');
-    const partSelect = document.getElementById('rule-part-select');
-    if (partSelect.value) loadRules(partSelect.value);
+    _editingRuleId = null;
+    // Reload rules - check which page is active
+    const productDetail = document.getElementById('page-product-detail');
+    if (productDetail && productDetail.classList.contains('active')) {
+      loadPdRules();
+    }
+    const globalPage = document.getElementById('rule-part-select');
+    if (globalPage && globalPage.value) loadRules(globalPage.value);
+  } else {
+    setStatus('error', `操作失败: ${res.error}`);
   }
 }
 
@@ -2346,7 +4935,17 @@ function closeModal(id) {
 }
 document.querySelectorAll('.modal-overlay').forEach(m => {
   m.addEventListener('click', function(e) {
-    if (e.target === this) { this.classList.remove('show'); document.body.style.overflow = ''; }
+    if (e.target === this) {
+      this.classList.remove('show');
+      document.body.style.overflow = '';
+      // Reset param modal state if closing it
+      if (this.id === 'modal-add-param') {
+        _editingConfigId = null;
+        document.querySelector('#modal-add-param h3').textContent = '➕ 新增参数配置';
+        const btn = document.querySelector('#modal-add-param .btn-primary');
+        if (btn) { btn.textContent = '创建'; btn.onclick = createParamConfig; }
+      }
+    }
   });
 });
 
@@ -2685,6 +5284,11 @@ function onGlobalPartChange(partId) {
   globalPartId = partId || null;
   const part = parts.find(p => p.pk == partId);
   globalPartName = part ? (part.name || part.full_name || '') : '';
+  // Sync with product management state
+  if (partId) {
+    configuratorPartId = parseInt(partId);
+    renderProductGrid();
+  }
   // Auto-refresh current page if it depends on product
   const activePage = document.querySelector('.page-panel.active')?.id?.replace('page-', '');
   if (activePage === 'bom-formula') loadBomFormulaConfigs(partId || '');
@@ -2768,6 +5372,7 @@ async function renderDashboard() {
 
   <!-- Quick Actions -->
   <div class="flex flex-wrap gap-2">
+    <button class="btn btn-primary btn-sm" onclick="switchPage('products')">🏷️ 产品管理</button>
     <button class="btn btn-primary btn-sm" onclick="switchPage('bom-formula')">📋 去配置BOM公式</button>
     <button class="btn btn-secondary btn-sm" onclick="switchPage('configurator')">🔧 去产品配置器</button>
   </div>`;
@@ -2778,9 +5383,22 @@ async function renderDashboard() {
 // ===== INIT ENHANCEMENT (overrides previous) =====
 document.addEventListener('DOMContentLoaded', async function() {
   await loadParts();
+  
+  // Auto-load product from URL query parameter
+  if (initialProductId) {
+    const product = parts.find(p => p.pk == initialProductId);
+    if (product) {
+      // Switch to product detail page
+      document.querySelectorAll('.page-panel').forEach(el => el.classList.remove('active'));
+      document.getElementById('page-product-detail')?.classList.add('active');
+      document.querySelectorAll('.sidebar-item').forEach(el => el.classList.remove('active'));
+      
+      configuratorPartId = parseInt(initialProductId);
+      loadProductDetail(configuratorPartId);
+    }
+  }
+  
   await loadConfigList();
-  await loadTemplateCategories();
-  await loadTemplateCategories();
 
   // Override goConfigStep(2) to auto-expand BOM
   const origGoStep = goConfigStep;
@@ -2793,16 +5411,6 @@ document.addEventListener('DOMContentLoaded', async function() {
   });
 
   // Populate global part select
-  const globalSel = document.getElementById('global-part-select');
-  if (globalSel && typeof parts !== 'undefined') {
-    parts.forEach(p => {
-      const opt = document.createElement('option');
-      opt.value = p.pk;
-      opt.textContent = `${p.name || p.full_name || 'Unnamed'}`;
-      globalSel.appendChild(opt);
-    });
-  }
-
   // Populate other selects
   ['inh-part-select', 'attr-part-select'].forEach(id => {
     const sel = document.getElementById(id);
@@ -2818,6 +5426,83 @@ document.addEventListener('DOMContentLoaded', async function() {
   setStatus('idle', '就绪');
   renderDashboard();
 });
+
+// ── Create Demo Product ──
+async function createDemoProduct() {
+  const btn = document.getElementById('btn-demo');
+  if (!btn || btn.disabled) return;
+  btn.disabled = true;
+  btn.textContent = '⏳ 创建中...';
+  setStatus('loading', '正在创建示例产品...');
+  
+  try {
+    const productRes = await fetch('/api/part/', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken()},
+      credentials: 'same-origin',
+      body: JSON.stringify({name: '货架系统 (示例)'}),
+    });
+    if (!productRes.ok) {
+      const errText = await productRes.text();
+      let errMsg = errText;
+      try { const j = JSON.parse(errText); errMsg = JSON.stringify(j).substring(0,300); } catch(e){}
+      throw new Error(`创建产品失败: ${errMsg}`);
+    }
+    const product = await productRes.json();
+    const productId = product.pk || product.id;
+    
+    const params = [
+      {name:'总长度', type:'number', driving:true, comp:false, def:'3000', extra:{min_value:1000,max_value:6000}, order:10},
+      {name:'总宽度', type:'number', driving:true, comp:false, def:'800', extra:{min_value:400,max_value:1500}, order:20},
+      {name:'总高度', type:'number', driving:true, comp:false, def:'2000', extra:{min_value:1000,max_value:3000}, order:30},
+      {name:'层数', type:'option', driving:true, comp:false, def:'3', extra:{options:['1','2','3','4','5']}, order:40},
+      {name:'材质', type:'option', driving:true, comp:false, def:'钢', extra:{options:['钢','不锈钢','铝合金']}, order:50},
+      {name:'颜色', type:'option', driving:true, comp:false, def:'白色', extra:{options:['白色','灰色','蓝色','定制']}, order:60},
+      {name:'加强筋', type:'boolean', driving:true, comp:false, def:'true', extra:{}, order:70},
+    ];
+    
+    for (const p of params) {
+      await apiCall('POST', 'part-config/', {
+        part: productId, name: p.name, parameter_type: p.type,
+        is_driving: p.driving, is_computed: p.comp,
+        default_value: p.def, display_order: p.order,
+        ...p.extra,
+      });
+    }
+    
+    // Create sub-parts
+    const subPartNames = ['立柱 (示例)','横梁 (示例)','层板 (示例)','加强筋 (示例)'];
+    const qtys = [4, 4, 3, 1];
+    const subParts = await Promise.all(subPartNames.map(name =>
+      fetch('/api/part/', {method:'POST',
+        headers:{'Content-Type':'application/json','X-CSRFToken':getCsrfToken()},
+        credentials:'same-origin',
+        body:JSON.stringify({name, description:`示例: ${name}`,
+          component:true, assembly:false, active:true})
+      }).then(async r => {
+        if (!r.ok) { const t=await r.text(); console.warn(`创建子件 ${name} 失败:`, t); return null; }
+        return r.json();
+      })
+    ));
+    
+    for (let i = 0; i < subParts.length; i++) {
+      if (!subParts[i]) continue;
+      await fetch('/api/bom/', {method:'POST',
+        headers:{'Content-Type':'application/json','X-CSRFToken':getCsrfToken()},
+        credentials:'same-origin',
+        body:JSON.stringify({part:productId, sub_part:subParts[i].pk||subParts[i].id, quantity:qtys[i]})
+      });
+    }
+    
+    setStatus('success', `✅ 示例产品「${product.name}」已创建！`);
+    btn.textContent = '✅ 已创建';
+    setTimeout(() => window.location.reload(), 1500);
+  } catch(e) {
+    setStatus('error', `创建失败: ${e.message}`);
+    btn.disabled = false;
+    btn.textContent = '🚀 一键创建示例产品';
+  }
+}
 </script>
 </body>
 </html>

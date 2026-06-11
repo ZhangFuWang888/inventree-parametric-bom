@@ -8,8 +8,13 @@ from django.shortcuts import render
 def configurator_view(request):
     """Render the comprehensive parametric BOM configurator single-page app.
 
-    This view delivers a self-contained HTML page that acts as a full-featured
-    product configurator frontend, communicating with the Parametric BOM REST
-    API endpoints (/api/parametric-bom/*) via fetch() and Django session auth.
+    Supports ?product=<id> query parameter to auto-open a product detail page.
     """
-    return render(request, 'parametric_bom/configurator.html')
+    product_id = request.GET.get('product')
+    context = {}
+    if product_id:
+        try:
+            context['initial_product_id'] = int(product_id)
+        except (ValueError, TypeError):
+            pass
+    return render(request, 'parametric_bom/configurator.html', context)

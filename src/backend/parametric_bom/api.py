@@ -25,6 +25,8 @@ from parametric_bom.models import (
     SupplierSelectionRule,
     VariantMapping,
 )
+from InvenTree.filters import SEARCH_ORDER_FILTER
+
 from parametric_bom.serializers import (
     BomCandidatePartSerializer,
     BomSpecificationSerializer,
@@ -43,12 +45,13 @@ from parametric_bom.serializers import (
 class PartParameterConfigViewSet(viewsets.ModelViewSet):
     """API endpoint for PartParameterConfig."""
     queryset = PartParameterConfig.objects.select_related(
-        'part', 'template'
+        'part'
     ).all()
     serializer_class = PartParameterConfigSerializer
     permission_classes = [permissions.IsAuthenticated]
-    filterset_fields = ['part', 'template', 'is_driving', 'is_computed']
-    search_fields = ['part__name', 'template__name', 'ui_hint']
+    filter_backends = SEARCH_ORDER_FILTER
+    filterset_fields = ['part', 'is_driving', 'is_computed']
+    search_fields = ['name', 'part__name', 'ui_hint']
 
 
 class ParametricBomItemViewSet(viewsets.ModelViewSet):
@@ -58,6 +61,7 @@ class ParametricBomItemViewSet(viewsets.ModelViewSet):
     ).all()
     serializer_class = ParametricBomItemSerializer
     permission_classes = [permissions.IsAuthenticated]
+    filter_backends = SEARCH_ORDER_FILTER
     filterset_fields = ['bom_item', 'mode']
     search_fields = ['bom_item__part__name', 'qty_formula']
 
@@ -69,6 +73,7 @@ class ParametricRuleViewSet(viewsets.ModelViewSet):
     ).all()
     serializer_class = ParametricRuleSerializer
     permission_classes = [permissions.IsAuthenticated]
+    filter_backends = SEARCH_ORDER_FILTER
     filterset_fields = [
         'product_part', 'rule_type', 'action', 'enabled',
     ]
@@ -82,6 +87,7 @@ class ProductConfigurationViewSet(viewsets.ModelViewSet):
     ).prefetch_related('parameter_values').all()
     serializer_class = ProductConfigurationSerializer
     permission_classes = [permissions.IsAuthenticated]
+    filter_backends = SEARCH_ORDER_FILTER
     filterset_fields = ['template_part', 'status', 'revision']
     search_fields = ['title', 'notes']
 
@@ -93,6 +99,7 @@ class ConfigParameterValueViewSet(viewsets.ModelViewSet):
     ).all()
     serializer_class = ConfigParameterValueSerializer
     permission_classes = [permissions.IsAuthenticated]
+    filter_backends = SEARCH_ORDER_FILTER
     filterset_fields = ['config', 'template', 'source']
 
 
@@ -105,6 +112,7 @@ class BomCandidatePartViewSet(viewsets.ModelViewSet):
     ).all()
     serializer_class = BomCandidatePartSerializer
     permission_classes = [permissions.IsAuthenticated]
+    filter_backends = SEARCH_ORDER_FILTER
     filterset_fields = ['parametric_bom_item', 'part']
     search_fields = ['label', 'part__name']
 
@@ -116,6 +124,7 @@ class VariantMappingViewSet(viewsets.ModelViewSet):
     ).all()
     serializer_class = VariantMappingSerializer
     permission_classes = [permissions.IsAuthenticated]
+    filter_backends = SEARCH_ORDER_FILTER
     filterset_fields = ['parametric_bom_item', 'template_part']
 
 
@@ -126,6 +135,7 @@ class BomSpecificationViewSet(viewsets.ModelViewSet):
     ).all()
     serializer_class = BomSpecificationSerializer
     permission_classes = [permissions.IsAuthenticated]
+    filter_backends = SEARCH_ORDER_FILTER
     filterset_fields = ['parametric_bom_item', 'spec_type']
 
 
@@ -136,6 +146,7 @@ class SupplierSelectionRuleViewSet(viewsets.ModelViewSet):
     ).all()
     serializer_class = SupplierSelectionRuleSerializer
     permission_classes = [permissions.IsAuthenticated]
+    filter_backends = SEARCH_ORDER_FILTER
     filterset_fields = ['parametric_bom_item', 'supplier_part']
 
 
@@ -146,6 +157,7 @@ class InheritanceMappingViewSet(viewsets.ModelViewSet):
     ).all()
     serializer_class = InheritanceMappingSerializer
     permission_classes = [permissions.IsAuthenticated]
+    filter_backends = SEARCH_ORDER_FILTER
     filterset_fields = ['target_part', 'target_template', 'enabled']
 
 
@@ -154,6 +166,7 @@ class PartAttributeFormulaViewSet(viewsets.ModelViewSet):
     queryset = PartAttributeFormula.objects.select_related('part').all()
     serializer_class = PartAttributeFormulaSerializer
     permission_classes = [permissions.IsAuthenticated]
+    filter_backends = SEARCH_ORDER_FILTER
     filterset_fields = ['part', 'attribute_type']
     search_fields = ['attribute_name']
 
