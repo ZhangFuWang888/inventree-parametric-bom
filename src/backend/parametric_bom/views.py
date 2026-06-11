@@ -1,20 +1,65 @@
-"""Django views for the Parametric BOM configurator interface."""
+"""Django views for the Parametric BOM configurator interface.
+
+Supports multiple URL entry points via the ``page`` query parameter,
+allowing the single-page app to open on the correct tab.
+"""
 
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render
 
+# Valid page values and their human labels
+VALID_PAGES = {
+    'home': '首页',
+    'products': '产品管理',
+    'params': '参数设置',
+    'bom': 'BOM公式',
+    'config': '产品配置器',
+    'rules': '规则引擎',
+}
+
+# Map URL path names to page values
+PATH_TO_PAGE = {
+    'parametric-home': 'home',
+    'parametric-products': 'products',
+    'parametric-params': 'params',
+    'parametric-bom': 'bom',
+    'parametric-config': 'config',
+    'parametric-rules': 'rules',
+}
+
 
 @login_required
-def configurator_view(request):
+def configurator_view(request, page='home'):
     """Render the comprehensive parametric BOM configurator single-page app.
+
+    Args:
+        request: Django HTTP request
+        page: Initial page/tab to display (default: 'home')
+
+    The ``page`` parameter can come from:
+      - URL keyword argument (for named routes)
+      - ``?page=...`` query parameter
+      - Falls back to ``?product=...`` for backward compatibility
 
     Supports ?product=<id> query parameter to auto-open a product detail page.
     """
     product_id = request.GET.get('product')
-    context = {}
+
+    # Allow ?page= override in query string
+    page = request.GET.get('page', page)
+
+    if page not in VALID_PAGES:
+        page = 'home'
+
+    context = {
+        'initial_page': page,
+        'page_title': VALID_PAGES[page],
+    }
+
     if product_id:
         try:
             context['initial_product_id'] = int(product_id)
         except (ValueError, TypeError):
             pass
+
     return render(request, 'parametric_bom/configurator.html', context)
