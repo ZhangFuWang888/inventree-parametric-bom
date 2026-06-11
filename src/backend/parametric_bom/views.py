@@ -63,3 +63,22 @@ def configurator_view(request, page='home'):
             pass
 
     return render(request, 'parametric_bom/configurator.html', context)
+
+
+@login_required
+def product_standalone_view(request, pk):
+    """Render a standalone product configuration page (no sidebar, no full layout).
+
+    Used when clicking a product card opens in a new window/tab.
+
+    Args:
+        request: Django HTTP request
+        pk: Product (Part) primary key
+    """
+    context = {
+        'initial_page': 'products',
+        'page_title': '产品配置',
+        'initial_product_id': int(pk),
+        'standalone': True,
+    }
+    return render(request, 'parametric_bom/configurator.html', context)

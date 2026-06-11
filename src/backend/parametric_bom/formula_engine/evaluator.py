@@ -229,6 +229,11 @@ class FormulaEvaluator:
 
     def _eval_func(self, node: FuncCallNode) -> Any:
         """Evaluate a function call."""
+
+        # LET is a special built-in — stores intermediate variables
+        if node.name.upper() == 'LET':
+            return self._eval_let(node)
+
         try:
             fn_def = get_function(node.name)
         except ValueError as e:
@@ -256,6 +261,40 @@ class FormulaEvaluator:
             raise EvaluationError(
                 f"Error in function '{node.name}': {e}"
             )
+
+    def _eval_let(self, node: FuncCallNode) -> Any:
+        """LET(name, value, expr) — define intermediate variable then compute expression.
+
+        Example:
+            LET("截面长", param.长度 - 20, 截面长 * param.宽度)
+            → stores (截面长 = 长度-20) in param context, then evaluates the last expression
+
+        The variable is stored in the param context so subsequent expressions
+        and other LET calls can reference it as param.xxx or just name.
+        """
+        if len(node.args) != 3:
+            raise EvaluationError(
+                f"LET requires 3 arguments: LET(name, value, expr), got {len(node.args)}"
+            )
+
+        # Evaluate name (should evaluate to a string)
+        name_val = self._eval_node(node.args[0])
+        if not isinstance(name_val, str):
+            raise EvaluationError(
+                f"LET first argument must evaluate to a string (variable name), "
+                f"got {type(name_val).__name__}"
+            )
+
+        # Evaluate the value expression
+        value = self._eval_node(node.args[1])
+
+        # Store as intermediate variable in param context
+        if 'param' not in self.context:
+            self.context['param'] = {}
+        self.context['param'][name_val] = value
+
+        # Evaluate the final expression
+        return self._eval_node(node.args[2])
 
     @staticmethod
     def _to_number(value) -> float:

@@ -62,7 +62,9 @@ class ParametricBomItemViewSet(viewsets.ModelViewSet):
     serializer_class = ParametricBomItemSerializer
     permission_classes = [permissions.IsAuthenticated]
     filter_backends = SEARCH_ORDER_FILTER
-    filterset_fields = ['bom_item', 'mode']
+    filterset_fields = ['bom_item', 'enable_qty_formula', 'enable_conditional',
+                        'enable_candidate', 'enable_variant', 'enable_specification',
+                        'enable_supplier', 'enable_structure']
     search_fields = ['bom_item__part__name', 'qty_formula']
 
 

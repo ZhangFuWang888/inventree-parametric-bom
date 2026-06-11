@@ -53,18 +53,35 @@ class ParametricBomItemSerializer(serializers.ModelSerializer):
         source='bom_item.sub_part.name', read_only=True
     )
     has_formula = serializers.BooleanField(read_only=True)
-    mode_display = serializers.CharField(
-        source='get_mode_display', read_only=True
-    )
+    active_modes = serializers.SerializerMethodField()
+
+    def get_active_modes(self, obj):
+        """Return a list of enabled mode names."""
+        modes = []
+        mapping = [
+            ('enable_qty_formula', 'qty_formula'),
+            ('enable_conditional', 'conditional'),
+            ('enable_candidate', 'candidate'),
+            ('enable_variant', 'variant'),
+            ('enable_specification', 'specification'),
+            ('enable_supplier', 'supplier'),
+            ('enable_structure', 'structure'),
+        ]
+        for field, mode_name in mapping:
+            if getattr(obj, field, False):
+                modes.append(mode_name)
+        return modes
 
     class Meta:
         """Meta options."""
         model = ParametricBomItem
         fields = [
             'id', 'bom_item', 'part_name', 'sub_part_name',
-            'mode', 'mode_display',
+            'enable_qty_formula', 'enable_conditional', 'enable_candidate',
+            'enable_variant', 'enable_specification', 'enable_supplier',
+            'enable_structure',
             'qty_formula', 'condition_formula', 'part_selector_formula',
-            'formular_hash', 'has_formula',
+            'formular_hash', 'has_formula', 'active_modes',
         ]
 
 

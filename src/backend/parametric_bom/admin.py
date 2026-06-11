@@ -28,8 +28,28 @@ class PartParameterConfigAdmin(admin.ModelAdmin):
 @admin.register(ParametricBomItem)
 class ParametricBomItemAdmin(admin.ModelAdmin):
     """Admin for ParametricBomItem."""
-    list_display = ['bom_item', 'mode', 'has_formula']
-    list_filter = ['mode']
+    list_display = ['bom_item', 'active_flags', 'has_formula']
+    list_filter = ['enable_qty_formula', 'enable_conditional', 'enable_candidate',
+                   'enable_variant', 'enable_specification', 'enable_supplier',
+                   'enable_structure']
+
+    def active_flags(self, obj):
+        """Show which flags are enabled as a compact string."""
+        flags = []
+        mapping = [
+            ('enable_qty_formula', 'Q'),
+            ('enable_conditional', 'C'),
+            ('enable_candidate', '🎯'),
+            ('enable_variant', '🧬'),
+            ('enable_specification', '📝'),
+            ('enable_supplier', '🏢'),
+            ('enable_structure', '🔗'),
+        ]
+        for field, label in mapping:
+            if getattr(obj, field, False):
+                flags.append(label)
+        return ' '.join(flags) if flags else '—'
+    active_flags.short_description = '模式'
 
 
 @admin.register(ParametricRule)

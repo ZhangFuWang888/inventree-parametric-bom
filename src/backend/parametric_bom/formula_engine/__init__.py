@@ -5,9 +5,15 @@ Supported syntax:
   - Arithmetic: + - * / ( )
   - Comparison: > < >= <= = !=
   - Logical: AND OR NOT
-  - Functions: CEIL FLOOR ROUND ABS IF MIN MAX
+  - Functions: CEIL FLOOR ROUND ABS IF MIN MAX SUM AVG COUNT
+               POW SQRT MOD CONCAT LEFT RIGHT MID LEN FIND
+               UPPER LOWER TRIM REPLACE SUBSTITUTE
+               SIN COS TAN ASIN ACOS ATAN ATAN2 DEGREES RADIANS
+               INT FLOAT STR BOOL LET
   - Parameter refs: param.xxx, parent.xxx, sys.xxx
-  - Strings and numbers
+  - Intermediate variables: LET(name, value, expr)
+  - Strings, numbers, booleans
+  - Trigonometric functions use DEGREES
 
 Safety:
   - 500ms timeout on evaluation

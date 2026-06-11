@@ -63,7 +63,12 @@ class ParamSourceChoices(models.TextChoices):
 
 
 class BomItemModeChoices(models.TextChoices):
-    """How a parametric BOM item resolves its sub-part."""
+    """How a parametric BOM item resolves its sub-part.
+
+    NOTE: This enum is kept for backward compatibility with configuration
+    output data. For ParametricBomItem, mode is now expressed via
+    independent boolean flags (enable_*).
+    """
 
     STANDARD = 'standard', _('Standard')
     QTY_FORMULA = 'qty_formula', _('Qty formula')
@@ -223,15 +228,9 @@ class ParametricBomItem(models.Model):
     Each ParametricBomItem links one-to-one with a BomItem and adds
     formula fields that override the static BomItem values.
 
-    The `mode` field defines which part-resolution strategy to use:
-      - standard:       Static item, no formulas
-      - qty_formula:    Dynamic quantity only
-      - conditional:    Qty + condition formula
-      - candidate:      Select from BomCandidatePart list
-      - variant:        Generate variant from template (VariantMapping)
-      - specification:  Outsource by spec (BomSpecification)
-      - supplier:       Select supplier (SupplierSelectionRule)
-      - structure:      Structural sub-assembly control
+    Multiple parametric modes can be enabled simultaneously via
+    the enable_* boolean flags — a BOM item can, for example, have
+    both a quantity formula and a condition formula at the same time.
     """
 
     bom_item = models.OneToOneField(
@@ -241,13 +240,45 @@ class ParametricBomItem(models.Model):
         verbose_name=_('BOM item'),
         help_text=_('The BOM item this parametric configuration extends'),
     )
-    mode = models.CharField(
-        max_length=32,
-        choices=BomItemModeChoices.choices,
-        default=BomItemModeChoices.QTY_FORMULA,
-        verbose_name=_('Part mode'),
-        help_text=_('How this BOM item resolves its sub-part'),
+
+    # ── Independent mode toggles ──────────────────────────
+    enable_qty_formula = models.BooleanField(
+        default=False,
+        verbose_name=_('Enable qty formula'),
+        help_text=_('Use a formula to compute dynamic quantity'),
     )
+    enable_conditional = models.BooleanField(
+        default=False,
+        verbose_name=_('Enable conditional include'),
+        help_text=_('Use a condition formula to decide if this item is included'),
+    )
+    enable_candidate = models.BooleanField(
+        default=False,
+        verbose_name=_('Enable candidate parts'),
+        help_text=_('Select from a list of candidate parts'),
+    )
+    enable_variant = models.BooleanField(
+        default=False,
+        verbose_name=_('Enable variant generation'),
+        help_text=_('Generate a variant from a template part'),
+    )
+    enable_specification = models.BooleanField(
+        default=False,
+        verbose_name=_('Enable specification'),
+        help_text=_('Outsource by specification description'),
+    )
+    enable_supplier = models.BooleanField(
+        default=False,
+        verbose_name=_('Enable supplier selection'),
+        help_text=_('Select supplier dynamically'),
+    )
+    enable_structure = models.BooleanField(
+        default=False,
+        verbose_name=_('Enable structure control'),
+        help_text=_('Control sub-assembly structure'),
+    )
+
+    # ── Formula fields ───────────────────────────────────
     qty_formula = models.CharField(
         max_length=512,
         blank=True,
@@ -298,7 +329,18 @@ class ParametricBomItem(models.Model):
         return f'Parametric: {self.bom_item}'
 
     def has_formula(self) -> bool:
-        """Check if any formula is defined."""
+        """Check if any formula is defined and enabled."""
+        enabled = any([
+            self.enable_qty_formula,
+            self.enable_conditional,
+            self.enable_candidate,
+            self.enable_variant,
+            self.enable_specification,
+            self.enable_supplier,
+            self.enable_structure,
+        ])
+        if not enabled:
+            return False
         return bool(self.qty_formula or self.condition_formula or self.part_selector_formula)
 
     def save(self, *args, **kwargs):

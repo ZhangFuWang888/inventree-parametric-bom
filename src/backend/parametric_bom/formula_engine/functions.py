@@ -5,7 +5,8 @@ This is a key safety mechanism — no exec/eval, no Python builtins.
 """
 
 import math
-from typing import Any, Callable, Union
+import re
+from typing import Any, Callable, Union, Optional
 
 Numeric = Union[int, float]
 
@@ -120,6 +121,152 @@ def _mod(x: Numeric, y: Numeric) -> float:
     return float(x) % float(y)
 
 
+# ══════════════════════════════════════════════
+#  String functions
+# ══════════════════════════════════════════════
+
+
+def _concat(*args: Any) -> str:
+    """CONCAT — concatenate strings."""
+    return ''.join(str(a) for a in args)
+
+
+def _left(s: str, n: int) -> str:
+    """LEFT — first n characters."""
+    return str(s)[:int(n)]
+
+
+def _right(s: str, n: int) -> str:
+    """RIGHT — last n characters."""
+    return str(s)[-int(n):] if n > 0 else ''
+
+
+def _mid(s: str, start: int, length: int) -> str:
+    """MID — substring from start with length (1-indexed)."""
+    s = str(s)
+    start_i = int(start) - 1
+    return s[start_i:start_i + int(length)]
+
+
+def _len(s: Any) -> int:
+    """LEN — length of string."""
+    return len(str(s))
+
+
+def _find(find_text: str, within_text: str, start_num: int = 1) -> int:
+    """FIND — position of substring (1-indexed, case-sensitive)."""
+    s = str(within_text)
+    start = int(start_num) - 1
+    pos = s.find(str(find_text), start)
+    if pos == -1:
+        return 0
+    return pos + 1
+
+
+def _upper(s: str) -> str:
+    """UPPER — convert to uppercase."""
+    return str(s).upper()
+
+
+def _lower(s: str) -> str:
+    """LOWER — convert to lowercase."""
+    return str(s).lower()
+
+
+def _trim(s: str) -> str:
+    """TRIM — remove leading/trailing whitespace."""
+    return str(s).strip()
+
+
+def _replace(old_text: str, start: int, num_chars: int, new_text: str) -> str:
+    """REPLACE — replace characters at position."""
+    s = str(old_text)
+    start_i = int(start) - 1
+    return s[:start_i] + str(new_text) + s[start_i + int(num_chars):]
+
+
+def _substitute(text: str, old: str, new: str) -> str:
+    """SUBSTITUTE — replace all occurrences of old with new."""
+    return str(text).replace(str(old), str(new))
+
+
+# ══════════════════════════════════════════════
+#  Trigonometric functions (degrees)
+# ══════════════════════════════════════════════
+
+
+def _sin(x: Numeric) -> float:
+    """SIN — sine (degrees)."""
+    return math.sin(math.radians(float(x)))
+
+
+def _cos(x: Numeric) -> float:
+    """COS — cosine (degrees)."""
+    return math.cos(math.radians(float(x)))
+
+
+def _tan(x: Numeric) -> float:
+    """TAN — tangent (degrees)."""
+    return math.tan(math.radians(float(x)))
+
+
+def _asin(x: Numeric) -> float:
+    """ASIN — arcsine (returns degrees)."""
+    return math.degrees(math.asin(float(x)))
+
+
+def _acos(x: Numeric) -> float:
+    """ACOS — arccosine (returns degrees)."""
+    return math.degrees(math.acos(float(x)))
+
+
+def _atan(x: Numeric) -> float:
+    """ATAN — arctangent (returns degrees)."""
+    return math.degrees(math.atan(float(x)))
+
+
+def _atan2(y: Numeric, x: Numeric) -> float:
+    """ATAN2 — arctangent of y/x (returns degrees, full quadrant)."""
+    return math.degrees(math.atan2(float(y), float(x)))
+
+
+def _degrees(x: Numeric) -> float:
+    """DEGREES — convert radians to degrees."""
+    return math.degrees(float(x))
+
+
+def _radians(x: Numeric) -> float:
+    """RADIANS — convert degrees to radians."""
+    return math.radians(float(x))
+
+
+# ══════════════════════════════════════════════
+#  Type conversion functions
+# ══════════════════════════════════════════════
+
+
+def _int_val(x: Any) -> int:
+    """INT — convert to integer (truncates)."""
+    return int(float(x)) if not isinstance(x, bool) else (1 if x else 0)
+
+
+def _float_val(x: Any) -> float:
+    """FLOAT — convert to float."""
+    return float(x)
+
+
+def _str_val(x: Any) -> str:
+    """STR — convert to string."""
+    if isinstance(x, float) and x == int(x):
+        return str(int(x))
+    return str(x)
+
+
+def _bool_val(x: Any) -> bool:
+    """BOOL — convert to boolean."""
+    return bool(x)
+
+
 # ──────────────────────────────────────────────
 #  Registry
 # ──────────────────────────────────────────────
@@ -141,6 +288,33 @@ FUNCTION_REGISTRY: dict[str, FunctionDef] = {
     'POW': FunctionDef('POW', _pow, 2, 2, 'Power: x^y'),
     'SQRT': FunctionDef('SQRT', _sqrt, 1, 1, 'Square root'),
     'MOD': FunctionDef('MOD', _mod, 2, 2, 'Modulo: x % y'),
+    # String functions
+    'CONCAT': FunctionDef('CONCAT', _concat, 1, 20, 'Concatenate strings'),
+    'LEFT': FunctionDef('LEFT', _left, 2, 2, 'First N characters: LEFT(text, n)'),
+    'RIGHT': FunctionDef('RIGHT', _right, 2, 2, 'Last N characters: RIGHT(text, n)'),
+    'MID': FunctionDef('MID', _mid, 3, 3, 'Substring: MID(text, start, length)'),
+    'LEN': FunctionDef('LEN', _len, 1, 1, 'Length of string'),
+    'FIND': FunctionDef('FIND', _find, 2, 3, 'Find position: FIND(find, within, [start])'),
+    'UPPER': FunctionDef('UPPER', _upper, 1, 1, 'Convert to uppercase'),
+    'LOWER': FunctionDef('LOWER', _lower, 1, 1, 'Convert to lowercase'),
+    'TRIM': FunctionDef('TRIM', _trim, 1, 1, 'Remove leading/trailing whitespace'),
+    'REPLACE': FunctionDef('REPLACE', _replace, 4, 4, 'Replace chars: REPLACE(text, start, n, new)'),
+    'SUBSTITUTE': FunctionDef('SUBSTITUTE', _substitute, 3, 3, 'Replace all: SUBSTITUTE(text, old, new)'),
+    # Trigonometric functions (degrees)
+    'SIN': FunctionDef('SIN', _sin, 1, 1, 'Sine (degrees)'),
+    'COS': FunctionDef('COS', _cos, 1, 1, 'Cosine (degrees)'),
+    'TAN': FunctionDef('TAN', _tan, 1, 1, 'Tangent (degrees)'),
+    'ASIN': FunctionDef('ASIN', _asin, 1, 1, 'Arcsine (returns degrees)'),
+    'ACOS': FunctionDef('ACOS', _acos, 1, 1, 'Arccosine (returns degrees)'),
+    'ATAN': FunctionDef('ATAN', _atan, 1, 1, 'Arctangent (returns degrees)'),
+    'ATAN2': FunctionDef('ATAN2', _atan2, 2, 2, 'Arctangent y/x (returns degrees, full quadrant)'),
+    'DEGREES': FunctionDef('DEGREES', _degrees, 1, 1, 'Convert radians to degrees'),
+    'RADIANS': FunctionDef('RADIANS', _radians, 1, 1, 'Convert degrees to radians'),
+    # Type conversion
+    'INT': FunctionDef('INT', _int_val, 1, 1, 'Convert to integer'),
+    'FLOAT': FunctionDef('FLOAT', _float_val, 1, 1, 'Convert to float'),
+    'STR': FunctionDef('STR', _str_val, 1, 1, 'Convert to string'),
+    'BOOL': FunctionDef('BOOL', _bool_val, 1, 1, 'Convert to boolean'),
 }
 
 

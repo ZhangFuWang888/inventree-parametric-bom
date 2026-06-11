@@ -33,15 +33,6 @@ class ParametricBomPlugin(AppMixin, SettingsMixin, UrlsMixin, InvenTreePlugin):
     NAVIGATION_TAB_NAME = TITLE
     NAVIGATION_TAB_ICON = 'fas fa-cogs'
 
-    NAVIGATION = [
-        {'name': _('仪表盘'), 'link': 'parametric-home', 'icon': 'fas fa-chart-pie'},
-        {'name': _('产品管理'), 'link': 'parametric-products', 'icon': 'fas fa-cubes'},
-        {'name': _('参数设置'), 'link': 'parametric-params', 'icon': 'fas fa-sliders-h'},
-        {'name': _('BOM公式'), 'link': 'parametric-bom', 'icon': 'fas fa-calculator'},
-        {'name': _('产品配置器'), 'link': 'parametric-config', 'icon': 'fas fa-cogs'},
-        {'name': _('规则引擎'), 'link': 'parametric-rules', 'icon': 'fas fa-gavel'},
-    ]
-
     SETTINGS = {
         'FORMULA_TIMEOUT': {
             'name': _('Formula calculation timeout (ms)'),

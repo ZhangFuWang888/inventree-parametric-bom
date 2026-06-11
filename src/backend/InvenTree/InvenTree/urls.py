@@ -51,7 +51,7 @@ admin.site.site_header = get_setting(
 
 
 from parametric_bom.urls import parametric_api_urls
-from parametric_bom.views import configurator_view
+from parametric_bom.views import configurator_view, product_standalone_view
 
 apipatterns = [
     # Global search
@@ -177,6 +177,8 @@ urlpatterns += [
     path('parametric-bom/rules/', configurator_view, {'page': 'rules'}, name='parametric-rules'),
     # Legacy redirect
     path('configurator/', RedirectView.as_view(url='/parametric-bom/', permanent=True)),
+    # Standalone product configuration (opens in new window)
+    path('parametric-bom/product/<int:pk>/', product_standalone_view, name='parametric-product-standalone'),
 ]
 
 # Append custom plugin URLs (if custom plugin support is enabled)
