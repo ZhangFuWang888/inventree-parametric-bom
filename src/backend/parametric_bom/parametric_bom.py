@@ -6,11 +6,13 @@ URLs, settings, and navigation.
 
 from django.utils.translation import gettext_lazy as _
 
+from django.urls import reverse
+
 from plugin import InvenTreePlugin
-from plugin.mixins import AppMixin, SettingsMixin, UrlsMixin
+from plugin.mixins import AppMixin, NavigationMixin, SettingsMixin, UrlsMixin, UserInterfaceMixin
 
 
-class ParametricBomPlugin(AppMixin, SettingsMixin, UrlsMixin, InvenTreePlugin):
+class ParametricBomPlugin(AppMixin, NavigationMixin, SettingsMixin, UrlsMixin, UserInterfaceMixin, InvenTreePlugin):
     """Parametric BOM plugin for InvenTree.
 
     Adds formula-driven BOM items, product configuration, parameter
@@ -32,6 +34,15 @@ class ParametricBomPlugin(AppMixin, SettingsMixin, UrlsMixin, InvenTreePlugin):
     # Admin URL configuration
     NAVIGATION_TAB_NAME = TITLE
     NAVIGATION_TAB_ICON = 'fas fa-cogs'
+
+    NAVIGATION = [
+        {'name': '参数化BOM首页', 'link': '/parametric-bom/'},
+        {'name': 'BOM公式', 'link': '/parametric-bom/bom/'},
+        {'name': '参数设置', 'link': '/parametric-bom/params/'},
+        {'name': '产品管理', 'link': '/parametric-bom/products/'},
+        {'name': '规则引擎', 'link': '/parametric-bom/rules/'},
+        {'name': '配置器', 'link': '/parametric-bom/config/'},
+    ]
 
     SETTINGS = {
         'FORMULA_TIMEOUT': {
@@ -67,4 +78,39 @@ class ParametricBomPlugin(AppMixin, SettingsMixin, UrlsMixin, InvenTreePlugin):
                 include('parametric_bom.urls'),
                 name='parametric_bom',
             ),
+        ]
+
+    def get_ui_navigation_items(self, request, context, **kwargs):
+        """Return navigation items for the InvenTree web UI sidebar."""
+        return [
+            {
+                'key': 'parametric-bom',
+                'title': '参数化BOM',
+                'icon': 'ti:clipboard-data:outline',
+                'options': {'url': '/parametric-bom/'},
+            },
+            {
+                'key': 'parametric-bom-bom',
+                'title': '  BOM公式',
+                'icon': 'ti:function:outline',
+                'options': {'url': '/parametric-bom/bom/'},
+            },
+            {
+                'key': 'parametric-bom-params',
+                'title': '  参数设置',
+                'icon': 'ti:settings:outline',
+                'options': {'url': '/parametric-bom/params/'},
+            },
+            {
+                'key': 'parametric-bom-products',
+                'title': '  产品管理',
+                'icon': 'ti:package:outline',
+                'options': {'url': '/parametric-bom/products/'},
+            },
+            {
+                'key': 'parametric-bom-rules',
+                'title': '  规则引擎',
+                'icon': 'ti:git-branch:outline',
+                'options': {'url': '/parametric-bom/rules/'},
+            },
         ]

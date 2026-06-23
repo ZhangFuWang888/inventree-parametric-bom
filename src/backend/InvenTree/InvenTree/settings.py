@@ -398,6 +398,9 @@ MIDDLEWARE = CONFIG.get(
     ],
 )
 
+# Allow same-origin framing (needed for parametric BOM iframe inside SPA)
+X_FRAME_OPTIONS = 'SAMEORIGIN'
+
 # In DEBUG mode, add support for django-silk
 # Ref: https://silk.readthedocs.io/en/latest/
 DJANGO_SILK_ENABLED = (

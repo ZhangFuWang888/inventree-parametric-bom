@@ -29,6 +29,8 @@ body{overflow-y:auto}
 .main-content.sidebar-collapsed{margin-left:1rem}
 /* Standalone mode: no sidebar margin */
 .main-content.standalone{margin-left:0;padding-top:0.5rem}
+/* Embedded mode: no sidebar, no header, inside SPA iframe */
+.main-content.embedded{margin-left:0;padding:1rem;background:#f1f5f9;min-height:100vh}
 
 /* ── Standalone Mode Beautification ── */
 .main-content.standalone{
@@ -632,7 +634,9 @@ textarea.input-field{resize:vertical;font-family:monospace;font-size:0.75rem}
 
 .param-card-header{display:flex;align-items:center;gap:0.5rem;padding:0.5rem 0.75rem 0.5rem 0.625rem;cursor:grab;user-select:none;border-bottom:1px solid #f8fafc}
 .param-card-header:active{cursor:grabbing}
-.param-card-header .pc-drag-handle{color:#d1d5db;font-size:0.75rem;cursor:grab;flex-shrink:0}
+.param-card-header .pc-drag-handle{color:#94a3b8;font-size:0.8rem;cursor:grab;flex-shrink:0;padding:0 2px;border-radius:4px;transition:all 0.15s;user-select:none}
+.param-card-header .pc-drag-handle:hover{color:#2563eb;background:#eff6ff}
+.param-card-header .pc-drag-handle:active{cursor:grabbing}
 .param-card-header .pc-type-icon{width:22px;height:22px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:0.7rem;flex-shrink:0}
 .param-card-header .pc-name{font-size:0.8125rem;font-weight:600;color:#1e293b;flex:1;min-width:0;cursor:text;padding:0.125rem 0.25rem;border-radius:4px;transition:background 0.1s}
 .param-card-header .pc-name:hover{background:#f1f5f9}
@@ -836,22 +840,6 @@ textarea.input-field{resize:vertical;font-family:monospace;font-size:0.75rem}
 /* Hamburger */
 .hamburger{display:none;background:none;border:none;color:#fff;font-size:1.25rem;cursor:pointer;padding:0.25rem;line-height:1}
 
-/* InvenTree Navigation */
-.inventree-nav{background:#1a1b2e;border-bottom:1px solid #2d2e4a;padding:0 1rem;position:sticky;top:0;z-index:100}
-.nav-inner{display:flex;align-items:center;justify-content:space-between;height:44px;max-width:100%;margin:0 auto}
-.nav-left{display:flex;align-items:center;gap:0.75rem;overflow:hidden}
-.nav-logo{display:flex;align-items:center;gap:0.375rem;text-decoration:none;flex-shrink:0}
-.logo-icon{font-size:1.125rem;color:#6c8aff}
-.logo-text{font-size:0.85rem;font-weight:700;color:#e2e8f0;letter-spacing:0.02em}
-.nav-divider{width:1px;height:24px;background:#2d2e4a;flex-shrink:0}
-.nav-tabs{display:flex;align-items:center;gap:0.125rem;overflow-x:auto;scrollbar-width:none;-ms-overflow-style:none}
-.nav-tabs::-webkit-scrollbar{display:none}
-.nav-tab{display:flex;align-items:center;gap:0.3rem;padding:0.375rem 0.625rem;border-radius:6px;font-size:0.75rem;font-weight:500;color:#94a3b8;text-decoration:none;transition:all 0.12s;white-space:nowrap}
-.nav-tab:hover{background:#2d2e4a;color:#e2e8f0}
-.nav-right{display:flex;align-items:center;gap:0.5rem;flex-shrink:0}
-.nav-instance-name{font-size:0.72rem;color:#64748b;font-weight:500}
-.nav-badge{font-size:0.6rem;padding:0.0625rem 0.375rem;border-radius:4px;background:#2d2e4a;color:#64748b}
-
 /* Responsive */
 @media(max-width:768px){
   .inventree-nav{padding:0 0.5rem}
@@ -881,48 +869,10 @@ textarea.input-field{resize:vertical;font-family:monospace;font-size:0.75rem}
 </head>
 <body>
 
-<!-- ===== INVENTREE NAVIGATION BAR ===== -->
-<nav class="inventree-nav">
-  <div class="nav-inner">
-    <div class="nav-left">
-      <a href="/" class="nav-logo">
-        <span class="logo-icon">◈</span>
-        <span class="logo-text">InvenTree</span>
-      </a>
-      <div class="nav-divider"></div>
-      <div class="nav-tabs">
-        <a href="/" class="nav-tab">📊 Dashboard</a>
-        <a href="/part/" class="nav-tab">📦 Parts</a>
-        <a href="/stock/" class="nav-tab">📦 Stock</a>
-        <a href="/manufacturing/" class="nav-tab">🏭 Manufacturing</a>
-        <a href="/purchasing/" class="nav-tab">🛒 Purchasing</a>
-        <a href="/sales/" class="nav-tab">🚚 Sales</a>
-      </div>
-    </div>
-    <div class="nav-right">
-      <span class="nav-instance-name">参数化BOM</span>
-      <span class="nav-badge">v2.0</span>
-    </div>
-  </div>
-</nav>
-
-<!-- ===== PARAMETRIC BOM HEADER ===== -->
-<header class="flex items-center justify-between px-4 py-2 bg-slate-800 text-white shrink-0">
-  <div class="flex items-center gap-2">
-    {% if not standalone %}<button class="hamburger" id="hamburger-btn" onclick="toggleSidebar()" title="切换侧栏">☰</button>{% endif %}
-    <h1 class="text-sm font-semibold whitespace-nowrap">{% if standalone %}产品配置{% else %}参数化BOM系统{% endif %}</h1>
-    <span class="text-[10px] bg-white/10 px-1.5 py-0.5 rounded hidden sm:inline">v2.0</span>
-  </div>
-  <div class="flex items-center gap-3 text-xs">
-    <span class="hidden sm:inline text-white/70">admin</span>
-    <span class="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center text-xs font-medium">A</span>
-  </div>
-</header>
-
 <!-- ===== LAYOUT ===== -->
 <div class="layout-wrap">
   <!-- Sidebar -->
-  {% if not standalone %}
+  {% if not standalone and not embedded %}
   <nav class="sidebar" id="sidebar">
     <div class="py-2 flex-1">
       <!-- 首页 -->
@@ -941,7 +891,7 @@ textarea.input-field{resize:vertical;font-family:monospace;font-size:0.75rem}
   {% endif %}
 
   <!-- Main Content -->
-  <div class="main-content{% if standalone %} standalone{% endif %}" id="main-content">
+  <div class="main-content{% if standalone %} standalone{% endif %}{% if embedded %} embedded{% endif %}" id="main-content">
 
     {% if not standalone %}
     <!-- ===== PAGE 0: 首页 ===== -->
@@ -1068,7 +1018,7 @@ textarea.input-field{resize:vertical;font-family:monospace;font-size:0.75rem}
               <div class="card-header flex items-center justify-between">
                 <span>🔧 参数编辑画布 <span class="text-xs text-gray-400" id="pd-param-count"></span></span>
               </div>
-              <div id="pd-params-canvas">
+              <div id="pd-params-canvas" ondragover="onCanvasDragOver(event)" ondrop="onCanvasDrop(event)">
                 <div class="empty-state"><div class="icon">🔧</div><p>选择产品后加载参数列表</p></div>
               </div>
             </div>
@@ -1838,6 +1788,8 @@ let savedConfigId = null;
 let currentStep = 1;
 let configuratorPartId = null;
 let initialProductId = {% if initial_product_id %}{{ initial_product_id }}{% else %}null{% endif %};
+let initialPage = '{{ initial_page }}';
+let standalone = {% if standalone %}true{% else %}false{% endif %};
 
 // ===== API HELPER =====
 async function apiCall(method, endpoint, body, opts = {}) {
@@ -2378,14 +2330,13 @@ function renderParamCard(cfg, idx) {
   const isDriving = cfg.is_driving;
   const isComputed = cfg.is_computed;
   
-  return `<div class="param-card type-${type}" draggable="true"
+  return `<div class="param-card type-${type}"
     data-config-id="${cfgId}" data-display-order="${cfg.display_order||0}"
-    ondragstart="onCardDragStart(event, ${cfgId})"
     ondragover="onCardDragOver(event)"
     ondrop="onCardDrop(event, ${cfgId})"
     ondragend="onCardDragEnd(event)">
     <div class="param-card-header">
-      <span class="pc-drag-handle">⠿</span>
+      <span class="pc-drag-handle" draggable="true" ondragstart="onCardDragStart(event, ${cfgId})">⠿</span>
       <span class="pc-type-icon type-${type}">${icon}</span>
       <span class="pc-name" id="pc-name-${cfgId}" onclick="startRenameParam(${cfgId})" title="单击重命名">${safeName}</span>
       <span class="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded font-medium">${typeLabel}</span>
@@ -4609,11 +4560,11 @@ function onCardDragOver(event) {
 
 async function onCardDrop(event, targetId) {
   event.preventDefault();
+  const sourceId = _dragCardSourceId !== null ? _dragCardSourceId : parseInt(event.dataTransfer.getData('text/plain'));
   _dragCardSourceId = null;
   document.querySelectorAll('#pd-params-canvas .param-card').forEach(c => {
     c.classList.remove('drag-over', 'dragging');
   });
-  const sourceId = parseInt(event.dataTransfer.getData('text/plain'));
   if (!sourceId || sourceId === targetId) return;
   await reorderParams(sourceId, targetId);
 }
@@ -4623,6 +4574,46 @@ function onCardDragEnd(event) {
   document.querySelectorAll('#pd-params-canvas .param-card').forEach(c => {
     c.classList.remove('drag-over', 'dragging');
   });
+}
+
+// ── Canvas-level Drop (user drops between/surrounding cards) ──
+function onCanvasDragOver(event) {
+  event.preventDefault();
+  event.dataTransfer.dropEffect = 'move';
+  // Add visual cue on canvas
+  document.getElementById('pd-params-canvas')?.classList.add('drag-hover');
+}
+
+async function onCanvasDrop(event) {
+  event.preventDefault();
+  document.getElementById('pd-params-canvas')?.classList.remove('drag-hover');
+  document.querySelectorAll('#pd-params-canvas .param-card').forEach(c => {
+    c.classList.remove('drag-over', 'dragging');
+  });
+  const sourceId = _dragCardSourceId !== null ? _dragCardSourceId : parseInt(event.dataTransfer.getData('text/plain'));
+  _dragCardSourceId = null;
+  if (!sourceId) return;
+
+  // Find nearest card by Y position
+  const cards = Array.from(document.querySelectorAll('#pd-params-canvas .param-card'));
+  if (!cards.length) return;
+  
+  const dropY = event.clientY;
+  let targetIdx = cards.length; // default: insert at end
+  
+  for (let i = 0; i < cards.length; i++) {
+    const rect = cards[i].getBoundingClientRect();
+    const midY = rect.top + rect.height / 2;
+    if (dropY < midY) {
+      targetIdx = i;
+      break;
+    }
+  }
+  
+  const targetCard = cards[Math.min(targetIdx, cards.length - 1)];
+  const targetId = parseInt(targetCard?.dataset.configId);
+  if (!targetId || sourceId === targetId) return;
+  await reorderParams(sourceId, targetId);
 }
 
 async function reorderParams(sourceId, targetId) {
@@ -5919,6 +5910,7 @@ function onGlobalPartChange(partId) {
 // ===== DASHBOARD =====
 async function renderDashboard() {
   const container = document.getElementById('dashboard-content');
+  if (!container) return;
   // Load stats
   const [cfgRes, bomRes, ruleRes, configRes] = await Promise.all([
     apiCall('GET', 'part-config/'),
@@ -6027,6 +6019,12 @@ document.addEventListener('DOMContentLoaded', async function() {
       configuratorPartId = parseInt(initialProductId);
       loadProductDetail(configuratorPartId);
     }
+  }
+  
+  // Auto-switch to initial page (from URL ?page=...)
+  // Only in non-standalone mode, and only if we didn't already switch to a product detail
+  if (!standalone && initialPage && initialPage !== 'home' && !initialProductId) {
+    try { switchPage(initialPage); } catch(e) {}
   }
   
   try { await loadConfigList(); } catch(e) {}

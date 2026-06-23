@@ -6,6 +6,7 @@ allowing the single-page app to open on the correct tab.
 
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render
+from django.views.decorators.clickjacking import xframe_options_sameorigin
 
 # Valid page values and their human labels
 VALID_PAGES = {
@@ -29,6 +30,7 @@ PATH_TO_PAGE = {
 
 
 @login_required
+@xframe_options_sameorigin
 def configurator_view(request, page='home'):
     """Render the comprehensive parametric BOM configurator single-page app.
 
@@ -48,12 +50,16 @@ def configurator_view(request, page='home'):
     # Allow ?page= override in query string
     page = request.GET.get('page', page)
 
+    # Embedded mode: hide own nav/sidebar (displayed inside InvenTree SPA iframe)
+    embedded = request.GET.get('embedded', '0') == '1'
+
     if page not in VALID_PAGES:
         page = 'home'
 
     context = {
         'initial_page': page,
         'page_title': VALID_PAGES[page],
+        'embedded': embedded,
     }
 
     if product_id:
@@ -82,3 +88,51 @@ def product_standalone_view(request, pk):
         'standalone': True,
     }
     return render(request, 'parametric_bom/configurator.html', context)
+
+from django.http import JsonResponse
+
+def parametric_bom_navigation(request):
+    """Return navigation items for InvenTree web UI sidebar."""
+    items = [
+        {
+            'key': 'parametric-bom',
+            'title': '参数化BOM',
+            'icon': 'ti:clipboard-data:outline',
+            'options': {'url': '/parametric-bom/'},
+            'feature_type': 'navigation',
+            'plugin_name': 'parametric_bom',
+        },
+        {
+            'key': 'parametric-bom-bom',
+            'title': '  BOM公式',
+            'icon': 'ti:function:outline',
+            'options': {'url': '/parametric-bom/bom/'},
+            'feature_type': 'navigation',
+            'plugin_name': 'parametric_bom',
+        },
+        {
+            'key': 'parametric-bom-params',
+            'title': '  参数设置',
+            'icon': 'ti:settings:outline',
+            'options': {'url': '/parametric-bom/params/'},
+            'feature_type': 'navigation',
+            'plugin_name': 'parametric_bom',
+        },
+        {
+            'key': 'parametric-bom-products',
+            'title': '  产品管理',
+            'icon': 'ti:package:outline',
+            'options': {'url': '/parametric-bom/products/'},
+            'feature_type': 'navigation',
+            'plugin_name': 'parametric_bom',
+        },
+        {
+            'key': 'parametric-bom-rules',
+            'title': '  规则引擎',
+            'icon': 'ti:git-branch:outline',
+            'options': {'url': '/parametric-bom/rules/'},
+            'feature_type': 'navigation',
+            'plugin_name': 'parametric_bom',
+        },
+    ]
+    return JsonResponse(items, safe=False)
