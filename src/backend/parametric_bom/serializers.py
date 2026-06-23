@@ -81,6 +81,7 @@ class ParametricBomItemSerializer(serializers.ModelSerializer):
             'enable_variant', 'enable_specification', 'enable_supplier',
             'enable_structure',
             'qty_formula', 'condition_formula', 'part_selector_formula',
+            'supplier_formula', 'reference_formula',
             'formular_hash', 'has_formula', 'active_modes',
         ]
 

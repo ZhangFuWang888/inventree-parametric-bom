@@ -207,55 +207,45 @@ header .text-sm.font-semibold{
 .main-content.standalone .step-circle{font-weight:600 !important}
 .main-content.standalone .step-label.active{font-weight:500 !important}
 
-/* ── Inline BOM Formula Editor ── */
-.bom-inline-card{background:#fff;border:1px solid #e2e8f0;border-radius:12px;margin-bottom:0.625rem;overflow:hidden;transition:all 0.15s ease}
-.bom-inline-card:hover{border-color:#cbd5e1;box-shadow:0 1px 4px rgba(0,0,0,0.03)}
-.bom-inline-card.is-editing{border-color:#93c5fd;box-shadow:0 0 0 2px rgba(59,130,246,0.08)}
-.bom-inline-card .bic-header{display:flex;align-items:center;gap:0.5rem;padding:0.625rem 0.75rem;background:#f8fafc;border-bottom:1px solid #f1f5f9;cursor:pointer;user-select:none}
-.bom-inline-card .bic-header .bic-name{font-size:0.8125rem;font-weight:500;color:#1e293b;flex:1;min-width:0}
-.bom-inline-card .bic-header .bic-ref{font-size:0.625rem;color:#94a3b8}
-.bom-inline-card .bic-header .bic-qty{font-size:0.75rem;font-weight:600;color:#2563eb;min-width:3rem;text-align:right}
-.bom-inline-card .bic-header .bic-expand{font-size:0.65rem;color:#94a3b8;transition:transform 0.2s;cursor:pointer}
-.bom-inline-card .bic-header .bic-expand.expanded{transform:rotate(180deg)}
-.bom-inline-card .bic-body{padding:0.75rem;display:none}
-.bom-inline-card .bic-body.open{display:block}
-.bom-inline-card .bic-mode-row{display:flex;align-items:center;gap:0.5rem;margin-bottom:0.5rem}
-.bom-inline-card .bic-mode-row label{font-size:0.6875rem;font-weight:500;color:#64748b;white-space:nowrap}
-/* Toggle checkboxes for multi-select modes */
-.bom-inline-card .bic-toggles{display:flex;flex-wrap:wrap;gap:0.375rem;margin-bottom:0.75rem}
-.bom-inline-card .bic-toggle{display:flex;align-items:center;gap:0.375rem;padding:0.3125rem 0.5rem;border-radius:8px;border:1px solid #e2e8f0;background:#fafafa;cursor:pointer;transition:all 0.12s;user-select:none}
-.bom-inline-card .bic-toggle:hover{border-color:#93c5fd;background:#eff6ff}
-.bom-inline-card .bic-toggle input[type="checkbox"]{display:none}
-.bom-inline-card .bic-toggle input[type="checkbox"]:checked + .bic-toggle-box{background:#2563eb;border-color:#2563eb}
-.bom-inline-card .bic-toggle input[type="checkbox"]:checked + .bic-toggle-box::after{opacity:1}
-.bom-inline-card .bic-toggle:has(input:checked){border-color:#2563eb;background:#eff6ff}
-.bom-inline-card .bic-toggle-box{width:14px;height:14px;border:1.5px solid #cbd5e1;border-radius:3px;position:relative;flex-shrink:0;transition:all 0.12s;background:#fff}
-.bom-inline-card .bic-toggle-box::after{content:'✓';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:10px;color:#fff;font-weight:700;opacity:0;transition:opacity 0.1s}
-.bom-inline-card .bic-toggle-label{font-size:0.6875rem;font-weight:500;color:#334155;white-space:nowrap}
-.bom-inline-card .bic-toggle-desc{font-size:0.6rem;color:#94a3b8;display:none}
-.bom-inline-card .bic-toggle:hover .bic-toggle-desc{display:inline}
-.bom-inline-card .bic-field{margin-bottom:0.625rem}
-.bom-inline-card .bic-field:last-child{margin-bottom:0}
-.bom-inline-card .bic-field label{display:block;font-size:0.65rem;font-weight:500;color:#64748b;margin-bottom:0.25rem}
-.bom-inline-card .bic-field .bic-input-wrap{display:flex;gap:0.375rem;align-items:flex-start}
-.bom-inline-card .bic-field input,.bom-inline-card .bic-field textarea{flex:1;padding:0.375rem 0.5rem;border:1px solid #e2e8f0;border-radius:8px;font-size:0.75rem;font-family:monospace;transition:all 0.12s;background:#fff}
-.bom-inline-card .bic-field input:focus,.bom-inline-card .bic-field textarea:focus{outline:none;border-color:#2563eb;box-shadow:0 0 0 2px rgba(37,99,235,0.08)}
-.bom-inline-card .bic-field textarea{resize:vertical;min-height:2.5rem}
-.bom-inline-card .bic-field .bic-validate-btn{padding:0.375rem 0.5rem;border-radius:8px;font-size:0.65rem;background:#f1f5f9;color:#64748b;border:1px solid #e2e8f0;cursor:pointer;white-space:nowrap;transition:all 0.12s}
-.bom-inline-card .bic-field .bic-validate-btn:hover{background:#dbeafe;color:#2563eb;border-color:#93c5fd}
-.bom-inline-card .bic-params{display:flex;flex-wrap:wrap;gap:0.25rem;margin-top:0.5rem;padding-top:0.5rem;border-top:1px solid #f1f5f9}
-.bom-inline-card .bic-params .bic-param-pill{display:inline-flex;align-items:center;gap:0.25rem;padding:0.1875rem 0.5rem;border-radius:6px;font-size:0.625rem;font-weight:500;cursor:pointer;transition:all 0.12s;border:1px solid #dbeafe;background:#eff6ff;color:#1d4ed8}
-.bom-inline-card .bic-params .bic-param-pill:hover{background:#dbeafe;border-color:#93c5fd}
-.bom-inline-card .bic-params .bic-param-unnamed{border-color:#e2e8f0;background:#f8fafc;color:#94a3b8;font-style:italic;cursor:default}
-.bom-inline-card .bic-params .bic-param-unnamed:hover{background:#f8fafc;border-color:#e2e8f0}
-.bom-inline-card .bic-params .bic-fn-pill{display:inline-flex;align-items:center;gap:0.25rem;padding:0.1875rem 0.5rem;border-radius:6px;font-size:0.625rem;font-weight:500;cursor:pointer;transition:all 0.12s;border:1px solid #c7d2fe;background:#eef2ff;color:#4338ca}
-.bom-inline-card .bic-params .bic-fn-pill:hover{background:#c7d2fe;border-color:#818cf8}
-.bom-inline-card .bic-actions{display:flex;gap:0.375rem;margin-top:0.75rem;padding-top:0.625rem;border-top:1px solid #f1f5f9}
-.bom-inline-card .bic-actions .btn{padding:0.3125rem 0.75rem;font-size:0.6875rem;border-radius:8px}
-.bom-inline-card .bic-actions .bic-status{font-size:0.625rem;color:#94a3b8;display:flex;align-items:center;gap:0.25rem;margin-left:auto}
-.bom-inline-card .bic-actions .bic-status.saving{color:#f59e0b}
-.bom-inline-card .bic-actions .bic-status.saved{color:#16a34a}
-.bom-inline-card .bic-actions .bic-status.error{color:#dc2626}
+/* ── BOM Spreadsheet Table (Product Detail Page) ── */
+.pd-bom-spreadsheet{width:100%;border-collapse:collapse;font-size:0.75rem}
+.pd-bom-spreadsheet thead th{padding:0.4375rem 0.5rem;text-align:left;font-weight:600;color:#475569;background:#f8fafc;border-bottom:2px solid #e2e8f0;white-space:nowrap;font-size:0.6875rem;position:sticky;top:0}
+.pd-bom-spreadsheet thead th .col-icon{margin-right:0.25rem}
+.pd-bom-spreadsheet tbody td{padding:0.375rem 0.5rem;border-bottom:1px solid #f1f5f9;vertical-align:middle}
+.pd-bom-spreadsheet tbody tr:hover td{background:#fafcff}
+.pd-bom-spreadsheet .pbs-name{font-weight:500;color:#1e293b;font-size:0.75rem}
+.pd-bom-spreadsheet .pbs-ref{font-size:0.625rem;color:#94a3b8;margin-left:0.25rem}
+.pd-bom-spreadsheet .pbs-qty{font-weight:600;color:#2563eb}
+.pd-bom-spreadsheet .pbs-formula-cell{cursor:pointer;border-radius:3px;padding:0.125rem 0.375rem;transition:background 0.1s;min-height:1.4em;position:relative}
+.pd-bom-spreadsheet .pbs-formula-cell:hover{background:#eff6ff;outline:1px solid #93c5fd}
+.pd-bom-spreadsheet .pbs-formula-cell .fmla-text{font-family:monospace;font-size:0.65rem;color:#2563eb;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:220px}
+.pd-bom-spreadsheet .pbs-formula-cell .fmla-empty{color:#cbd5e1;font-style:italic;font-size:0.65rem}
+.pd-bom-spreadsheet .pbs-formula-cell .fmla-hint{display:none;font-size:0.55rem;color:#94a3b8;position:absolute;top:-0.75rem;right:0.25rem;background:#fff;padding:0 0.25rem}
+.pd-bom-spreadsheet .pbs-formula-cell:hover .fmla-hint{display:block}
+.pbs-cell-editor-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:1000;background:rgba(0,0,0,0.15)}
+.pbs-cell-editor-overlay.open{display:block}
+.pbs-cell-editor{position:absolute;background:#fff;border-radius:12px;border:1px solid #e2e8f0;box-shadow:0 8px 30px rgba(0,0,0,0.12);padding:0.75rem;min-width:360px;max-width:500px;z-index:1001}
+.pbs-cell-editor .pbs-ce-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem}
+.pbs-cell-editor .pbs-ce-title{font-size:0.75rem;font-weight:600;color:#1e293b}
+.pbs-cell-editor .pbs-ce-close{background:none;border:none;color:#94a3b8;cursor:pointer;font-size:1rem;line-height:1;padding:0;width:20px;height:20px;display:flex;align-items:center;justify-content:center;border-radius:4px}
+.pbs-cell-editor .pbs-ce-close:hover{background:#f1f5f9;color:#475569}
+.pbs-cell-editor .pbs-ce-input{width:100%;min-height:60px;padding:0.5rem;border:1px solid #e2e8f0;border-radius:8px;font-family:monospace;font-size:0.75rem;resize:vertical;transition:border-color 0.12s}
+.pbs-cell-editor .pbs-ce-input:focus{outline:none;border-color:#2563eb;box-shadow:0 0 0 2px rgba(37,99,235,0.08)}
+.pbs-cell-editor .pbs-ce-actions{display:flex;gap:0.375rem;margin-top:0.5rem;justify-content:flex-end}
+.pbs-cell-editor .pbs-ce-status{font-size:0.625rem;margin-top:0.375rem;min-height:1em}
+.pbs-cell-editor .pbs-ce-status.saving{color:#f59e0b}
+.pbs-cell-editor .pbs-ce-status.saved{color:#16a34a}
+.pbs-cell-editor .pbs-ce-status.error{color:#dc2626}
+/* Search & filter inputs */
+.product-search-input{font-size:0.75rem}
+.product-category-filter{font-size:0.75rem;max-width:160px}
+#product-pagination-bar button:disabled{opacity:0.4;cursor:default}
+#product-pagination-bar button:disabled:hover{background:#f8fafc;color:#94a3b8}
+/* Parametric filter pills */
+.param-filter-pill{font-size:0.7rem;padding:0.25rem 0.625rem;border-radius:999px;border:1px solid #e2e8f0;background:#fff;color:#64748b;cursor:pointer;transition:all 0.12s;white-space:nowrap;user-select:none}
+.param-filter-pill:hover{border-color:#93c5fd;color:#2563eb;background:#eff6ff}
+.param-filter-pill.active{border-color:#2563eb;background:#2563eb;color:#fff;font-weight:500}
+.param-filter-pill.active:hover{background:#1d4ed8;border-color:#1d4ed8}
 /* Mode-specific field icons */
 .bic-icon-qty{color:#2563eb}
 .bic-icon-cond{color:#d97706}
@@ -895,7 +885,7 @@ textarea.input-field{resize:vertical;font-family:monospace;font-size:0.75rem}
 
     {% if not standalone %}
     <!-- ===== PAGE 0: 首页 ===== -->
-    <div class="page-panel active" id="page-dashboard">
+    <div class="page-panel{% if initial_page == 'home' or not initial_page %} active{% endif %}" id="page-dashboard">
       <div class="card">
         <div class="card-header flex items-center justify-between">
           <span>🏠 首页</span>
@@ -906,15 +896,50 @@ textarea.input-field{resize:vertical;font-family:monospace;font-size:0.75rem}
     </div>
 
     <!-- ===== PAGE: 产品管理 ===== -->
-    <div class="page-panel" id="page-products">
+    <div class="page-panel{% if initial_page == 'products' or initial_product_id %} active{% endif %}" id="page-products">
       <div class="card">
         <div class="card-header flex items-center justify-between">
           <span>🏷️ 产品管理</span>
           <span class="text-xs text-gray-400" id="product-count-badge"></span>
         </div>
         <div class="page-help"><span class="icon">💡</span><span class="text">单击产品卡片进入专属<strong>参数化设置页面</strong>，在一个页面内用Tab切换管理<strong>参数</strong>、<strong>BOM公式</strong>、<strong>规则</strong>和<strong>产品配置器</strong>。🔧⚡标识表示已配置参数化的产品。</span></div>
+        <!-- Search & Filter Bar -->
+        <div class="flex items-center gap-2 mb-2 flex-wrap">
+          <input class="input-field flex-1 min-w-[180px]" id="product-search-input" type="text" placeholder="🔍 搜索产品名称或编码..." oninput="filterProductGrid()" style="font-size:0.75rem;padding:0.375rem 0.5rem">
+          <select class="input-field" id="product-category-filter" onchange="filterProductGrid()" style="font-size:0.75rem;padding:0.375rem 0.5rem;max-width:160px">
+            <option value="">全部分类</option>
+          </select>
+        </div>
+        <!-- Parametric filter pills -->
+        <div class="flex items-center gap-1.5 mb-2 flex-wrap">
+          <span class="text-xs text-gray-400 mr-1">筛选：</span>
+          <button class="param-filter-pill active" data-filter="all" onclick="setParamFilter('all')">全部</button>
+          <button class="param-filter-pill" data-filter="parametric" onclick="setParamFilter('parametric')">🔧 已参数化</button>
+          <button class="param-filter-pill" data-filter="non-parametric" onclick="setParamFilter('non-parametric')">⚙️ 未参数化</button>
+          <span class="text-xs text-gray-400 ml-auto" id="product-filter-count"></span>
+        </div>
         <div id="product-grid" class="min-h-[200px]">
           <div class="empty-state"><div class="icon">⏳</div><p>加载产品列表...</p></div>
+        </div>
+        <!-- Pagination -->
+        <div class="flex items-center justify-between mt-3 pt-2 border-t border-gray-100" id="product-pagination-bar" style="display:none">
+          <div class="flex items-center gap-2">
+            <span class="text-xs text-gray-400">每页</span>
+            <select id="product-page-size" onchange="changeProductPageSize(this.value)" style="font-size:0.7rem;padding:0.2rem 0.3rem;border:1px solid #e2e8f0;border-radius:6px">
+              <option value="12">12</option>
+              <option value="24" selected>24</option>
+              <option value="48">48</option>
+              <option value="96">96</option>
+            </select>
+            <span class="text-xs text-gray-400" id="product-page-info"></span>
+          </div>
+          <div class="flex items-center gap-1">
+            <button class="btn btn-sm btn-secondary" onclick="goProductPage('first')" id="pg-first" disabled title="首页">⏮</button>
+            <button class="btn btn-sm btn-secondary" onclick="goProductPage('prev')" id="pg-prev" disabled title="上一页">◀</button>
+            <span class="text-xs text-gray-500 px-2" id="product-page-nums"></span>
+            <button class="btn btn-sm btn-secondary" onclick="goProductPage('next')" id="pg-next" title="下一页">▶</button>
+            <button class="btn btn-sm btn-secondary" onclick="goProductPage('last')" id="pg-last" title="末页">⏭</button>
+          </div>
         </div>
       </div>
     </div>
@@ -1045,6 +1070,21 @@ textarea.input-field{resize:vertical;font-family:monospace;font-size:0.75rem}
           </div>
           <div id="pd-bom-list">
             <div class="flex items-center justify-center py-6"><span class="spinner mr-2"></span><span class="text-sm text-gray-400">加载中...</span></div>
+          </div>
+          <!-- Cell Editor Popup -->
+          <div class="pbs-cell-editor-overlay" id="pbs-ce-overlay" onclick="closeCellEditor(event)">
+            <div class="pbs-cell-editor" id="pbs-ce-box">
+              <div class="pbs-ce-header">
+                <span class="pbs-ce-title" id="pbs-ce-title">📐 编辑</span>
+                <button class="pbs-ce-close" onclick="closeCellEditor()">✕</button>
+              </div>
+              <textarea class="pbs-ce-input" id="pbs-ce-input" rows="2" placeholder="输入公式..."></textarea>
+              <div class="pbs-ce-actions">
+                <button class="btn btn-sm btn-secondary" onclick="closeCellEditor()">取消</button>
+                <button class="btn btn-sm btn-primary" onclick="saveCellFormula()">💾 保存</button>
+              </div>
+              <div class="pbs-ce-status" id="pbs-ce-status"></div>
+            </div>
           </div>
         </div>
       </div>
@@ -1926,7 +1966,7 @@ function goConfigStep(step) {
 // ===== PART LOADING =====
 async function loadParts() {
   try {
-    const resp = await fetch('/api/part/?limit=500', {credentials: 'same-origin'});
+    const resp = await fetch('/api/part/?limit=9999', {credentials: 'same-origin'});
     if (resp.ok) {
       const data = await resp.json();
       parts = data.results || [];
@@ -1983,66 +2023,145 @@ async function loadParts() {
 }
 
 // ===== PRODUCT MANAGEMENT =====
+let _productPage = 1;
+let _productPageSize = 24;
+let _filteredParts = [];
+let _paramFilter = 'all';
+
+function setParamFilter(val) {
+  _paramFilter = val;
+  document.querySelectorAll('.param-filter-pill').forEach(el => {
+    el.classList.toggle('active', el.dataset.filter === val);
+  });
+  _productPage = 1;
+  renderProductGrid();
+}
+
 async function renderProductGrid() {
   const grid = document.getElementById('product-grid');
   if (!grid) return;
   
   if (!parts || parts.length === 0) {
-    grid.innerHTML = '<div class=\"empty-state\"><div class=\"icon\">📦</div><p>暂无产品</p></div>';
+    grid.innerHTML = '<div class="empty-state"><div class="icon">📦</div><p>暂无产品</p></div>';
     document.getElementById('product-count-badge').textContent = '';
+    document.getElementById('product-pagination-bar').style.display = 'none';
     return;
   }
   
+  // Populate category filter on first load
+  const catFilter = document.getElementById('product-category-filter');
+  if (catFilter && catFilter.options.length <= 1) {
+    const cats = {};
+    parts.forEach(p => { if (p.category_detail) cats[p.category_detail.name] = p.category_detail.pk; });
+    const sorted = Object.entries(cats).sort((a,b) => a[0].localeCompare(b[0]));
+    sorted.forEach(([name, pk]) => {
+      const opt = document.createElement('option');
+      opt.value = pk;
+      opt.textContent = name;
+      catFilter.appendChild(opt);
+    });
+  }
+  
   // Fetch parametric config data
-  const [paramRes, bomRes, ruleRes] = await Promise.all([
+  const [paramRes, ruleRes] = await Promise.all([
     apiCall('GET', 'part-config/'),
-    apiCall('GET', 'bom-item-config/'),
     apiCall('GET', 'rules/'),
   ]);
   
-  // Build a map: partId → { paramCount, bomCount, ruleCount, isParametric }
   const configMap = {};
-  
   const paramCfgs = paramRes.error ? [] : (paramRes.data.results || paramRes.data || []);
   paramCfgs.forEach(c => {
-    const pid = c.part;
-    if (!configMap[pid]) configMap[pid] = { paramCount: 0, bomCount: 0, ruleCount: 0 };
-    configMap[pid].paramCount = (configMap[pid].paramCount || 0) + 1;
+    if (!configMap[c.part]) configMap[c.part] = { paramCount: 0, ruleCount: 0 };
+    configMap[c.part].paramCount = (configMap[c.part].paramCount || 0) + 1;
   });
-  
-  const bomCfgs = bomRes.error ? [] : (bomRes.data.results || bomRes.data || []);
-  bomCfgs.forEach(c => {
-    const pid = c.bom_item ? (c.part || c.bom_item_part || 0) : 0;
-    // Try to get part id from bom_item reference - we'll track by bom_item.part
-  });
-  
   const ruleCfgs = ruleRes.error ? [] : (ruleRes.data.results || ruleRes.data || []);
   ruleCfgs.forEach(c => {
-    const pid = c.product_part;
-    if (!configMap[pid]) configMap[pid] = { paramCount: 0, bomCount: 0, ruleCount: 0 };
-    configMap[pid].ruleCount = (configMap[pid].ruleCount || 0) + 1;
+    if (!configMap[c.product_part]) configMap[c.product_part] = { paramCount: 0, ruleCount: 0 };
+    configMap[c.product_part].ruleCount = (configMap[c.product_part].ruleCount || 0) + 1;
   });
   
-  // Count products with any parametric config
-  let withConfigCount = 0;
-  parts.forEach(p => {
-    if (configMap[p.pk] && (configMap[p.pk].paramCount > 0 || configMap[p.pk].ruleCount > 0)) {
-      withConfigCount++;
+  // Apply search & filter
+  const searchQ = (document.getElementById('product-search-input').value || '').toLowerCase().trim();
+  const catPk = document.getElementById('product-category-filter').value;
+  
+  _filteredParts = parts.filter(p => {
+    if (catPk && p.category != parseInt(catPk)) return false;
+    if (searchQ) {
+      const name = (p.name || p.full_name || '').toLowerCase();
+      const ipn = (p.IPN || p.ipn || '').toLowerCase();
+      if (!name.includes(searchQ) && !ipn.includes(searchQ)) return false;
     }
+    return true;
   });
   
-  document.getElementById('product-count-badge').textContent = `共 ${parts.length} 个产品（${withConfigCount} 个已参数化）`;
+  // Apply parametric filter
+  if (_paramFilter !== 'all') {
+    _filteredParts = _filteredParts.filter(p => {
+      const cfg = configMap[p.pk];
+      const isPara = cfg && (cfg.paramCount > 0 || cfg.ruleCount > 0);
+      return _paramFilter === 'parametric' ? isPara : !isPara;
+    });
+  }
   
-  let html = '<div class=\"grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3\">';
-  parts.forEach(p => {
+  let withConfigCount = 0;
+  _filteredParts.forEach(p => {
+    const cfg = configMap[p.pk];
+    if (cfg && (cfg.paramCount > 0 || cfg.ruleCount > 0)) withConfigCount++;
+  });
+  
+  // Update counts
+  const totalParts = parts.length;
+  const filteredCount = _filteredParts.length;
+  document.getElementById('product-count-badge').textContent = `共 ${totalParts} 个产品（${withConfigCount} 个已参数化）`;
+  document.getElementById('product-filter-count').textContent = searchQ || catPk ? `筛选: ${filteredCount} / ${totalParts}` : '';
+  
+  // Paginate
+  const totalPages = Math.max(1, Math.ceil(_filteredParts.length / _productPageSize));
+  if (_productPage > totalPages) _productPage = totalPages;
+  const start = (_productPage - 1) * _productPageSize;
+  const end = Math.min(start + _productPageSize, _filteredParts.length);
+  const pageItems = _filteredParts.slice(start, end);
+  
+  // Show/hide pagination bar
+  const pagBar = document.getElementById('product-pagination-bar');
+  if (_filteredParts.length > _productPageSize) {
+    pagBar.style.display = 'flex';
+    document.getElementById('product-page-info').textContent = `第 ${start+1}-${end} / 共 ${_filteredParts.length} 个`;
+    // Page numbers
+    let pageNums = '';
+    const maxVisible = 5;
+    let pStart = Math.max(1, _productPage - Math.floor(maxVisible/2));
+    let pEnd = Math.min(totalPages, pStart + maxVisible - 1);
+    if (pEnd - pStart < maxVisible - 1) pStart = Math.max(1, pEnd - maxVisible + 1);
+    for (let i = pStart; i <= pEnd; i++) {
+      pageNums += i === _productPage
+        ? `<span class="text-xs font-bold text-blue-600 mx-1">${i}</span>`
+        : `<span class="text-xs text-gray-500 mx-1 cursor-pointer hover:text-blue-500" onclick="goProductPage(${i})">${i}</span>`;
+    }
+    document.getElementById('product-page-nums').innerHTML = pageNums;
+    document.getElementById('pg-first').disabled = _productPage <= 1;
+    document.getElementById('pg-prev').disabled = _productPage <= 1;
+    document.getElementById('pg-next').disabled = _productPage >= totalPages;
+    document.getElementById('pg-last').disabled = _productPage >= totalPages;
+  } else {
+    pagBar.style.display = 'none';
+  }
+  
+  // Render grid
+  if (pageItems.length === 0) {
+    grid.innerHTML = '<div class="empty-state"><div class="icon">🔍</div><p>没有匹配的产品</p></div>';
+    return;
+  }
+  
+  let html = '<div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">';
+  pageItems.forEach(p => {
     const name = p.name || p.full_name || 'Unnamed';
-    const isActive = configuratorPartId === p.pk;
-    const cfg = configMap[p.pk] || { paramCount: 0, bomCount: 0, ruleCount: 0 };
+    const cfg = configMap[p.pk] || { paramCount: 0, ruleCount: 0 };
     const isParametric = cfg.paramCount > 0 || cfg.ruleCount > 0;
     const ipn = p.IPN || p.ipn || '';
     const description = p.description || '';
     
-    html += `<div class="product-card ${isActive ? 'selected' : ''} ${isParametric ? 'is-parametric' : ''}" onclick="window.open('/parametric-bom/product/${p.pk}/', '_blank')">
+    html += `<div class="product-card ${isParametric ? 'is-parametric' : ''}" onclick="window.open('/parametric-bom/product/${p.pk}/', '_blank')">
       <div class="flex items-start gap-3">
         <div class="product-icon ${isParametric ? 'parametric-icon' : ''}">
           <span class="icon-main">${isParametric ? '🔧' : '⚙️'}</span>
@@ -2053,8 +2172,7 @@ async function renderProductGrid() {
           ${ipn ? `<div class="product-ipn">${ipn}</div>` : ''}
           ${description ? `<div class="product-desc">${description.substring(0, 60)}${description.length > 60 ? '...' : ''}</div>` : ''}
         </div>
-        ${isActive ? '<div class="active-badge">当前</div>' : ''}
-        ${isParametric && !isActive ? '<div class="parametric-badge">参数化</div>' : ''}
+        ${isParametric ? '<div class="parametric-badge">参数化</div>' : ''}
       </div>
       <div class="product-meta">
         <span class="product-stat">📐 ${cfg.paramCount} 参数</span>
@@ -2065,6 +2183,36 @@ async function renderProductGrid() {
   html += '</div>';
   grid.innerHTML = html;
 }
+
+function filterProductGrid() {
+  _productPage = 1;
+  renderProductGrid();
+}
+
+function goProductPage(dir) {
+  if (typeof dir === 'number') { _productPage = dir; }
+  else if (dir === 'first') { _productPage = 1; }
+  else if (dir === 'prev') { _productPage = Math.max(1, _productPage - 1); }
+  else if (dir === 'next') { _productPage = Math.min(Math.ceil(_filteredParts.length / _productPageSize), _productPage + 1); }
+  else if (dir === 'last') { _productPage = Math.ceil(_filteredParts.length / _productPageSize); }
+  renderProductGrid();
+}
+
+function changeProductPageSize(size) {
+  _productPageSize = parseInt(size);
+  _productPage = 1;
+  renderProductGrid();
+}
+
+// Search on Enter key
+document.addEventListener('DOMContentLoaded', function() {
+  const searchInput = document.getElementById('product-search-input');
+  if (searchInput) {
+    searchInput.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') filterProductGrid();
+    });
+  }
+});
 
 function selectActiveProduct(partId, partName) {
   if (configuratorPartId === partId) {
@@ -2538,344 +2686,189 @@ async function loadPdBOMM() {
   container.innerHTML = '<div class="flex items-center justify-center py-6"><span class="spinner mr-2"></span><span class="text-sm text-gray-400">加载中...</span></div>';
   
   const [bomRes, pcfgRes] = await Promise.all([
-    fetch(`/api/bom/?part=${pid}&sub_part_detail=True&part_detail=True`, {headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken()}, credentials: 'same-origin'}),
-    apiCall('GET', `bom-item-config/?bom_item__part=${pid}`),
+    fetch('/api/bom/?part=' + pid + '&sub_part_detail=True&part_detail=True', {headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken()}, credentials: 'same-origin'}),
+    apiCall('GET', 'bom-item-config/?bom_item__part=' + pid),
   ]);
   
   const bomItems = bomRes.ok ? (await bomRes.json()) : [];
   const items = Array.isArray(bomItems) ? bomItems : (bomItems.results || []);
   const pcfgs = pcfgRes.error ? [] : (Array.isArray(pcfgRes.data) ? pcfgRes.data : (pcfgRes.data.results || []));
   const pcfgMap = {};
-  pcfgs.forEach(c => { pcfgMap[c.bom_item] = c; });
+  pcfgs.forEach(function(c) { pcfgMap[c.bom_item] = c; });
   
-  if (countBadge) countBadge.textContent = `共 ${items.length} 项`;
-  
+  if (countBadge) countBadge.textContent = '共 ' + items.length + ' 项';
   if (!items.length) {
-    container.innerHTML = '<div class="bom-empty-state"><div class="bom-empty-icon">📋</div><p>该产品暂无BOM项，先在InvenTree的<strong>产品→BOM标签页</strong>中添加子件</p></div>';
+    container.innerHTML = '<div class="bom-empty-state"><div class="bom-empty-icon">📋</div><p>该产品暂无BOM项</p></div>';
     return;
   }
-  
-  // Load part params for parameter pill buttons
-  const paramsRes = await apiCall('GET', `part-config/?part=${pid}`);
-  const partParams = paramsRes.error ? [] : (Array.isArray(paramsRes.data) ? paramsRes.data : (paramsRes.data.results || []));
-  
-  const modeMeta = [
-    {flag:'enable_qty_formula', key:'qty_formula', icon:'📐', label:'数量公式', desc:'动态计算此BOM项的数量'},
-    {flag:'enable_conditional', key:'conditional', icon:'⚡', label:'条件包含', desc:'由条件公式决定是否包含'},
-    {flag:'enable_candidate', key:'candidate', icon:'🎯', label:'候选零件', desc:'从候选零件列表中动态选择'},
-    {flag:'enable_variant', key:'variant', icon:'🧬', label:'变体生成', desc:'从模板生成变体零件'},
-    {flag:'enable_specification', key:'specification', icon:'📝', label:'规格描述', desc:'通过规格文字描述外协'},
-    {flag:'enable_supplier', key:'supplier', icon:'🏢', label:'供应商选择', desc:'动态选择供应商'},
-    {flag:'enable_structure', key:'structure', icon:'🔗', label:'结构控制', desc:'控制子装配结构'},
+
+  const formulaCols = [
+    {key:'qty_formula', icon:'📐', label:'数量/公式', isQty:true},
+    {key:'condition_formula', icon:'⚡', label:'条件公式'},
+    {key:'part_selector_formula', icon:'🎯', label:'选件公式'},
+    {key:'supplier_formula', icon:'🏢', label:'供应商公式'},
+    {key:'reference_formula', icon:'📝', label:'备注公式'},
   ];
 
-  let html = '<div class="space-y-1">';
+  let colHeaders = '<th style="width:20%">物料</th>';
+  formulaCols.forEach(function(c) {
+    colHeaders += '<th style="width:15%"><span class="col-icon">' + c.icon + '</span>' + c.label + '</th>';
+  });
+  colHeaders += '<th style="width:5%"></th>';
 
-  for (const item of items) {
-    const subPartName = item.sub_part_detail ? item.sub_part_detail.name : `#${item.sub_part}`;
-    const subPartRef = item.sub_part_detail ? (item.sub_part_detail.ipn || '') : '';
+  let html = '<table class="pd-bom-spreadsheet"><thead><tr>' + colHeaders + '</tr></thead><tbody>';
+
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i];
+    const subPartDetail = item.sub_part_detail || {};
+    const subPartName = subPartDetail.name || '#' + item.sub_part;
+    const subPartRef = subPartDetail.ipn || '';
     const cfg = pcfgMap[item.pk];
     const hasCfg = !!cfg;
+    const staticQty = item.quantity;
 
-    // Read enable flags from config
-    const enabledFlags = {};
-    modeMeta.forEach(m => { enabledFlags[m.key] = cfg ? !!cfg[m.flag] : false; });
+    let rowHtml = '<tr><td><span class="pbs-name">' + subPartName + '</span>' + (subPartRef ? '<span class="pbs-ref">' + subPartRef + '</span>' : '') + '</td>';
 
-    // Build active badges for header
-    let badgeHtml = '';
-    modeMeta.forEach(m => {
-      if (enabledFlags[m.key]) badgeHtml += `<span class="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 ml-1">${m.icon} ${m.label}</span>`;
-    });
-    if (!badgeHtml) badgeHtml = '<span class="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-400 ml-1">标准</span>';
-
-    // Build checkbox toggles
-    let toggleHtml = '';
-    modeMeta.forEach(m => {
-      toggleHtml += `<label class="bic-toggle">
-        <input type="checkbox" data-bom="${item.pk}" data-mode-key="${m.key}" ${enabledFlags[m.key]?'checked':''} onchange="onBomModeToggle(${item.pk}, '${m.key}', this.checked)">
-        <span class="bic-toggle-box"></span>
-        <span class="bic-toggle-label">${m.icon} ${m.label}</span>
-        <span class="bic-toggle-desc">${m.desc}</span>
-      </label>`;
-    });
-
-    // Build formula fields
-    let formulaFields = '';
-
-    // qty_formula field
-    let qtyVal = hasCfg ? (cfg.qty_formula || '') : '';
-    formulaFields += `<div class="bic-field" data-mode-field="qty_formula">
-      <label><span class="bic-icon-qty">📐</span> 数量公式</label>
-      <div class="bic-input-wrap">
-        <input type="text" class="bic-fmla-input" data-bom="${item.pk}" data-field="qty_formula" value="${qtyVal.replace(/"/g,'&quot;')}" placeholder="例: CEIL(param.长度 / 500) * 2" onfocus="__activeBomField='qty_formula'">
-        <button class="bic-validate-btn" onclick="validateBomFormula(${item.pk}, 'qty_formula')">✓验证</button>
-      </div>
-    </div>`;
-
-    // condition_formula field
-    let condVal = hasCfg ? (cfg.condition_formula || '') : '';
-    formulaFields += `<div class="bic-field" data-mode-field="conditional">
-      <label><span class="bic-icon-cond">⚡</span> 条件公式</label>
-      <div class="bic-input-wrap">
-        <input type="text" class="bic-fmla-input" data-bom="${item.pk}" data-field="condition_formula" value="${condVal.replace(/"/g,'&quot;')}" placeholder="例: param.速度 > 15" onfocus="__activeBomField='condition_formula'">
-        <button class="bic-validate-btn" onclick="validateBomFormula(${item.pk}, 'condition_formula')">✓验证</button>
-      </div>
-    </div>`;
-
-    // part_selector_formula field (used by both candidate and variant)
-    let selVal = hasCfg ? (cfg.part_selector_formula || '') : '';
-    formulaFields += `<div class="bic-field" data-mode-field="candidate">
-      <label><span class="bic-icon-part">🎯</span> 选件/变体公式</label>
-      <div class="bic-input-wrap">
-        <input type="text" class="bic-fmla-input" data-bom="${item.pk}" data-field="part_selector_formula" value="${selVal.replace(/"/g,'&quot;')}" placeholder="例: IF(speed>15, 'MOTOR-A', 'MOTOR-B')" onfocus="__activeBomField='part_selector_formula'">
-        <button class="bic-validate-btn" onclick="validateBomFormula(${item.pk}, 'part_selector_formula')">✓验证</button>
-      </div>
-    </div>`;
-
-    // specification / supplier / structure - info notes
-    formulaFields += `<div class="bic-field" data-mode-field="specification">
-      <div class="text-[11px] text-slate-400 italic p-2 bg-slate-50 rounded-lg">📝 规格描述模式：在「候选零件」Tab中配置规格参数</div>
-    </div>`;
-    formulaFields += `<div class="bic-field" data-mode-field="supplier">
-      <div class="text-[11px] text-slate-400 italic p-2 bg-slate-50 rounded-lg">🏢 供应商选择模式：在「供应商规则」Tab中配置供应商标记</div>
-    </div>`;
-    formulaFields += `<div class="bic-field" data-mode-field="structure">
-      <div class="text-[11px] text-slate-400 italic p-2 bg-slate-50 rounded-lg">🔗 结构控制：此BOM项的子项结构由参数动态决定</div>
-    </div>`;
-
-    // Parameter pills — show clean name, prepend "param." only on insert
-    let paramPills = '';
-    partParams.forEach(p => {
-      const pname = p.template_name || p.name || p.parameter_name || p.parameter_template_detail?.name || '';
-      if (pname) {
-        const escaped = pname.replace(/'/g,"\\'");
-        paramPills += `<span class="bic-param-pill" onclick="insertBomParam(${item.pk}, 'param.${escaped}')">${pname}</span>`;
+    for (let j = 0; j < formulaCols.length; j++) {
+      const c = formulaCols[j];
+      const val = hasCfg ? (cfg[c.key] || '') : '';
+      let display;
+      if (c.isQty) {
+        if (val) {
+          display = '<span class="fmla-text" title="' + val.replace(/"/g,'&quot;') + '">×' + staticQty + ' → 📐 ' + val + '</span>';
+        } else {
+          display = '<span class="pbs-qty">×' + staticQty + '</span>';
+        }
       } else {
-        // Unnamed parameter — show as gray reference pill (not clickable)
-        paramPills += `<span class="bic-param-pill bic-param-unnamed" title="未命名参数 (${p.parameter_type||'?'})">[${p.parameter_type||'?'}]</span>`;
+        display = val ? '<span class="fmla-text" title="' + val.replace(/"/g,'&quot;') + '">' + val + '</span>' : '<span class="fmla-empty">—</span>';
       }
-    });
-    // Function pills — math group
-    const mathFns = ['CEIL()','FLOOR()','ROUND()','IF()','AND()','OR()','MIN()','MAX()',
-      'SUM()','AVG()','POW()','SQRT()','MOD()','ABS()','COUNT()'];
-    // String functions
-    const strFns = ['CONCAT()','LEFT()','RIGHT()','MID()','LEN()','FIND()',
-      'UPPER()','LOWER()','TRIM()','REPLACE()','SUBSTITUTE()'];
-    // Trig functions (degrees)
-    const trigFns = ['SIN()','COS()','TAN()','ASIN()','ACOS()','ATAN()','ATAN2()','DEGREES()','RADIANS()'];
-    // Type conversion + LET
-    const otherFns = ['INT()','FLOAT()','STR()','BOOL()','LET()'];
-    const fnGroups = [
-      ['📐 数学', mathFns],
-      ['🔤 字符串', strFns],
-      ['📐 三角', trigFns],
-      ['🔀 转换/LET', otherFns],
-    ];
-    let fnPills = '';
-    fnGroups.forEach(([label, fnList]) => {
-      fnPills += `<span class="text-[10px] text-slate-400 mr-0.5" style="align-self:center">${label}:</span>`;
-      fnList.forEach(fn => {
-        fnPills += `<span class="bic-fn-pill" onclick="insertBomParam(${item.pk}, '${fn}')">${fn}</span>`;
-      });
-    });
+      const hint = val ? '双击编辑' : '双击添加公式';
+      const escVal = val.replace(/'/g,"\'").replace(/"/g,'&quot;');
+      rowHtml += '<td><div class="pbs-formula-cell" ondblclick="openCellEditor(' + item.pk + ",'" + c.key + "','" + escVal + "'," + (c.isQty ? 'true' : 'false') + ',' + (c.isQty ? staticQty : '0') + ')" title="' + hint + '">' + display + '<span class="fmla-hint">' + hint + '</span></div></td>';
+    }
 
-    const statusId = `bic-status-${item.pk}`;
-
-    html += `<div class="bom-inline-card" id="bic-${item.pk}">
-      <div class="bic-header" onclick="toggleBomCard(${item.pk})">
-        <span class="bic-name">${subPartName}</span>
-        ${subPartRef ? `<span class="bic-ref">${subPartRef}</span>` : ''}
-        <span class="bic-qty">×${item.quantity}</span>
-        ${badgeHtml}
-        <span class="bic-expand" id="bic-expand-${item.pk}">▼</span>
-      </div>
-      <div class="bic-body" id="bic-body-${item.pk}">
-        <!-- Mode toggles: multiple can be checked at once -->
-        <div class="bic-mode-row mb-1">
-          <label>参数化模式 <span class="text-[10px] text-slate-400 font-normal">(可多选)</span></label>
-        </div>
-        <div class="bic-toggles" id="bic-toggles-${item.pk}">${toggleHtml}</div>
-        <!-- Formula fields -->
-        <div id="bic-fields-${item.pk}">${formulaFields}</div>
-        <!-- Quick insert pills -->
-        <div class="bic-params" id="bic-params-${item.pk}">
-          ${paramPills ? '<span class="text-[10px] text-slate-400 mr-0.5" style="align-self:center">参数:</span>' + paramPills : ''}
-          ${fnPills ? '<span class="text-[10px] text-slate-400 mr-0.5" style="align-self:center">函数:</span>' + fnPills : ''}
-        </div>
-        <!-- Actions -->
-        <div class="bic-actions">
-          <button class="btn btn-primary" onclick="saveBomConfigInline(${item.pk})">💾 保存</button>
-          ${hasCfg ? `<button class="btn btn-secondary" onclick="resetBomConfig(${item.pk}, '${subPartName.replace(/'/g,"\\'")}')">↩️ 重置</button>` : ''}
-          <span class="bic-status" id="${statusId}"></span>
-        </div>
-      </div>
-    </div>`;
+    const escName = subPartName.replace(/'/g,"\'");
+    rowHtml += '<td class="text-center">' + (hasCfg ? '<button class="text-red-400 hover:text-red-600 text-xs p-1 rounded hover:bg-red-50" onclick="resetBomConfig(' + item.pk + ",'" + escName + "')" + '" title="清除参数化配置">✕</button>' : '') + '</td></tr>';
+    html += rowHtml;
   }
-  html += '</div>';
+  html += '</tbody></table>';
   container.innerHTML = html;
 }
 
-function toggleBomCard(itemPk) {
-  const body = document.getElementById(`bic-body-${itemPk}`);
-  const expand = document.getElementById(`bic-expand-${itemPk}`);
-  if (!body) return;
-  const isOpen = body.classList.toggle('open');
-  if (expand) expand.classList.toggle('expanded', isOpen);
-  document.getElementById(`bic-${itemPk}`)?.classList.toggle('is-editing', isOpen);
-}
+// ===== CELL EDITOR =====
+let _ceState = { itemPk: null, field: null };
 
-function onBomModeToggle(itemPk, modeKey, checked) {
-  // Show/hide formula fields based on checkbox state
-  const fields = document.getElementById(`bic-fields-${itemPk}`);
-  if (!fields) return;
+function openCellEditor(itemPk, field, currentVal, isQty, staticQty) {
+  _ceState = { itemPk: itemPk, field: field, isQty: !!isQty, staticQty: staticQty || 1 };
+  const overlay = document.getElementById('pbs-ce-overlay');
+  const box = document.getElementById('pbs-ce-box');
+  const input = document.getElementById('pbs-ce-input');
+  const title = document.getElementById('pbs-ce-title');
+  const statusEl = document.getElementById('pbs-ce-status');
+  statusEl.textContent = '';
+  statusEl.className = 'pbs-ce-status';
 
-  // Toggle field visibility
-  fields.querySelectorAll(`[data-mode-field="${modeKey}"]`).forEach(el => {
-    el.style.display = checked ? '' : 'none';
-  });
-
-  // Update header badges
-  const card = document.getElementById(`bic-${itemPk}`);
-  if (card) {
-    const header = card.querySelector('.bic-header');
-    if (header) {
-      // Remove old badges for this mode
-      const modeMeta = [
-        {key:'qty_formula', icon:'📐', label:'数量公式'},
-        {key:'conditional', icon:'⚡', label:'条件包含'},
-        {key:'candidate', icon:'🎯', label:'候选零件'},
-        {key:'variant', icon:'🧬', label:'变体生成'},
-        {key:'specification', icon:'📝', label:'规格描述'},
-        {key:'supplier', icon:'🏢', label:'供应商选择'},
-        {key:'structure', icon:'🔗', label:'结构控制'},
-      ];
-      // Get all checked toggles
-      const toggles = document.getElementById(`bic-toggles-${itemPk}`);
-      const checkedKeys = [];
-      if (toggles) {
-        toggles.querySelectorAll('input[type="checkbox"]:checked').forEach(cb => {
-          checkedKeys.push(cb.dataset.modeKey);
-        });
-      }
-      // Remove all existing mode badges from header
-      header.querySelectorAll('.bic-mode-badge').forEach(el => el.remove());
-      // Remove the standard badge if it exists
-      const stdBadge = header.querySelector('.text-\\\\[10px\\\\].rounded.bg-gray-100');
-      if (stdBadge) stdBadge.remove();
-      // Add new badges
-      if (checkedKeys.length > 0) {
-        const sorted = modeMeta.filter(m => checkedKeys.includes(m.key));
-        sorted.forEach(m => {
-          const badge = document.createElement('span');
-          badge.className = 'bic-mode-badge text-[10px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 ml-1';
-          badge.textContent = `${m.icon} ${m.label}`;
-          // Insert before the expand arrow
-          const expand = header.querySelector('.bic-expand');
-          if (expand) header.insertBefore(badge, expand);
-          else header.appendChild(badge);
-        });
-      } else {
-        // Show "standard" badge
-        const badge = document.createElement('span');
-        badge.className = 'bic-mode-badge text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-400 ml-1';
-        badge.textContent = '标准';
-        const expand = header.querySelector('.bic-expand');
-        if (expand) header.insertBefore(badge, expand);
-        else header.appendChild(badge);
-      }
-    }
+  if (isQty) {
+    const qtyText = currentVal ? ('当前: ×' + staticQty + ' + 公式「' + currentVal + '」') : ('当前: ×' + staticQty + '（静态数量）');
+    title.textContent = '📐 ' + qtyText;
+    input.value = currentVal || '';
+    input.placeholder = '输入纯数字=改静态数量，输入公式=动态计算';
+  } else {
+    const labels = {qty_formula:'数量/公式', condition_formula:'条件公式', part_selector_formula:'选件公式', supplier_formula:'供应商公式', reference_formula:'备注公式'};
+    const placeholders = {qty_formula:'CEIL(长度/500)*2', condition_formula:'param.速度 > 15', part_selector_formula:"IF(速度>15,'A型','B型')", supplier_formula:"IF(速度>30,'SEW','国茂')", reference_formula:"CONCAT('定制-',长度,'mm')"};
+    const iconMap = {qty_formula:'📐', condition_formula:'⚡', part_selector_formula:'🎯', supplier_formula:'🏢', reference_formula:'📝'};
+    title.textContent = (iconMap[field] || '✏️') + ' ' + (labels[field] || '编辑');
+    input.value = currentVal || '';
+    input.placeholder = placeholders[field] || '输入公式...';
   }
-}
 
-// Track which formula input is focused
-let __activeBomField = 'qty_formula';
-
-function insertBomParam(itemPk, text) {
-  // Insert into the last focused formula input
-  const body = document.getElementById(`bic-body-${itemPk}`);
-  if (!body) return;
-  const target = body.querySelector(`.bic-fmla-input[data-field="${__activeBomField}"]`);
-  if (target) {
-    const start = target.selectionStart || 0;
-    const end = target.selectionEnd || 0;
-    const val = target.value;
-    target.value = val.substring(0, start) + text + val.substring(end);
-    target.focus();
-    target.selectionStart = target.selectionEnd = start + text.length;
+  const cell = event && event.target ? event.target.closest('.pbs-formula-cell') : null;
+  if (cell) {
+    const rect = cell.getBoundingClientRect();
+    let left = rect.left + rect.width / 2 - 180;
+    let top = rect.bottom + 6;
+    if (left < 10) left = 10;
+    if (top + 200 > window.innerHeight) top = rect.top - 210;
+    if (top < 10) top = 10;
+    box.style.left = left + 'px';
+    box.style.top = top + 'px';
+    box.style.transform = '';
+  } else {
+    box.style.left = '50%';
+    box.style.top = '30%';
+    box.style.transform = 'translateX(-50%)';
   }
+
+  overlay.classList.add('open');
+  setTimeout(function() { input.focus(); }, 100);
 }
 
-async function validateBomFormula(itemPk, field) {
-  const input = document.querySelector(`#bic-${itemPk} .bic-fmla-input[data-field="${field}"]`);
-  if (!input || !input.value.trim()) { setStatus('error', '公式不能为空'); return; }
-  setStatus('loading', '验证公式...');
-  const res = await apiCall('POST', 'formula/validate/', {formula: input.value.trim()});
-  if (res.error) { setStatus('error', `公式错误: ${res.error}`); }
-  else { setStatus('success', '✅ 公式语法正确'); }
+function closeCellEditor(evt) {
+  if (evt && evt.target !== document.getElementById('pbs-ce-overlay')) {
+    const box = document.getElementById('pbs-ce-box');
+    if (box && box.contains(evt.target)) return;
+  }
+  document.getElementById('pbs-ce-overlay').classList.remove('open');
+  _ceState = { itemPk: null, field: null };
 }
 
-async function saveBomConfigInline(itemPk) {
-  const statusEl = document.getElementById(`bic-status-${itemPk}`);
-  if (statusEl) { statusEl.textContent = '⏳ 保存中...'; statusEl.className = 'bic-status saving'; }
+async function saveCellFormula() {
+  const st = _ceState;
+  if (!st.itemPk || !st.field) return;
+  const input = document.getElementById('pbs-ce-input');
+  const statusEl = document.getElementById('pbs-ce-status');
+  const formula = input.value.trim();
 
-  const body = document.getElementById(`bic-body-${itemPk}`);
-  if (!body) return;
+  statusEl.textContent = '⏳ 保存中...';
+  statusEl.className = 'pbs-ce-status saving';
 
-  // Collect enable_* flags from checkboxes
-  const toggles = document.getElementById(`bic-toggles-${itemPk}`);
-  const modeToFlag = {
-    qty_formula:'enable_qty_formula', conditional:'enable_conditional',
-    candidate:'enable_candidate', variant:'enable_variant',
-    specification:'enable_specification', supplier:'enable_supplier',
-    structure:'enable_structure',
-  };
-  const data = {};
-  if (toggles) {
-    toggles.querySelectorAll('input[type="checkbox"]').forEach(cb => {
-      const flag = modeToFlag[cb.dataset.modeKey];
-      if (flag) data[flag] = cb.checked;
+  // Qty: plain number -> update BomItem
+  if (st.isQty && /^\d+(\.\d+)?$/.test(formula)) {
+    const num = parseFloat(formula);
+    const res = await fetch('/api/bom/' + st.itemPk + '/', {
+      method: 'PATCH',
+      headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken()},
+      credentials: 'same-origin',
+      body: JSON.stringify({ quantity: num }),
     });
-  }
-
-  // Collect formula values
-  const inputs = body.querySelectorAll('.bic-fmla-input');
-  inputs.forEach(inp => {
-    const field = inp.dataset.field;
-    if (field) {
-      if (inp.value.trim()) {
-        data[field] = inp.value.trim();
-      } else {
-        data[field] = ''; // Always send empty string for cleared fields
+    if (!res.ok) {
+      const errData = await res.json().catch(function() { return {}; });
+      statusEl.textContent = '❌ ' + (errData.error || errData.detail || '保存失败');
+      statusEl.className = 'pbs-ce-status error';
+    } else {
+      statusEl.textContent = '✅ 数量已更新';
+      statusEl.className = 'pbs-ce-status saved';
+      const exRes = await apiCall('GET', 'bom-item-config/?bom_item=' + st.itemPk);
+      const exList = exRes.data && !exRes.error ? (Array.isArray(exRes.data) ? exRes.data : (exRes.data.results || [])) : [];
+      if (exList[0] && exList[0].qty_formula) {
+        await apiCall('PATCH', 'bom-item-config/' + exList[0].id + '/', { qty_formula: '' });
       }
+      setTimeout(function() { document.getElementById('pbs-ce-overlay').classList.remove('open'); loadPdBOMM(); }, 600);
     }
-  });
-
-  // Check if config exists
-  const existingRes = await apiCall('GET', `bom-item-config/?bom_item=${itemPk}`);
-  const existingList = existingRes.data && !existingRes.error
-    ? (Array.isArray(existingRes.data) ? existingRes.data : (existingRes.data.results || []))
-    : [];
-  const existingCfg = existingList[0];
-
-  let res;
-  if (existingCfg) {
-    // Update existing
-    res = await apiCall('PATCH', `bom-item-config/${existingCfg.id}/`, data);
-  } else {
-    // Create new - need bom_item reference
-    data.bom_item = itemPk;
-    data.part = configuratorPartId;
-    res = await apiCall('POST', 'bom-item-config/', data);
+    return;
   }
 
-  if (res.error) {
-    if (statusEl) { statusEl.textContent = `❌ ${res.error}`; statusEl.className = 'bic-status error'; }
-    setStatus('error', '保存失败');
+  // Formula save
+  const exRes = await apiCall('GET', 'bom-item-config/?bom_item=' + st.itemPk);
+  const exList = exRes.data && !exRes.error ? (Array.isArray(exRes.data) ? exRes.data : (exRes.data.results || [])) : [];
+  const exCfg = exList[0];
+  const data = {};
+  data[st.field] = formula;
+  if (exCfg) {
+    ['qty_formula','condition_formula','part_selector_formula','supplier_formula','reference_formula'].forEach(function(f) {
+      if (f !== st.field && exCfg[f]) data[f] = exCfg[f];
+    });
   } else {
-    if (statusEl) { statusEl.textContent = '✅ 已保存'; statusEl.className = 'bic-status saved'; }
-    setStatus('success', '✅ 已保存');
-    // Refresh list to update header badges
-    setTimeout(() => loadPdBOMM(), 1000);
+    data.bom_item = st.itemPk;
+  }
+  let res = exCfg ? await apiCall('PATCH', 'bom-item-config/' + exCfg.id + '/', data) : await apiCall('POST', 'bom-item-config/', data);
+  if (res.error) {
+    statusEl.textContent = '❌ ' + res.error;
+    statusEl.className = 'pbs-ce-status error';
+  } else {
+    statusEl.textContent = '✅ 已保存';
+    statusEl.className = 'pbs-ce-status saved';
+    setTimeout(function() { document.getElementById('pbs-ce-overlay').classList.remove('open'); loadPdBOMM(); }, 600);
   }
 }
 

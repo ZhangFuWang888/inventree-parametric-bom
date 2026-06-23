@@ -309,6 +309,26 @@ class ParametricBomItem(models.Model):
             'Example: IF(param.speed>15, "MOTOR-A", "MOTOR-B")'
         ),
     )
+    supplier_formula = models.CharField(
+        max_length=512,
+        blank=True,
+        default='',
+        verbose_name=_('Supplier formula'),
+        help_text=_(
+            'Formula to dynamically select supplier. '
+            'Example: IF(param.速度>30, "德国SEW", "国茂")'
+        ),
+    )
+    reference_formula = models.CharField(
+        max_length=512,
+        blank=True,
+        default='',
+        verbose_name=_('Reference formula'),
+        help_text=_(
+            'Formula for dynamic reference/notes. '
+            'Example: CONCAT("定制-", param.长度, "mm")'
+        ),
+    )
     formular_hash = models.CharField(
         max_length=64,
         blank=True,
