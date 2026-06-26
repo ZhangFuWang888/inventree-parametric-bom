@@ -15,7 +15,6 @@ VALID_PAGES = {
     'params': '参数设置',
     'bom': 'BOM公式',
     'config': '产品配置器',
-    'rules': '规则引擎',
 }
 
 # Map URL path names to page values
@@ -25,7 +24,6 @@ PATH_TO_PAGE = {
     'parametric-params': 'params',
     'parametric-bom': 'bom',
     'parametric-config': 'config',
-    'parametric-rules': 'rules',
 }
 
 
@@ -123,14 +121,6 @@ def parametric_bom_navigation(request):
             'title': '  产品管理',
             'icon': 'ti:package:outline',
             'options': {'url': '/parametric-bom/products/'},
-            'feature_type': 'navigation',
-            'plugin_name': 'parametric_bom',
-        },
-        {
-            'key': 'parametric-bom-rules',
-            'title': '  规则引擎',
-            'icon': 'ti:git-branch:outline',
-            'options': {'url': '/parametric-bom/rules/'},
             'feature_type': 'navigation',
             'plugin_name': 'parametric_bom',
         },
