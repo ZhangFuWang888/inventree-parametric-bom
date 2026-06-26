@@ -15,6 +15,8 @@ const FORMULA_FUNCTIONS = [
   { label:'MOD', detail:'取模', args:'(a, b)' }, { label:'PI', detail:'圆周率', args:'()' },
   { label:'RAND', detail:'随机数', args:'()' }, { label:'CONCAT', detail:'拼接', args:'(...vals)' },
   { label:'LEFT', detail:'取左侧', args:'(s, n)' }, { label:'RIGHT', detail:'取右侧', args:'(s, n)' },
+  { label:'SUM', detail:'求和', args:'(...vals)' }, { label:'AVG', detail:'平均值', args:'(...vals)' },
+  { label:'COUNT', detail:'计数', args:'(...vals)' },
   { label:'MID', detail:'截取', args:'(s, st, n)' }, { label:'LEN', detail:'长度', args:'(s)' },
   { label:'FIND', detail:'查找位置', args:'(sub, s)' }, { label:'UPPER', detail:'转大写', args:'(s)' },
   { label:'LOWER', detail:'转小写', args:'(s)' }, { label:'TRIM', detail:'去空格', args:'(s)' },
@@ -57,9 +59,9 @@ function defineFormulaMode() {
         if (stream.match(/^(true|false|TRUE|FALSE)\b/)) return 'atom'
         // Numbers
         if (stream.match(/^\d*\.?\d+([eE][+-]?\d+)?/)) return 'number'
-        // Function names
-        if (stream.match(/^[A-Z][A-Z0-9_]*/)) {
-          const word = stream.current()
+        // Function names (case-insensitive)
+        if (stream.match(/^[A-Za-z][A-Za-z0-9_]*/)) {
+          const word = stream.current().toUpperCase()
           if (FUNC_NAMES.includes(word)) return 'builtin'
           return 'variable'
         }
@@ -130,24 +132,77 @@ export function attachCmToInput(inputEl, opts = {}) {
 
   // Auto-trigger autocomplete when typing
   let autoHintTimer
-  editor.on('inputRead', function(cm, change) {
+  function triggerHint(cm) {
     clearTimeout(autoHintTimer)
-    if (!change.text.length) return
-    const ch = change.text[0]
-    if (!ch || !/[\w.\u4e00-\u9fff]/.test(ch[ch.length - 1])) return
     autoHintTimer = setTimeout(function() {
-      // Only trigger if cursor is on a word-like token
       const cursor = cm.getCursor()
       const token = cm.getTokenAt(cursor)
       if (token.string && token.string.length > 0) {
         cm.showHint({ hint: CodeMirror.hint.formula, completeSingle: false })
       }
-    }, 250)
+    }, 150)
+  }
+
+  editor.on('inputRead', function(cm, change) {
+    clearTimeout(autoHintTimer)
+    if (!change.text.length) return
+    const ch = change.text[0]
+    if (ch && /[\w.\u4e00-\u9fff]/.test(ch[ch.length - 1])) {
+      triggerHint(cm)
+    }
   })
 
-  // Sync changes back to hidden input
-  editor.on('change', function(cm) {
+  // Sync changes back to hidden input + auto-capitalize function names
+  let _capitalizing = false
+  editor.on('change', function(cm, change) {
+    if (_capitalizing) { _capitalizing = false; return }
     inputEl.value = cm.getValue()
+
+    // Auto-capitalize function names: if user typed a non-word char after a function name
+    if (change.origin === '+input' && change.text.length === 1) {
+      const ch = change.text[0]
+      if (/^[(),\s+\-*/^%><=]/.test(ch)) {
+        const cursor = cm.getCursor()
+        const line = cm.getLine(cursor.line)
+        const before = line.substring(0, cursor.ch - 1).match(/[A-Za-z]\w*$/)
+        if (before) {
+          const word = before[0]
+          const upper = word.toUpperCase()
+          if (upper !== word && FUNC_NAMES.includes(upper)) {
+            const from = { line: cursor.line, ch: cursor.ch - 1 - word.length }
+            const to = { line: cursor.line, ch: cursor.ch - 1 }
+            _capitalizing = true
+            cm.replaceRange(upper, from, to)
+            cm.setCursor({ line: cursor.line, ch: from.ch + upper.length })
+            return
+          }
+        }
+      }
+      if (/[\w.\u4e00-\u9fff]/.test(ch)) {
+        triggerHint(cm)
+      }
+    }
+
+    // If autocomplete or pill inserted "FN()" or "FN(x, y)", select the args
+    if (change.text.length === 1 && change.origin !== '+input') {
+      const inserted = change.text[0]
+      const argsMatch = inserted.match(/^[A-Z]+\((.+)\)$/)
+      if (argsMatch) {
+        const cursor = cm.getCursor()
+        const textBefore = cm.getLine(cursor.line).substring(0, cursor.ch)
+        const funcStart = textBefore.lastIndexOf(inserted)
+        if (funcStart >= 0) {
+          const fnNameLen = inserted.indexOf('(')
+          const startCh = funcStart + fnNameLen + 1
+          const endCh = funcStart + inserted.length - 1
+          cm.setSelection(
+            { line: cursor.line, ch: startCh },
+            { line: cursor.line, ch: endCh }
+          )
+        }
+      }
+    }
+
     inputEl.dispatchEvent(new Event('input', { bubbles: true }))
   })
 
@@ -188,10 +243,10 @@ function setupAutocomplete(parameters) {
     for (const fn of FORMULA_FUNCTIONS) {
       if (fn.label.toLowerCase().startsWith(lower)) {
         options.push({
-          text: `${fn.label}(`,
-          displayText: fn.label,
-          hint: `${fn.detail}`,
-        })
+            text: `${fn.label}${fn.args}`,
+            displayText: fn.label,
+            hint: `${fn.detail}`,
+          })
       }
     }
 
@@ -229,8 +284,28 @@ export function getCmInstance(inputEl) {
 export function insertAtCursor(inputEl, text) {
   const inst = _cmInstances.get(inputEl)
   if (!inst) return false
-  inst.editor.replaceSelection(text)
-  inst.editor.focus()
+  const editor = inst.editor
+  // If text has args like "FN(a, b)", select the args portion
+  const argsMatch = text.match(/^[A-Z]+\((.+)\)$/)
+  if (argsMatch) {
+    const cursor = editor.getCursor()
+    const args = argsMatch[1]
+    editor.replaceSelection(text)
+    // Select the args text (from after FN( to before ))
+    const startCh = cursor.ch + (text.indexOf('(') + 1)
+    const endCh = cursor.ch + text.length - 1
+    editor.setSelection(
+      { line: cursor.line, ch: startCh },
+      { line: cursor.line, ch: endCh }
+    )
+  } else if (text.endsWith('()')) {
+    const cursor = editor.getCursor()
+    editor.replaceSelection(text)
+    editor.setCursor({ line: cursor.line, ch: cursor.ch + text.length - 1 })
+  } else {
+    editor.replaceSelection(text)
+  }
+  editor.focus()
   return true
 }
 
@@ -251,6 +326,7 @@ export function initFormulaEditors(parameters) {
     'input#qp-formula',
     'input#ar-value-formula',
     'input#pd-formula',
+    'textarea#av-formula',
   ]
   let count = 0
   for (const sel of selectors) {

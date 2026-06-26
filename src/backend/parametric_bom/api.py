@@ -21,6 +21,7 @@ from parametric_bom.models import (
     ParametricRule,
     PartAttributeFormula,
     PartParameterConfig,
+    PartVariable,
     ProductConfiguration,
     SupplierSelectionRule,
     VariantMapping,
@@ -36,6 +37,7 @@ from parametric_bom.serializers import (
     ParametricRuleSerializer,
     PartAttributeFormulaSerializer,
     PartParameterConfigSerializer,
+    PartVariableSerializer,
     ProductConfigurationSerializer,
     SupplierSelectionRuleSerializer,
     VariantMappingSerializer,
@@ -171,6 +173,16 @@ class PartAttributeFormulaViewSet(viewsets.ModelViewSet):
     filter_backends = SEARCH_ORDER_FILTER
     filterset_fields = ['part', 'attribute_type']
     search_fields = ['attribute_name']
+
+
+class PartVariableViewSet(viewsets.ModelViewSet):
+    """API endpoint for PartVariable."""
+    queryset = PartVariable.objects.select_related('part').all()
+    serializer_class = PartVariableSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    filter_backends = SEARCH_ORDER_FILTER
+    filterset_fields = ['part']
+    search_fields = ['name']
 
 
 # ── Existing Function Endpoints ─────────────

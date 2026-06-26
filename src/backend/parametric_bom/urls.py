@@ -12,6 +12,7 @@ from parametric_bom.api import (
     ParametricRuleViewSet,
     PartAttributeFormulaViewSet,
     PartParameterConfigViewSet,
+    PartVariableViewSet,
     ProductConfigurationViewSet,
     SupplierSelectionRuleViewSet,
     VariantMappingViewSet,
@@ -46,6 +47,7 @@ router.register(r'specifications', BomSpecificationViewSet)
 router.register(r'supplier-rules', SupplierSelectionRuleViewSet)
 router.register(r'inheritance', InheritanceMappingViewSet)
 router.register(r'attributes', PartAttributeFormulaViewSet)
+router.register(r'part-variables', PartVariableViewSet)
 
 urlpatterns = [
     path('api/', include(router.urls)),

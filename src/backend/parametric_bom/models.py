@@ -1031,3 +1031,62 @@ class PartAttributeFormula(models.Model):
     def __str__(self):
         """Human-readable representation."""
         return f'{self.part.name}.{self.attribute_name}'
+
+
+class PartVariable(models.Model):
+    """Intermediate variable for a part, reusable across formula fields.
+
+    A PartVariable defines a named expression that can be referenced by name
+    in any formula field (qty_formula, condition_formula, part_selector_formula,
+    supplier_formula, reference_formula). Variables are evaluated before the
+    formula itself, making them available as named constants/computed values.
+
+    Example:
+        name="总重量", formula="param.长度 * param.宽度 * 5 * 7.85 / 1000000"
+        Then in qty_formula: "CEIL(总重量 / 500)"
+    """
+
+    part = models.ForeignKey(
+        'part.part',
+        on_delete=models.CASCADE,
+        related_name='parametric_variables',
+        verbose_name=_('Part'),
+    )
+    name = models.CharField(
+        max_length=64,
+        verbose_name=_('Variable name'),
+        help_text=_('Name used in formulas (e.g. "总重量", "板面积")'),
+    )
+    formula = models.CharField(
+        max_length=1024,
+        verbose_name=_('Formula / expression'),
+        help_text=_(
+            'Expression that computes this variable. '
+            'Can reference other variables and param.* values.'
+        ),
+    )
+    description = models.CharField(
+        max_length=256,
+        blank=True,
+        default='',
+        verbose_name=_('Description'),
+        help_text=_('Optional description of what this variable represents'),
+    )
+    display_order = models.IntegerField(
+        default=0,
+        verbose_name=_('Display order'),
+        help_text=_('Order in the variables list (lower = earlier)'),
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        """Meta options for PartVariable."""
+        app_label = 'parametric_bom'
+        verbose_name = _('Part variable')
+        verbose_name_plural = _('Part variables')
+        unique_together = [('part', 'name')]
+        ordering = ['part', 'display_order']
+
+    def __str__(self):
+        return f'{self.name} = {self.formula}'

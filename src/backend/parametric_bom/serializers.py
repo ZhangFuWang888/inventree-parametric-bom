@@ -2,6 +2,8 @@
 
 from rest_framework import serializers
 
+from parametric_bom.formula_engine import evaluate as evaluate_formula
+from parametric_bom.formula_engine.errors import EvaluationError, ParseError, ReferenceError
 from parametric_bom.models import (
     BomCandidatePart,
     BomItemModeChoices,
@@ -12,6 +14,7 @@ from parametric_bom.models import (
     ParametricRule,
     PartAttributeFormula,
     PartParameterConfig,
+    PartVariable,
     ProductConfiguration,
     SupplierSelectionRule,
     VariantMapping,
@@ -268,3 +271,46 @@ class PartAttributeFormulaSerializer(serializers.ModelSerializer):
             'attribute_name', 'attribute_type',
             'formula', 'unit', 'display_order',
         ]
+
+
+class PartVariableSerializer(serializers.ModelSerializer):
+    """Serializer for PartVariable."""
+
+    part_name = serializers.CharField(source='part.name', read_only=True)
+    computed_value = serializers.SerializerMethodField()
+
+    class Meta:
+        """Meta options."""
+        model = PartVariable
+        fields = [
+            'id', 'part', 'part_name',
+            'name', 'formula', 'description',
+            'display_order', 'created_at', 'updated_at',
+            'computed_value',
+        ]
+
+    def get_computed_value(self, obj):
+        """Evaluate the variable's formula with default parameter values."""
+        if not obj.formula:
+            return None
+        try:
+            # Build default parameter context for the part
+            configs = PartParameterConfig.objects.filter(part=obj.part)
+            param_ctx = {}
+            for cfg in configs:
+                param_name = cfg.name or (cfg.template.name if cfg.template else '')
+                if param_name and cfg.default_value:
+                    val = cfg.default_value
+                    # Try numeric conversion
+                    try:
+                        if '.' in val:
+                            val = float(val)
+                        else:
+                            val = int(val)
+                    except (ValueError, TypeError):
+                        pass
+                    param_ctx[param_name] = val
+            result = evaluate_formula(obj.formula, {'param': param_ctx})
+            return str(result) if result is not None else None
+        except (EvaluationError, ParseError, ReferenceError, Exception):
+            return None

@@ -3,6 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.5">
+<!-- v20260626 -->
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
 <title>{% if standalone %}产品配置 - 参数化BOM{% else %}参数化BOM系统{% endif %}</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <script>
@@ -93,29 +96,7 @@ body{overflow-y:auto}
   font-weight: 500;
   background: transparent !important;
 }
-/* "返回" button in standalone */
-.main-content.standalone .btn-secondary{
-  border-radius: 10px;
-  border: 1px solid #dbeafe !important;
-  background: #fff;
-  color: #2563eb !important;
-  padding: 0.375rem 0.875rem;
-  font-weight: 500;
-  transition: all 0.15s ease;
-}
-.main-content.standalone .btn-secondary:hover{
-  background: #eff6ff;
-  border-color: #93c5fd !important;
-  box-shadow: 0 1px 4px rgba(37,99,235,0.12);
-}
-/* Save button */
-.main-content.standalone .btn-success{
-  border-radius: 10px;
-  font-weight: 500;
-  padding: 0.375rem 1rem;
-  box-shadow: 0 1px 4px rgba(22,163,74,0.2);
-}
-/* Standalone header bar refinement */
+/* ── Standalone header bar refinement ── */
 header .text-sm.font-semibold{
   letter-spacing: -0.01em;
 }
@@ -127,7 +108,7 @@ header .text-sm.font-semibold{
 }
 .main-content.standalone .param-card:hover{
   border-color: #93c5fd !important;
-  box-shadow: 0 3px 12px rgba(37,99,235,0.08);
+  background: #f8fcff;
 }
 /* Configurator controls refinement */
 .main-content.standalone .cfg-param-group{
@@ -138,7 +119,7 @@ header .text-sm.font-semibold{
 }
 .main-content.standalone .cfg-param-group:hover{
   border-color: #93c5fd !important;
-  box-shadow: 0 2px 8px rgba(37,99,235,0.06);
+  background: #f8fcff;
 }
 /* BOM items */
 .main-content.standalone .cfg-bom-item{
@@ -149,21 +130,9 @@ header .text-sm.font-semibold{
   background: #eff6ff !important;
 }
 /* Rule cards */
-.main-content.standalone .rule-card{
-  border-radius: 12px !important;
-  border: 1px solid #e8edf5;
-  transition: all 0.15s ease;
-}
-.main-content.standalone .rule-card:hover{
-  border-color: #93c5fd !important;
-  box-shadow: 0 2px 10px rgba(37,99,235,0.07);
-}
+/* ── Rule cards (已移除) ── */
 /* Type library cards */
-.main-content.standalone .type-lib-card{
-  border-radius: 12px;
-  transition: all 0.2s ease;
-}
-/* Better form inputs */
+/* ── Better form inputs ── */
 .main-content.standalone input.input-field,
 .main-content.standalone select.input-field,
 .main-content.standalone textarea.input-field{
@@ -187,8 +156,8 @@ header .text-sm.font-semibold{
   transition: all 0.15s ease;
 }
 .main-content.standalone .cfg-cost-card:hover{
-  transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(37,99,235,0.08);
+  border-color: #93c5fd;
+  background: #f0fdf4;
 }
 /* ── Remove all bolding in standalone ── */
 .main-content.standalone .card-header{font-weight:500 !important}
@@ -210,10 +179,30 @@ header .text-sm.font-semibold{
 /* ── BOM Spreadsheet Table (Product Detail Page) ── */
 .pd-bom-spreadsheet{width:100%;border-collapse:collapse;font-size:0.75rem}
 .pd-bom-spreadsheet thead th{padding:0.4375rem 0.5rem;text-align:left;font-weight:600;color:#475569;background:#f8fafc;border-bottom:2px solid #e2e8f0;white-space:nowrap;font-size:0.6875rem;position:sticky;top:0}
+
+/* ── CodeMirror Formula Highlighting ── */
+.cm-s-default .cm-builtin{color:#7c3aed !important;font-weight:600}
+.cm-s-default .cm-number{color:#2563eb !important;font-weight:500}
+.cm-s-default .cm-string{color:#16a34a !important}
+.cm-s-default .cm-property{color:#d97706 !important}
+.cm-s-default .cm-atom{color:#0891b2 !important;font-weight:500}
+.cm-s-default .cm-operator{color:#dc2626 !important}
+.cm-s-default .cm-bracket{color:#64748b !important}
+.cm-s-default .cm-variable{color:#1e293b !important}
+.cm-s-default .CodeMirror-cursor{border-left:2px solid #2563eb}
+.cm-s-default .CodeMirror-selected{background:#dbeafe}
+.cm-formula-wrap .CodeMirror{font-size:13px;line-height:1.5;padding:4px 0}
+.cm-formula-wrap .CodeMirror pre{padding:0 4px}
+.CodeMirror-hints{font-size:12px;border-radius:8px;border:1px solid #e2e8f0;box-shadow:0 4px 16px rgba(0,0,0,0.1);padding:4px;z-index:1100}
+.CodeMirror-hint{border-radius:4px;padding:3px 8px}
+.CodeMirror-hint-active{background:#eff6ff;color:#1d4ed8}
+.av-preview-box{background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:4px 8px;font-size:11px;min-height:1.5em;display:flex;align-items:center;gap:6px}
+
 .pd-bom-spreadsheet thead th .col-icon{margin-right:0.25rem}
 .pd-bom-spreadsheet tbody td{padding:0.375rem 0.5rem;border-bottom:1px solid #f1f5f9;vertical-align:middle}
 .pd-bom-spreadsheet tbody tr:hover td{background:#fafcff}
 .pd-bom-spreadsheet .pbs-name{font-weight:500;color:#1e293b;font-size:0.75rem}
+.pd-bom-spreadsheet .pbs-ipn{font-size:0.7rem;color:#64748b;font-family:monospace}
 .pd-bom-spreadsheet .pbs-ref{font-size:0.625rem;color:#94a3b8;margin-left:0.25rem}
 .pd-bom-spreadsheet .pbs-qty{font-weight:600;color:#2563eb}
 .pd-bom-spreadsheet .pbs-formula-cell{cursor:pointer;border-radius:3px;padding:0.125rem 0.375rem;transition:background 0.1s;min-height:1.4em;position:relative}
@@ -222,20 +211,23 @@ header .text-sm.font-semibold{
 .pd-bom-spreadsheet .pbs-formula-cell .fmla-empty{color:#cbd5e1;font-style:italic;font-size:0.65rem}
 .pd-bom-spreadsheet .pbs-formula-cell .fmla-hint{display:none;font-size:0.55rem;color:#94a3b8;position:absolute;top:-0.75rem;right:0.25rem;background:#fff;padding:0 0.25rem}
 .pd-bom-spreadsheet .pbs-formula-cell:hover .fmla-hint{display:block}
-.pbs-cell-editor-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:1000;background:rgba(0,0,0,0.15)}
-.pbs-cell-editor-overlay.open{display:block}
-.pbs-cell-editor{position:absolute;background:#fff;border-radius:12px;border:1px solid #e2e8f0;box-shadow:0 8px 30px rgba(0,0,0,0.12);padding:0.75rem;min-width:360px;max-width:500px;z-index:1001}
+/* Variable table row hover */
+.pd-bom-spreadsheet tbody tr{cursor:default}
+.pd-bom-spreadsheet tbody tr:hover td{background:#f0f7ff}
+.pd-bom-spreadsheet tbody tr td .pv-display{cursor:pointer;border-radius:3px;padding:0.125rem 0.25rem;transition:background 0.1s}
+.pd-bom-spreadsheet tbody tr td .pv-display:hover{background:#e8f0fe}
+/* Cell Editor — top popup, does not block BOM data */
+.pbs-cell-editor-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.25);align-items:flex-start;justify-content:center;z-index:1000;padding-top:4vh}
+.pbs-cell-editor-overlay.open{display:flex}
+.pbs-cell-editor{background:#fff;border-radius:12px;padding:1rem 1.25rem;width:94%;max-width:560px;max-height:90vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,0.15);border:1px solid #e2e8f0}
 .pbs-cell-editor .pbs-ce-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem}
-.pbs-cell-editor .pbs-ce-title{font-size:0.75rem;font-weight:600;color:#1e293b}
-.pbs-cell-editor .pbs-ce-close{background:none;border:none;color:#94a3b8;cursor:pointer;font-size:1rem;line-height:1;padding:0;width:20px;height:20px;display:flex;align-items:center;justify-content:center;border-radius:4px}
+.pbs-cell-editor .pbs-ce-title{font-size:0.8rem;font-weight:600;color:#1e293b}
+.pbs-cell-editor .pbs-ce-close{background:none;border:none;color:#94a3b8;cursor:pointer;font-size:1.1rem;line-height:1;padding:0;width:22px;height:22px;display:flex;align-items:center;justify-content:center;border-radius:4px;transition:all 0.12s}
 .pbs-cell-editor .pbs-ce-close:hover{background:#f1f5f9;color:#475569}
-.pbs-cell-editor .pbs-ce-input{width:100%;min-height:60px;padding:0.5rem;border:1px solid #e2e8f0;border-radius:8px;font-family:monospace;font-size:0.75rem;resize:vertical;transition:border-color 0.12s}
+.pbs-cell-editor .pbs-ce-formula-wrap{display:flex;flex-direction:column;margin-bottom:0.375rem}
+.pbs-cell-editor .pbs-ce-input{width:100%;padding:0.5rem 0.625rem;border:1px solid #e2e8f0;border-radius:8px;font-family:monospace;font-size:0.8rem;resize:vertical;transition:border-color 0.12s}
 .pbs-cell-editor .pbs-ce-input:focus{outline:none;border-color:#2563eb;box-shadow:0 0 0 2px rgba(37,99,235,0.08)}
-.pbs-cell-editor .pbs-ce-actions{display:flex;gap:0.375rem;margin-top:0.5rem;justify-content:flex-end}
-.pbs-cell-editor .pbs-ce-status{font-size:0.625rem;margin-top:0.375rem;min-height:1em}
-.pbs-cell-editor .pbs-ce-status.saving{color:#f59e0b}
-.pbs-cell-editor .pbs-ce-status.saved{color:#16a34a}
-.pbs-cell-editor .pbs-ce-status.error{color:#dc2626}
+.pbs-cell-editor .pbs-ce-actions{display:flex;gap:0.5rem;margin-top:0.5rem;justify-content:flex-end}
 /* Search & filter inputs */
 .product-search-input{font-size:0.75rem}
 .product-category-filter{font-size:0.75rem;max-width:160px}
@@ -324,23 +316,36 @@ header .text-sm.font-semibold{
 .cost-card.total{background:#eff6ff;border-color:#93c5fd}
 .cost-card.total .value{color:#1d4ed8;font-size:1.25rem}
 
-/* Buttons */
-.btn{display:inline-flex;align-items:center;justify-content:center;gap:0.375rem;padding:0.5rem 1rem;border-radius:8px;font-size:0.8125rem;font-weight:500;border:none;cursor:pointer;transition:all 0.15s;white-space:nowrap}
-.btn-primary{background:#2563eb;color:#fff}
-.btn-primary:hover{background:#1d4ed8;box-shadow:0 2px 8px rgba(37,99,235,0.25)}
-.btn-primary:disabled{opacity:0.5;cursor:not-allowed;box-shadow:none}
-.btn-secondary{background:#fff;color:#475569;border:1px solid #d1d5db}
+/* ── Buttons: Simplified Design ── */
+/* Flat, clean, 6px radius, no shadows, minimal hover animation */
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:0.375rem;
+  padding:0.5rem 1rem;border-radius:6px;
+  font-size:0.8125rem;font-weight:500;line-height:1.4;
+  border:1px solid transparent;cursor:pointer;
+  transition:background 0.12s, border-color 0.12s, color 0.12s;
+  white-space:nowrap;user-select:none
+}
+/* Solid variants */
+.btn-primary{background:#2563eb;color:#fff;border-color:#2563eb}
+.btn-primary:hover{background:#1d4ed8;border-color:#1d4ed8}
+.btn-primary:disabled{opacity:0.45;cursor:not-allowed}
+.btn-success{background:#16a34a;color:#fff;border-color:#16a34a}
+.btn-success:hover{background:#15803d;border-color:#15803d}
+.btn-danger{background:#dc2626;color:#fff;border-color:#dc2626}
+.btn-danger:hover{background:#b91c1c;border-color:#b91c1c}
+.btn-warning{background:#d97706;color:#fff;border-color:#d97706}
+.btn-warning:hover{background:#b45309;border-color:#b45309}
+/* Subtle secondary */
+.btn-secondary{background:#fff;color:#475569;border-color:#d1d5db}
 .btn-secondary:hover{background:#f8fafc;border-color:#9ca3af}
-.btn-success{background:#16a34a;color:#fff}
-.btn-success:hover{background:#15803d}
-.btn-warning{background:#d97706;color:#fff}
-.btn-warning:hover{background:#b45309}
-.btn-danger{background:#dc2626;color:#fff}
-.btn-danger:hover{background:#b91c1c}
-.btn-outline-primary{background:transparent;color:#2563eb;border:1px solid #2563eb}
+/* Outline – bordered blue */
+.btn-outline-primary{background:transparent;color:#2563eb;border-color:#93c5fd}
 .btn-outline-primary:hover{background:#eff6ff}
-.btn-ghost{background:transparent;color:#94a3b8;padding:0.25rem 0.5rem;border-radius:6px;border:1px solid transparent;font-size:0.8125rem;line-height:1}
-.btn-ghost:hover{background:#f1f5f9;color:#475569;border-color:#e2e8f0}
+/* Ghost – transparent, no border */
+.btn-ghost{background:transparent;color:#94a3b8;padding:0.25rem 0.5rem;border-radius:6px}
+.btn-ghost:hover{background:#f1f5f9;color:#475569}
+/* Sizes */
 .btn-sm{padding:0.375rem 0.75rem;font-size:0.75rem}
 .btn-lg{padding:0.625rem 1.5rem;font-size:0.875rem}
 .btn-block{width:100%;justify-content:center}
@@ -474,49 +479,48 @@ textarea.input-field{resize:vertical;font-family:monospace;font-size:0.75rem}
 .param-builder-left #pd-param-types::-webkit-scrollbar{width:3px}
 .param-builder-left #pd-param-types::-webkit-scrollbar-thumb{background:#e2e8f0;border-radius:3px}
 
-/* ── Beautified Type Library Cards ── */
-.type-lib-grid{display:grid;grid-template-columns:1fr 1fr;gap:0.5rem}
-.type-lib-card{display:flex;flex-direction:column;border-radius:10px;padding:0.625rem;cursor:grab;transition:all 0.2s ease;border:1px solid #e2e8f0;position:relative;overflow:hidden}
-.type-lib-card:active{cursor:grabbing}
-.type-lib-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;border-radius:10px 10px 0 0;transition:height 0.2s}
-.type-lib-card:hover{transform:translateY(-2px);box-shadow:0 4px 12px rgba(0,0,0,0.08);border-color:transparent}
-.type-lib-card:hover::before{height:4px}
+/* ── Parameter Type Cards (Redesigned) ── */
+/* Clean, color-coded, no size change on hover */
+.type-lib-grid{display:grid;grid-template-columns:1fr 1fr;gap:0.375rem}
+.type-lib-card{
+  border-radius:8px;padding:0.4375rem 0.625rem;
+  cursor:grab;transition:border-color 0.12s,background 0.12s;
+  border:1px solid #e2e8f0;
+  position:relative;overflow:hidden;user-select:none;
+  background:#fff
+}
+.type-lib-card:active{cursor:grabbing;transform:scale(0.97)}
+.type-lib-card::before{
+  content:'';position:absolute;top:0;left:0;right:0;
+  height:3px;border-radius:8px 8px 0 0
+}
 .type-lib-card:active{transform:scale(0.97)}
-.type-lib-card .tlc-icon{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:1rem;margin-bottom:0.375rem;flex-shrink:0}
-.type-lib-card .tlc-name{font-size:0.7rem;font-weight:600;color:#1e293b;line-height:1.3}
-.type-lib-card .tlc-meta{font-size:0.6rem;color:#94a3b8;margin-top:0.125rem;line-height:1.3}
-.type-lib-card .tlc-badge{position:absolute;top:0.375rem;right:0.375rem;font-size:0.55rem;padding:0.0625rem 0.3125rem;border-radius:4px;background:#f1f5f9;color:#94a3b8;font-weight:500}
+.type-lib-card .tlc-name{font-size:0.75rem;font-weight:600;line-height:1.3}
 
-/* Type-specific color themes */
-.type-lib-card.type-number{background:linear-gradient(135deg,#f0f4ff 0%,#e8f0fe 100%)}
+/* Type-specific: flat background + accent top bar */
+.type-lib-card.type-number{background:#f0f7ff}
 .type-lib-card.type-number::before{background:#3b82f6}
-.type-lib-card.type-number .tlc-icon{background:#dbeafe;color:#1d4ed8}
-.type-lib-card.type-number:hover{background:linear-gradient(135deg,#e8f0fe 0%,#dbeafe 100%)}
+.type-lib-card.type-number:hover{border-color:#3b82f6;background:#dbeafe}
 
-.type-lib-card.type-option{background:linear-gradient(135deg,#fffbeb 0%,#fef3c7 100%)}
+.type-lib-card.type-option{background:#fffbeb}
 .type-lib-card.type-option::before{background:#f59e0b}
-.type-lib-card.type-option .tlc-icon{background:#fef3c7;color:#b45309}
-.type-lib-card.type-option:hover{background:linear-gradient(135deg,#fef3c7 0%,#fde68a 100%)}
+.type-lib-card.type-option:hover{border-color:#f59e0b;background:#fef3c7}
 
-.type-lib-card.type-boolean{background:linear-gradient(135deg,#f0fdf4 0%,#dcfce7 100%)}
+.type-lib-card.type-boolean{background:#f0fdf4}
 .type-lib-card.type-boolean::before{background:#22c55e}
-.type-lib-card.type-boolean .tlc-icon{background:#dcfce7;color:#16a34a}
-.type-lib-card.type-boolean:hover{background:linear-gradient(135deg,#dcfce7 0%,#bbf7d0 100%)}
+.type-lib-card.type-boolean:hover{border-color:#22c55e;background:#bbf7d0}
 
-.type-lib-card.type-text{background:linear-gradient(135deg,#f8fafc 0%,#f1f5f9 100%)}
+.type-lib-card.type-text{background:#f8fafc}
 .type-lib-card.type-text::before{background:#64748b}
-.type-lib-card.type-text .tlc-icon{background:#f1f5f9;color:#475569}
-.type-lib-card.type-text:hover{background:linear-gradient(135deg,#f1f5f9 0%,#e2e8f0 100%)}
+.type-lib-card.type-text:hover{border-color:#64748b;background:#e2e8f0}
 
-.type-lib-card.type-multi_option{background:linear-gradient(135deg,#faf5ff 0%,#f3e8ff 100%)}
+.type-lib-card.type-multi_option{background:#faf5ff}
 .type-lib-card.type-multi_option::before{background:#a855f7}
-.type-lib-card.type-multi_option .tlc-icon{background:#f3e8ff;color:#9333ea}
-.type-lib-card.type-multi_option:hover{background:linear-gradient(135deg,#f3e8ff 0%,#e9d5ff 100%)}
+.type-lib-card.type-multi_option:hover{border-color:#a855f7;background:#e9d5ff}
 
-.type-lib-card.type-long_text{background:linear-gradient(135deg,#fdf2f8 0%,#fce7f3 100%)}
+.type-lib-card.type-long_text{background:#fdf2f8}
 .type-lib-card.type-long_text::before{background:#ec4899}
-.type-lib-card.type-long_text .tlc-icon{background:#fce7f3;color:#db2777}
-.type-lib-card.type-long_text:hover{background:linear-gradient(135deg,#fce7f3 0%,#fbcfe8 100%)}
+.type-lib-card.type-long_text:hover{border-color:#ec4899;background:#fbcfe8}
 
 /* Group headers */
 .param-group-header{padding:0.375rem 0.25rem 0.375rem;font-size:0.625rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.04em;display:flex;align-items:center;gap:0.5rem;clear:both}
@@ -526,6 +530,7 @@ textarea.input-field{resize:vertical;font-family:monospace;font-size:0.75rem}
 #pd-params-canvas.drag-active .param-card { margin-bottom: 6px; transition: margin-bottom 0.15s ease, transform 0.15s ease; }
 #pd-params-canvas.drag-active .param-card:hover { transform: scale(1.01); }
 #pd-params-canvas.drag-hover { outline: 2px dashed #3b82f6; outline-offset: 2px; background: #f8faff; border-radius: 10px; }
+#pd-params-canvas.drag-type-hover { outline: 3px dashed #2563eb; outline-offset: 3px; background: #eff6ff; border-radius: 10px; }
 .param-card.drop-before { border-top: 3px solid #3b82f6 !important; margin-top: 6px !important; background: #eff6ff !important; }
 .param-card.drop-after { border-bottom: 3px solid #3b82f6 !important; margin-bottom: 6px !important; background: #eff6ff !important; }
 #drop-indicator {
@@ -602,15 +607,14 @@ textarea.input-field{resize:vertical;font-family:monospace;font-size:0.75rem}
 
 /* 参数类型按钮 */
 .param-type-btn{display:flex;align-items:center;gap:0.5rem;padding:0.5rem;border-radius:8px;border:1px solid #e2e8f0;background:#fff;cursor:pointer;transition:all 0.15s}
-.param-type-btn:hover{border-color:#93c5fd;background:#f8faff;box-shadow:0 1px 4px rgba(37,99,235,0.06)}
+.param-type-btn:hover{border-color:#93c5fd;background:#f8faff}
 .param-type-btn:active{transform:scale(0.98)}
 .param-type-btn .tpl-add-btn{pointer-events:none}
 
 /* ── Enhanced Param Cards ── */
 .param-card{border-radius:10px;margin-bottom:0.625rem;background:#fff;border:1px solid #e2e8f0;transition:all 0.2s;overflow:hidden;position:relative}
-.param-card::before{content:'';position:absolute;top:0;left:0;bottom:0;width:3px;transition:width 0.15s}
-.param-card:hover{box-shadow:0 2px 8px rgba(0,0,0,0.06);border-color:#cbd5e1}
-.param-card:hover::before{width:4px}
+.param-card::before{content:'';position:absolute;top:0;left:0;bottom:0;width:3px}
+.param-card:hover{border-color:#cbd5e1;background:#fafcff}
 .param-card.dragging{opacity:0.5;border-style:dashed}
 .param-card.drag-over{border-top:2px solid #2563eb}
 
@@ -758,28 +762,7 @@ textarea.input-field{resize:vertical;font-family:monospace;font-size:0.75rem}
 .cfg-params-header h3{font-size:0.8125rem;font-weight:600;color:#1e293b}
 .cfg-params-header .cfg-ph-count{font-size:0.65rem;color:#94a3b8}
 
-/* ── Rules Cards ── */
-.rule-card-list{display:flex;flex-direction:column;gap:0.5rem}
-.rule-card{background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:0.75rem;transition:all 0.15s}
-.rule-card:hover{border-color:#cbd5e1;box-shadow:0 1px 4px rgba(0,0,0,0.04)}
-.rule-card .rc-header{display:flex;align-items:center;gap:0.5rem}
-.rule-card .rc-icon{width:28px;height:28px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:0.75rem;flex-shrink:0}
-.rule-card .rc-icon.constraint{background:#fef3c7;color:#92400e}
-.rule-card .rc-icon.calculation{background:#dbeafe;color:#1d4ed8}
-.rule-card .rc-icon.visibility{background:#f3e8ff;color:#7c3aed}
-.rule-card .rc-name{flex:1;font-size:0.75rem;font-weight:500;color:#334155}
-.rule-card .rc-type{font-size:0.6rem;padding:0.0625rem 0.375rem;border-radius:4px;font-weight:500;background:#f1f5f9;color:#475569}
-.rule-card .rc-toggle{flex-shrink:0}
-.rule-card .rc-toggle .toggle-switch{width:26px;height:14px}
-.rule-card .rc-toggle .toggle-switch .toggle-knob{width:10px;height:10px}
-.rule-card .rc-toggle .toggle-switch.on .toggle-knob{left:14px}
-.rule-card .rc-body{margin-top:0.5rem;padding-top:0.5rem;border-top:1px solid #f8fafc}
-.rule-card .rc-row{display:flex;align-items:center;gap:0.5rem;margin-bottom:0.25rem;font-size:0.6875rem;color:#64748b}
-.rule-card .rc-row:last-child{margin-bottom:0}
-.rule-card .rc-row .rc-label{font-size:0.6rem;color:#94a3b8;text-transform:uppercase;min-width:2.5rem;flex-shrink:0}
-.rule-card .rc-row .rc-val{font-family:monospace;color:#2563eb}
-.rule-card .rc-actions{display:flex;gap:0.25rem;margin-top:0.5rem;padding-top:0.5rem;border-top:1px solid #f1f5f9}
-.rule-card .rc-actions .btn{padding:0.1875rem 0.5rem;font-size:0.625rem;border-radius:6px}
+/* ── Rule cards (已移除) ── */
 .pc-empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:3rem 1rem;color:#94a3b8;text-align:center}
 .pc-empty-state .pc-empty-icon{font-size:2.5rem;margin-bottom:0.5rem}
 .pc-empty-state .pc-empty-title{font-size:0.875rem;font-weight:500;color:#64748b}
@@ -902,7 +885,7 @@ textarea.input-field{resize:vertical;font-family:monospace;font-size:0.75rem}
           <span>🏷️ 产品管理</span>
           <span class="text-xs text-gray-400" id="product-count-badge"></span>
         </div>
-        <div class="page-help"><span class="icon">💡</span><span class="text">单击产品卡片进入专属<strong>参数化设置页面</strong>，在一个页面内用Tab切换管理<strong>参数</strong>、<strong>BOM公式</strong>、<strong>规则</strong>和<strong>产品配置器</strong>。🔧⚡标识表示已配置参数化的产品。</span></div>
+        <div class="page-help"><span class="icon">💡</span><span class="text">单击产品卡片进入专属<strong>参数化设置页面</strong>，在一个页面内用Tab切换管理<strong>参数</strong>、<strong>BOM公式</strong>和<strong>产品配置器</strong>。🔧⚡标识表示已配置参数化的产品。</span></div>
         <!-- Search & Filter Bar -->
         <div class="flex items-center gap-2 mb-2 flex-wrap">
           <input class="input-field flex-1 min-w-[180px]" id="product-search-input" type="text" placeholder="🔍 搜索产品名称或编码..." oninput="filterProductGrid()" style="font-size:0.75rem;padding:0.375rem 0.5rem">
@@ -950,7 +933,7 @@ textarea.input-field{resize:vertical;font-family:monospace;font-size:0.75rem}
       <!-- 产品头部 -->
       <div class="card">
         <div class="flex items-center gap-3 mb-3">
-          <button class="btn btn-sm btn-secondary" onclick="{% if standalone %}window.close(){% else %}window.location.href=window.location.pathname{% endif %}" title="返回产品管理">← 返回</button>
+          <button class="btn btn-sm btn-secondary" onclick="goBackFromProduct()" title="返回产品管理">← 返回</button>
           <div class="flex-1 min-w-0">
             <div class="flex items-center gap-2">
               <h2 class="text-base font-semibold text-gray-800 truncate" id="pd-product-name">—</h2>
@@ -969,8 +952,9 @@ textarea.input-field{resize:vertical;font-family:monospace;font-size:0.75rem}
         <!-- Tab 导航 -->
         <div class="flex gap-0 border-b border-gray-200 mb-4">
           <button class="pd-tab active" data-tab="params" onclick="switchProductTab('params')">🔧 参数</button>
+          <button class="pd-tab" data-tab="variables" onclick="switchProductTab('variables')">📐 变量</button>
           <button class="pd-tab" data-tab="bom" onclick="switchProductTab('bom')">📋 BOM公式</button>
-          <button class="pd-tab" data-tab="rules" onclick="switchProductTab('rules')">📜 规则</button>
+          <!-- 规则 Tab 已移除 -->
           <button class="pd-tab" data-tab="configurator" onclick="switchProductTab('configurator')">🔧 配置器</button>
         </div>
       </div>
@@ -985,53 +969,31 @@ textarea.input-field{resize:vertical;font-family:monospace;font-size:0.75rem}
                 <span>📦 参数类型库</span>
                 <span class="text-xs text-gray-400">单击或拖拽添加</span>
               </div>
-              <div class="page-help" style="margin-bottom:0.75rem;font-size:0.65rem;">
-                <span class="icon">💡</span>
-                <span class="text">选择一个参数类型，单击或拖拽到画布中直接创建新参数</span>
-              </div>
               <div id="pd-param-types">
                 <!-- 基础参数类型 -->
                 <div class="param-group-header">📐 基础参数类型</div>
                 <div class="type-lib-grid mb-2">
-                  <div class="type-lib-card type-number" data-type="number" onclick="addIndependentParam('number')" draggable="true" ondragstart="onTypeDragStart(event, 'number')">
-                    <div class="tlc-icon">🔢</div>
-                    <div class="tlc-name">数值参数</div>
-                    <div class="tlc-meta">整数/浮点数<br>支持范围限制</div>
-                    <span class="tlc-badge">驱动</span>
+                  <div class="type-lib-card type-number" data-type="number" onclick="addIndependentParam('number')" draggable="true" ondragstart="onTypeDragStart(event, 'number')" title="整数/浮点数，支持范围限制">
+                    <div class="tlc-name">🔢 数值参数</div>
                   </div>
-                  <div class="type-lib-card type-option" data-type="option" onclick="addIndependentParam('option')" draggable="true" ondragstart="onTypeDragStart(event, 'option')">
-                    <div class="tlc-icon">🔘</div>
-                    <div class="tlc-name">选项参数</div>
-                    <div class="tlc-meta">单选下拉<br>自定义选项值</div>
-                    <span class="tlc-badge">驱动</span>
+                  <div class="type-lib-card type-option" data-type="option" onclick="addIndependentParam('option')" draggable="true" ondragstart="onTypeDragStart(event, 'option')" title="单选下拉，自定义选项值">
+                    <div class="tlc-name">🔘 选项参数</div>
                   </div>
-                  <div class="type-lib-card type-boolean" data-type="boolean" onclick="addIndependentParam('boolean')" draggable="true" ondragstart="onTypeDragStart(event, 'boolean')">
-                    <div class="tlc-icon">☑️</div>
-                    <div class="tlc-name">布尔参数</div>
-                    <div class="tlc-meta">是/否开关<br>二选一</div>
-                    <span class="tlc-badge">驱动</span>
+                  <div class="type-lib-card type-boolean" data-type="boolean" onclick="addIndependentParam('boolean')" draggable="true" ondragstart="onTypeDragStart(event, 'boolean')" title="是/否开关，二选一">
+                    <div class="tlc-name">☑️ 布尔参数</div>
                   </div>
-                  <div class="type-lib-card type-text" data-type="text" onclick="addIndependentParam('text')" draggable="true" ondragstart="onTypeDragStart(event, 'text')">
-                    <div class="tlc-icon">📝</div>
-                    <div class="tlc-name">文本参数</div>
-                    <div class="tlc-meta">单行文本<br>自定义输入</div>
-                    <span class="tlc-badge">驱动</span>
+                  <div class="type-lib-card type-text" data-type="text" onclick="addIndependentParam('text')" draggable="true" ondragstart="onTypeDragStart(event, 'text')" title="单行文本，自定义输入">
+                    <div class="tlc-name">📝 文本参数</div>
                   </div>
                 </div>
                 <!-- 高级参数类型 -->
                 <div class="param-group-header">🔬 高级参数类型</div>
                 <div class="type-lib-grid">
-                  <div class="type-lib-card type-multi_option" data-type="multi_option" onclick="addIndependentParam('multi_option')" draggable="true" ondragstart="onTypeDragStart(event, 'multi_option')">
-                    <div class="tlc-icon">☑️</div>
-                    <div class="tlc-name">多选参数</div>
-                    <div class="tlc-meta">多选复选框<br>组合选项值</div>
-                    <span class="tlc-badge">高级</span>
+                  <div class="type-lib-card type-multi_option" data-type="multi_option" onclick="addIndependentParam('multi_option')" draggable="true" ondragstart="onTypeDragStart(event, 'multi_option')" title="多选复选框，组合选项值">
+                    <div class="tlc-name">☑️ 多选参数</div>
                   </div>
-                  <div class="type-lib-card type-long_text" data-type="long_text" onclick="addIndependentParam('long_text')" draggable="true" ondragstart="onTypeDragStart(event, 'long_text')">
-                    <div class="tlc-icon">📄</div>
-                    <div class="tlc-name">长文本参数</div>
-                    <div class="tlc-meta">多行文本<br>详细描述</div>
-                    <span class="tlc-badge">高级</span>
+                  <div class="type-lib-card type-long_text" data-type="long_text" onclick="addIndependentParam('long_text')" draggable="true" ondragstart="onTypeDragStart(event, 'long_text')" title="多行文本，详细描述">
+                    <div class="tlc-name">📄 长文本参数</div>
                   </div>
                 </div>
               </div>
@@ -1047,6 +1009,20 @@ textarea.input-field{resize:vertical;font-family:monospace;font-size:0.75rem}
                 <div class="empty-state"><div class="icon">🔧</div><p>选择产品后加载参数列表</p></div>
               </div>
             </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab: 变量 -->
+      <div class="pd-tab-content" id="pd-tab-variables">
+        <div class="card" style="padding:0.75rem">
+          <div class="flex items-center justify-between mb-3">
+            <span class="text-xs font-semibold text-slate-600">📐 中间变量</span>
+            <button class="btn btn-sm btn-primary" onclick="addVariable()">➕ 新建变量</button>
+          </div>
+          <div class="page-help mb-2"><span class="icon">💡</span><span class="text">定义中间变量后，可在 BOM公式/条件/选件/供应商等字段的公式中直接使用变量名引用。</span></div>
+          <div id="pd-variables-list">
+            <div class="empty-state"><div class="icon">⏳</div><p>加载变量列表...</p></div>
           </div>
         </div>
       </div>
@@ -1075,40 +1051,36 @@ textarea.input-field{resize:vertical;font-family:monospace;font-size:0.75rem}
           <div class="pbs-cell-editor-overlay" id="pbs-ce-overlay" onclick="closeCellEditor(event)">
             <div class="pbs-cell-editor" id="pbs-ce-box">
               <div class="pbs-ce-header">
-                <span class="pbs-ce-title" id="pbs-ce-title">📐 编辑</span>
+                <span class="pbs-ce-title" id="pbs-ce-title">📐 编辑公式</span>
                 <button class="pbs-ce-close" onclick="closeCellEditor()">✕</button>
               </div>
-              <textarea class="pbs-ce-input" id="pbs-ce-input" rows="2" placeholder="输入公式..."></textarea>
+              <!-- Pills area (collapsible) -->
+              <div class="mb-2">
+                <div class="flex items-center justify-between cursor-pointer" onclick="ceTogglePills()">
+                  <label class="text-xs text-gray-400">📌 参数/变量/函数 <span id="ce-pills-toggle-icon">▾</span></label>
+                </div>
+                <div id="ce-pills-area" class="max-h-28 overflow-y-auto border border-gray-100 rounded-lg p-1.5">
+                  <div id="ce-param-pills"><span class="text-xs text-gray-400">加载中...</span></div>
+                </div>
+              </div>
+              <!-- Formula editor -->
+              <div class="pbs-ce-formula-wrap">
+                <label class="block text-xs font-medium text-gray-500 mb-1">公式</label>
+                <textarea class="pbs-ce-input" id="pbs-ce-input" rows="2" placeholder="输入公式..." oninput="ceSchedulePreview()" style="min-height:60px"></textarea>
+              </div>
+              <!-- Status / Preview -->
+              <div id="pbs-ce-status" class="flex items-center gap-2 text-xs mt-0.5 min-h-[1.5em] text-gray-500"></div>
+              <!-- Actions -->
               <div class="pbs-ce-actions">
-                <button class="btn btn-sm btn-secondary" onclick="closeCellEditor()">取消</button>
+                <button class="btn btn-sm btn-ghost" onclick="closeCellEditor()">取消</button>
                 <button class="btn btn-sm btn-primary" onclick="saveCellFormula()">💾 保存</button>
               </div>
-              <div class="pbs-ce-status" id="pbs-ce-status"></div>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- Tab: 规则 -->
-      <div class="pd-tab-content" id="pd-tab-rules">
-        <div class="card" style="padding:0.75rem">
-          <div class="flex items-center justify-between mb-3">
-            <div class="flex items-center gap-2">
-              <span class="text-sm font-semibold text-slate-800">📜 规则</span>
-              <span class="text-xs text-slate-400" id="rule-count-badge"></span>
-            </div>
-            <button class="btn btn-sm btn-primary" onclick="openAddRuleModal(null, configuratorPartId)">➕ 新增规则</button>
-          </div>
-          <div class="page-help" style="margin-bottom:0.75rem;font-size:0.65rem">
-            <span class="icon">💡</span>
-            <span class="text">配置<strong>约束规则</strong>：条件驱动（如 长度>8000 → 需加强框架）、自动计算、可见性控制。单击切换启用/禁用。</span>
-          </div>
-          <div id="pd-rules-list" class="rule-card-list">
-            <div class="flex items-center justify-center py-6"><span class="spinner mr-2"></span><span class="text-sm text-gray-400">加载中...</span></div>
-          </div>
-        </div>
-      </div>
-
+      <!-- 规则 Tab 已移除 -->
       <!-- Tab: 配置器 -->
       <div class="pd-tab-content" id="pd-tab-configurator">
         <!-- Top actions bar -->
@@ -1128,7 +1100,7 @@ textarea.input-field{resize:vertical;font-family:monospace;font-size:0.75rem}
 
         <!-- Two-column layout -->
         <div class="cfg-layout">
-          <!-- LEFT: Parameter controls + computed + cost -->
+          <!-- LEFT: Parameter controls + computed -->
           <div class="cfg-left">
             <div class="card" style="padding:0.75rem">
               <div class="cfg-params-header">
@@ -1144,9 +1116,14 @@ textarea.input-field{resize:vertical;font-family:monospace;font-size:0.75rem}
                 </div>
                 <div class="cfg-computed-summary" id="cfg-computed-list"></div>
               </div>
+            </div>
+          </div>
 
-              <!-- Cost estimate -->
-              <div id="cfg-cost-card" style="display:none;margin-top:0.75rem;padding-top:0.75rem;border-top:1px solid #e2e8f0">
+          <!-- RIGHT: Cost + BOM preview + saved configs -->
+          <div class="cfg-right">
+            <!-- Cost estimate (on top of BOM) -->
+            <div class="card" style="padding:0.75rem;margin-bottom:0.75rem">
+              <div id="cfg-cost-card" style="display:block">
                 <div class="flex items-center justify-between mb-2">
                   <span class="text-xs font-semibold text-slate-500">💰 成本估算</span>
                   <button class="btn btn-sm btn-outline-primary text-[10px] px-1.5 py-0.5" onclick="cfgEstimateCost()">重新计算</button>
@@ -1158,10 +1135,7 @@ textarea.input-field{resize:vertical;font-family:monospace;font-size:0.75rem}
                 </div>
               </div>
             </div>
-          </div>
 
-          <!-- RIGHT: BOM preview + saved configs -->
-          <div class="cfg-right">
             <div class="card" style="padding:0.75rem">
               <div class="flex items-center justify-between mb-2">
                 <span class="text-xs font-semibold text-slate-500">🌳 BOM展开</span>
@@ -1179,11 +1153,11 @@ textarea.input-field{resize:vertical;font-family:monospace;font-size:0.75rem}
               </div>
               <div id="cfg-configs-list" class="cfg-saved-list">
                 <div class="cfg-empty"><div class="cfg-empty-icon">📁</div>暂无保存的配置</div>
-              </div>
             </div>
           </div>
         </div>
       </div>
+    </div>
     </div>
 
     {% if not standalone %}
@@ -1370,26 +1344,7 @@ textarea.input-field{resize:vertical;font-family:monospace;font-size:0.75rem}
       </div>
     </div>
 
-    <!-- ===== PAGE 4: 规则 ===== -->
-    <div class="page-panel" id="page-rules">
-      <div class="card">
-        <div class="card-header flex items-center justify-between">
-          <span>📜 规则配置</span>
-          <button class="btn btn-primary btn-sm" onclick="openAddRuleModal()">➕ 新增规则</button>
-        </div>
-        <div class="page-help"><span class="icon">💡</span><span class="text">定义<strong>参数约束规则</strong>：当条件满足时自动设值、锁定参数、隐藏选项或显示警告。例如：<code>长度>8000</code> → 机架类型强制为"加强型"（场景⑧）。</span></div>
-        <div class="form-group mb-3">
-          <label class="block text-xs font-medium text-gray-500 mb-1.5">选择产品</label>
-          <select class="input-field" id="rule-part-select" onchange="loadRules(this.value)">
-            <option value="">-- 请选择产品 --</option>
-          </select>
-        </div>
-        <div id="rule-list" class="overflow-x-auto">
-          <div class="empty-state"><div class="icon">📜</div><p>请选择产品查看规则</p></div>
-        </div>
-      </div>
-    </div>
-
+    <!-- Page 4 规则页面已移除 -->
     <!-- ===== PAGE 5: 继承映射 ===== -->
     <div class="page-panel" id="page-inheritance">
       <div class="card">
@@ -1565,7 +1520,83 @@ textarea.input-field{resize:vertical;font-family:monospace;font-size:0.75rem}
   <span class="text-xs text-gray-400 hidden sm:inline" id="cfg-part-name-bar"></span>
 </div>
 
-<!-- ===== MODAL: Add Parameter Config ===== -->
+<!-- ===== MODAL: Add/Edit Variable ===== -->
+<div class="modal-overlay" id="modal-add-variable">
+  <div class="modal-box" style="max-width:600px">
+    <h3 class="text-base font-semibold text-gray-800 mb-3">📐 新建中间变量</h3>
+    <input type="hidden" id="av-editing-id" value="">
+    <div class="grid grid-cols-2 gap-3 mb-3">
+      <div>
+        <label class="block text-xs font-medium text-gray-500 mb-1">变量名 *</label>
+        <input class="input-field" id="av-name" placeholder="例如: 总重量, 板面积" autocomplete="off">
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-gray-500 mb-1">描述 <span class="text-gray-400 font-normal">(可选)</span></label>
+        <input class="input-field" id="av-description" placeholder="说明此变量的用途">
+      </div>
+    </div>
+    <div class="mb-2">
+      <label class="block text-xs font-medium text-gray-500 mb-1">公式 *</label>
+      <!-- Available params -->
+      <div class="mb-1.5">
+        <div class="flex items-center justify-between cursor-pointer" onclick="avTogglePills()">
+          <label class="text-[10px] text-gray-400">可用参数/函数 <span id="av-pills-toggle-icon">▾</span></label>
+        </div>
+        <div id="av-pills-area" class="max-h-28 overflow-y-auto border border-gray-100 rounded-lg p-1.5">
+          <div class="mb-1">
+            <label class="text-[9px] text-gray-400 mb-0.5 block">📌 可用参数 (点击插入):</label>
+            <div id="av-param-pills" class="flex flex-wrap gap-1">
+              <span class="text-[10px] text-gray-400">加载中...</span>
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-x-2 gap-y-0.5">
+            <div>
+              <label class="text-[9px] text-gray-400 mb-0.5 block">🔢 数学:</label>
+              <div class="flex flex-wrap gap-1">
+                <span class="fe-fn-pill text-[10px] px-1.5 py-0.5" onclick="avInsertText('CEIL(x)')" title="CEIL(x) 向上取整">CEIL</span>
+                <span class="fe-fn-pill text-[10px] px-1.5 py-0.5" onclick="avInsertText('FLOOR(x)')" title="FLOOR(x) 向下取整">FLOOR</span>
+                <span class="fe-fn-pill text-[10px] px-1.5 py-0.5" onclick="avInsertText('ROUND(x, [n])')" title="ROUND(x, [n]) 四舍五入">ROUND</span>
+                <span class="fe-fn-pill text-[10px] px-1.5 py-0.5" onclick="avInsertText('IF(c, t, f)')" title="IF(条件, 真值, 假值)">IF</span>
+                <span class="fe-fn-pill text-[10px] px-1.5 py-0.5" onclick="avInsertText('AND(...exprs)')" title="AND(...) 逻辑与">AND</span>
+                <span class="fe-fn-pill text-[10px] px-1.5 py-0.5" onclick="avInsertText('OR(...exprs)')" title="OR(...) 逻辑或">OR</span>
+                <span class="fe-fn-pill text-[10px] px-1.5 py-0.5" onclick="avInsertText('NOT(x)')" title="NOT(x) 逻辑非">NOT</span>
+                <span class="fe-fn-pill text-[10px] px-1.5 py-0.5" onclick="avInsertText('MIN(a, b)')" title="MIN(a, b) 最小值">MIN</span>
+                <span class="fe-fn-pill text-[10px] px-1.5 py-0.5" onclick="avInsertText('MAX(a, b)')" title="MAX(a, b) 最大值">MAX</span>
+                <span class="fe-fn-pill text-[10px] px-1.5 py-0.5" onclick="avInsertText('ABS(x)')" title="ABS(x) 绝对值">ABS</span>
+                <span class="fe-fn-pill text-[10px] px-1.5 py-0.5" onclick="avInsertText('SQRT(x)')" title="SQRT(x) 平方根">SQRT</span>
+                <span class="fe-fn-pill text-[10px] px-1.5 py-0.5" onclick="avInsertText('POW(base, exp)')" title="POW(base, exp) 幂运算">POW</span>
+                <span class="fe-fn-pill text-[10px] px-1.5 py-0.5" onclick="avInsertText('MOD(a, b)')" title="MOD(a, b) 取模">MOD</span>
+                <span class="fe-fn-pill text-[10px] px-1.5 py-0.5" onclick="avInsertText('SUM(...vals)')" title="SUM(...) 求和">SUM</span>
+                <span class="fe-fn-pill text-[10px] px-1.5 py-0.5" onclick="avInsertText('AVG(...vals)')" title="AVG(...) 平均值">AVG</span>
+                <span class="fe-fn-pill text-[10px] px-1.5 py-0.5" onclick="avInsertText('COUNT(...vals)')" title="COUNT(...) 计数">COUNT</span>
+              </div>
+            </div>
+            <div>
+              <label class="text-[9px] text-gray-400 mb-0.5 block">🔤 字符串/类型:</label>
+              <div class="flex flex-wrap gap-1">
+                <span class="fe-fn-pill text-[10px] px-1.5 py-0.5" onclick="avInsertText('CONCAT(...vals)')" title="CONCAT(...) 拼接">CONCAT</span>
+                <span class="fe-fn-pill text-[10px] px-1.5 py-0.5" onclick="avInsertText('LEN(s)')" title="LEN(s) 长度">LEN</span>
+                <span class="fe-fn-pill text-[10px] px-1.5 py-0.5" onclick="avInsertText('UPPER(s)')" title="UPPER(s) 大写">UPPER</span>
+                <span class="fe-fn-pill text-[10px] px-1.5 py-0.5" onclick="avInsertText('LOWER(s)')" title="LOWER(s) 小写">LOWER</span>
+                <span class="fe-fn-pill text-[10px] px-1.5 py-0.5" onclick="avInsertText('TRIM(s)')" title="TRIM(s) 去空格">TRIM</span>
+                <span class="fe-fn-pill text-[10px] px-1.5 py-0.5" onclick="avInsertText('INT(x)')" title="INT(x) 转整型">INT</span>
+                <span class="fe-fn-pill text-[10px] px-1.5 py-0.5" onclick="avInsertText('FLOAT(x)')" title="FLOAT(x) 转浮点">FLOAT</span>
+                <span class="fe-fn-pill text-[10px] px-1.5 py-0.5" onclick="avInsertText('STR(x)')" title="STR(x) 转字符串">STR</span>
+                <span class="fe-fn-pill text-[10px] px-1.5 py-0.5" onclick="avInsertText('BOOL(x)')" title="BOOL(x) 转布尔">BOOL</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <textarea id="av-formula" class="input-field w-full font-mono text-xs" rows="3" placeholder="例如: param.长度 * param.宽度 * 厚度 * 7.85 / 1000000" onfocus="feState.activeField='var-formula'" oninput="avSchedulePreview()"></textarea>
+      <div id="av-formula-status" class="flex items-center gap-2 text-[11px] mt-1 min-h-[1.4em]"></div>
+    </div>
+    <div class="flex justify-end gap-2 mt-3">
+      <button class="btn btn-secondary" onclick="closeModal('modal-add-variable')">取消</button>
+      <button class="btn btn-primary" onclick="confirmAddVariable()">✅ 创建变量</button>
+    </div>
+  </div>
+</div>
 <div class="modal-overlay" id="modal-add-param">
   <div class="modal-box" style="max-width:640px">
     <h3 class="text-base font-semibold text-gray-800 mb-4">➕ 新增参数配置</h3>
@@ -1711,68 +1742,7 @@ textarea.input-field{resize:vertical;font-family:monospace;font-size:0.75rem}
   </div>
 </div>
 
-<!-- ===== MODAL: Add Rule ===== -->
-<div class="modal-overlay" id="modal-add-rule">
-  <div class="modal-box" style="max-width:560px">
-    <h3 class="text-base font-semibold text-gray-800 mb-4">📜 新增规则</h3>
-    <div class="grid grid-cols-2 gap-3 mb-3">
-      <div>
-        <label class="block text-xs font-medium text-gray-500 mb-1">产品</label>
-        <select class="input-field" id="ar-part"><option value="">-- 请选择 --</option></select>
-      </div>
-      <div>
-        <label class="block text-xs font-medium text-gray-500 mb-1">规则类型</label>
-        <select class="input-field" id="ar-type">
-          <option value="constraint">约束 (Constraint)</option>
-          <option value="calculation">计算 (Calculation)</option>
-          <option value="visibility">可见性 (Visibility)</option>
-        </select>
-      </div>
-    </div>
-    <div class="mb-3">
-      <label class="block text-xs font-medium text-gray-500 mb-1">条件公式</label>
-      <input class="input-field" id="ar-condition" placeholder="例如: param.速度 > 15">
-    </div>
-    <div class="grid grid-cols-2 gap-3 mb-3">
-      <div>
-        <label class="block text-xs font-medium text-gray-500 mb-1">动作</label>
-        <select class="input-field" id="ar-action">
-          <option value="set_value">设置值 (Set value)</option>
-          <option value="set_min">设置最小值</option>
-          <option value="set_max">设置最大值</option>
-          <option value="show">显示</option>
-          <option value="hide">隐藏</option>
-          <option value="require">要求</option>
-        </select>
-      </div>
-      <div>
-        <label class="block text-xs font-medium text-gray-500 mb-1">目标参数</label>
-        <select class="input-field" id="ar-target-param"><option value="">-- 选择 --</option></select>
-      </div>
-    </div>
-    <div class="mb-3">
-      <label class="block text-xs font-medium text-gray-500 mb-1">值公式</label>
-      <input class="input-field" id="ar-value-formula" placeholder="例如: param.长度 * 0.5">
-    </div>
-    <div class="grid grid-cols-2 gap-3 mb-3">
-      <div>
-        <label class="block text-xs font-medium text-gray-500 mb-1">错误信息</label>
-        <input class="input-field" id="ar-error-msg" placeholder="条件不满足时显示的错误信息">
-      </div>
-      <div>
-        <label class="block text-xs font-medium text-gray-500 mb-1">优先级</label>
-        <input class="input-field" id="ar-priority" type="number" value="100">
-      </div>
-    </div>
-    <div class="mb-3">
-      <label class="flex items-center gap-1.5 text-xs text-gray-600"><input type="checkbox" id="ar-enabled" checked> 启用</label>
-    </div>
-    <div class="flex justify-end gap-2">
-      <button class="btn btn-secondary" onclick="closeModal('modal-add-rule')">取消</button>
-      <button class="btn btn-primary" onclick="createRule()">创建</button>
-    </div>
-  </div>
-</div>
+<!-- 规则弹窗已移除 -->
 
 <!-- ===== MODAL: Add BOM Item ===== -->
 <div class="modal-overlay" id="modal-add-bom">
@@ -1784,7 +1754,7 @@ textarea.input-field{resize:vertical;font-family:monospace;font-size:0.75rem}
     </div>
     <div class="mb-3">
       <label class="block text-xs font-medium text-gray-500 mb-1">选择子件</label>
-      <input class="input-field mb-1.5" id="ab-search" type="text" placeholder="🔍 搜索零件名称..." oninput="filterAbParts(this.value)">
+      <input class="input-field mb-1.5" id="ab-search" type="text" placeholder="🔍 搜索零件名称/IPN..." oninput="filterAbParts(this.value)">
       <select class="input-field" id="ab-sub-part" size="6">
         <option value="">-- 请选择零件 --</option>
       </select>
@@ -1901,6 +1871,20 @@ function toggleSidebar() {
   }
 }
 
+function goBackFromProduct() {
+  // Check if we're in standalone/embedded mode
+  const standalone = document.querySelector('.main-content.standalone');
+  const embedded = document.querySelector('.main-content.embedded');
+  if (standalone || embedded) {
+    // Navigate back to the product list by reloading without the product param
+    const url = new URL(window.location);
+    url.searchParams.delete('product');
+    window.location.href = url.toString();
+  } else {
+    switchPage('products');
+  }
+}
+
 function switchPage(page) {
   // Hide all pages
   document.querySelectorAll('.page-panel').forEach(el => el.classList.remove('active'));
@@ -1921,11 +1905,15 @@ function switchPage(page) {
   if (configuratorPartId) {
     if (page === 'param-types') loadParamConfigs(configuratorPartId);
     else if (page === 'bom-formula') loadBomFormulaConfigs(configuratorPartId);
-    else if (page === 'rules') loadRules(configuratorPartId);
     else if (page === 'inheritance') loadInheritanceMappings(configuratorPartId);
     else if (page === 'attributes') loadAttributeFormulas(configuratorPartId);
     else if (page === 'configurator') onGlobalPartChange(configuratorPartId);
-    else if (page === 'product-detail') { if (!document.querySelector('#page-product-detail .pd-tab-content.active')) switchProductTab('params'); }
+    else if (page === 'product-detail') { 
+      if (configuratorPartId && !document.querySelector('#pd-product-name')?.textContent?.trim()?.length > 1) 
+        loadProductDetail(configuratorPartId); 
+      else if (!document.querySelector('#page-product-detail .pd-tab-content.active')) 
+        switchProductTab('params'); 
+    }
   }
 }
 
@@ -1966,10 +1954,10 @@ function goConfigStep(step) {
 // ===== PART LOADING =====
 async function loadParts() {
   try {
-    const resp = await fetch('/api/part/?limit=9999', {credentials: 'same-origin'});
+    const resp = await fetch('/api/part/?limit=5000', {credentials: 'same-origin'});
     if (resp.ok) {
       const data = await resp.json();
-      parts = data.results || [];
+      parts = Array.isArray(data) ? data : (data.results || []);
     } else {
       parts = [];
     }
@@ -1977,8 +1965,8 @@ async function loadParts() {
     parts = [];
   }
   // Populate part selects
-  const selects = ['cfg-part-select', 'pm-part-select', 'tpl-sync-part', 'bom-part-select', 'rule-part-select', 'ap-part'];
-  const templateSelects = ['ap-template', 'ar-target-param'];
+  const selects = ['cfg-part-select', 'pm-part-select', 'tpl-sync-part', 'bom-part-select', 'ap-part'];
+  const templateSelects = ['ap-template'];
   
   selects.forEach(id => {
     const sel = document.getElementById(id);
@@ -2063,21 +2051,15 @@ async function renderProductGrid() {
   }
   
   // Fetch parametric config data
-  const [paramRes, ruleRes] = await Promise.all([
+  const [paramRes] = await Promise.all([
     apiCall('GET', 'part-config/'),
-    apiCall('GET', 'rules/'),
   ]);
   
   const configMap = {};
   const paramCfgs = paramRes.error ? [] : (paramRes.data.results || paramRes.data || []);
   paramCfgs.forEach(c => {
-    if (!configMap[c.part]) configMap[c.part] = { paramCount: 0, ruleCount: 0 };
+    if (!configMap[c.part]) configMap[c.part] = { paramCount: 0 };
     configMap[c.part].paramCount = (configMap[c.part].paramCount || 0) + 1;
-  });
-  const ruleCfgs = ruleRes.error ? [] : (ruleRes.data.results || ruleRes.data || []);
-  ruleCfgs.forEach(c => {
-    if (!configMap[c.product_part]) configMap[c.product_part] = { paramCount: 0, ruleCount: 0 };
-    configMap[c.product_part].ruleCount = (configMap[c.product_part].ruleCount || 0) + 1;
   });
   
   // Apply search & filter
@@ -2098,7 +2080,7 @@ async function renderProductGrid() {
   if (_paramFilter !== 'all') {
     _filteredParts = _filteredParts.filter(p => {
       const cfg = configMap[p.pk];
-      const isPara = cfg && (cfg.paramCount > 0 || cfg.ruleCount > 0);
+      const isPara = cfg && cfg.paramCount > 0;
       return _paramFilter === 'parametric' ? isPara : !isPara;
     });
   }
@@ -2106,7 +2088,7 @@ async function renderProductGrid() {
   let withConfigCount = 0;
   _filteredParts.forEach(p => {
     const cfg = configMap[p.pk];
-    if (cfg && (cfg.paramCount > 0 || cfg.ruleCount > 0)) withConfigCount++;
+    if (cfg && cfg.paramCount > 0) withConfigCount++;
   });
   
   // Update counts
@@ -2156,8 +2138,8 @@ async function renderProductGrid() {
   let html = '<div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">';
   pageItems.forEach(p => {
     const name = p.name || p.full_name || 'Unnamed';
-    const cfg = configMap[p.pk] || { paramCount: 0, ruleCount: 0 };
-    const isParametric = cfg.paramCount > 0 || cfg.ruleCount > 0;
+    const cfg = configMap[p.pk] || { paramCount: 0 };
+    const isParametric = cfg.paramCount > 0;
     const ipn = p.IPN || p.ipn || '';
     const description = p.description || '';
     
@@ -2176,7 +2158,6 @@ async function renderProductGrid() {
       </div>
       <div class="product-meta">
         <span class="product-stat">📐 ${cfg.paramCount} 参数</span>
-        ${cfg.ruleCount > 0 ? `<span class="product-stat">📜 ${cfg.ruleCount} 规则</span>` : ''}
       </div>
     </div>`;
   });
@@ -2225,7 +2206,7 @@ function selectActiveProduct(partId, partName) {
   configuratorPartId = partId;
   
   // Update part selectors on all pages
-  const selectors = ['cfg-part-select', 'pm-part-select', 'bom-part-select', 'rule-part-select'];
+  const selectors = ['cfg-part-select', 'pm-part-select', 'bom-part-select'];
   selectors.forEach(id => {
     const sel = document.getElementById(id);
     if (sel) { sel.value = partId; }
@@ -2250,8 +2231,8 @@ function switchProductTab(tab) {
   if (!configuratorPartId) return;
   if (tab === 'params') loadPdParams();
   else if (tab === 'bom') loadPdBOMM();
-  else if (tab === 'rules') loadPdRules();
   else if (tab === 'configurator') loadPdConfigurator();
+  else if (tab === 'variables') loadPdVariables();
 }
 
 async function loadProductDetail(partId) {
@@ -2710,11 +2691,11 @@ async function loadPdBOMM() {
     {key:'reference_formula', icon:'📝', label:'备注公式'},
   ];
 
-  let colHeaders = '<th style="width:20%">物料</th>';
+  let colHeaders = '<th style="width:12%">编码</th><th style="width:15%">物料</th>';
   formulaCols.forEach(function(c) {
-    colHeaders += '<th style="width:15%"><span class="col-icon">' + c.icon + '</span>' + c.label + '</th>';
+    colHeaders += '<th style="width:13%"><span class="col-icon">' + c.icon + '</span>' + c.label + '</th>';
   });
-  colHeaders += '<th style="width:5%"></th>';
+  colHeaders += '<th style="width:4%"></th>';
 
   let html = '<table class="pd-bom-spreadsheet"><thead><tr>' + colHeaders + '</tr></thead><tbody>';
 
@@ -2727,7 +2708,7 @@ async function loadPdBOMM() {
     const hasCfg = !!cfg;
     const staticQty = item.quantity;
 
-    let rowHtml = '<tr><td><span class="pbs-name">' + subPartName + '</span>' + (subPartRef ? '<span class="pbs-ref">' + subPartRef + '</span>' : '') + '</td>';
+    let rowHtml = '<tr><td class="pbs-ipn">' + (subPartRef || '<span class="text-gray-300">—</span>') + '</td><td><span class="pbs-name">' + subPartName + '</span></td>';
 
     for (let j = 0; j < formulaCols.length; j++) {
       const c = formulaCols[j];
@@ -2748,7 +2729,7 @@ async function loadPdBOMM() {
     }
 
     const escName = subPartName.replace(/'/g,"\'");
-    rowHtml += '<td class="text-center">' + (hasCfg ? '<button class="text-red-400 hover:text-red-600 text-xs p-1 rounded hover:bg-red-50" onclick="resetBomConfig(' + item.pk + ",'" + escName + "')" + '" title="清除参数化配置">✕</button>' : '') + '</td></tr>';
+    rowHtml += '<td class="text-center"><button class="text-red-400 hover:text-red-600 text-xs p-1 rounded hover:bg-red-50" onclick="resetBomConfig(' + item.pk + ",'" + escName + "')" + '" title="从BOM移除">✕</button></td></tr>';
     html += rowHtml;
   }
   html += '</tbody></table>';
@@ -2757,16 +2738,126 @@ async function loadPdBOMM() {
 
 // ===== CELL EDITOR =====
 let _ceState = { itemPk: null, field: null };
+let _cePreviewTimer = null;
+
+function ceTogglePills() {
+  const area = document.getElementById('ce-pills-area');
+  const icon = document.getElementById('ce-pills-toggle-icon');
+  if (!area || !icon) return;
+  if (area.style.display === 'none') {
+    area.style.display = '';
+    icon.textContent = '▾';
+  } else {
+    area.style.display = 'none';
+    icon.textContent = '▸';
+  }
+}
+
+function ceInsertText(text) {
+  const ta = document.getElementById('pbs-ce-input');
+  if (!ta) return;
+  // Try CM insert first
+  if (window.CmFormulaEditor) {
+    const el = ta;
+    if (window.CmFormulaEditor.insertAtCursor(el, text)) {
+      ceSchedulePreview();
+      return;
+    }
+  }
+  const start = ta.selectionStart;
+  const end = ta.selectionEnd;
+  ta.value = ta.value.substring(0, start) + text + ta.value.substring(end);
+  const newPos = start + text.length;
+  ta.selectionStart = ta.selectionEnd = newPos;
+  ta.focus();
+  ceSchedulePreview();
+}
+
+function ceSchedulePreview() {
+  clearTimeout(_cePreviewTimer);
+  _cePreviewTimer = setTimeout(ceDoPreview, 400);
+}
+
+async function ceDoPreview() {
+  const formula = document.getElementById('pbs-ce-input').value.trim();
+  const statusEl = document.getElementById('pbs-ce-status');
+  if (!formula) { statusEl.innerHTML = '<span class="text-gray-400">输入公式</span>'; return; }
+  statusEl.innerHTML = '<span class="text-gray-400">⏳ 计算中...</span>';
+  const ctx = window.__ceParamContext || {};
+  const res = await apiCall('POST', 'formula/preview/', { formula, context: { param: ctx } });
+  const data = res.data || {};
+  if (data.success === false || data.error) {
+    const errMsg = data.error || '未知错误';
+    statusEl.innerHTML = `<span class="text-red-500">❌ ${escHtml(errMsg)}</span>`;
+    return;
+  }
+  const val = data.result !== undefined ? data.result : (data.value || '');
+  statusEl.innerHTML = `📐 结果: <strong class="text-green-600 font-mono">${escHtml(String(val))}</strong>`;
+}
+
+function ceLoadPills(pid) {
+  const pillsEl = document.getElementById('ce-param-pills');
+  if (!pid || !pillsEl) { pillsEl.innerHTML = '<span class="text-[10px] text-gray-400">请先选择产品</span>'; return; }
+  pillsEl.innerHTML = '<span class="text-[10px] text-gray-400">加载中...</span>';
+  Promise.all([
+    apiCall('GET', `part-config/?part=${pid}`),
+    apiCall('GET', `part-variables/?part=${pid}&limit=9999`),
+  ]).then(([paramRes, varRes]) => {
+    const configs = paramRes.error ? [] : (Array.isArray(paramRes.data) ? paramRes.data : (paramRes.data.results || []));
+    const vars = varRes.error ? [] : (Array.isArray(varRes.data) ? varRes.data : (varRes.data.results || []));
+    let html = '';
+    const ctx = {};
+    // Function pills — grouped in two columns like variable dialog
+    html += '<div class="grid grid-cols-2 gap-x-2 gap-y-0.5 mb-1">';
+    html += '<div><label class="text-[9px] text-gray-400 mb-0.5 block">🔢 数学:</label><div class="flex flex-wrap gap-1">';
+    ['CEIL','FLOOR','ROUND','IF','AND','OR','NOT','MIN','MAX','ABS','SQRT','POW','MOD','SUM','AVG','COUNT'].forEach(function(fn) {
+      const sigs = {CEIL:'(x)',FLOOR:'(x)',ROUND:'(x,[n])',IF:'(c,t,f)',AND:'(...)',OR:'(...)',NOT:'(x)',MIN:'(a,b)',MAX:'(a,b)',ABS:'(x)',SQRT:'(x)',POW:'(base,exp)',MOD:'(a,b)',SUM:'(...)',AVG:'(...)',COUNT:'(...)'};
+      html += `<span class="fe-fn-pill text-[10px] px-1.5 py-0.5" onclick="ceInsertText('${fn}${sigs[fn]||'()'}')">${fn}</span>`;
+    });
+    html += '</div></div><div><label class="text-[9px] text-gray-400 mb-0.5 block">🔤 字符串/类型:</label><div class="flex flex-wrap gap-1">';
+    ['CONCAT','LEN','UPPER','LOWER','TRIM','INT','FLOAT','STR','BOOL'].forEach(function(fn) {
+      const sigs = {CONCAT:'(...)',LEN:'(s)',UPPER:'(s)',LOWER:'(s)',TRIM:'(s)',INT:'(x)',FLOAT:'(x)',STR:'(x)',BOOL:'(x)'};
+      html += `<span class="fe-fn-pill text-[10px] px-1.5 py-0.5" onclick="ceInsertText('${fn}${sigs[fn]||'()'}')">${fn}</span>`;
+    });
+    html += '</div></div></div>';
+    // Params
+    if (configs.length) {
+      html += '<div class="flex flex-wrap gap-1 mb-1">';
+      configs.forEach(c => {
+        const paramName = c.name || c.template_name || 'unknown';
+        const defVal = c.default_value;
+        if (defVal) ctx[paramName] = defVal;
+        html += `<span class="fe-param-pill text-[10px] px-1.5 py-0.5" onclick="ceInsertText('param.${paramName.replace(/'/g, "\\'")}')">${paramName}${defVal ? '=' + defVal : ''}</span>`;
+      });
+      html += '</div>';
+    }
+    // Variables
+    if (vars.length) {
+      html += '<div class="flex flex-wrap gap-1">';
+      vars.forEach(v => {
+        const vName = v.name || 'unknown';
+        const vVal = v.computed_value;
+        if (vVal != null) ctx[vName] = vVal;
+        html += `<span class="fe-param-pill text-[10px] px-1.5 py-0.5" style="background:#eff6ff;border-color:#bfdbfe;color:#1d4ed8" onclick="ceInsertText('param.${vName.replace(/'/g, "\\'")}')">${vName}${vVal != null ? '=' + escHtml(String(vVal)) : ''}</span>`;
+      });
+      html += '</div>';
+    }
+    pillsEl.innerHTML = html;
+    window.__ceParamContext = ctx;
+    ceSchedulePreview();
+  }).catch(() => {
+    pillsEl.innerHTML = '<span class="text-[10px] text-gray-400">加载失败</span>';
+  });
+}
 
 function openCellEditor(itemPk, field, currentVal, isQty, staticQty) {
   _ceState = { itemPk: itemPk, field: field, isQty: !!isQty, staticQty: staticQty || 1 };
   const overlay = document.getElementById('pbs-ce-overlay');
-  const box = document.getElementById('pbs-ce-box');
   const input = document.getElementById('pbs-ce-input');
   const title = document.getElementById('pbs-ce-title');
   const statusEl = document.getElementById('pbs-ce-status');
-  statusEl.textContent = '';
-  statusEl.className = 'pbs-ce-status';
+  statusEl.innerHTML = '';
+  statusEl.className = 'flex items-center gap-2 text-xs mt-0.5 min-h-[1.5em] text-gray-500';
 
   if (isQty) {
     const qtyText = currentVal ? ('当前: ×' + staticQty + ' + 公式「' + currentVal + '」') : ('当前: ×' + staticQty + '（静态数量）');
@@ -2782,25 +2873,30 @@ function openCellEditor(itemPk, field, currentVal, isQty, staticQty) {
     input.placeholder = placeholders[field] || '输入公式...';
   }
 
-  const cell = event && event.target ? event.target.closest('.pbs-formula-cell') : null;
-  if (cell) {
-    const rect = cell.getBoundingClientRect();
-    let left = rect.left + rect.width / 2 - 180;
-    let top = rect.bottom + 6;
-    if (left < 10) left = 10;
-    if (top + 200 > window.innerHeight) top = rect.top - 210;
-    if (top < 10) top = 10;
-    box.style.left = left + 'px';
-    box.style.top = top + 'px';
-    box.style.transform = '';
-  } else {
-    box.style.left = '50%';
-    box.style.top = '30%';
-    box.style.transform = 'translateX(-50%)';
-  }
-
   overlay.classList.add('open');
-  setTimeout(function() { input.focus(); }, 100);
+  // Load pills for the current product
+  const pid = configuratorPartId;
+  ceLoadPills(pid);
+  // Destroy old CM if any, then attach fresh
+  setTimeout(function() {
+    const el = document.getElementById('pbs-ce-input');
+    if (!el) return;
+    // Destroy existing CM instance
+    if (el.dataset.cmInit && window.CmFormulaEditor) {
+      const inst = window.CmFormulaEditor.getCmInstance(el);
+      if (inst) {
+        const wrap = inst.editor.getWrapperElement();
+        if (wrap && wrap.parentNode) wrap.parentNode.remove();
+        el.style.display = '';
+        delete el.dataset.cmInit;
+      }
+    }
+    // Attach fresh CM
+    if (window.CmFormulaEditor) {
+      window.CmFormulaEditor.attachCmToInput(el, { inline: false, minHeight: 50 });
+    }
+    el.focus();
+  }, 100);
 }
 
 function closeCellEditor(evt) {
@@ -2819,8 +2915,7 @@ async function saveCellFormula() {
   const statusEl = document.getElementById('pbs-ce-status');
   const formula = input.value.trim();
 
-  statusEl.textContent = '⏳ 保存中...';
-  statusEl.className = 'pbs-ce-status saving';
+  statusEl.innerHTML = '<span class="text-gray-400">⏳ 保存中...</span>';
 
   // Qty: plain number -> update BomItem
   if (st.isQty && /^\d+(\.\d+)?$/.test(formula)) {
@@ -2833,11 +2928,9 @@ async function saveCellFormula() {
     });
     if (!res.ok) {
       const errData = await res.json().catch(function() { return {}; });
-      statusEl.textContent = '❌ ' + (errData.error || errData.detail || '保存失败');
-      statusEl.className = 'pbs-ce-status error';
+      statusEl.innerHTML = '<span class="text-red-500">❌ ' + escHtml(errData.error || errData.detail || '保存失败') + '</span>';
     } else {
-      statusEl.textContent = '✅ 数量已更新';
-      statusEl.className = 'pbs-ce-status saved';
+      statusEl.innerHTML = '<span class="text-green-600">✅ 数量已更新</span>';
       const exRes = await apiCall('GET', 'bom-item-config/?bom_item=' + st.itemPk);
       const exList = exRes.data && !exRes.error ? (Array.isArray(exRes.data) ? exRes.data : (exRes.data.results || [])) : [];
       if (exList[0] && exList[0].qty_formula) {
@@ -2863,80 +2956,38 @@ async function saveCellFormula() {
   }
   let res = exCfg ? await apiCall('PATCH', 'bom-item-config/' + exCfg.id + '/', data) : await apiCall('POST', 'bom-item-config/', data);
   if (res.error) {
-    statusEl.textContent = '❌ ' + res.error;
-    statusEl.className = 'pbs-ce-status error';
+    const errMsg = res.data?.error || res.data?.detail || (typeof res.data === 'object' ? JSON.stringify(res.data).substring(0,120) : '保存失败');
+    statusEl.innerHTML = '<span class="text-red-500">❌ ' + escHtml(errMsg) + '</span>';
   } else {
-    statusEl.textContent = '✅ 已保存';
-    statusEl.className = 'pbs-ce-status saved';
+    statusEl.innerHTML = '<span class="text-green-600">✅ 已保存</span>';
     setTimeout(function() { document.getElementById('pbs-ce-overlay').classList.remove('open'); loadPdBOMM(); }, 600);
   }
 }
 
-async function loadPdRules() {
-  const pid = configuratorPartId;
-  if (!pid) return;
-  const container = document.getElementById('pd-rules-list');
-  const countBadge = document.getElementById('rule-count-badge');
-  container.innerHTML = '<div class="flex items-center justify-center py-6"><span class="spinner mr-2"></span><span class="text-sm text-gray-400">加载中...</span></div>';
-  
-  const res = await apiCall('GET', `rules/?product_part=${pid}`);
-  if (res.error) { container.innerHTML = '<div class="text-red-500 text-sm p-3">加载失败</div>'; return; }
-  const rules = res.data.results || (Array.isArray(res.data) ? res.data : []);
-  
-  if (countBadge) countBadge.textContent = `共 ${rules.length} 条`;
-  
-  if (!rules.length) {
-    container.innerHTML = '<div class="rule-card-list"><div class="empty-state"><div class="icon">📜</div><p>暂无规则，点击「➕ 新增规则」创建</p></div></div>';
-    return;
-  }
-  
-  const ruleTypeIcons = {constraint:'🔒', calculation:'🧮', visibility:'👁️'};
-  const ruleTypeLabels = {constraint:'约束', calculation:'计算', visibility:'可见性'};
-  const actionLabels = {set_value:'设值', set_min:'设最小', set_max:'设最大', show:'显示', hide:'隐藏', require:'必填'};
-  
-  let html = '';
-  rules.forEach(r => {
-    const typeIcon = ruleTypeIcons[r.rule_type] || '📜';
-    const typeLabel = ruleTypeLabels[r.rule_type] || r.rule_type;
-    const actionLabel = actionLabels[r.action] || r.action;
-    
-    html += `<div class="rule-card">
-      <div class="rc-header">
-        <span class="rc-icon ${r.rule_type}">${typeIcon}</span>
-        <span class="rc-name">${r.name || r.condition_formula || '规则'}</span>
-        <span class="rc-type">${typeLabel}</span>
-        <div class="rc-toggle">
-          <div class="toggle-switch ${r.enabled ? 'on' : ''}"
-            onclick="toggleRule(${r.id}, this)">
-            <div class="toggle-knob"></div>
-          </div>
-        </div>
-      </div>
-      <div class="rc-body">
-        <div class="rc-row">
-          <span class="rc-label">条件</span>
-          <code class="rc-val">${r.condition_formula || '始终'}</code>
-        </div>
-        <div class="rc-row">
-          <span class="rc-label">动作</span>
-          <span>${actionLabel}</span>
-          ${r.value_formula ? `<code class="rc-val" style="margin-left:0.5rem">${r.value_formula}</code>` : ''}
-        </div>
-      </div>
-      <div class="rc-actions">
-        <button class="btn btn-sm btn-outline-primary" onclick="openAddRuleModal(${r.id}, ${r.product_part})">✏️ 编辑</button>
-        <button class="btn btn-sm btn-danger" onclick="deleteRule(${r.id})">🗑️ 删除</button>
-      </div>
-    </div>`;
-  });
-  container.innerHTML = html;
-}
-
 function resetBomConfig(bomItemId, name) {
-  if (!confirm(`重置「${name}」的参数化配置？`)) return;
-  apiCall('DELETE', `bom-item-config/${bomItemId}/`).then(res => {
-    if (!res.error) { setStatus('success', `✅ 已重置「${name}」`); loadPdBOMM(); }
-    else setStatus('error', '重置失败');
+  // 1) Delete ParametricBomItem config if exists
+  apiCall('GET', `bom-item-config/?bom_item=${bomItemId}`).then(res => {
+    if (!res.error) {
+      const configs = Array.isArray(res.data) ? res.data : (res.data.results || []);
+      if (configs.length) {
+        apiCall('DELETE', `bom-item-config/${configs[0].id}/`);
+      }
+    }
+  });
+  // 2) Delete the BomItem itself
+  fetch(`/api/bom/${bomItemId}/`, {
+    method: 'DELETE',
+    headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken()},
+    credentials: 'same-origin',
+  }).then(res => {
+    if (res.ok || res.status === 204) {
+      setStatus('success', `✅ 已移除「${name}」`);
+      loadPdBOMM();
+    } else {
+      setStatus('error', '删除BOM项失败');
+    }
+  }).catch(() => {
+    setStatus('error', '网络错误');
   });
 }
 
@@ -2951,52 +3002,74 @@ async function openAddBomItemModal() {
   const product = parts.find(p => p.pk == pid);
   document.getElementById('ab-product-name').textContent = product ? (product.name || `#${pid}`) : `#${pid}`;
   
-  if (!_allPartsCache) {
-    try {
-      const res = await fetch(`/api/part/?limit=500`, {
-        headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken()},
-        credentials: 'same-origin'
-      });
-      _allPartsCache = res.ok ? (await res.json()) : [];
-    } catch(e) { _allPartsCache = []; }
-  }
-  const allParts = Array.isArray(_allPartsCache) ? _allPartsCache : (_allPartsCache.results || []);
-  
-  // Filter out current product itself
-  _abAllParts = allParts.filter(p => p.pk != pid);
-  
-  // Clear search and render all
+  // Show empty select + loading indicator
+  _allPartsCache = null;
+  _abAllParts = [];
   document.getElementById('ab-search').value = '';
   renderAbPartList();
-  
   openModal('modal-add-bom');
+  
+  const countEl = document.getElementById('ab-search-count');
+  if (countEl) countEl.textContent = '加载零件库中...';
+  
+  // Load all parts in background
+  try {
+    const res = await fetch(`/api/part/?limit=10000&ordering=name`, {
+      headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken()},
+      credentials: 'same-origin'
+    });
+    const data = res.ok ? (await res.json()) : [];
+    const all = Array.isArray(data) ? data : (data.results || []);
+    _allPartsCache = all.filter(p => p.pk != pid);
+    _abAllParts = _allPartsCache.slice(0, 200);
+    renderAbPartList();
+    if (countEl) countEl.textContent = `共 ${_allPartsCache.length} 个零件`;
+  } catch(e) {
+    if (countEl) countEl.textContent = '加载失败';
+  }
 }
 
-function renderAbPartList(filter) {
-  const sel = document.getElementById('ab-sub-part');
+let _abSearchTimer = null;
+function filterAbParts(value) {
+  clearTimeout(_abSearchTimer);
+  _abSearchTimer = setTimeout(function() { doAbFilter(value); }, 100);
+}
+
+function doAbFilter(value) {
+  const q = (value || '').trim().toLowerCase();
   const countEl = document.getElementById('ab-search-count');
   
-  let filtered = _abAllParts;
-  if (filter) {
-    const q = filter.toLowerCase();
-    filtered = _abAllParts.filter(p =>
-      (p.name || '').toLowerCase().includes(q) ||
-      (p.ipn || '').toLowerCase().includes(q) ||
-      (p.description || '').toLowerCase().includes(q)
-    );
+  if (!_allPartsCache) {
+    if (countEl) countEl.textContent = '零件库加载中，请稍候...';
+    return;
   }
   
+  if (!q) {
+    _abAllParts = _allPartsCache.slice(0, 200);
+    renderAbPartList();
+    if (countEl) countEl.textContent = `共 ${_allPartsCache.length} 个零件`;
+    return;
+  }
+  
+  const matched = _allPartsCache.filter(p =>
+    (p.name || '').toLowerCase().includes(q) ||
+    (p.ipn || '').toLowerCase().includes(q) ||
+    (p.description || '').toLowerCase().includes(q)
+  );
+  _abAllParts = matched.slice(0, 200);
+  renderAbPartList();
+  if (countEl) countEl.textContent = matched.length > 200
+    ? `找到 ${matched.length}+ 个零件，显示前 200`
+    : `找到 ${matched.length} 个零件`;
+}
+
+function renderAbPartList() {
+  const sel = document.getElementById('ab-sub-part');
   sel.innerHTML = '<option value="">-- 请选择零件 --</option>';
-  filtered.forEach(p => {
+  _abAllParts.forEach(p => {
     const label = `${p.name || p.full_name || `#${p.pk}`}${p.ipn ? ` (${p.ipn})` : ''}`;
     sel.innerHTML += `<option value="${p.pk}">${label}</option>`;
   });
-  
-  if (countEl) {
-    countEl.textContent = filter
-      ? `找到 ${filtered.length} / ${_abAllParts.length} 个零件`
-      : `共 ${_abAllParts.length} 个零件`;
-  }
 }
 
 function filterAbParts(value) {
@@ -3010,6 +3083,17 @@ async function createBomItem() {
   
   if (!pid || !subPartId) { setStatus('error', '请选择子件'); return; }
   if (!qty || qty <= 0) { setStatus('error', '请输入有效数量'); return; }
+  
+  // Check for duplicate sub_part in current BOM
+  const existingRes = await fetch('/api/bom/?part=' + pid + '&sub_part_detail=True', {headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken()}, credentials: 'same-origin'});
+  const existingData = existingRes.ok ? (await existingRes.json()) : [];
+  const existingItems = Array.isArray(existingData) ? existingData : (existingData.results || []);
+  const dup = existingItems.find(function(i) { return String(i.sub_part) === String(subPartId); });
+  if (dup) {
+    const dupName = dup.sub_part_detail?.name || '#' + subPartId;
+    setStatus('error', `❌ 「${dupName}」已在BOM中，不能重复添加`);
+    return;
+  }
   
   setStatus('loading', '正在添加BOM项...');
   
@@ -3036,20 +3120,6 @@ async function createBomItem() {
   } catch(e) {
     setStatus('error', `网络错误: ${e.message}`);
   }
-}
-
-function toggleRule(ruleId, el) {
-  const enabled = !el.classList.contains('on');
-  el.classList.toggle('on');
-  apiCall('PATCH', `rules/${ruleId}/`, {enabled});
-  setStatus('success', `规则已${enabled ? '启用' : '禁用'}`);
-}
-
-async function deleteRule(ruleId) {
-  if (!confirm('确定删除此规则？')) return;
-  const res = await apiCall('DELETE', `rules/${ruleId}/`);
-  if (!res.error) { setStatus('success', '✅ 规则已删除'); loadPdRules(); }
-  else setStatus('error', '删除失败');
 }
 
 // ── Configurator: State ──
@@ -3237,7 +3307,7 @@ async function cfgExpandBOM() {
   
   const ctx = cfgGetParamContext();
   try {
-    const res = await apiCall('POST', 'evaluate/', {part_id: parseInt(pid), param_context: ctx});
+    const res = await apiCall('POST', 'evaluate/', {part_id: parseInt(pid), parameters: ctx});
     if (res.error) { container.innerHTML = '<div class="cfg-empty" style="color:#dc2626">❌ BOM展开失败</div>'; return; }
     const bom = res.data.bom || res.data.results || [];
     cfgBOMItems = Array.isArray(bom) ? bom : [];
@@ -3291,7 +3361,7 @@ async function cfgEstimateCost() {
   
   const ctx = cfgGetParamContext();
   try {
-    const res = await apiCall('POST', 'estimate-cost/', {part_id: parseInt(pid), param_context: ctx});
+    const res = await apiCall('POST', 'estimate-cost/', {part_id: parseInt(pid), parameters: ctx});
     if (res.error) return;
     const data = res.data;
     document.getElementById('cfg-cost-material').textContent = data.material_cost != null ? `¥${data.material_cost}` : '—';
@@ -3350,6 +3420,362 @@ function cfgResetParams() {
   renderCfgParams();
   cfgExpandBOM();
   document.getElementById('cfg-status-dot').textContent = '● 就绪';
+}
+
+// ===== VARIABLES (场景12: 中间变量) =====
+function avDestroyCm() {
+  const el = document.getElementById('av-formula');
+  if (!el || !el.dataset.cmInit || !window.CmFormulaEditor) return;
+  const inst = window.CmFormulaEditor.getCmInstance(el);
+  if (inst) {
+    const wrap = inst.editor.getWrapperElement();
+    if (wrap && wrap.parentNode) wrap.parentNode.remove();
+    el.style.display = '';
+    delete el.dataset.cmInit;
+  }
+}
+
+function openAddVariableModal() {
+  closeModal('modal-add-variable');
+  avDestroyCm();
+  document.getElementById('av-editing-id').value = '';
+  document.querySelector('#modal-add-variable h3').textContent = '📐 新建中间变量';
+  document.querySelector('#modal-add-variable .btn-primary').innerHTML = '✅ 创建变量';
+  document.getElementById('av-name').value = '';
+  document.getElementById('av-formula').value = '';
+  document.getElementById('av-description').value = '';
+  document.getElementById('av-formula-status').innerHTML = '';
+  avLoadPillsAndVars(null);
+  openModal('modal-add-variable');
+  setTimeout(() => {
+    const el = document.getElementById('av-formula');
+    if (el && window.CmFormulaEditor) {
+      window.CmFormulaEditor.attachCmToInput(el, { inline: false, minHeight: 64 });
+      avAttachCmListener();
+    }
+  }, 150);
+}
+
+function openEditVariableModal(vid, name, formula, desc) {
+  closeModal('modal-add-variable');
+  avDestroyCm();
+  document.getElementById('av-editing-id').value = vid;
+  document.querySelector('#modal-add-variable h3').textContent = '✏️ 编辑变量';
+  document.querySelector('#modal-add-variable .btn-primary').innerHTML = '💾 保存修改';
+  document.getElementById('av-name').value = name || '';
+  document.getElementById('av-formula').value = formula || '';
+  document.getElementById('av-description').value = desc || '';
+  document.getElementById('av-formula-status').innerHTML = '';
+  avLoadPillsAndVars(vid);
+  openModal('modal-add-variable');
+  setTimeout(() => {
+    const el = document.getElementById('av-formula');
+    if (el && window.CmFormulaEditor) {
+      window.CmFormulaEditor.attachCmToInput(el, { inline: false, minHeight: 64 });
+      avAttachCmListener();
+    }
+  }, 150);
+}
+
+function avLoadPillsAndVars(editingVid) {
+  const pid = configuratorPartId;
+  const pillsEl = document.getElementById('av-param-pills');
+  if (!pid) { pillsEl.innerHTML = '<span class="text-[10px] text-gray-400">请先选择产品</span>'; return; }
+  pillsEl.innerHTML = '<span class="text-[10px] text-gray-400">加载中...</span>';
+  // Load both params and variables in parallel
+  Promise.all([
+    apiCall('GET', `part-config/?part=${pid}`),
+    apiCall('GET', `part-variables/?part=${pid}&limit=9999`),
+  ]).then(([paramRes, varRes]) => {
+    const configs = paramRes.error ? [] : (Array.isArray(paramRes.data) ? paramRes.data : (paramRes.data.results || []));
+    const vars = varRes.error ? [] : (Array.isArray(varRes.data) ? varRes.data : (varRes.data.results || []));
+    let html = '';
+    const ctx = {};
+    // Params
+    if (configs.length) {
+      html += '<div class="mb-1"><label class="text-[9px] text-gray-400 mb-0.5 block">📌 参数 (点击插入):</label><div class="flex flex-wrap gap-1">';
+      configs.forEach(c => {
+        const paramName = c.name || c.template_name || 'unknown';
+        const defVal = c.default_value;
+        if (defVal) ctx[paramName] = defVal;
+        const display = defVal ? `${paramName} <span class="text-[9px] text-gray-400 ml-0.5">=${defVal}</span>` : paramName;
+        html += `<span class="fe-param-pill" onclick="avInsertText('param.${paramName.replace(/'/g, "\\'")}')">${display}</span>`;
+      });
+      html += '</div></div>';
+    }
+    // Variables (skip the one being edited)
+    const otherVars = vars.filter(v => v.id !== editingVid);
+    if (otherVars.length) {
+      html += '<div><label class="text-[9px] text-gray-400 mb-0.5 block">📐 其他变量 (点击插入):</label><div class="flex flex-wrap gap-1">';
+      otherVars.forEach(v => {
+        const vName = v.name || 'unknown';
+        const vVal = v.computed_value;
+        if (vVal != null) ctx[vName] = vVal;
+        const display = vVal != null ? `${vName} <span class="text-[9px] text-gray-400 ml-0.5">=${escHtml(String(vVal))}</span>` : vName;
+        html += `<span class="fe-param-pill" style="background:#eff6ff;border-color:#bfdbfe;color:#1d4ed8" onclick="avInsertText('param.${vName.replace(/'/g, "\\'")}')">${display}</span>`;
+      });
+      html += '</div></div>';
+    }
+    if (!configs.length && !otherVars.length) {
+      html = '<span class="text-[10px] text-gray-400">该零件未配置参数和变量</span>';
+    }
+    pillsEl.innerHTML = html;
+    window.__avParamContext = ctx;
+    avSchedulePreview();
+  }).catch(() => {
+    pillsEl.innerHTML = '<span class="text-[10px] text-red-400">加载失败</span>';
+  });
+}
+
+function avTogglePills() {
+  const area = document.getElementById('av-pills-area');
+  const icon = document.getElementById('av-pills-toggle-icon');
+  if (area.style.display === 'none') {
+    area.style.display = '';
+    icon.textContent = '▾';
+  } else {
+    area.style.display = 'none';
+    icon.textContent = '▸';
+  }
+}
+
+function avInsertText(text) {
+  // Try CodeMirror insert first
+  if (window.CmFormulaEditor) {
+    const el = document.getElementById('av-formula');
+    if (el && window.CmFormulaEditor.insertAtCursor(el, text)) {
+      avSchedulePreview();
+      return;
+    }
+  }
+  // Fallback to textarea manipulation
+  const ta = document.getElementById('av-formula');
+  if (!ta) return;
+  const start = ta.selectionStart;
+  const end = ta.selectionEnd;
+  const val = ta.value;
+  ta.value = val.substring(0, start) + text + val.substring(end);
+  const newPos = start + text.length;
+  ta.selectionStart = ta.selectionEnd = newPos;
+  ta.focus();
+  avSchedulePreview();
+}
+
+let _avPreviewTimer = null;
+
+function avSchedulePreview() {
+  clearTimeout(_avPreviewTimer);
+  _avPreviewTimer = setTimeout(avDoPreview, 400);
+}
+
+function avAttachCmListener() {
+  const el = document.getElementById('av-formula');
+  if (!el || !el.dataset.cmInit || !window.CmFormulaEditor) return;
+  const inst = window.CmFormulaEditor.getCmInstance(el);
+  if (!inst || inst._avListener) return;
+  inst._avListener = true;
+  inst.editor.on('change', function() { avSchedulePreview(); });
+}
+
+async function avDoPreview() {
+  const formula = document.getElementById('av-formula').value.trim();
+  const statusEl = document.getElementById('av-formula-status');
+  if (!formula) { statusEl.innerHTML = '<span class="text-gray-400">请输入公式</span>'; return; }
+  statusEl.innerHTML = '<span class="text-gray-400">⏳ 计算中...</span>';
+  const ctx = window.__avParamContext || {};
+  const res = await apiCall('POST', 'formula/preview/', { formula, context: { param: ctx } });
+  // API returns HTTP 200 even on error, check body.success
+  const data = res.data || {};
+  if (data.success === false || data.error) {
+    const errMsg = data.error || '未知错误';
+    statusEl.innerHTML = `<span class="text-red-500">❌ ${escHtml(errMsg)}</span>`;
+    return;
+  }
+  const val = data.result !== undefined ? data.result : (data.value || '');
+  statusEl.innerHTML = `<span>📐 结果: <strong class="text-green-600 font-mono">${escHtml(String(val))}</strong></span>
+    <span class="text-[10px] text-gray-400 ml-auto">基于默认参数值计算</span>`;
+}
+
+async function addVariable() {
+  openAddVariableModal();
+}
+
+async function confirmAddVariable() {
+  const pid = configuratorPartId;
+  if (!pid) { alert('请先选择一个产品'); return; }
+  const editId = document.getElementById('av-editing-id').value;
+  const name = document.getElementById('av-name').value.trim();
+  const formula = document.getElementById('av-formula').value.trim();
+  const description = document.getElementById('av-description').value.trim();
+  if (!name) { alert('请输入变量名'); return; }
+  if (!formula) { alert('请输入公式'); return; }
+  if (!editId) {
+    // Create mode: check duplicate name
+    const checkRes = await apiCall('GET', `part-variables/?part=${pid}&limit=9999`);
+    const existing = checkRes.error ? [] : (Array.isArray(checkRes.data) ? checkRes.data : (checkRes.data.results || []));
+    if (existing.some(v => v.name === name)) {
+      alert(`变量名「${name}」已存在，请使用不同的名称`);
+      return;
+    }
+    const res = await apiCall('POST', 'part-variables/', {
+      part: pid, name, formula, description
+    });
+    if (res.error) { alert('创建失败: ' + res.error); return; }
+  } else {
+    // Edit mode
+    const res = await apiCall('PATCH', `part-variables/${editId}/`, { name, formula, description });
+    if (res.error) { alert('保存失败: ' + res.error); return; }
+  }
+  closeModal('modal-add-variable');
+  loadPdVariables();
+}
+async function loadPdVariables() {
+  const pid = configuratorPartId;
+  const listEl = document.getElementById('pd-variables-list');
+  if (!listEl || !pid) return;
+  listEl.innerHTML = '<div class="empty-state"><div class="icon">⏳</div><p>加载变量列表...</p></div>';
+
+  const res = await apiCall('GET', `part-variables/?part=${pid}`);
+  const vars = res.error ? [] : (Array.isArray(res.data) ? res.data : (res.data.results || []));
+
+  if (!vars.length) {
+    listEl.innerHTML = '<div class="empty-state"><div class="icon">📐</div><p>暂未定义变量，点击上方"新建变量"添加</p></div>';
+    return;
+  }
+
+  let html = `<table class="pd-bom-spreadsheet">
+    <thead>
+      <tr>
+        <th style="width:22%"><span class="col-icon">📛</span>变量名</th>
+        <th style="width:30%"><span class="col-icon">📐</span>公式</th>
+        <th style="width:16%"><span class="col-icon">🔢</span>默认值</th>
+        <th style="width:20%"><span class="col-icon">📝</span>描述</th>
+        <th style="width:12%"><span class="col-icon">⚙️</span>操作</th>
+      </tr>
+    </thead>
+    <tbody id="pv-tbody">`;
+  vars.forEach((v, i) => {
+    const escName = escHtml(v.name);
+    const escFmla = escHtml(v.formula || '');
+    const escDesc = escHtml(v.description || '');
+    const computedVal = v.computed_value;
+    const fmlaShort = (v.formula || '').length > 30 ? escHtml(v.formula.substring(0, 30) + '…') : escFmla;
+    html += `<tr id="pv-row-${v.id}">
+      <td ondblclick="pvEditCell(this, 'name')"><span class="pbs-name">${escName}</span></td>
+      <td ondblclick="pvEditCell(this, 'formula')" title="双击编辑公式"><div class="pbs-formula-cell">${fmlaShort ? `<span class="fmla-text">${fmlaShort}</span>` : '<span class="fmla-empty">双击编辑公式</span>'}</div></td>
+      <td><span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-xs font-mono font-medium ${computedVal != null ? 'bg-green-50 text-green-700 border border-green-200' : 'text-gray-400'}">${computedVal != null ? escHtml(String(computedVal)) : '—'}</span></td>
+      <td ondblclick="pvEditCell(this, 'description')"><span class="pbs-ref">${escDesc || '<span class="text-gray-300 italic">—</span>'}</span></td>
+      <td><button class="btn-ghost text-red-500 text-xs" onclick="pvDelete(${v.id}, '${escName.replace(/'/g, "\\'")}')" title="删除">🗑️</button></td>
+    </tr>`;
+  });
+  html += '</tbody></table>';
+  listEl.innerHTML = html;
+}
+
+function escHtml(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+async function pvEditCell(td, field) {
+  if (field === 'formula') {
+    // Open modal for formula editing
+    const vid = td.closest('tr')?.id?.replace('pv-row-', '');
+    if (!vid) return;
+    // Load variable data from API
+    const res = await apiCall('GET', `part-variables/${vid}/`);
+    if (res.error) return;
+    const v = res.data;
+    openEditVariableModal(v.id, v.name, v.formula || '', v.description || '');
+    return;
+  }
+  // Inline editing for name and description
+  if (td.querySelector('input')) return; // already editing
+  const vid = td.closest('tr')?.id?.replace('pv-row-', '');
+  if (!vid) return;
+  // Get current value based on field
+  let currentVal = '';
+  if (field === 'name') {
+    currentVal = td.textContent.trim();
+  } else if (field === 'formula') {
+    currentVal = td.querySelector('.fmla-text')?.textContent || '';
+  } else {
+    currentVal = td.textContent.replace(/[—\s]/g, '').trim();
+  }
+  // Create input
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'input-field text-xs py-0.5 px-1 w-full';
+  input.style.minWidth = '60px';
+  input.value = currentVal;
+  td.innerHTML = '';
+  td.appendChild(input);
+  input.focus();
+  input.select();
+  
+  // Save on enter or blur
+  const save = async () => {
+    const val = input.value.trim();
+    if (input.dataset.saving) return;
+    // Get all current values for this variable
+    const row = document.getElementById('pv-row-' + vid);
+    const cells = row ? row.querySelectorAll('td') : [];
+    let nameVal, fmlaVal, descVal;
+    if (field === 'name') { nameVal = val; fmlaVal = cells[1]?.querySelector('input')?.value || cells[1]?.textContent.trim(); descVal = cells[3]?.querySelector('input')?.value || cells[3]?.textContent.trim(); }
+    else if (field === 'formula') { nameVal = cells[0]?.querySelector('input')?.value || cells[0]?.textContent.trim(); fmlaVal = val; descVal = cells[3]?.querySelector('input')?.value || cells[3]?.textContent.trim(); }
+    else { nameVal = cells[0]?.querySelector('input')?.value || cells[0]?.textContent.trim(); fmlaVal = cells[1]?.querySelector('input')?.value || cells[1]?.textContent.trim(); descVal = val; }
+    // Check duplicate name
+    const nameCheck = nameVal.trim();
+    if (nameCheck) {
+      const rowEls = document.querySelectorAll(`#pv-tbody tr`);
+      for (const row of rowEls) {
+        if (row.id === 'pv-row-' + vid) continue;
+        const otherTds = row.querySelectorAll('td');
+        const otherName = otherTds[0]?.textContent?.trim();
+        if (otherName === nameCheck) {
+          alert(`变量名「${nameCheck}」已存在，请使用不同的名称`);
+          pvRestoreRow(vid, nameVal, fmlaVal, descVal);
+          return;
+        }
+      }
+    }
+    input.dataset.saving = '1';
+    // Restore display
+    pvRestoreRow(vid, nameVal, fmlaVal, descVal);
+    // Save to API
+    const res = await apiCall('PATCH', `part-variables/${vid}/`, { name: nameVal, formula: fmlaVal, description: descVal });
+    if (res.error) { alert('保存失败: ' + res.error); loadPdVariables(); return; }
+  };
+  input.addEventListener('blur', save);
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { input.blur(); }
+    if (e.key === 'Escape') { loadPdVariables(); }
+  });
+}
+
+function pvRestoreRow(vid, name, formula, desc) {
+  const row = document.getElementById('pv-row-' + vid);
+  if (!row) return;
+  const cells = row.querySelectorAll('td');
+  if (cells.length >= 4) {
+    // td0=name, td1=formula, td2=computed_value, td3=description, td4=actions
+    cells[0].innerHTML = `<span class="pbs-name">${escHtml(name)}</span>`;
+    const short = formula.length > 30 ? escHtml(formula.substring(0, 30) + '…') : escHtml(formula);
+    if (formula) {
+      cells[1].innerHTML = `<div class="pbs-formula-cell"><span class="fmla-text">${short}</span></div>`;
+    } else {
+      cells[1].innerHTML = '<div class="pbs-formula-cell"><span class="fmla-empty">双击编辑公式</span></div>';
+    }
+    // td2 (computed_value) is read-only — leave as-is after inline save
+    cells[3].innerHTML = `<span class="pbs-ref">${escHtml(desc) || '<span class="text-gray-300 italic">—</span>'}</span>`;
+  }
+}
+
+async function pvDelete(varId, varName) {
+  if (!confirm(`确定删除变量「${varName}」？`)) return;
+  const res = await apiCall('DELETE', `part-variables/${varId}/`);
+  if (res.error) { alert('删除失败: ' + res.error); return; }
+  loadPdVariables();
 }
 
 async function cfgLoadConfigs() {
@@ -3671,7 +4097,7 @@ document.addEventListener('DOMContentLoaded', function() {
     canvasDrop.addEventListener('dragleave', function(e) {
       // Only clear if actually leaving the canvas (not entering a child)
       if (!this.contains(e.relatedTarget)) {
-        this.classList.remove('drag-hover', 'drag-active');
+        this.classList.remove('drag-hover', 'drag-type-hover', 'drag-active');
         if (ghostEl) { ghostEl.style.display = 'none'; }
         const ind = document.getElementById('drop-indicator');
         if (ind) ind.style.display = 'none';
@@ -3861,7 +4287,7 @@ function clearActiveProduct() {
   configuratorPartId = null;
   
   // Update selectors
-  const selectors = ['cfg-part-select', 'pm-part-select', 'bom-part-select', 'rule-part-select'];
+  const selectors = ['cfg-part-select', 'pm-part-select', 'bom-part-select'];
   selectors.forEach(id => {
     const sel = document.getElementById(id);
     if (sel) sel.value = '';
@@ -4543,7 +4969,8 @@ function onCardDragStart(event, configId) {
 
 function onCardDragOver(event) {
   event.preventDefault();
-  event.dataTransfer.dropEffect = 'move';
+  const isTypeDrag = event.dataTransfer.effectAllowed === 'copy';
+  event.dataTransfer.dropEffect = isTypeDrag ? 'copy' : 'move';
   const targetCard = event.target.closest('.param-card');
   if (targetCard) {
     document.querySelectorAll('#pd-params-canvas .param-card').forEach(c => c.classList.remove('drag-over'));
@@ -4553,12 +4980,28 @@ function onCardDragOver(event) {
 
 async function onCardDrop(event, targetId) {
   event.preventDefault();
-  const sourceId = _dragCardSourceId !== null ? _dragCardSourceId : parseInt(event.dataTransfer.getData('text/plain'));
   _dragCardSourceId = null;
   document.querySelectorAll('#pd-params-canvas .param-card').forEach(c => {
     c.classList.remove('drag-over', 'dragging');
   });
-  if (!sourceId || sourceId === targetId) return;
+
+  const rawData = event.dataTransfer.getData('text/plain');
+  if (!rawData) return;
+
+  // Case 1: Type library drop onto a card → create before this card
+  try {
+    const parsed = JSON.parse(rawData);
+    if (parsed && parsed.type) {
+      await addIndependentParam(parsed.type, targetId);
+      return;
+    }
+  } catch(e) {
+    // Not JSON — treat as reorder
+  }
+
+  // Case 2: Card reorder
+  const sourceId = parseInt(rawData);
+  if (!sourceId || isNaN(sourceId) || sourceId === targetId) return;
   await reorderParams(sourceId, targetId);
 }
 
@@ -4572,28 +5015,50 @@ function onCardDragEnd(event) {
 // ── Canvas-level Drop (user drops between/surrounding cards) ──
 function onCanvasDragOver(event) {
   event.preventDefault();
-  event.dataTransfer.dropEffect = 'move';
-  // Add visual cue on canvas
-  document.getElementById('pd-params-canvas')?.classList.add('drag-hover');
+  const isTypeDrag = event.dataTransfer.effectAllowed === 'copy';
+  event.dataTransfer.dropEffect = isTypeDrag ? 'copy' : 'move';
+  const canvas = document.getElementById('pd-params-canvas');
+  canvas?.classList.add('drag-hover');
+  if (isTypeDrag) {
+    canvas?.classList.add('drag-type-hover');
+  } else {
+    canvas?.classList.remove('drag-type-hover');
+  }
 }
 
 async function onCanvasDrop(event) {
   event.preventDefault();
-  document.getElementById('pd-params-canvas')?.classList.remove('drag-hover');
+  const canvas = document.getElementById('pd-params-canvas');
+  canvas?.classList.remove('drag-hover', 'drag-type-hover');
   document.querySelectorAll('#pd-params-canvas .param-card').forEach(c => {
     c.classList.remove('drag-over', 'dragging');
   });
-  const sourceId = _dragCardSourceId !== null ? _dragCardSourceId : parseInt(event.dataTransfer.getData('text/plain'));
-  _dragCardSourceId = null;
-  if (!sourceId) return;
 
-  // Find nearest card by Y position
+  const rawData = event.dataTransfer.getData('text/plain');
+  if (!rawData) return;
+
+  // ── Case 1: Type library drag → create new parameter ──
+  try {
+    const parsed = JSON.parse(rawData);
+    if (parsed && parsed.type) {
+      await addIndependentParam(parsed.type);
+      return;
+    }
+  } catch(e) {
+    // Not JSON — treat as reorder
+  }
+
+  // ── Case 2: Card reorder ──
+  const sourceId = _dragCardSourceId !== null ? _dragCardSourceId : parseInt(rawData);
+  _dragCardSourceId = null;
+  if (!sourceId || isNaN(sourceId)) return;
+
   const cards = Array.from(document.querySelectorAll('#pd-params-canvas .param-card'));
   if (!cards.length) return;
-  
+
   const dropY = event.clientY;
-  let targetIdx = cards.length; // default: insert at end
-  
+  let targetIdx = cards.length;
+
   for (let i = 0; i < cards.length; i++) {
     const rect = cards[i].getBoundingClientRect();
     const midY = rect.top + rect.height / 2;
@@ -4602,7 +5067,7 @@ async function onCanvasDrop(event) {
       break;
     }
   }
-  
+
   const targetCard = cards[Math.min(targetIdx, cards.length - 1)];
   const targetId = parseInt(targetCard?.dataset.configId);
   if (!targetId || sourceId === targetId) return;
@@ -5030,168 +5495,6 @@ async function loadAllBomFormulaConfigs(container) {
   container.innerHTML = html;
 }
 
-// ===== PAGE 4: RULES =====
-async function loadRules(partId) {
-  if (!partId) { document.getElementById('rule-list').innerHTML = '<div class="text-gray-400 text-sm p-2">请选择产品</div>'; return; }
-  const container = document.getElementById('rule-list');
-  container.innerHTML = '<div class="flex items-center justify-center py-3"><span class="spinner mr-2"></span><span class="text-sm text-gray-400">加载中...</span></div>';
-  const res = await apiCall('GET', `rules/?product_part=${parseInt(partId)}`);
-  if (res.error) { container.innerHTML = '<div class="text-red-500 text-sm">加载失败</div>'; return; }
-  const rules = res.data.results || (Array.isArray(res.data) ? res.data : []);
-  
-  if (!rules || rules.length === 0) {
-    container.innerHTML = '<div class="empty-state"><div class="icon">📜</div><p>该产品没有配置规则</p></div>';
-    return;
-  }
-  
-  let html = '<div class="overflow-x-auto"><table class="w-full text-xs border-collapse"><thead><tr class="bg-gray-50"><th class="p-2 text-left font-semibold text-gray-600 border-b">条件</th><th class="p-2 text-center font-semibold text-gray-600 border-b">动作</th><th class="p-2 text-left font-semibold text-gray-600 border-b">目标</th><th class="p-2 text-left font-semibold text-gray-600 border-b">值公式</th><th class="p-2 text-right font-semibold text-gray-600 border-b">优先级</th><th class="p-2 text-center font-semibold text-gray-600 border-b">启用</th><th class="p-2 text-left font-semibold text-gray-600 border-b">错误信息</th></tr></thead><tbody>';
-  rules.forEach(r => {
-    const enabled = r.enabled !== false;
-    html += `<tr class="border-b border-gray-50">
-      <td class="p-2 max-w-[150px] truncate" title="${r.condition_formula||''}"><code class="text-purple-600">${r.condition_formula||'-'}</code></td>
-      <td class="p-2 text-center"><span class="px-1.5 py-0.5 rounded bg-gray-100 text-gray-700 text-[10px]">${r.action||'-'}</span></td>
-      <td class="p-2">${r.target_param_name||'-'}</td>
-      <td class="p-2 max-w-[120px] truncate" title="${r.value_formula||''}"><code class="text-blue-600">${r.value_formula||'-'}</code></td>
-      <td class="p-2 text-right">${r.priority||100}</td>
-      <td class="p-2 text-center">${enabled ? '✅' : '❌'}</td>
-      <td class="p-2 max-w-[120px] truncate text-gray-500" title="${r.error_message||''}">${r.error_message||'-'}</td>
-    </tr>`;
-  });
-  html += '</tbody></table></div>';
-  container.innerHTML = html;
-}
-
-// ── Rule CRUD ──
-let _editingRuleId = null;
-
-function openAddRuleModal(ruleId, productId) {
-  _editingRuleId = ruleId || null;
-  
-  // Update modal title
-  const title = document.querySelector('#modal-add-rule h3');
-  if (title) title.textContent = ruleId ? '✏️ 编辑规则' : '📜 新增规则';
-  const saveBtn = document.querySelector('#modal-add-rule .btn-primary');
-  if (saveBtn) saveBtn.textContent = ruleId ? '💾 保存修改' : '创建';
-  
-  const pid = productId || configuratorPartId;
-  
-  // Product select
-  const partSel = document.getElementById('ar-part');
-  partSel.innerHTML = '<option value="">-- 请选择 --</option>';
-  parts.forEach(p => {
-    const opt = document.createElement('option');
-    opt.value = p.pk;
-    opt.textContent = `${p.name || p.full_name || 'Unnamed'} (ID:${p.pk})`;
-    if (pid && p.pk == pid) opt.selected = true;
-    partSel.appendChild(opt);
-  });
-  
-  // Target param: use product's own params if in product detail, else global templates
-  const targetSel = document.getElementById('ar-target-param');
-  targetSel.innerHTML = '<option value="">-- 选择 --</option>';
-  
-  if (pid) {
-    // Use current product's part-configs as targets
-    const configs = window.__paramConfigs || [];
-    const sorted = configs.sort((a,b)=>(a.display_order||0)-(b.display_order||0));
-    sorted.forEach(c => {
-      const opt = document.createElement('option');
-      opt.value = c.id;
-      opt.textContent = c.name || `参数 #${c.id}`;
-      targetSel.appendChild(opt);
-    });
-  } else {
-    // Fallback: use templates
-    templates.forEach(t => {
-      const opt = document.createElement('option');
-      opt.value = t.pk;
-      opt.textContent = t.name;
-      targetSel.appendChild(opt);
-    });
-  }
-  
-  // Reset form
-  document.getElementById('ar-condition').value = '';
-  document.getElementById('ar-action').value = 'set_value';
-  document.getElementById('ar-value-formula').value = '';
-  document.getElementById('ar-error-msg').value = '';
-  document.getElementById('ar-priority').value = '100';
-  document.getElementById('ar-enabled').checked = true;
-  
-  // If editing, load rule data
-  if (ruleId) {
-    apiCall('GET', `rules/${ruleId}/`).then(res => {
-      if (res.error) return;
-      const r = res.data;
-      if (r.product_part && partSel.querySelector(`option[value="${r.product_part}"]`)) {
-        partSel.value = r.product_part;
-      }
-      document.getElementById('ar-condition').value = r.condition_formula || '';
-      document.getElementById('ar-action').value = r.action || 'set_value';
-      document.getElementById('ar-value-formula').value = r.value_formula || '';
-      document.getElementById('ar-error-msg').value = r.error_message || '';
-      document.getElementById('ar-priority').value = r.priority || 100;
-      document.getElementById('ar-enabled').checked = r.enabled !== false;
-      if (r.target_param && targetSel.querySelector(`option[value="${r.target_param}"]`)) {
-        targetSel.value = r.target_param;
-      }
-    });
-  }
-  
-  openModal('modal-add-rule');
-}
-
-async function createRule() {
-  const partId = document.getElementById('ar-part').value;
-  const condition = document.getElementById('ar-condition').value.trim();
-  if (!partId || !condition) { setStatus('error', '请选择产品和输入条件公式'); return; }
-  
-  const body = {
-    product_part: parseInt(partId),
-    condition_formula: condition,
-    rule_type: document.getElementById('ar-type').value,
-    action: document.getElementById('ar-action').value,
-    target_param: document.getElementById('ar-target-param').value ? parseInt(document.getElementById('ar-target-param').value) : null,
-    value_formula: document.getElementById('ar-value-formula').value.trim(),
-    error_message: document.getElementById('ar-error-msg').value.trim(),
-    priority: parseInt(document.getElementById('ar-priority').value) || 100,
-    enabled: document.getElementById('ar-enabled').checked,
-  };
-  
-  if (body.target_param) {
-    // Get param name from product configs
-    const configs = window.__paramConfigs || [];
-    const cfg = configs.find(c => c.id == body.target_param);
-    if (cfg) body.target_param_name = cfg.name;
-    else {
-      // Try templates
-      const tpl = templates.find(t => t.pk == body.target_param);
-      if (tpl) body.target_param_name = tpl.name;
-    }
-  }
-  
-  let res;
-  if (_editingRuleId) {
-    res = await apiCall('PATCH', `rules/${_editingRuleId}/`, body);
-  } else {
-    res = await apiCall('POST', 'rules/', body);
-  }
-  
-  if (!res.error) {
-    setStatus('success', _editingRuleId ? '✅ 规则已更新' : '✅ 规则已创建');
-    closeModal('modal-add-rule');
-    _editingRuleId = null;
-    // Reload rules - check which page is active
-    const productDetail = document.getElementById('page-product-detail');
-    if (productDetail && productDetail.classList.contains('active')) {
-      loadPdRules();
-    }
-    const globalPage = document.getElementById('rule-part-select');
-    if (globalPage && globalPage.value) loadRules(globalPage.value);
-  } else {
-    setStatus('error', `操作失败: ${res.error}`);
-  }
-}
 
 // ===== FORMULA EDITOR STATE =====
 let feState = {
@@ -5897,7 +6200,6 @@ function onGlobalPartChange(partId) {
   const activePage = document.querySelector('.page-panel.active')?.id?.replace('page-', '');
   if (activePage === 'bom-formula') loadBomFormulaConfigs(partId || '');
   else if (activePage === 'param-types') loadParamConfigs(partId || '');
-  else if (activePage === 'rules') loadRules(partId || '');
 }
 
 // ===== DASHBOARD =====
@@ -5905,15 +6207,13 @@ async function renderDashboard() {
   const container = document.getElementById('dashboard-content');
   if (!container) return;
   // Load stats
-  const [cfgRes, bomRes, ruleRes, configRes] = await Promise.all([
+  const [cfgRes, bomRes, configRes] = await Promise.all([
     apiCall('GET', 'part-config/'),
     apiCall('GET', 'bom-item-config/'),
-    apiCall('GET', 'rules/'),
     apiCall('GET', 'configurations/'),
   ]);
   const pcfgs = !cfgRes.error ? (cfgRes.data.results || cfgRes.data || []) : [];
   const boms = !bomRes.error ? (bomRes.data.results || bomRes.data || []) : [];
-  const rules = !ruleRes.error ? (ruleRes.data.results || ruleRes.data || []) : [];
   const configs = !configRes.error ? (configRes.data.results || configRes.data || []) : [];
   const products = parts || [];
 
@@ -5938,7 +6238,7 @@ async function renderDashboard() {
 
   let html = `
   <!-- Quick Stats -->
-  <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+  <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4">
     <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 text-center">
       <div class="text-2xl font-bold text-blue-700">${productsWithParams}</div>
       <div class="text-[10px] text-blue-600 mt-0.5">已配参数的产品</div>
@@ -5946,10 +6246,6 @@ async function renderDashboard() {
     <div class="bg-emerald-50 border border-emerald-200 rounded-lg p-3 text-center">
       <div class="text-2xl font-bold text-emerald-700">${boms.length}</div>
       <div class="text-[10px] text-emerald-600 mt-0.5">参数化BOM项</div>
-    </div>
-    <div class="bg-amber-50 border border-amber-200 rounded-lg p-3 text-center">
-      <div class="text-2xl font-bold text-amber-700">${rules.length}</div>
-      <div class="text-[10px] text-amber-600 mt-0.5">约束规则</div>
     </div>
     <div class="bg-purple-50 border border-purple-200 rounded-lg p-3 text-center">
       <div class="text-2xl font-bold text-purple-700">${configs.length}</div>
@@ -5989,8 +6285,7 @@ async function renderDashboard() {
   <!-- Quick Actions -->
   <div class="flex flex-wrap gap-2">
     <button class="btn btn-primary btn-sm" onclick="switchPage('products')">🏷️ 产品管理</button>
-    <button class="btn btn-primary btn-sm" onclick="switchPage('bom-formula')">📋 去配置BOM公式</button>
-    <button class="btn btn-secondary btn-sm" onclick="switchPage('configurator')">🔧 去产品配置器</button>
+    <button class="btn btn-secondary btn-sm" onclick="switchPage('products')" style="font-size:0.7rem">💡 点击产品卡片进入参数化配置</button>
   </div>`;
 
   container.innerHTML = html;
@@ -6125,6 +6420,27 @@ async function createDemoProduct() {
     btn.textContent = '🚀 一键创建示例产品';
   }
 }
+</script>
+
+<!-- CodeMirror 5 Formula Editor -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/codemirror.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/addon/hint/show-hint.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/addon/hint/show-hint.min.css">
+<script type="module" src="/static/parametric_bom/js/codemirror-formula.js"></script>
+<script>
+// Initialize CodeMirror formula editors after page load
+document.addEventListener('DOMContentLoaded', function() {
+  // Patch selector list to include variable modal's formula field
+  const orig = window.CmFormulaEditor?.initFormulaEditors;
+  if (orig) {
+    // Auto-init formula editors on page load (BOM editor fields)
+    setTimeout(() => {
+      const params = window.configuratorPartData?.parameters || [];
+      window.CmFormulaEditor.initFormulaEditors(params);
+    }, 500);
+  }
+});
 </script>
 </body>
 </html>

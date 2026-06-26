@@ -112,7 +112,7 @@ def compute_parameters(
     ).select_related('template').order_by('display_order')
 
     for cfg in configs:
-        param_name = cfg.template.name
+        param_name = cfg.template.name if cfg.template else (cfg.name or f'param_{cfg.id}')
         if param_name in user_params:
             continue
         if cfg.is_computed and cfg.computation_formula:
@@ -343,7 +343,23 @@ def _expand_single_bom_item(
         return child_node
 
     child_node['parametric'] = True
-    child_node['mode'] = parametric_cfg.mode
+    # Determine primary mode from enable flags (priority: most specific first)
+    if parametric_cfg.enable_candidate:
+        child_node['mode'] = 'candidate'
+    elif parametric_cfg.enable_variant:
+        child_node['mode'] = 'variant'
+    elif parametric_cfg.enable_specification:
+        child_node['mode'] = 'specification'
+    elif parametric_cfg.enable_supplier:
+        child_node['mode'] = 'supplier'
+    elif parametric_cfg.enable_structure:
+        child_node['mode'] = 'structure'
+    elif parametric_cfg.enable_qty_formula:
+        child_node['mode'] = 'qty_formula'
+    elif parametric_cfg.enable_conditional:
+        child_node['mode'] = 'conditional'
+    else:
+        child_node['mode'] = 'standard'
     child_node['formulas'] = {
         'qty': parametric_cfg.qty_formula or None,
         'condition': parametric_cfg.condition_formula or None,
@@ -382,29 +398,29 @@ def _expand_single_bom_item(
     # ── 2) Mode-specific sub-part resolution ──────────────────────
     actual_sub_part = sub_part
 
-    if parametric_cfg.mode == 'candidate':
+    if parametric_cfg.enable_candidate:
         actual_sub_part = _resolve_candidate(
             child_node, parametric_cfg, params, parent_params, timeout_ms,
         ) or sub_part
 
-    elif parametric_cfg.mode == 'variant':
+    elif parametric_cfg.enable_variant:
         actual_sub_part = _resolve_variant(
             child_node, parametric_cfg, params, parent_params, timeout_ms,
         ) or sub_part
 
-    elif parametric_cfg.mode == 'specification':
+    elif parametric_cfg.enable_specification:
         _resolve_specification(
             child_node, parametric_cfg, params, parent_params, timeout_ms,
         )
         # Spec items don't recurse into sub-parts — the spec IS the part
         return child_node
 
-    elif parametric_cfg.mode == 'supplier':
+    elif parametric_cfg.enable_supplier:
         _resolve_supplier(
             child_node, parametric_cfg, params, parent_params, timeout_ms,
         )
 
-    elif parametric_cfg.mode == 'structure':
+    elif parametric_cfg.enable_structure:
         # Structure mode: the condition formula already controls inclusion.
         # Sub-assembly content follows normal recursion.
         pass
@@ -843,7 +859,8 @@ def evaluate_configuration(
     ).select_related('template')
 
     for pv in param_values:
-        user_params[pv.template.name] = _coerce_value(pv.value)
+        if pv.template:
+            user_params[pv.template.name] = _coerce_value(pv.value)
 
     all_params, param_errors = compute_parameters(
         template_part, user_params, timeout_ms=timeout_ms,
@@ -853,7 +870,7 @@ def evaluate_configuration(
         config=config,
     ).exclude(source='manual').select_related('template')
     for pv in other_values:
-        if pv.template.name not in all_params:
+        if pv.template and pv.template.name not in all_params:
             all_params[pv.template.name] = _coerce_value(pv.value)
 
     bom_tree = expand_bom_level(
