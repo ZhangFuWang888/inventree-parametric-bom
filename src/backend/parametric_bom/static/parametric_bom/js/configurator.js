@@ -1675,8 +1675,8 @@ async function cfgExpandBOM() {
   try {
     const res = await apiCall('POST', 'evaluate/', {part_id: parseInt(pid), parameters: ctx});
     if (res.error) { container.innerHTML = '<div class="cfg-empty" style="color:#dc2626">❌ BOM展开失败</div>'; return; }
-    const bom = res.data.bom || res.data.results || [];
-    cfgBOMItems = Array.isArray(bom) ? bom : [];
+    const bomTree = res.data.bom_tree || [];
+    cfgBOMItems = Array.isArray(bomTree) ? bomTree : (bomTree.children || []);
     renderCfgBOM();
     document.getElementById('cfg-status-dot').textContent = '● 就绪';
     // Also estimate cost
@@ -1701,7 +1701,7 @@ function renderCfgBOM() {
     items.forEach(item => {
       const icon = item.is_parametric ? '⚡' : '📦';
       const name = item.part_name || item.name || '未知';
-      const qty = item.quantity != null ? item.quantity : (item.required_quantity || 1);
+      const qty = item.calculated_quantity != null ? item.calculated_quantity : (item.quantity != null ? item.quantity : (item.required_quantity || 1));
       const ref = item.ipn || item.part_ipn || '';
       h += `<div class="cfg-bom-item cfg-bom-depth-${Math.min(depth,3)}">
         <span class="cfg-bi-icon">${icon}</span>
