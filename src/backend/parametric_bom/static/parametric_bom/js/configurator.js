@@ -1,3 +1,5 @@
+// ===== API HELPER =====
+async function apiCall(method, endpoint, body, opts = {}) {
   // Add cache busting for GET requests
   let url = `/api/parametric-bom/${endpoint}`;
   if (method === 'GET') {
