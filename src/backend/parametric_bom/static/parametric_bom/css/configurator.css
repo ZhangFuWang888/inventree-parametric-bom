@@ -220,6 +220,10 @@ header .text-sm.font-semibold{
 .ft-item-del:hover{opacity:1;background:#fee2e2}
 .ft-btn-save{background:none;border:none;cursor:pointer;padding:2px 4px;border-radius:3px}
 .ft-btn-save:hover{background:#dbeafe}
+
+/* ── Clickable Part Name (navigate to part detail) ── */
+.clickable-part{cursor:pointer;color:#2563eb;transition:color 0.12s}
+.clickable-part:hover{color:#1d4ed8;text-decoration:underline}
 /* Search & filter inputs */
 .product-search-input{font-size:0.75rem}
 .product-category-filter{font-size:0.75rem;max-width:160px}

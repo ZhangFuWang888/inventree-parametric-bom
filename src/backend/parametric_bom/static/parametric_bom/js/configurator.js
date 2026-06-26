@@ -424,6 +424,13 @@ function selectActiveProduct(partId, partName) {
   setStatus('success', `已打开: ${partName}`);
 }
 
+// ── Part Detail navigation ──
+function openPartDetail(partId) {
+  if (!partId) return;
+  // Open in InvenTree standard part detail (new tab)
+  window.open('/part/' + partId + '/', '_blank');
+}
+
 // ===== PRODUCT DETAIL PAGE =====
 function switchProductTab(tab) {
   // Warn before switching if there are unsaved changes
@@ -949,7 +956,7 @@ async function loadPdBOMM() {
     const hasCfg = !!cfg;
     const staticQty = item.quantity;
 
-    let rowHtml = '<tr><td class="pbs-ipn">' + (subPartRef || '<span class="text-gray-300">—</span>') + '</td><td><span class="pbs-name">' + subPartName + '</span></td>';
+    let rowHtml = '<tr><td class="pbs-ipn">' + (subPartRef || '<span class="text-gray-300">—</span>') + '</td><td><span class="pbs-name clickable-part" onclick="openPartDetail(' + item.sub_part + ')" title="点击查看零件详情">' + subPartName + '</span></td>';
 
     for (let j = 0; j < formulaCols.length; j++) {
       const c = formulaCols[j];
@@ -1703,9 +1710,10 @@ function renderCfgBOM() {
       const name = item.part_name || item.name || '未知';
       const qty = item.calculated_quantity != null ? item.calculated_quantity : (item.quantity != null ? item.quantity : (item.required_quantity || 1));
       const ref = item.ipn || item.part_ipn || '';
+      const partId = item.actual_part_id || item.part_id;
       h += `<div class="cfg-bom-item cfg-bom-depth-${Math.min(depth,3)}">
         <span class="cfg-bi-icon">${icon}</span>
-        <span class="cfg-bi-name">${name}</span>
+        <span class="cfg-bi-name${partId ? ' clickable-part' : ''}"${partId ? ` onclick="openPartDetail(${partId})" title="点击查看零件详情"` : ''}>${name}</span>
         <span class="cfg-bi-ref">${ref}</span>
         <span class="cfg-bi-qty">×${qty}</span>
       </div>`;
@@ -3084,10 +3092,12 @@ function renderTreeItem(item, depth, push) {
     extraHtml += `<span class="text-red-500 text-[10px] ml-1" title="${item.errors.join('; ')}">⚠️</span>`;
   }
 
+  const partId = item.actual_part_id || item.part_id;
+
   push(`<div class="tree-item ${depthClass}">
     <span class="qty-badge ${badgeClass}">${badgeText}</span>
     <span class="qty-badge bg-gray-100 text-gray-700" style="min-width:auto">×${qty}</span>
-    <span class="part-name">${depth > 0 ? '└ ' : ''}${partName}</span>
+    <span class="part-name${partId ? ' clickable-part' : ''}"${partId ? ` onclick="openPartDetail(${partId})" title="点击查看零件详情"` : ''}>${depth > 0 ? '└ ' : ''}${partName}</span>
     ${extraHtml}
     ${item.qty_formula ? `<span class="formula-text">数量:${item.qty_formula}</span>` : ''}
     ${item.condition_formula ? `<span class="formula-text">条件:${item.condition_formula}</span>` : ''}
