@@ -1,0 +1,195 @@
+import { Group, Paper, Space, Stack, Text } from '@mantine/core';
+import { useHotkeys } from '@mantine/hooks';
+
+import { StylishText } from '@lib/components/StylishText';
+import { shortenString } from '@lib/functions/String';
+import { Fragment, type ReactNode, useMemo } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { usePluginUIFeature } from '../../hooks/UsePluginUIFeature';
+import { useUserSettingsState } from '../../states/SettingsStates';
+import PrimaryActionButton from '../buttons/PrimaryActionButton';
+import { ApiImage } from '../images/ApiImage';
+import { ApiIcon } from '../items/ApiIcon';
+import type { PrimaryActionUIFeature } from '../plugins/PluginUIFeatureTypes';
+import { type Breadcrumb, BreadcrumbList } from './BreadcrumbList';
+import PageTitle from './PageTitle';
+
+interface PageDetailInterface {
+  title?: string;
+  icon?: ReactNode;
+  subtitle?: string;
+  imageUrl?: string;
+  badges?: ReactNode[];
+  breadcrumbs?: Breadcrumb[];
+  lastCrumb?: Breadcrumb[];
+  thumbnailUrl?: string;
+  breadcrumbAction?: () => void;
+  actions?: ReactNode[];
+  editAction?: () => void;
+  editEnabled?: boolean;
+}
+
+/**
+ * Construct a "standard" page detail for common display between pages.
+ *
+ * @param breadcrumbs - The breadcrumbs to display (optional)
+ * @param
+ */
+export function PageDetail({
+  title,
+  icon,
+  subtitle,
+  badges,
+  imageUrl,
+  thumbnailUrl,
+  breadcrumbs,
+  lastCrumb: last_crumb,
+  breadcrumbAction,
+  actions,
+  editAction,
+  editEnabled
+}: Readonly<PageDetailInterface>) {
+  const userSettings = useUserSettingsState();
+  const navigate = useNavigate();
+  const location = useLocation();
+  useHotkeys([
+    [
+      'mod+E',
+      (event) => {
+        if (event.repeat) {
+          return;
+        }
+        if (editEnabled ?? true) {
+          editAction?.();
+        }
+      }
+    ]
+  ]);
+
+  const pageTitleString = useMemo(
+    () =>
+      shortenString({
+        str: title,
+        len: 50
+      }),
+    [title]
+  );
+
+  const description = useMemo(
+    () =>
+      shortenString({
+        str: subtitle,
+        len: 75
+      }),
+    [subtitle]
+  );
+
+  // breadcrumb caching
+  const computedBreadcrumbs = useMemo(() => {
+    if (userSettings.isSet('ENABLE_LAST_BREADCRUMB', false)) {
+      return [...(breadcrumbs ?? []), ...(last_crumb ?? [])];
+    } else {
+      return breadcrumbs;
+    }
+  }, [breadcrumbs, last_crumb, userSettings]);
+
+  const extraActions = usePluginUIFeature<PrimaryActionUIFeature>({
+    featureType: 'primary_action',
+    context: { location: location.pathname }
+  });
+
+  // action caching
+  const computedActions = useMemo(() => {
+    const extraActionArray: ReactNode[] = extraActions.map((action) => {
+      const { options: opts, func } = action;
+      const { title, icon, context, options } = opts;
+
+      const click = () => {
+        const url = options?.url;
+        if (url) {
+          navigate(url);
+        } else if (func) {
+          func(context);
+        }
+      };
+
+      return (
+        <PrimaryActionButton
+          title={title}
+          leftSection={<ApiIcon name={icon as string} />}
+          color={options?.color}
+          onClick={click}
+          key={title}
+        />
+      );
+    });
+    return [...(extraActionArray ?? []), ...(actions ?? [])];
+  }, [extraActions, actions]);
+
+  return (
+    <>
+      <PageTitle title={pageTitleString} />
+      <Stack gap='xs'>
+        {computedBreadcrumbs && computedBreadcrumbs.length > 0 && (
+          <BreadcrumbList
+            navCallback={breadcrumbAction}
+            breadcrumbs={computedBreadcrumbs}
+          />
+        )}
+        <Paper p='xs' radius='xs' shadow='xs'>
+          <Group
+            justify='space-between'
+            gap='xs'
+            wrap='nowrap'
+            align='flex-start'
+          >
+            <Group
+              justify='space-between'
+              wrap='nowrap'
+              align='flex-start'
+              style={{ flexGrow: 1 }}
+            >
+              <Group justify='start' wrap='nowrap' align='flex-start'>
+                {imageUrl && (
+                  <ApiImage
+                    src={imageUrl}
+                    thumbnail={thumbnailUrl}
+                    radius='sm'
+                    miw={42}
+                    mah={42}
+                    maw={42}
+                    visibleFrom='sm'
+                  />
+                )}
+                <Stack gap='xs'>
+                  {title && <StylishText size='lg'>{title}</StylishText>}
+                  {subtitle && (
+                    <Group gap='xs'>
+                      {icon}
+                      <Text size='sm'>{description}</Text>
+                    </Group>
+                  )}
+                </Stack>
+              </Group>
+              {badges && (
+                <Group justify='flex-end' gap='xs' align='center'>
+                  {badges?.map((badge, idx) => (
+                    <Fragment key={idx}>{badge}</Fragment>
+                  ))}
+                  <Space w='md' />
+                </Group>
+              )}
+            </Group>
+            {computedActions && (
+              <Group gap={5} justify='right' wrap='nowrap' align='flex-start'>
+                {computedActions.map((action, idx) => (
+                  <Fragment key={idx}>{action}</Fragment>
+                ))}
+              </Group>
+            )}
+          </Group>
+        </Paper>
+      </Stack>
+    </>
+  );
+}

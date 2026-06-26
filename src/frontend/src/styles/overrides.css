@@ -1,0 +1,14 @@
+/* fullcalendar multimonth single-column (scroll-year) overrides */
+.fc-multimonth-singlecol .fc-multimonth-title {
+  padding: 0.35em 0;
+}
+
+/* mantine-datatable overrides */
+.mantine-datatable-pointer-cursor,
+.mantine-datatable-context-menu-cursor {
+  cursor: pointer;
+}
+
+.mantine-datatable-resizable-columns {
+  table-layout: auto !important;
+}

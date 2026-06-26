@@ -69,6 +69,7 @@ function toggleSidebar() {
 }
 
 function goBackFromProduct() {
+  if (!confirmDiscardChanges()) return;
   // Check if we're in standalone/embedded mode
   const standalone = document.querySelector('.main-content.standalone');
   const embedded = document.querySelector('.main-content.embedded');
@@ -83,6 +84,13 @@ function goBackFromProduct() {
 }
 
 function switchPage(page) {
+  // Warn before switching pages if there are unsaved changes
+  if (isAnyDirty()) {
+    const summary = getDirtySummary();
+    if (!confirm(`有未保存的修改（${summary}），切换页面将丢弃这些修改。确定吗？`)) {
+      return;
+    }
+  }
   // Hide all pages
   document.querySelectorAll('.page-panel').forEach(el => el.classList.remove('active'));
   // Show target
@@ -418,6 +426,13 @@ function selectActiveProduct(partId, partName) {
 
 // ===== PRODUCT DETAIL PAGE =====
 function switchProductTab(tab) {
+  // Warn before switching if there are unsaved changes
+  if (isAnyDirty()) {
+    const summary = getDirtySummary();
+    if (!confirm(`有未保存的修改（${summary}），切换标签将丢弃这些修改。确定吗？`)) {
+      return; // Cancel the tab switch
+    }
+  }
   // Update tab buttons
   document.querySelectorAll('.pd-tab').forEach(el => el.classList.remove('active'));
   document.querySelector(`.pd-tab[data-tab="${tab}"]`)?.classList.add('active');
@@ -447,22 +462,51 @@ async function loadProductDetail(partId) {
 // ── Dirty tracking for Save/Cancel ──
 let __dirtyUpdates = {}; // {configId: {field: newValue, ...}}
 let __hasDirty = false;
+let __dirtyAreas = new Set(); // tracks which tabs have unsaved changes
 
 function markDirty(cfgId, updates) {
   if (!__dirtyUpdates[cfgId]) __dirtyUpdates[cfgId] = {};
   Object.assign(__dirtyUpdates[cfgId], updates);
   __hasDirty = true;
+  __dirtyAreas.add('params');
   showDirtyButtons();
 }
 
 function clearDirty() {
   __dirtyUpdates = {};
   __hasDirty = false;
+  __dirtyAreas.clear();
   showDirtyButtons();
+}
+
+function markAreaDirty(area) {
+  __dirtyAreas.add(area);
+}
+
+function clearAreaDirty(area) {
+  __dirtyAreas.delete(area);
+  if (__dirtyAreas.size === 0) __hasDirty = false;
+}
+
+function isAnyDirty() {
+  return __dirtyAreas.size > 0 || __hasDirty;
+}
+
+function getDirtySummary() {
+  const areas = Array.from(__dirtyAreas);
+  const labels = {params:'参数配置', bom:'BOM公式', variables:'变量', configurator:'配置器'};
+  return areas.map(a => labels[a] || a).join('、');
 }
 
 function showDirtyButtons() {
   // Save button is always visible, no show/hide needed
+}
+
+// Prompt user if there are unsaved changes before navigating away
+function confirmDiscardChanges(message) {
+  if (!isAnyDirty()) return true;
+  const summary = getDirtySummary();
+  return confirm(message || `有未保存的修改（${summary}），确定要离开吗？`);
 }
 
 async function saveAllParams() {
@@ -1128,6 +1172,7 @@ async function saveCellFormula() {
       statusEl.innerHTML = '<span class="text-red-500">❌ ' + escHtml(errData.error || errData.detail || '保存失败') + '</span>';
     } else {
       statusEl.innerHTML = '<span class="text-green-600">✅ 数量已更新</span>';
+      clearAreaDirty('bom');
       const exRes = await apiCall('GET', 'bom-item-config/?bom_item=' + st.itemPk);
       const exList = exRes.data && !exRes.error ? (Array.isArray(exRes.data) ? exRes.data : (exRes.data.results || [])) : [];
       if (exList[0] && exList[0].qty_formula) {
@@ -1157,6 +1202,7 @@ async function saveCellFormula() {
     statusEl.innerHTML = '<span class="text-red-500">❌ ' + escHtml(errMsg) + '</span>';
   } else {
     statusEl.innerHTML = '<span class="text-green-600">✅ 已保存</span>';
+    clearAreaDirty('bom');
     setTimeout(function() { document.getElementById('pbs-ce-overlay').classList.remove('open'); loadPdBOMM(); }, 600);
   }
 }
@@ -1823,6 +1869,7 @@ async function confirmAddVariable() {
     const res = await apiCall('PATCH', `part-variables/${editId}/`, { name, formula, description });
     if (res.error) { alert('保存失败: ' + res.error); return; }
   }
+  clearAreaDirty('variables');
   closeModal('modal-add-variable');
   loadPdVariables();
 }
@@ -1942,6 +1989,7 @@ async function pvEditCell(td, field) {
     // Save to API
     const res = await apiCall('PATCH', `part-variables/${vid}/`, { name: nameVal, formula: fmlaVal, description: descVal });
     if (res.error) { alert('保存失败: ' + res.error); loadPdVariables(); return; }
+    clearAreaDirty('variables');
   };
   input.addEventListener('blur', save);
   input.addEventListener('keydown', (e) => {
@@ -2995,6 +3043,7 @@ async function saveConfig() {
   const res = await apiCall('POST', 'configurations/', body);
   if (res.error) { showCfgResult(`保存失败: ${JSON.stringify(res.data).substring(0,150)}`, false); return; }
   savedConfigId = res.data.id;
+  clearAreaDirty('configurator');
   showCfgResult(`✅ 配置 "${title}" 保存成功! (ID: ${savedConfigId})`, true);
   setStatus('success', '配置已保存');
   await setConfigParams();
@@ -3973,6 +4022,7 @@ async function saveBomFormula() {
 
   if (!res.error) {
     setStatus('success', '公式保存成功 ✅');
+    clearAreaDirty('bom');
     feState.existingConfigId = res.data.id;
     closeFormulaEditor();
     // Reload the BOM formula list
@@ -4539,6 +4589,14 @@ document.addEventListener('DOMContentLoaded', async function() {
 
   setStatus('idle', '就绪');
   try { renderDashboard(); } catch(e) {}
+
+  // ── Unsaved changes warning on browser close/refresh ──
+  window.addEventListener('beforeunload', function(e) {
+    if (isAnyDirty()) {
+      e.preventDefault();
+      e.returnValue = '有未保存的修改，确定要离开吗？';
+    }
+  });
 });
 
 // ── Create Demo Product ──
