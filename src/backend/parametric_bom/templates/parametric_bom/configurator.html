@@ -245,6 +245,13 @@ tailwind.config = {
                   <div id="ce-param-pills"><span class="text-xs text-gray-400">加载中...</span></div>
                 </div>
               </div>
+              <!-- Formula templates library (collapsible) -->
+              <div class="mb-2">
+                <div class="flex items-center justify-between cursor-pointer" onclick="ceToggleTemplates()">
+                  <label class="text-xs text-gray-400">📋 公式模板 <span id="ce-tpl-toggle-icon">▸</span></label>
+                </div>
+                <div id="ce-template-area" class="max-h-28 overflow-y-auto border border-gray-100 rounded-lg p-1.5" style="display:none"></div>
+              </div>
               <!-- Formula editor -->
               <div class="pbs-ce-formula-wrap">
                 <label class="block text-xs font-medium text-gray-500 mb-1">公式</label>
@@ -769,6 +776,13 @@ tailwind.config = {
             </div>
           </div>
         </div>
+      </div>
+      <!-- Formula templates library -->
+      <div class="mb-1.5">
+        <div class="flex items-center justify-between cursor-pointer" onclick="avToggleTemplates()">
+          <label class="text-[10px] text-gray-400">📋 公式模板 <span id="av-tpl-toggle-icon">▸</span></label>
+        </div>
+        <div id="av-template-area" class="max-h-28 overflow-y-auto border border-gray-100 rounded-lg p-1.5" style="display:none"></div>
       </div>
       <textarea id="av-formula" class="input-field w-full font-mono text-xs" rows="3" placeholder="例如: param.长度 * param.宽度 * 厚度 * 7.85 / 1000000" onfocus="feState.activeField='var-formula'" oninput="avSchedulePreview()"></textarea>
       <div id="av-formula-status" class="flex items-center gap-2 text-[11px] mt-1 min-h-[1.4em]"></div>

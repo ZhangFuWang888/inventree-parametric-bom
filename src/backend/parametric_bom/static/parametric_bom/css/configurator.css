@@ -206,6 +206,20 @@ header .text-sm.font-semibold{
 .pbs-cell-editor .pbs-ce-input{width:100%;padding:0.5rem 0.625rem;border:1px solid #e2e8f0;border-radius:8px;font-family:monospace;font-size:0.8rem;resize:vertical;transition:border-color 0.12s}
 .pbs-cell-editor .pbs-ce-input:focus{outline:none;border-color:#2563eb;box-shadow:0 0 0 2px rgba(37,99,235,0.08)}
 .pbs-cell-editor .pbs-ce-actions{display:flex;gap:0.5rem;margin-top:0.5rem;justify-content:flex-end}
+
+/* ── Formula Templates Library ── */
+.ft-container{font-size:10px;line-height:1.3}
+.ft-cat{margin-bottom:4px}
+.ft-item{display:flex;align-items:center;gap:4px;padding:3px 5px;border-radius:4px;cursor:pointer;transition:background 0.1s;border-bottom:1px solid #f1f5f9}
+.ft-item:hover{background:#eff6ff}
+.ft-item-name{font-weight:500;color:#1e40af;min-width:60px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ft-item-fmla{color:#64748b;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:monospace;font-size:9px}
+.ft-item-apply{cursor:pointer;font-size:11px;opacity:0.6;transition:opacity 0.1s;padding:1px 3px;border-radius:3px}
+.ft-item-apply:hover{opacity:1;background:#dbeafe}
+.ft-item-del{cursor:pointer;font-size:11px;opacity:0.4;transition:opacity 0.1s;padding:1px 3px;border-radius:3px}
+.ft-item-del:hover{opacity:1;background:#fee2e2}
+.ft-btn-save{background:none;border:none;cursor:pointer;padding:2px 4px;border-radius:3px}
+.ft-btn-save:hover{background:#dbeafe}
 /* Search & filter inputs */
 .product-search-input{font-size:0.75rem}
 .product-category-filter{font-size:0.75rem;max-width:160px}

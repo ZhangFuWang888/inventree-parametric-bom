@@ -994,6 +994,32 @@ function ceTogglePills() {
   }
 }
 
+function ceToggleTemplates() {
+  const area = document.getElementById('ce-template-area');
+  const icon = document.getElementById('ce-tpl-toggle-icon');
+  if (!area || !icon) return;
+  if (area.style.display === 'none') {
+    area.style.display = '';
+    icon.textContent = '▾';
+    // Re-render when first opened
+    FormulaTemplates.renderInto('ce-template-area', {
+      onApply: function(f) {
+        const inp = document.getElementById('pbs-ce-input');
+        inp.value = f;
+        // If CM is active, update it too
+        if (window.CmFormulaEditor) {
+          const inst = window.CmFormulaEditor.getCmInstance(inp);
+          if (inst && inst.editor) { inst.editor.setValue(f); }
+        }
+        ceSchedulePreview();
+      }
+    });
+  } else {
+    area.style.display = 'none';
+    icon.textContent = '▸';
+  }
+}
+
 function ceInsertText(text) {
   const ta = document.getElementById('pbs-ce-input');
   if (!ta) return;
@@ -1090,6 +1116,103 @@ function ceLoadPills(pid) {
     pillsEl.innerHTML = '<span class="text-[10px] text-gray-400">加载失败</span>';
   });
 }
+
+// ── Formula Templates Library (localStorage-based MVP) ──
+window.FormulaTemplates = {
+  STORAGE_KEY: '_ft_lib',
+
+  getAll() {
+    try {
+      return JSON.parse(localStorage.getItem(this.STORAGE_KEY)) || [];
+    } catch(e) { return []; }
+  },
+
+  save(name, formula, category) {
+    if (!name || !formula) return false;
+    const list = this.getAll();
+    // Check duplicate name — overwrite
+    const idx = list.findIndex(t => t.name === name);
+    const entry = { name, formula, category: category || '通用', created_at: Date.now() };
+    if (idx >= 0) list[idx] = entry;
+    else list.push(entry);
+    localStorage.setItem(this.STORAGE_KEY, JSON.stringify(list));
+    return true;
+  },
+
+  remove(name) {
+    const list = this.getAll().filter(t => t.name !== name);
+    localStorage.setItem(this.STORAGE_KEY, JSON.stringify(list));
+  },
+
+  getCategories() {
+    const cats = new Set();
+    this.getAll().forEach(t => cats.add(t.category || '通用'));
+    return Array.from(cats).sort();
+  },
+
+  // Render a template list into a container and wire up interactions
+  renderInto(containerId, opts = {}) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    const onApply = opts.onApply || function(f) { document.getElementById(opts.targetInput || 'pbs-ce-input').value = f; };
+    const onSave = opts.onSave || function() {};
+    const templates = this.getAll();
+    const cats = this.getCategories();
+
+    let html = '<div class="ft-container">';
+    if (!templates.length) {
+      html += '<div class="text-[10px] text-gray-400 py-1">暂无模板，先保存一个</div>';
+    } else {
+      cats.forEach(cat => {
+        const items = templates.filter(t => (t.category || '通用') === cat);
+        html += `<div class="ft-cat mb-1"><div class="text-[10px] font-medium text-gray-500 mb-0.5">${escHtml(cat)}</div>`;
+        items.forEach(t => {
+          const short = (t.formula || '').length > 40 ? escHtml(t.formula.substring(0, 40) + '…') : escHtml(t.formula);
+          html += `<div class="ft-item" data-name="${escHtml(t.name)}" data-formula="${escHtml(t.formula).replace(/"/g,'&quot;')}">
+            <span class="ft-item-name">${escHtml(t.name)}</span>
+            <span class="ft-item-fmla">${short}</span>
+            <span class="ft-item-apply" title="应用模板">📋</span>
+            <span class="ft-item-del" title="删除">🗑️</span>
+          </div>`;
+        });
+        html += '</div>';
+      });
+    }
+    html += '<div class="ft-actions mt-1 pt-1 border-t border-gray-100">';
+    html += '<button class="ft-btn-save text-[10px] text-blue-600 hover:text-blue-800 cursor-pointer" onclick="FormulaTemplates.promptSave(\'' + containerId + '\')">💾 保存当前公式为模板</button>';
+    html += '</div></div>';
+    container.innerHTML = html;
+
+    // Wire apply/del
+    container.querySelectorAll('.ft-item').forEach(el => {
+      el.querySelector('.ft-item-apply').addEventListener('click', function(e) {
+        e.stopPropagation();
+        onApply(el.dataset.formula);
+      });
+      el.querySelector('.ft-item-del').addEventListener('click', function(e) {
+        e.stopPropagation();
+        if (confirm(`删除模板「${el.dataset.name}」？`)) {
+          FormulaTemplates.remove(el.dataset.name);
+          FormulaTemplates.renderInto(containerId, opts);
+        }
+      });
+      // Click on item = apply
+      el.addEventListener('click', function() {
+        onApply(this.dataset.formula);
+      });
+    });
+  },
+
+  promptSave(containerId) {
+    const currentFormula = (document.getElementById('pbs-ce-input')?.value || document.getElementById('av-formula')?.value || '').trim();
+    if (!currentFormula) { alert('公式为空，无法保存'); return; }
+    const name = prompt('请输入模板名称（例如：标准数量公式）', '');
+    if (!name) return;
+    const cat = prompt('分类（例如：数量、条件、选件、自定义）', '通用');
+    this.save(name, currentFormula, cat || '通用');
+    this.renderInto(containerId);
+  }
+};
 
 function openCellEditor(itemPk, field, currentVal, isQty, staticQty) {
   _ceState = { itemPk: itemPk, field: field, isQty: !!isQty, staticQty: staticQty || 1 };
@@ -1776,6 +1899,30 @@ function avTogglePills() {
   if (area.style.display === 'none') {
     area.style.display = '';
     icon.textContent = '▾';
+  } else {
+    area.style.display = 'none';
+    icon.textContent = '▸';
+  }
+}
+
+function avToggleTemplates() {
+  const area = document.getElementById('av-template-area');
+  const icon = document.getElementById('av-tpl-toggle-icon');
+  if (!area || !icon) return;
+  if (area.style.display === 'none') {
+    area.style.display = '';
+    icon.textContent = '▾';
+    FormulaTemplates.renderInto('av-template-area', {
+      onApply: function(f) {
+        const inp = document.getElementById('av-formula');
+        inp.value = f;
+        if (window.CmFormulaEditor) {
+          const inst = window.CmFormulaEditor.getCmInstance(inp);
+          if (inst && inst.editor) { inst.editor.setValue(f); }
+        }
+        avSchedulePreview();
+      }
+    });
   } else {
     area.style.display = 'none';
     icon.textContent = '▸';
