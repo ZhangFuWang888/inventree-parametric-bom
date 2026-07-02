@@ -501,7 +501,7 @@ function isAnyDirty() {
 
 function getDirtySummary() {
   const areas = Array.from(__dirtyAreas);
-  const labels = {params:'参数配置', bom:'BOM公式', variables:'变量', configurator:'配置器'};
+  const labels = {params:'参数配置', bom:'BOM列表', variables:'变量', configurator:'配置器'};
   return areas.map(a => labels[a] || a).join('、');
 }
 
@@ -4774,8 +4774,8 @@ async function renderDashboard() {
         <p class="text-[10px] text-gray-500">选择产品 → 在「参数管理」绑定参数模板，设默认值</p>
       </div>
       <div class="bg-white rounded-lg p-3 border border-gray-100">
-        <div class="flex items-center gap-2 mb-1.5"><span class="w-6 h-6 rounded-full bg-emerald-600 text-white text-[10px] flex items-center justify-center font-bold">2</span><span class="text-xs font-semibold">设BOM公式</span></div>
-        <p class="text-[10px] text-gray-500">在「BOM公式」为各物料选择模式，编写公式</p>
+        <div class="flex items-center gap-2 mb-1.5"><span class="w-6 h-6 rounded-full bg-emerald-600 text-white text-[10px] flex items-center justify-center font-bold">2</span><span class="text-xs font-semibold">设BOM列表</span></div>
+        <p class="text-[10px] text-gray-500">在「BOM列表」为各物料选择模式，编写公式</p>
       </div>
       <div class="bg-white rounded-lg p-3 border border-gray-100">
         <div class="flex items-center gap-2 mb-1.5"><span class="w-6 h-6 rounded-full bg-amber-600 text-white text-[10px] flex items-center justify-center font-bold">3</span><span class="text-xs font-semibold">测试配置器</span></div>
