@@ -922,13 +922,14 @@ def template_library_auto_sync(request):
     return Response(result)
 
 
-# ── Export: BOM CSV ─────────────────────────
+# ── Export: BOM XLSX ─────────────────────────
 
 @api_view(['GET'])
 @permission_classes([permissions.IsAuthenticated])
 def export_bom_csv(request):
-    """Export evaluated BOM tree as CSV download."""
-    import csv, io
+    """Export evaluated BOM tree as XLSX download."""
+    import openpyxl, io
+    from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
 
     from parametric_bom.bom_expander import evaluate_configuration, evaluate_part
     from parametric_bom.models import ProductConfiguration
@@ -951,29 +952,43 @@ def export_bom_csv(request):
         else:
             return Response({'error': 'Provide config_id or part_id'}, status=400)
     except Exception as exc:
-        logger.exception('BOM CSV export failed')
+        logger.exception('BOM export failed')
         return Response({'error': str(exc)}, status=500)
 
     bom_tree = result.get('bom_tree', {})
     part_name = result.get('part_name', 'BOM')
 
-    output = io.StringIO()
-    writer = csv.writer(output)
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = 'BOM清单'
 
-    # Header
-    writer.writerow([
-        '\u5c42\u7ea7', '\u7269\u6599\u7f16\u7801', '\u7269\u6599\u540d\u79f0',
-        '\u6570\u91cf', '\u5355\u4f4d', '\u7c7b\u578b',
-        '\u53d8\u4f53\u540d\u79f0', '\u53d8\u4f53\u7f16\u7801', '\u5907\u6ce8',
-    ])
+    # Styles
+    header_font = Font(name='微软雅黑', bold=True, size=10, color='FFFFFF')
+    header_fill = PatternFill(start_color='2563EB', end_color='2563EB', fill_type='solid')
+    header_align = Alignment(horizontal='center', vertical='center')
+    cell_font = Font(name='微软雅黑', size=9)
+    thin_border = Border(
+        left=Side(style='thin', color='D1D5DB'),
+        right=Side(style='thin', color='D1D5DB'),
+        top=Side(style='thin', color='D1D5DB'),
+        bottom=Side(style='thin', color='D1D5DB'),
+    )
 
-    def flatten(node, parent_qty=1.0):
-        rows = []
-        depth = node.get('depth', 0)
+    headers = ['层级', '物料编码', '物料名称', '数量', '类型', '变体名称', '变体编码', '备注']
+    for col, h in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col, value=h)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = header_align
+        cell.border = thin_border
+
+    def flatten(node, row_num=2, parent_qty=1.0):
+        row = row_num
         children = node.get('children', [])
         for child in children:
             if child.get('excluded'):
                 continue
+            depth = child.get('depth', 0)
             pid = child.get('actual_part_id', child.get('part_id', ''))
             pname = child.get('actual_part_name', child.get('part_name', ''))
             qty = child.get('calculated_quantity', 1) * parent_qty
@@ -981,27 +996,39 @@ def export_bom_csv(request):
             mode = child.get('mode', 'static')
             vname = child.get('variant_name', '')
             vipn = child.get('variant_ipn', '')
-            rows.append((
-                depth, pid, pname, qty,
-                mode, vname, vipn, ref,
-            ))
-            rows.extend(flatten(child, qty))
-        return rows
 
-    all_rows = flatten(bom_tree)
-    for row in all_rows:
-        writer.writerow(row)
+            vals = [depth, pid, pname, qty, mode, vname, vipn, ref]
+            for col, v in enumerate(vals, 1):
+                cell = ws.cell(row=row, column=col, value=v)
+                cell.font = cell_font
+                cell.border = thin_border
+                if col == 1:
+                    cell.alignment = Alignment(horizontal='center')
+                elif col == 4:
+                    cell.number_format = '#,##0.00'
+                    cell.alignment = Alignment(horizontal='right')
+            row += 1
+            row = flatten(child, row, qty)
+        return row
 
-    csv_content = output.getvalue()
-    output.close()
+    flatten(bom_tree)
+
+    # Auto-width
+    col_widths = [6, 14, 24, 10, 10, 16, 16, 20]
+    for i, w in enumerate(col_widths, 1):
+        ws.column_dimensions[openpyxl.utils.get_column_letter(i)].width = w
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
 
     safe_name = part_name.replace(' ', '_').replace('/', '_')
-    response = StreamingHttpResponse(
-        iter([csv_content]),
-        content_type='text/csv; charset=utf-8-sig',
+    response = FileResponse(
+        buf, content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        filename=f'{safe_name}_BOM清单.xlsx',
     )
     response['Content-Disposition'] = (
-        f'attachment; filename="{safe_name}_BOM.csv"'
+        f'attachment; filename="{safe_name}_BOM清单.xlsx"'
     )
     return response
 
