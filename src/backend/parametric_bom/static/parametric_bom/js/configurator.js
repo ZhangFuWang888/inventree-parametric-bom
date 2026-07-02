@@ -45,13 +45,7 @@ function getCsrfToken() {
 }
 
 function setStatus(type, msg) {
-  const dot = document.getElementById('status-dot');
-  const text = document.getElementById('status-text');
-  dot.className = 'status-dot ' + type;
-  text.textContent = msg;
-  if (type === 'success') setTimeout(() => {
-    if (dot.classList.contains('success')) { dot.className = 'status-dot idle'; text.textContent = '就绪'; }
-  }, 3000);
+  // 状态栏已移除
 }
 
 // ===== SIDEBAR NAVIGATION =====
