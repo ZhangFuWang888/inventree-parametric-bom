@@ -940,8 +940,7 @@ async function loadPdBOMM() {
   const formulaCols = [
     {key:'qty_formula', icon:'📐', label:'数量/公式', isQty:true},
     {key:'condition_formula', icon:'⚡', label:'条件公式'},
-    {key:'part_selector_formula', icon:'🎯', label:'选件公式'},
-    {key:'supplier_formula', icon:'🏢', label:'供应商公式'},
+    
     {key:'reference_formula', icon:'📝', label:'备注公式'},
   ];
 
@@ -1276,9 +1275,9 @@ function openCellEditor(itemPk, field, currentVal, isQty, mappingId) {
     input.value = currentVal || '';
     input.placeholder = '输入纯数字=改静态数量，输入公式=动态计算';
   } else {
-    const labels = {qty_formula:'数量/公式', condition_formula:'条件公式', part_selector_formula:'选件公式', supplier_formula:'供应商公式', reference_formula:'备注公式'};
-    const placeholders = {qty_formula:'CEIL(长度/500)*2', condition_formula:'param.速度 > 15', part_selector_formula:"IF(速度>15,'A型','B型')", supplier_formula:"IF(速度>30,'SEW','国茂')", reference_formula:"CONCAT('定制-',长度,'mm')"};
-    const iconMap = {qty_formula:'📐', condition_formula:'⚡', part_selector_formula:'🎯', supplier_formula:'🏢', reference_formula:'📝'};
+    const labels = {qty_formula:'数量/公式', condition_formula:'条件公式', reference_formula:'备注公式'};
+    const placeholders = {qty_formula:'CEIL(长度/500)*2', condition_formula:'param.速度 > 15', reference_formula:"CONCAT('定制-',长度,'mm')"};
+    const iconMap = {qty_formula:'📐', condition_formula:'⚡', reference_formula:'📝'};
     title.textContent = (iconMap[field] || '✏️') + ' ' + (labels[field] || '编辑');
     input.value = currentVal || '';
     input.placeholder = placeholders[field] || '输入公式...';
@@ -1380,7 +1379,7 @@ async function saveCellFormula() {
   const data = {};
   data[st.field] = formula;
   if (exCfg) {
-    ['qty_formula','condition_formula','part_selector_formula','supplier_formula','reference_formula'].forEach(function(f) {
+    ['qty_formula','condition_formula','reference_formula'].forEach(function(f) {
       if (f !== st.field && exCfg[f]) data[f] = exCfg[f];
     });
   } else {
@@ -1814,14 +1813,21 @@ function renderCfgBOM() {
     if (!items || !items.length) return '';
     let h = '';
     items.forEach(item => {
-      const icon = item.is_parametric ? '⚡' : '📦';
-      const name = item.part_name || item.name || '未知';
+      const isVariant = item.mode === 'variant';
+      const hasDynamicName = isVariant && !!item.variant_name;
+      const icon = isVariant ? '🧬' : '📦';
+      const name = hasDynamicName ? item.variant_name : (item.part_name || item.name || '未知');
       const qty = item.calculated_quantity != null ? item.calculated_quantity : (item.quantity != null ? item.quantity : (item.required_quantity || 1));
-      const ref = item.ipn || item.part_ipn || '';
+      const ref = hasDynamicName ? (item.variant_ipn || item.ipn || item.part_ipn || '') : (item.ipn || item.part_ipn || '');
       const partId = item.actual_part_id || item.part_id;
-      h += `<div class="cfg-bom-item cfg-bom-depth-${Math.min(depth,3)}">
-        <span class="cfg-bi-icon">${icon}</span>
-        <span class="cfg-bi-name${partId ? ' clickable-part' : ''}"${partId ? ` onclick="openPartDetail(${partId})" title="点击查看零件详情"` : ''}>${name}</span>
+      
+      const variantClass = isVariant ? ' variant-item' : '';
+      const templateInfo = isVariant && item.template_part_name ? `<span class="cfg-bi-template">← ${item.template_part_name}</span>` : '';
+      
+      h += `<div class="cfg-bom-item cfg-bom-depth-${Math.min(depth,3)}${variantClass}">
+        <span class="cfg-bi-icon${isVariant ? ' variant-icon' : ''}">${icon}</span>
+        <span class="cfg-bi-name${partId ? ' clickable-part' : ''}${isVariant ? ' variant-name' : ''}"${partId ? ` onclick="openPartDetail(${partId})" title="点击查看零件详情"` : ''}>${name}</span>
+        ${templateInfo}
         <span class="cfg-bi-ref">${ref}</span>
         <span class="cfg-bi-qty">×${qty}</span>
       </div>`;
@@ -3161,7 +3167,7 @@ function renderTreeItem(item, depth, push) {
   let extraHtml = '';
 
   // Mode-specific display
-  const modeLabels = {standard:'标准', qty_formula:'数量公式', conditional:'条件包含', candidate:'🎯候选', variant:'🧬动态', specification:'📝规格', supplier:'🏢供应商', structure:'结构'};
+  const modeLabels = {standard:'标准', qty_formula:'数量公式', conditional:'条件包含', candidate:'🎯候选', variant:'🧬动态', specification:'📝规格', structure:'结构'};
   if (mode !== 'standard') {
     extraHtml += `<span class="text-[10px] px-1 py-0.5 rounded bg-gray-100 text-gray-600 ml-1">${modeLabels[mode]||mode}</span>`;
   }
@@ -3190,10 +3196,7 @@ function renderTreeItem(item, depth, push) {
     }
   }
 
-  // Supplier mode: show selection
-  if (mode === 'supplier' && item.selected_supplier_name) {
-    extraHtml += `<span class="text-xs text-cyan-600 ml-1">→ ${item.selected_supplier_name}</span>`;
-  }
+
 
   // Errors
   if (item.errors && item.errors.length > 0) {
@@ -3902,8 +3905,7 @@ async function loadBomFormulaConfigs(partId) {
     const cfg = pcfgMap[item.pk];
     const qtyFormula = cfg ? (cfg.qty_formula || '') : '';
     const condFormula = cfg ? (cfg.condition_formula || '') : '';
-    const selFormula = cfg ? (cfg.part_selector_formula || '') : '';
-    const formulaSummary = qtyFormula || condFormula || selFormula ? `<code class="text-blue-600 text-[10px]">${(qtyFormula?'数量:':'')} ${qtyFormula||''} ${condFormula?'| 条件:':''} ${condFormula||''}</code>` : '<span class="text-gray-400">-</span>';
+    const formulaSummary = qtyFormula || condFormula ? `<code class="text-blue-600 text-[10px]">${(qtyFormula?'数量:':'')} ${qtyFormula||''} ${condFormula?'| 条件:':''} ${condFormula||''}</code>` : '<span class="text-gray-400">-</span>';
     // Build mode badges from enable flags
     let modeBadges = '';
     if (cfg) {
@@ -3912,7 +3914,7 @@ async function loadBomFormulaConfigs(partId) {
       if (cfg.enable_candidate) modeBadges += '🎯';
       if (cfg.enable_variant) modeBadges += '🧬';
       if (cfg.enable_specification) modeBadges += '📝';
-      if (cfg.enable_supplier) modeBadges += '🏢';
+
       if (cfg.enable_structure) modeBadges += '🔗';
     }
     if (!modeBadges) modeBadges = '<span class="text-gray-400">—</span>';
@@ -3927,7 +3929,7 @@ async function loadBomFormulaConfigs(partId) {
           <option value="candidate">🎯 候选零件</option>
           <option value="variant">🧬 动态项目</option>
           <option value="specification">📝 规格描述</option>
-          <option value="supplier">🏢 供应商选择</option>
+
           <option value="structure">🔗 结构控制</option>
         </select>
         <span class="text-[10px] ml-1">${modeBadges}</span>
@@ -3977,7 +3979,7 @@ async function loadAllBomFormulaConfigs(container) {
     {flag:'enable_candidate', icon:'🎯', label:'候选'},
     {flag:'enable_variant', icon:'🧬', label:'动态'},
     {flag:'enable_specification', icon:'📝', label:'规格'},
-    {flag:'enable_supplier', icon:'🏢', label:'供应'},
+
     {flag:'enable_structure', icon:'🔗', label:'结构'},
   ];
 
@@ -4064,7 +4066,7 @@ async function getCurrentModeAndRender(bomItemId) {
     if (cfg.enable_candidate) activeModes.push('candidate');
     if (cfg.enable_variant) activeModes.push('variant');
     if (cfg.enable_specification) activeModes.push('specification');
-    if (cfg.enable_supplier) activeModes.push('supplier');
+
     if (cfg.enable_structure) activeModes.push('structure');
   }
   const primaryMode = activeModes.length > 0 ? activeModes[0] : 'standard';
@@ -4084,7 +4086,7 @@ async function getCurrentModeAndRender(bomItemId) {
       modeSel = document.createElement('select');
       modeSel.id = 'fe-mode-select';
       modeSel.className = 'text-[10px] border border-gray-200 rounded px-1 py-0.5 ml-2';
-      modeSel.innerHTML = `<option value="standard">— 标准</option><option value="qty_formula">📐 数量公式</option><option value="conditional">📐⚡ 数量+条件</option><option value="candidate">🎯 候选零件</option><option value="variant">🧬 动态项目</option><option value="specification">📝 规格描述</option><option value="supplier">🏢 供应商选择</option><option value="structure">🔗 结构控制</option>`;
+      modeSel.innerHTML = `<option value="standard">— 标准</option><option value="qty_formula">📐 数量公式</option><option value="conditional">📐⚡ 数量+条件</option><option value="candidate">🎯 候选零件</option><option value="variant">🧬 动态项目</option><option value="specification">📝 规格描述</option><option value="structure">🔗 结构控制</option>`;
       modeSel.onchange = function() { renderModeConfig(); };
       headerDiv.appendChild(modeSel);
     }
@@ -4106,7 +4108,6 @@ async function loadExistingBomItemConfig(bomItemId) {
     feState.existingConfigId = cfg.id;
     if (cfg.qty_formula) document.getElementById('fe-qty-formula').value = cfg.qty_formula;
     if (cfg.condition_formula) document.getElementById('fe-condition-formula').value = cfg.condition_formula;
-    if (cfg.part_selector_formula) document.getElementById('fe-selector-formula').value = cfg.part_selector_formula;
   }
 }
 
@@ -4142,7 +4143,7 @@ function activateFormulaField(fieldName) {
 }
 
 function getActiveTextarea() {
-  const map = { qty: 'fe-qty-formula', condition: 'fe-condition-formula', selector: 'fe-selector-formula' };
+  const map = { qty: 'fe-qty-formula', condition: 'fe-condition-formula' };
   return document.getElementById(map[feState.activeField]);
 }
 
@@ -4173,8 +4174,8 @@ function insertFunction(funcName) {
 }
 
 async function validateSingleFormula(fieldName) {
-  const map = { qty: 'fe-qty-formula', condition: 'fe-condition-formula', selector: 'fe-selector-formula' };
-  const resultMap = { qty: 'fe-qty-result', condition: 'fe-condition-result', selector: 'fe-selector-result' };
+  const map = { qty: 'fe-qty-formula', condition: 'fe-condition-formula' };
+  const resultMap = { qty: 'fe-qty-result', condition: 'fe-condition-result' };
   const formula = document.getElementById(map[fieldName]).value.trim();
   const resultContainer = document.getElementById(resultMap[fieldName]);
 
@@ -4196,8 +4197,8 @@ async function validateSingleFormula(fieldName) {
 }
 
 async function previewSingleFormula(fieldName) {
-  const map = { qty: 'fe-qty-formula', condition: 'fe-condition-formula', selector: 'fe-selector-formula' };
-  const resultMap = { qty: 'fe-qty-result', condition: 'fe-condition-result', selector: 'fe-selector-result' };
+  const map = { qty: 'fe-qty-formula', condition: 'fe-condition-formula' };
+  const resultMap = { qty: 'fe-qty-result', condition: 'fe-condition-result' };
   const formula = document.getElementById(map[fieldName]).value.trim();
   const resultContainer = document.getElementById(resultMap[fieldName]);
 
@@ -4222,10 +4223,9 @@ async function previewSingleFormula(fieldName) {
 async function previewAllFormulas() {
   const qty = document.getElementById('fe-qty-formula').value.trim();
   const cond = document.getElementById('fe-condition-formula').value.trim();
-  const sel = document.getElementById('fe-selector-formula').value.trim();
   const container = document.getElementById('fe-preview-all');
 
-  if (!qty && !cond && !sel) {
+  if (!qty && !cond) {
     container.innerHTML = '<p class="text-xs text-gray-400">所有公式为空</p>';
     return;
   }
@@ -4236,8 +4236,7 @@ async function previewAllFormulas() {
   // Preview each formula
   const formulas = [
     { key: 'qty_formula', label: '数量公式', value: qty },
-    { key: 'condition_formula', label: '条件公式', value: cond },
-    { key: 'part_selector_formula', label: '选件公式', value: sel }
+    { key: 'condition_formula', label: '条件公式', value: cond }
   ];
 
   for (const f of formulas) {
@@ -4275,7 +4274,6 @@ async function saveBomFormula() {
     mode: mode,
     qty_formula: qtyFormula || '',
     condition_formula: conditionFormula || '',
-    part_selector_formula: '',
   };
 
   let res;
@@ -4395,13 +4393,6 @@ function renderModeConfig() {
         </div>
       </div>`;
     loadSpecification(bomItemId);
-  } else if (mode === 'supplier') {
-    zone.innerHTML = `
-      <div class="card p-3 mb-3">
-        <div class="flex items-center justify-between mb-2"><span class="text-xs font-semibold text-gray-700">🏢 供应商选择规则</span><button class="btn btn-sm btn-primary text-[10px] px-2 py-0.5" onclick="addSupplierRule(${bomItemId})">+ 添加规则</button></div>
-        <div id="fe-supplier-list" class="space-y-1"><span class="text-xs text-gray-400">加载中...</span></div>
-      </div>`;
-    loadSupplierRules(bomItemId);
   } else {
     zone.innerHTML = '';
   }
@@ -4417,12 +4408,12 @@ async function updateBomItemMode(bomItemId, mode) {
     candidate:      {enable_candidate: true},
     variant:        {enable_variant: true},
     specification:  {enable_specification: true},
-    supplier:       {enable_supplier: true},
+
     structure:      {enable_structure: true},
   };
   const extraFields = {enable_qty_formula:false, enable_conditional:false,
     enable_candidate:false, enable_variant:false, enable_specification:false,
-    enable_supplier:false, enable_structure:false};
+    enable_structure:false};
   const data = {...extraFields, ...(modeToFlags[mode] || {})};
   const res = await apiCall('GET', `bom-item-config/?bom_item=${bomItemId}`);
   if (res.error) return;
@@ -4566,39 +4557,6 @@ async function saveSpecification(bomItemId) {
   }
 }
 
-// ===== SUPPLIER RULES (场景6) =====
-async function loadSupplierRules(bomItemId) {
-  const container = document.getElementById('fe-supplier-list');
-  const res = await apiCall('GET', `supplier-rules/?parametric_bom_item=${bomItemId}`);
-  if (res.error) { container.innerHTML = '<span class="text-xs text-red-400">加载失败</span>'; return; }
-  const items = Array.isArray(res.data) ? res.data : (res.data.results || []);
-  if (!items.length) { container.innerHTML = '<span class="text-xs text-gray-400">暂无供应商规则</span>'; return; }
-  let html = '';
-  items.forEach(r => {
-    html += `<div class="flex items-center gap-2 p-1.5 bg-gray-50 rounded text-[10px]">
-      <span class="font-medium w-4">${r.priority}</span>
-      <span class="flex-1">${r.supplier_part_name||'#'+r.supplier_part}</span>
-      <code class="text-purple-600 flex-1 truncate">${r.condition_formula||'<span class="text-gray-400">always</span>'}</code>
-      <button class="text-red-500 hover:text-red-700" onclick="deleteSupplierRule(${r.id})">✕</button>
-    </div>`;
-  });
-  container.innerHTML = html;
-}
-async function addSupplierRule(bomItemId) {
-  const supplierPartId = prompt('供应商零件ID (SupplierPart PK):');
-  if (!supplierPartId) return;
-  const condition = prompt('条件公式 (留空=始终):', '');
-  const priority = parseInt(prompt('优先级:', '100')) || 100;
-  const label = prompt('标签:', '');
-  const res = await apiCall('POST', 'supplier-rules/', {parametric_bom_item: bomItemId, supplier_part: parseInt(supplierPartId), condition_formula: condition, priority, label});
-  if (!res.error) loadSupplierRules(bomItemId);
-}
-async function deleteSupplierRule(id) {
-  if (!confirm('删除此规则?')) return;
-  await apiCall('DELETE', `supplier-rules/${id}/`);
-  if (feState.bomItemId) loadSupplierRules(feState.bomItemId);
-}
-
 // ===== INHERITANCE (场景9) =====
 async function loadInheritanceMappings(partId) {
   const container = document.getElementById('inheritance-list');
@@ -4737,7 +4695,7 @@ async function renderDashboard() {
     // Derive primary mode from enable flags
     let primary = 'standard';
     if (b.enable_structure) primary = 'structure';
-    else if (b.enable_supplier) primary = 'supplier';
+    
     else if (b.enable_specification) primary = 'specification';
     else if (b.enable_variant) primary = 'variant';
     else if (b.enable_candidate) primary = 'candidate';
@@ -4746,7 +4704,7 @@ async function renderDashboard() {
     modeCounts[primary] = (modeCounts[primary] || 0) + 1;
   });
 
-  const modeLabels = {standard:'标准', qty_formula:'📐数量公式', conditional:'⚡条件包含', candidate:'🎯候选零件', variant:'🧬动态项目', specification:'📝规格描述', supplier:'🏢供应商选择', structure:'🏗️结构'};
+  const modeLabels = {standard:'标准', qty_formula:'📐数量公式', conditional:'⚡条件包含', candidate:'🎯候选零件', variant:'🧬动态项目', specification:'📝规格描述', structure:'🏗️结构'};
 
   let html = `
   <!-- Quick Stats -->

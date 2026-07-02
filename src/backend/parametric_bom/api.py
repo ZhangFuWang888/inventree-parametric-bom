@@ -63,7 +63,6 @@ def _collect_formula_fields(part_id):
         for field, label in [
             ('qty_formula', '数量公式'),
             ('condition_formula', '条件公式'),
-            ('part_selector_formula', '选件公式'),
             ('reference_formula', '参考公式'),
         ]:
             val = getattr(item, field, '') or ''

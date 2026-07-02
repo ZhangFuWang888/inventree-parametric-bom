@@ -146,7 +146,7 @@ class TestInheritFromTemplate(TestCase):
         mock_tpl_param_bom = mock.MagicMock()
         mock_tpl_param_bom.qty_formula = 'param.speed * 2'
         mock_tpl_param_bom.condition_formula = ''
-        mock_tpl_param_bom.part_selector_formula = ''
+        
         mock_param_bom_cls.objects.get.return_value = mock_tpl_param_bom
         mock_param_bom_cls.DoesNotExist = type('DoesNotExist', (Exception,), {})
 

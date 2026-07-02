@@ -111,7 +111,6 @@ def inherit_from_template(variant_part) -> Dict[str, int]:
             defaults={
                 'qty_formula': tpl_param_bom.qty_formula,
                 'condition_formula': tpl_param_bom.condition_formula,
-                'part_selector_formula': tpl_param_bom.part_selector_formula,
             },
         )
         bom_items_copied += 1

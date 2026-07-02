@@ -335,7 +335,7 @@ def _expand_single_bom_item(
     }
 
     try:
-        parametric_cfg = ParametricBomItem.objects.get(bom_item=bom_item)
+        parametric_cfg = ParametricBomItem.objects.select_related('variant_mapping').get(bom_item=bom_item)
     except ParametricBomItem.DoesNotExist:
         child_node['parametric'] = False
         _expand_sub_part(child_node, sub_part, params, parent_params, depth, max_depth, timeout_ms)
@@ -349,6 +349,8 @@ def _expand_single_bom_item(
         child_node['mode'] = 'specification'
     elif parametric_cfg.enable_structure:
         child_node['mode'] = 'structure'
+    elif parametric_cfg.enable_variant:
+        child_node['mode'] = 'variant'
     elif parametric_cfg.enable_qty_formula:
         child_node['mode'] = 'qty_formula'
     elif parametric_cfg.enable_conditional:
@@ -359,6 +361,39 @@ def _expand_single_bom_item(
         'qty': parametric_cfg.qty_formula or None,
         'condition': parametric_cfg.condition_formula or None,
     }
+
+    # ── 0a) Pre-evaluate variant name/IPN (before condition, so excluded items also have dynamic data) ──
+    if parametric_cfg.enable_variant:
+        try:
+            variant_mapping = parametric_cfg.variant_mapping
+            if variant_mapping:
+                ctx = _ctx(params, parent_params)
+                n_template = variant_mapping.variant_name_template or ''
+                i_template = variant_mapping.variant_ipn_template or ''
+                if n_template:
+                    try:
+                        dynamic_name = eval_formula(
+                            n_template,
+                            context=ctx,
+                            timeout_ms=timeout_ms,
+                        )
+                    except (ParseError, ReferenceError, EvaluationError, TimeoutError):
+                        dynamic_name = sub_part.name
+                    child_node['variant_name'] = str(dynamic_name)
+                if i_template:
+                    try:
+                        dynamic_ipn = eval_formula(
+                            i_template,
+                            context=ctx,
+                            timeout_ms=timeout_ms,
+                        )
+                    except (ParseError, ReferenceError, EvaluationError, TimeoutError):
+                        dynamic_ipn = sub_part.IPN or ''
+                    child_node['variant_ipn'] = str(dynamic_ipn)
+                child_node['template_part_id'] = _part_pk(sub_part)
+                child_node['template_part_name'] = _part_display(sub_part)
+        except ParametricBomItem.variant_mapping.RelatedObjectDoesNotExist:
+            pass
 
     # ── 0) Condition evaluation (all modes except standard) ──
     if parametric_cfg.condition_formula:
@@ -408,6 +443,10 @@ def _expand_single_bom_item(
     elif parametric_cfg.enable_structure:
         # Structure mode: the condition formula already controls inclusion.
         # Sub-assembly content follows normal recursion.
+        pass
+
+    elif parametric_cfg.enable_variant:
+        # Variant name/IPN already evaluated in step 0a (before condition check)
         pass
 
     # ── 3) Record actual sub-part info ────────────────────────────

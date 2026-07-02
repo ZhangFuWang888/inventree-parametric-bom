@@ -143,20 +143,17 @@ class _MockRelatedManager:
 
 
 class MockParametricBomItem:
-    """Minimal mock for ParametricBomItem.
+    """Minimal mock for ParametricBomItem used in tests.
 
     Fields accessed in _expand_single_bom_item:
       - qty_formula
       - condition_formula
-      - part_selector_formula
     """
 
-    def __init__(self, bom_item, qty_formula='', condition_formula='',
-                 part_selector_formula=''):
+    def __init__(self, bom_item, qty_formula='', condition_formula=''):
         self.bom_item = bom_item
         self.qty_formula = qty_formula
         self.condition_formula = condition_formula
-        self.part_selector_formula = part_selector_formula
 
 
 _DoesNotExist = type('DoesNotExist', (Exception,), {})

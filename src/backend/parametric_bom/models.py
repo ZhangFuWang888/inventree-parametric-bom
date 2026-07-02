@@ -293,16 +293,6 @@ class ParametricBomItem(models.Model):
             'Empty = always included. Example: param.速度 > 15'
         ),
     )
-    part_selector_formula = models.CharField(
-        max_length=512,
-        blank=True,
-        default='',
-        verbose_name=_('Part selector formula'),
-        help_text=_(
-            'Formula to dynamically select which sub-part to use. '
-            'Example: IF(param.speed>15, "MOTOR-A", "MOTOR-B")'
-        ),
-    )
     reference_formula = models.CharField(
         max_length=512,
         blank=True,
@@ -354,13 +344,13 @@ class ParametricBomItem(models.Model):
         ])
         if not enabled:
             return False
-        return bool(self.qty_formula or self.condition_formula or self.part_selector_formula)
+        return bool(self.qty_formula or self.condition_formula)
 
     def save(self, *args, **kwargs):
         """Auto-compute formula hash on save."""
         import hashlib
 
-        raw = f'{self.qty_formula}|{self.condition_formula}|{self.part_selector_formula}'
+        raw = f'{self.qty_formula}|{self.condition_formula}'
         self.formular_hash = hashlib.sha256(raw.encode()).hexdigest()[:64]
         super().save(*args, **kwargs)
 
@@ -615,9 +605,6 @@ class BomCandidatePart(models.Model):
     Multiple candidates can be linked to one ParametricBomItem. During
     configuration, the system evaluates each candidate's condition formula
     in priority order and selects the first match.
-
-    This replaces the free-text part_selector_formula with an explicit
-    list of valid choices, making the system easier to manage.
     """
 
     parametric_bom_item = models.ForeignKey(
@@ -969,7 +956,7 @@ class PartVariable(models.Model):
     """Intermediate variable for a part, reusable across formula fields.
 
     A PartVariable defines a named expression that can be referenced by name
-    in any formula field (qty_formula, condition_formula, part_selector_formula,
+    in any formula field (qty_formula, condition_formula,
     reference_formula). Variables are evaluated before the
     formula itself, making them available as named constants/computed values.
 
