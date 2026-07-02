@@ -922,6 +922,132 @@ def template_library_auto_sync(request):
     return Response(result)
 
 
+# ── Export: XLSX Helper ──────────────────────
+
+def _build_bom_xlsx(result):
+    """Build a mechanical-design BOM XLSX from evaluate result.
+    
+    Returns (BytesIO, part_name).
+    Columns: 序号, 图号/代号, 名称, 数量, 单位, 备注
+    """
+    import openpyxl, io
+    from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
+    from openpyxl.utils import get_column_letter
+
+    bom_tree = result.get('bom_tree', {})
+    part_name = result.get('part_name', 'BOM')
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = 'BOM清单'
+
+    # Styles
+    style_header_font = Font(name='微软雅黑', bold=True, size=10, color='FFFFFF')
+    style_header_fill = PatternFill(start_color='2563EB', end_color='2563EB', fill_type='solid')
+    style_header_align = Alignment(horizontal='center', vertical='center', wrap_text=True)
+    style_cell_font = Font(name='微软雅黑', size=9)
+    style_center = Alignment(horizontal='center', vertical='center')
+    style_number = Alignment(horizontal='right', vertical='center')
+    style_border = Border(
+        left=Side(style='thin', color='D1D5DB'),
+        right=Side(style='thin', color='D1D5DB'),
+        top=Side(style='thin', color='D1D5DB'),
+        bottom=Side(style='thin', color='D1D5DB'),
+    )
+
+    headers = ['序号', '图号/代号', '名称', '数量', '单位', '备注']
+    col_widths = [8, 18, 28, 10, 8, 24]
+
+    for col, (h, w) in enumerate(zip(headers, col_widths), 1):
+        cell = ws.cell(row=1, column=col, value=h)
+        cell.font = style_header_font
+        cell.fill = style_header_fill
+        cell.alignment = style_header_align
+        cell.border = style_border
+        ws.column_dimensions[get_column_letter(col)].width = w
+
+    # Collect all unique part IDs for DB lookup
+    part_ids = set()
+    def _collect_pids(node):
+        for child in node.get('children', []):
+            if child.get('excluded'):
+                continue
+            pid = child.get('actual_part_id') or child.get('part_id')
+            if pid:
+                part_ids.add(int(pid))
+            _collect_pids(child)
+    _collect_pids(bom_tree)
+
+    # Bulk fetch Parts for IPN + units
+    from part.models import Part
+    part_map = {}
+    if part_ids:
+        for p in Part.objects.filter(pk__in=part_ids).only('pk', 'IPN', 'units', 'name'):
+            part_map[p.pk] = p
+
+    # Try to get material from PartParameterConfig (if a "材料" parameter exists)
+    from parametric_bom.models import PartParameterConfig
+    from common.models import ParameterTemplate
+    material_configs = {}
+    try:
+        mt = ParameterTemplate.objects.filter(name__in=['材料', '材质', 'material', 'Material']).first()
+        if mt:
+            for cfg in PartParameterConfig.objects.filter(
+                part_id__in=part_ids, template=mt,
+            ).select_related('template').only('part_id', 'default_value'):
+                material_configs[cfg.part_id] = cfg.default_value
+    except Exception:
+        pass
+
+    row_num = 2
+    seq = 0
+
+    def flatten(node, parent_qty=1.0):
+        nonlocal row_num, seq
+        for child in node.get('children', []):
+            if child.get('excluded'):
+                continue
+            seq += 1
+            pid = child.get('actual_part_id') or child.get('part_id')
+            pname = (
+                child.get('variant_name')
+                or child.get('actual_part_name')
+                or child.get('part_name')
+                or ''
+            )
+            ipn = child.get('variant_ipn', '') or ''
+            qty = child.get('calculated_quantity', 1) * parent_qty
+            ref = child.get('reference', '') or ''
+            units = ''
+
+            # Look up Part for IPN and units if not variant
+            if not ipn and pid and pid in part_map:
+                p = part_map[pid]
+                ipn = p.IPN or ''
+                units = p.units or ''
+
+            vals = [seq, ipn, pname, qty, units, ref]
+            for col, v in enumerate(vals, 1):
+                cell = ws.cell(row=row_num, column=col, value=v)
+                cell.font = style_cell_font
+                cell.border = style_border
+                if col in (1, 5):
+                    cell.alignment = style_center
+                elif col == 4:
+                    cell.number_format = '#,##0.00'
+                    cell.alignment = style_number
+
+            row_num += 1
+            flatten(child, qty)
+
+    flatten(bom_tree)
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    return buf, part_name
+
+
 # ── Export: BOM XLSX ─────────────────────────
 
 @api_view(['GET', 'POST'])
@@ -932,9 +1058,6 @@ def export_bom_csv(request):
     GET: ?part_id=xxx or ?config_id=xxx
     POST: JSON body {part_id, parameters:{}, config_id}
     """
-    import openpyxl, io
-    from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
-
     from parametric_bom.bom_expander import evaluate_configuration, evaluate_part
     from parametric_bom.models import ProductConfiguration
 
@@ -964,73 +1087,7 @@ def export_bom_csv(request):
         logger.exception('BOM export failed')
         return Response({'error': str(exc)}, status=500)
 
-    bom_tree = result.get('bom_tree', {})
-    part_name = result.get('part_name', 'BOM')
-
-    wb = openpyxl.Workbook()
-    ws = wb.active
-    ws.title = 'BOM清单'
-
-    # Styles
-    header_font = Font(name='微软雅黑', bold=True, size=10, color='FFFFFF')
-    header_fill = PatternFill(start_color='2563EB', end_color='2563EB', fill_type='solid')
-    header_align = Alignment(horizontal='center', vertical='center')
-    cell_font = Font(name='微软雅黑', size=9)
-    thin_border = Border(
-        left=Side(style='thin', color='D1D5DB'),
-        right=Side(style='thin', color='D1D5DB'),
-        top=Side(style='thin', color='D1D5DB'),
-        bottom=Side(style='thin', color='D1D5DB'),
-    )
-
-    headers = ['层级', '物料编码', '物料名称', '数量', '类型', '变体名称', '变体编码', '备注']
-    for col, h in enumerate(headers, 1):
-        cell = ws.cell(row=1, column=col, value=h)
-        cell.font = header_font
-        cell.fill = header_fill
-        cell.alignment = header_align
-        cell.border = thin_border
-
-    def flatten(node, row_num=2, parent_qty=1.0):
-        row = row_num
-        children = node.get('children', [])
-        for child in children:
-            if child.get('excluded'):
-                continue
-            depth = child.get('depth', 0)
-            pid = child.get('actual_part_id', child.get('part_id', ''))
-            pname = child.get('actual_part_name', child.get('part_name', ''))
-            qty = child.get('calculated_quantity', 1) * parent_qty
-            ref = child.get('reference', '')
-            mode = child.get('mode', 'static')
-            vname = child.get('variant_name', '')
-            vipn = child.get('variant_ipn', '')
-
-            vals = [depth, pid, pname, qty, mode, vname, vipn, ref]
-            for col, v in enumerate(vals, 1):
-                cell = ws.cell(row=row, column=col, value=v)
-                cell.font = cell_font
-                cell.border = thin_border
-                if col == 1:
-                    cell.alignment = Alignment(horizontal='center')
-                elif col == 4:
-                    cell.number_format = '#,##0.00'
-                    cell.alignment = Alignment(horizontal='right')
-            row += 1
-            row = flatten(child, row, qty)
-        return row
-
-    flatten(bom_tree)
-
-    # Auto-width
-    col_widths = [6, 14, 24, 10, 10, 16, 16, 20]
-    for i, w in enumerate(col_widths, 1):
-        ws.column_dimensions[openpyxl.utils.get_column_letter(i)].width = w
-
-    buf = io.BytesIO()
-    wb.save(buf)
-    buf.seek(0)
-
+    buf, part_name = _build_bom_xlsx(result)
     safe_name = part_name.replace(' ', '_').replace('/', '_')
     response = FileResponse(
         buf, content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -1148,8 +1205,6 @@ def export_bundle_zip(request):
     POST: JSON body {part_id, parameters:{}, config_id}
     """
     import zipfile, io, os
-    import openpyxl
-    from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
 
     from parametric_bom.bom_expander import evaluate_configuration, evaluate_part, _flatten_bom
     from parametric_bom.models import ProductConfiguration
@@ -1180,71 +1235,11 @@ def export_bundle_zip(request):
         logger.exception('Bundle export failed')
         return Response({'error': str(exc)}, status=500)
 
-    bom_tree = result.get('bom_tree', {})
-    part_name = result.get('part_name', 'BOM')
-
-    # ── Generate XLSX in memory ──
-    wb = openpyxl.Workbook()
-    ws = wb.active
-    ws.title = 'BOM清单'
-
-    header_font = Font(name='微软雅黑', bold=True, size=10, color='FFFFFF')
-    header_fill = PatternFill(start_color='2563EB', end_color='2563EB', fill_type='solid')
-    header_align = Alignment(horizontal='center', vertical='center')
-    cell_font = Font(name='微软雅黑', size=9)
-    thin_border = Border(
-        left=Side(style='thin', color='D1D5DB'),
-        right=Side(style='thin', color='D1D5DB'),
-        top=Side(style='thin', color='D1D5DB'),
-        bottom=Side(style='thin', color='D1D5DB'),
-    )
-
-    headers = ['层级', '物料编码', '物料名称', '数量', '类型', '变体名称', '变体编码', '备注']
-    for col, h in enumerate(headers, 1):
-        cell = ws.cell(row=1, column=col, value=h)
-        cell.font = header_font
-        cell.fill = header_fill
-        cell.alignment = header_align
-        cell.border = thin_border
-
-    def flatten(node, row_num=2, parent_qty=1.0):
-        row = row_num
-        for child in node.get('children', []):
-            if child.get('excluded'):
-                continue
-            depth = child.get('depth', 0)
-            pid_v = child.get('actual_part_id', child.get('part_id', ''))
-            pname = child.get('actual_part_name', child.get('part_name', ''))
-            qty = child.get('calculated_quantity', 1) * parent_qty
-            ref = child.get('reference', '')
-            mode = child.get('mode', 'static')
-            vname = child.get('variant_name', '')
-            vipn = child.get('variant_ipn', '')
-            vals = [depth, pid_v, pname, qty, mode, vname, vipn, ref]
-            for col, v in enumerate(vals, 1):
-                cell = ws.cell(row=row, column=col, value=v)
-                cell.font = cell_font
-                cell.border = thin_border
-                if col == 1:
-                    cell.alignment = Alignment(horizontal='center')
-                elif col == 4:
-                    cell.number_format = '#,##0.00'
-                    cell.alignment = Alignment(horizontal='right')
-            row += 1
-            row = flatten(child, row, qty)
-        return row
-
-    flatten(bom_tree)
-
-    col_widths = [6, 14, 24, 10, 10, 16, 16, 20]
-    for i, w in enumerate(col_widths, 1):
-        ws.column_dimensions[openpyxl.utils.get_column_letter(i)].width = w
-
-    xlsx_buf = io.BytesIO()
-    wb.save(xlsx_buf)
-    xlsx_buf.seek(0)
+    # ── Generate XLSX via shared helper ──
+    xlsx_buf, part_name = _build_bom_xlsx(result)
 
     # ── Collect attachments ──
+    bom_tree = result.get('bom_tree', {})
     part_ids = set()
     for pid_v, _ in _flatten_bom(bom_tree):
         if pid_v:
