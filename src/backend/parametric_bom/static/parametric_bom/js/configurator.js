@@ -972,7 +972,7 @@ async function loadPdBOMM() {
       var mappingId = vm.id;
       var tplId = vm.template_part || 0;
       var tplName = vm.template_part_name || '#部件';
-      tplRef = '<div class="text-[9px] text-purple-400 mt-0.5">🌀参考: <span class="cursor-pointer hover:text-purple-600 underline decoration-dotted" onclick="openPartDetail(' + tplId + ')">' + tplName + '</span></div>';
+      tplRef = '<div class="text-[9px] text-purple-400 mt-0.5">🧬参考: <span class="cursor-pointer hover:text-purple-600 underline decoration-dotted" onclick="openPartDetail(' + tplId + ')">' + tplName + '</span></div>';
       tplIpn = '<div class="text-[9px] text-purple-400 mt-0.5">IPN: ' + (vm.template_part_ipn || '—') + '</div>';
       nameCell = '<td><div class="pbs-formula-cell" ondblclick="openCellEditor(' + item.pk + ",'variant_name','" + escNameVal + "',false," + mappingId + ')" title="双击编辑动态名称">'
         + (vm.variant_name_template ? '<span class="fmla-text">' + escHtml(vm.variant_name_template) + '</span>' : '<span class="fmla-empty">—</span>')
@@ -1265,9 +1265,9 @@ function openCellEditor(itemPk, field, currentVal, isQty, mappingId) {
   statusEl.className = 'flex items-center gap-2 text-xs mt-0.5 min-h-[1.5em] text-gray-500';
 
   if (field === 'variant_name' || field === 'variant_ipn') {
-    const labels = {variant_name:'🌀 动态名称模板', variant_ipn:'🌀 动态编码模板'};
+    const labels = {variant_name:'🧬 动态名称模板', variant_ipn:'🧬 动态编码模板'};
     const placeholders = {variant_name:'立柱-H{高度}', variant_ipn:'COL-{高度}-{宽度}'};
-    title.textContent = labels[field] || '🌀 编辑动态模板';
+    title.textContent = labels[field] || '🧬 编辑动态模板';
     input.value = currentVal || '';
     input.placeholder = placeholders[field] || '输入模板，用{参数名}引用...';
   } else if (isQty) {
@@ -3161,7 +3161,7 @@ function renderTreeItem(item, depth, push) {
   let extraHtml = '';
 
   // Mode-specific display
-  const modeLabels = {standard:'标准', qty_formula:'数量公式', conditional:'条件包含', candidate:'🎯候选', variant:'🌀动态', specification:'📝规格', supplier:'🏢供应商', structure:'结构'};
+  const modeLabels = {standard:'标准', qty_formula:'数量公式', conditional:'条件包含', candidate:'🎯候选', variant:'🧬动态', specification:'📝规格', supplier:'🏢供应商', structure:'结构'};
   if (mode !== 'standard') {
     extraHtml += `<span class="text-[10px] px-1 py-0.5 rounded bg-gray-100 text-gray-600 ml-1">${modeLabels[mode]||mode}</span>`;
   }
@@ -3910,7 +3910,7 @@ async function loadBomFormulaConfigs(partId) {
       if (cfg.enable_qty_formula) modeBadges += '📐';
       if (cfg.enable_conditional) modeBadges += '⚡';
       if (cfg.enable_candidate) modeBadges += '🎯';
-      if (cfg.enable_variant) modeBadges += '🌀';
+      if (cfg.enable_variant) modeBadges += '🧬';
       if (cfg.enable_specification) modeBadges += '📝';
       if (cfg.enable_supplier) modeBadges += '🏢';
       if (cfg.enable_structure) modeBadges += '🔗';
@@ -3925,7 +3925,7 @@ async function loadBomFormulaConfigs(partId) {
           <option value="qty_formula">📐 数量公式</option>
           <option value="conditional">📐⚡ 数量+条件</option>
           <option value="candidate">🎯 候选零件</option>
-          <option value="variant">🌀 动态项目</option>
+          <option value="variant">🧬 动态项目</option>
           <option value="specification">📝 规格描述</option>
           <option value="supplier">🏢 供应商选择</option>
           <option value="structure">🔗 结构控制</option>
@@ -3975,7 +3975,7 @@ async function loadAllBomFormulaConfigs(container) {
     {flag:'enable_qty_formula', icon:'📐', label:'数量'},
     {flag:'enable_conditional', icon:'⚡', label:'条件'},
     {flag:'enable_candidate', icon:'🎯', label:'候选'},
-    {flag:'enable_variant', icon:'🌀', label:'动态'},
+    {flag:'enable_variant', icon:'🧬', label:'动态'},
     {flag:'enable_specification', icon:'📝', label:'规格'},
     {flag:'enable_supplier', icon:'🏢', label:'供应'},
     {flag:'enable_structure', icon:'🔗', label:'结构'},
@@ -4084,7 +4084,7 @@ async function getCurrentModeAndRender(bomItemId) {
       modeSel = document.createElement('select');
       modeSel.id = 'fe-mode-select';
       modeSel.className = 'text-[10px] border border-gray-200 rounded px-1 py-0.5 ml-2';
-      modeSel.innerHTML = `<option value="standard">— 标准</option><option value="qty_formula">📐 数量公式</option><option value="conditional">📐⚡ 数量+条件</option><option value="candidate">🎯 候选零件</option><option value="variant">🌀 动态项目</option><option value="specification">📝 规格描述</option><option value="supplier">🏢 供应商选择</option><option value="structure">🔗 结构控制</option>`;
+      modeSel.innerHTML = `<option value="standard">— 标准</option><option value="qty_formula">📐 数量公式</option><option value="conditional">📐⚡ 数量+条件</option><option value="candidate">🎯 候选零件</option><option value="variant">🧬 动态项目</option><option value="specification">📝 规格描述</option><option value="supplier">🏢 供应商选择</option><option value="structure">🔗 结构控制</option>`;
       modeSel.onchange = function() { renderModeConfig(); };
       headerDiv.appendChild(modeSel);
     }
@@ -4746,7 +4746,7 @@ async function renderDashboard() {
     modeCounts[primary] = (modeCounts[primary] || 0) + 1;
   });
 
-  const modeLabels = {standard:'标准', qty_formula:'📐数量公式', conditional:'⚡条件包含', candidate:'🎯候选零件', variant:'🌀动态项目', specification:'📝规格描述', supplier:'🏢供应商选择', structure:'🏗️结构'};
+  const modeLabels = {standard:'标准', qty_formula:'📐数量公式', conditional:'⚡条件包含', candidate:'🎯候选零件', variant:'🧬动态项目', specification:'📝规格描述', supplier:'🏢供应商选择', structure:'🏗️结构'};
 
   let html = `
   <!-- Quick Stats -->

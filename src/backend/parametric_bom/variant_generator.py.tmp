@@ -1,0 +1,30 @@
+"""Variant Generator Service — Creates concrete Part variants from parametric configurations.
+
+Takes a completed ProductConfiguration and:
+1. Evaluates the configuration via bom_expander.evaluate_configuration()
+2. Creates a new Part as a variant of the template_part
+3. Copies parameter values as PartParameter records
+4. Creates a static BOM (BomItem records) from the computed quantities
+5. Updates the ProductConfiguration status to 'released' and stores the variant ID
+
+Phase 3 — Dynamic BOM Generation / Release.
+"""
+
+from __future__ import annotations
+
+from decimal import Decimal
+from typing import Any, Dict, List, Optional
+
+from django.db import transaction
+
+import structlog
+
+from parametric_bom.bom_expander import evaluate_configuration
+from parametric_bom.models import (
+    ConfigParameterValue,
+    ConfigStatusChoices,
+    ProductConfiguration,
+)
+from parametric_bom.models import VariantMapping
+
+logger = structlog.get_logger('inventree')
