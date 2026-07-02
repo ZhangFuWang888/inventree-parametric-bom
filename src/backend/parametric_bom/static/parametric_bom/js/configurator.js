@@ -1106,6 +1106,29 @@ function ceToggleTemplates() {
   }
 }
 
+// ===== DOWNLOAD: BOM CSV =====
+async function downloadBomCsv() {
+  const pid = configuratorPartId;
+  if (!pid) { setStatus('error', '请先选择产品'); return; }
+  window.open('/api/parametric-bom/export/bom-csv/?part_id=' + pid, '_blank');
+}
+
+// ===== DOWNLOAD: Attachment ZIP =====
+async function downloadAttachmentsZip() {
+  const pid = configuratorPartId;
+  if (!pid) { setStatus('error', '请先选择产品'); return; }
+  setStatus('loading', '正在打包附件...');
+  try {
+    const a = document.createElement('a');
+    a.href = '/api/parametric-bom/export/attachment-zip/?part_id=' + pid;
+    a.download = '';
+    a.click();
+    setStatus('success', '附件下载已开始');
+  } catch (e) {
+    setStatus('error', '下载失败: ' + e.message);
+  }
+}
+
 function ceInsertText(text) {
   const ta = document.getElementById('pbs-ce-input');
   if (!ta) return;

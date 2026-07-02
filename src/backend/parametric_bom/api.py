@@ -28,6 +28,10 @@ from parametric_bom.models import (
 )
 from InvenTree.filters import SEARCH_ORDER_FILTER
 
+from django.conf import settings
+from django.http import StreamingHttpResponse, FileResponse
+from django.contrib.contenttypes.models import ContentType
+
 from parametric_bom.serializers import (
     BomCandidatePartSerializer,
     BomSpecificationSerializer,
@@ -916,6 +920,170 @@ def template_library_auto_sync(request):
     category_id = request.data.get('category_id')
     result = auto_sync_category(category_id)
     return Response(result)
+
+
+# ── Export: BOM CSV ─────────────────────────
+
+@api_view(['GET'])
+@permission_classes([permissions.IsAuthenticated])
+def export_bom_csv(request):
+    """Export evaluated BOM tree as CSV download."""
+    import csv, io
+
+    from parametric_bom.bom_expander import evaluate_configuration, evaluate_part
+    from parametric_bom.models import ProductConfiguration
+
+    config_id = request.query_params.get('config_id')
+    part_id = request.query_params.get('part_id')
+
+    try:
+        if config_id:
+            config = ProductConfiguration.objects.get(pk=config_id)
+            result = evaluate_configuration(config)
+        elif part_id:
+            from part.models import Part
+            part = Part.objects.get(pk=part_id)
+            user_params = {}
+            if request.query_params.get('parameters'):
+                import json
+                user_params = json.loads(request.query_params['parameters'])
+            result = evaluate_part(part, user_params)
+        else:
+            return Response({'error': 'Provide config_id or part_id'}, status=400)
+    except Exception as exc:
+        logger.exception('BOM CSV export failed')
+        return Response({'error': str(exc)}, status=500)
+
+    bom_tree = result.get('bom_tree', {})
+    part_name = result.get('part_name', 'BOM')
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+
+    # Header
+    writer.writerow([
+        '\u5c42\u7ea7', '\u7269\u6599\u7f16\u7801', '\u7269\u6599\u540d\u79f0',
+        '\u6570\u91cf', '\u5355\u4f4d', '\u7c7b\u578b',
+        '\u53d8\u4f53\u540d\u79f0', '\u53d8\u4f53\u7f16\u7801', '\u5907\u6ce8',
+    ])
+
+    def flatten(node, parent_qty=1.0):
+        rows = []
+        depth = node.get('depth', 0)
+        children = node.get('children', [])
+        for child in children:
+            if child.get('excluded'):
+                continue
+            pid = child.get('actual_part_id', child.get('part_id', ''))
+            pname = child.get('actual_part_name', child.get('part_name', ''))
+            qty = child.get('calculated_quantity', 1) * parent_qty
+            ref = child.get('reference', '')
+            mode = child.get('mode', 'static')
+            vname = child.get('variant_name', '')
+            vipn = child.get('variant_ipn', '')
+            rows.append((
+                depth, pid, pname, qty,
+                mode, vname, vipn, ref,
+            ))
+            rows.extend(flatten(child, qty))
+        return rows
+
+    all_rows = flatten(bom_tree)
+    for row in all_rows:
+        writer.writerow(row)
+
+    csv_content = output.getvalue()
+    output.close()
+
+    safe_name = part_name.replace(' ', '_').replace('/', '_')
+    response = StreamingHttpResponse(
+        iter([csv_content]),
+        content_type='text/csv; charset=utf-8-sig',
+    )
+    response['Content-Disposition'] = (
+        f'attachment; filename="{safe_name}_BOM.csv"'
+    )
+    return response
+
+
+# ── Export: Attachment ZIP ──────────────────
+
+@api_view(['GET'])
+@permission_classes([permissions.IsAuthenticated])
+def export_attachment_zip(request):
+    """Pack all attachments of BOM sub-parts into a ZIP download."""
+    import zipfile, io, os
+
+    from parametric_bom.bom_expander import evaluate_configuration, evaluate_part, _flatten_bom
+    from parametric_bom.models import ProductConfiguration
+
+    config_id = request.query_params.get('config_id')
+    part_id = request.query_params.get('part_id')
+
+    try:
+        if config_id:
+            config = ProductConfiguration.objects.get(pk=config_id)
+            result = evaluate_configuration(config)
+        elif part_id:
+            from part.models import Part
+            part = Part.objects.get(pk=part_id)
+            user_params = {}
+            if request.query_params.get('parameters'):
+                import json
+                user_params = json.loads(request.query_params['parameters'])
+            result = evaluate_part(part, user_params)
+        else:
+            return Response({'error': 'Provide config_id or part_id'}, status=400)
+    except Exception as exc:
+        logger.exception('Attachment ZIP export failed')
+        return Response({'error': str(exc)}, status=500)
+
+    bom_tree = result.get('bom_tree', {})
+    part_name = result.get('part_name', 'Attachments')
+
+    # Collect all part IDs from flattened BOM
+    part_ids = set()
+    for pid, _ in _flatten_bom(bom_tree):
+        if pid:
+            part_ids.add(int(pid))
+
+    if not part_ids:
+        return Response({'error': '\u6ca1\u6709BOM\u7269\u6599\uff0c\u65e0\u9644\u4ef6\u53ef\u4e0b\u8f7d'}, status=400)
+
+    # Find attachments via ContentType
+    from common.models import Attachment
+    part_ct = ContentType.objects.get(app_label='part', model='part')
+    attachments = Attachment.objects.filter(
+        model_type=part_ct,
+        model_id__in=part_ids,
+    ).exclude(attachment='').select_related('upload_user')
+
+    if not attachments.exists():
+        return Response({'error': '\u672a\u627e\u5230\u4efb\u4f55\u9644\u4ef6'}, status=404)
+
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, 'w', zipfile.ZIP_DEFLATED) as zf:
+        for att in attachments:
+            try:
+                file_path = att.attachment.path if hasattr(att.attachment, 'path') else str(att.attachment)
+                if not os.path.isfile(file_path):
+                    continue
+                arcname = os.path.basename(file_path)
+                zf.write(file_path, arcname)
+            except Exception:
+                logger.exception(f'Failed to add attachment {att.pk} to ZIP')
+
+    buf.seek(0)
+
+    safe_name = part_name.replace(' ', '_').replace('/', '_')
+    response = FileResponse(
+        buf, content_type='application/zip',
+        filename=f'{safe_name}_attachments.zip',
+    )
+    response['Content-Disposition'] = (
+        f'attachment; filename="{safe_name}_attachments.zip"'
+    )
+    return response
 
 
 import structlog

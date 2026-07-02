@@ -23,6 +23,8 @@ from parametric_bom.api import (
     config_transition,
     create_bom_item,
     estimate_cost,
+    export_attachment_zip,
+    export_bom_csv,
     formula_preview,
     formula_validate,
     generate_variant,
@@ -79,4 +81,7 @@ parametric_api_urls = [
     path('configs/<int:config_id>/params/', config_set_params, name='config-set-params'),
     path('configs/<int:config_id>/snapshot/', config_snapshot, name='config-snapshot'),
     path('configs/<int:config_id>/detail/', config_detail, name='config-detail'),
+    # Export
+    path('export/bom-csv/', export_bom_csv, name='export-bom-csv'),
+    path('export/attachment-zip/', export_attachment_zip, name='export-attachment-zip'),
 ] + router.urls
