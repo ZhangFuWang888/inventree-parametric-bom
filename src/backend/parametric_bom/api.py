@@ -1017,7 +1017,7 @@ def _build_bom_xlsx(result):
             )
             ipn = child.get('variant_ipn', '') or ''
             qty = child.get('calculated_quantity', 1) * parent_qty
-            ref = child.get('reference', '') or ''
+            ref = str(child.get('reference', '') or child.get('reference_formula', '') or '')
             units = ''
 
             # Look up Part for IPN and units if not variant
