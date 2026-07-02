@@ -6,6 +6,7 @@ Passes URL lookup downstream to each app as required.
 from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
+from django.http import HttpResponseNotFound
 from django.urls import include, path, re_path
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic.base import RedirectView
@@ -173,6 +174,8 @@ urlpatterns += [
     path('parametric-bom/products/', configurator_view, {'page': 'products'}, name='parametric-products'),
     path('parametric-bom/params/', configurator_view, {'page': 'params'}, name='parametric-params'),
     path('parametric-bom/bom/', configurator_view, {'page': 'bom'}, name='parametric-bom'),
+    # Removed: three-step configurator → return 404
+    path('parametric-bom/config/', lambda r: HttpResponseNotFound('<h1>404 - 页面不存在</h1>'), name='parametric-config-gone'),
     path('parametric-bom/rules/', configurator_view, {'page': 'rules'}, name='parametric-rules'),
     # Legacy redirect
     path('configurator/', RedirectView.as_view(url='/parametric-bom/', permanent=True)),
