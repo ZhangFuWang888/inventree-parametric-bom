@@ -931,16 +931,64 @@ async function loadPdBOMM() {
   var vmByPbi = {};
   vmData.forEach(function(v) { vmByPbi[v.parametric_bom_item] = v; });
   
+  // Store globally for search filtering
+  window.__bomItems = items;
+  window.__bomPcfgMap = pcfgMap;
+  window.__bomVmByPbi = vmByPbi;
+  
+  // Clear search input on fresh load
+  const searchInput = document.getElementById('bom-search-input');
+  if (searchInput) searchInput.value = '';
+  
+  renderBOMTable(items, pcfgMap, vmByPbi);
   if (countBadge) countBadge.textContent = '共 ' + items.length + ' 项';
+}
+
+function filterBOMList() {
+  const q = (document.getElementById('bom-search-input').value || '').toLowerCase().trim();
+  const items = window.__bomItems || [];
+  const pcfgMap = window.__bomPcfgMap || {};
+  const vmByPbi = window.__bomVmByPbi || {};
+  const countBadge = document.getElementById('bom-count-badge');
+  const filterCount = document.getElementById('bom-filter-count');
+  
+  let filtered;
+  if (!q) {
+    filtered = items;
+    if (filterCount) filterCount.textContent = '';
+  } else {
+    filtered = items.filter(function(item) {
+      const subPartDetail = item.sub_part_detail || {};
+      const name = (subPartDetail.name || '').toLowerCase();
+      const ipn = (subPartDetail.ipn || '').toLowerCase();
+      // Also search in variant mapping template names
+      const cfg = pcfgMap[item.pk];
+      var vm = null;
+      if (cfg && cfg.enable_variant) vm = vmByPbi[cfg.id];
+      const tplName = vm ? (vm.template_part_name || '').toLowerCase() : '';
+      const tplIpn = vm ? (vm.template_part_ipn || '').toLowerCase() : '';
+      return name.indexOf(q) !== -1 || ipn.indexOf(q) !== -1 || tplName.indexOf(q) !== -1 || tplIpn.indexOf(q) !== -1;
+    });
+    if (filterCount) filterCount.textContent = filtered.length + '/' + items.length;
+  }
+  
+  renderBOMTable(filtered, pcfgMap, vmByPbi);
+  if (countBadge) countBadge.textContent = '共 ' + items.length + ' 项' + (q ? '（显示 ' + filtered.length + ' 项）' : '');
+}
+
+function renderBOMTable(items, pcfgMap, vmByPbi) {
+  const container = document.getElementById('pd-bom-list');
   if (!items.length) {
-    container.innerHTML = '<div class="bom-empty-state"><div class="bom-empty-icon">📋</div><p>该产品暂无BOM项</p></div>';
+    const q = (document.getElementById('bom-search-input').value || '').trim();
+    container.innerHTML = q
+      ? '<div class="bom-empty-state"><div class="bom-empty-icon">🔍</div><p>没有匹配的BOM项</p></div>'
+      : '<div class="bom-empty-state"><div class="bom-empty-icon">📋</div><p>该产品暂无BOM项</p></div>';
     return;
   }
 
   const formulaCols = [
     {key:'qty_formula', icon:'📐', label:'数量/公式', isQty:true},
     {key:'condition_formula', icon:'⚡', label:'条件公式'},
-    
     {key:'reference_formula', icon:'📝', label:'备注公式'},
   ];
 
@@ -1496,15 +1544,21 @@ async function openAddBomItemModal() {
   const countEl = document.getElementById('ab-search-count');
   if (countEl) countEl.textContent = '加载零件库中...';
   try {
-    const res = await fetch('/api/part/?limit=10000&ordering=name', {
+    const res = await fetch('/api/part/?limit=10000&ordering=-creation_date', {
       headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken()}, credentials: 'same-origin'
     });
     const data = res.ok ? (await res.json()) : [];
     const all = Array.isArray(data) ? data : (data.results || []);
     _allPartsCache = all.filter(function(p) { return p.pk != pid; });
-    _abAllParts = _allPartsCache.slice(0, 200);
-    renderAbPartList();
-    if (countEl) countEl.textContent = '共 ' + _allPartsCache.length + ' 个零件';
+    // Auto-retry search if user already typed something while loading
+    const searchVal = (document.getElementById('ab-search').value || '').trim();
+    if (searchVal) {
+      doAbFilter(searchVal);
+    } else {
+      _abAllParts = _allPartsCache.slice(0, 200);
+      renderAbPartList();
+      if (countEl) countEl.textContent = '共 ' + _allPartsCache.length + ' 个零件';
+    }
   } catch(e) {
     if (countEl) countEl.textContent = '加载失败';
   }
@@ -1533,8 +1587,8 @@ function doAbFilter(value) {
   }
   
   const matched = _allPartsCache.filter(p =>
-    (p.name || '').toLowerCase().includes(q) ||
-    (p.ipn || '').toLowerCase().includes(q) ||
+    (p.name || p.full_name || '').toLowerCase().includes(q) ||
+    (p.ipn || p.IPN || '').toLowerCase().includes(q) ||
     (p.description || '').toLowerCase().includes(q)
   );
   _abAllParts = matched.slice(0, 200);
@@ -1548,7 +1602,8 @@ function renderAbPartList() {
   const sel = document.getElementById('ab-sub-part');
   sel.innerHTML = '<option value="">-- 请选择零件 --</option>';
   _abAllParts.forEach(p => {
-    const label = `${p.name || p.full_name || `#${p.pk}`}${p.ipn ? ` (${p.ipn})` : ''}`;
+    const ipn = p.ipn || p.IPN || '';
+    const label = `${p.name || p.full_name || `#${p.pk}`}${ipn ? ` (${ipn})` : ''}`;
     sel.innerHTML += `<option value="${p.pk}">${label}</option>`;
   });
 }
@@ -1818,17 +1873,17 @@ function renderCfgBOM() {
       const icon = isVariant ? '🧬' : '📦';
       const name = hasDynamicName ? item.variant_name : (item.part_name || item.name || '未知');
       const qty = item.calculated_quantity != null ? item.calculated_quantity : (item.quantity != null ? item.quantity : (item.required_quantity || 1));
-      const ref = hasDynamicName ? (item.variant_ipn || item.ipn || item.part_ipn || '') : (item.ipn || item.part_ipn || '');
+      const code = hasDynamicName ? (item.variant_ipn || item.ipn || item.part_ipn || '') : (item.ipn || item.part_ipn || '');
       const partId = item.actual_part_id || item.part_id;
       
       const variantClass = isVariant ? ' variant-item' : '';
+      const codeInfo = code ? `<span class="cfg-bi-code">(${code})</span>` : '';
       const templateInfo = isVariant && item.template_part_name ? `<span class="cfg-bi-template">← ${item.template_part_name}</span>` : '';
       
       h += `<div class="cfg-bom-item cfg-bom-depth-${Math.min(depth,3)}${variantClass}">
         <span class="cfg-bi-icon${isVariant ? ' variant-icon' : ''}">${icon}</span>
-        <span class="cfg-bi-name${partId ? ' clickable-part' : ''}${isVariant ? ' variant-name' : ''}"${partId ? ` onclick="openPartDetail(${partId})" title="点击查看零件详情"` : ''}>${name}</span>
+        <span class="cfg-bi-name${partId ? ' clickable-part' : ''}${isVariant ? ' variant-name' : ''}"${partId ? ` onclick="openPartDetail(${partId})" title="点击查看零件详情"` : ''}>${name}${codeInfo}</span>
         ${templateInfo}
-        <span class="cfg-bi-ref">${ref}</span>
         <span class="cfg-bi-qty">×${qty}</span>
       </div>`;
       if (item.children && item.children.length) {
@@ -3366,7 +3421,7 @@ async function generateVariant() {
 async function finishConfig() {
   const name = document.getElementById('cfg-name-input').value.trim();
   if (name && !savedConfigId) await saveConfig();
-  if (savedConfigId) { await transitionConfig(); await generateVariant(); }
+  if (savedConfigId) await transitionConfig();
   showCfgResult('✅ 配置流程已完成!', true);
   setStatus('success', '配置完成');
 }
@@ -4737,7 +4792,7 @@ async function renderDashboard() {
       </div>
       <div class="bg-white rounded-lg p-3 border border-gray-100">
         <div class="flex items-center gap-2 mb-1.5"><span class="w-6 h-6 rounded-full bg-amber-600 text-white text-[10px] flex items-center justify-center font-bold">3</span><span class="text-xs font-semibold">测试配置器</span></div>
-        <p class="text-[10px] text-gray-500">在「产品配置器」调参数 → 实时看BOM → 生成变体</p>
+        <p class="text-[10px] text-gray-500">在「产品配置器」调参数 → 实时看BOM → 保存配置</p>
       </div>
     </div>
   </div>

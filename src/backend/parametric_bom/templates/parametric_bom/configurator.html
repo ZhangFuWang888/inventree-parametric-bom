@@ -1049,6 +1049,10 @@ textarea.input-field{resize:vertical;font-family:monospace;font-size:0.75rem}
             <span class="icon">💡</span>
             <span class="text">单击BOM项展开<strong>内联编辑面板</strong>，直接在界面中选择模式并编写公式，无需弹窗。参数名药丸按钮可快速插入。修改后点击「保存」即时生效。</span>
           </div>
+          <div class="flex items-center gap-2 mb-2">
+            <input class="input-field flex-1 min-w-0" id="bom-search-input" type="text" placeholder="🔍 搜索BOM物料名称或编码..." oninput="filterBOMList()" style="font-size:0.75rem;padding:0.375rem 0.5rem">
+            <span class="text-xs text-gray-400 whitespace-nowrap" id="bom-filter-count"></span>
+          </div>
           <div id="pd-bom-list">
             <div class="flex items-center justify-center py-6"><span class="spinner mr-2"></span><span class="text-sm text-gray-400">加载中...</span></div>
           </div>
@@ -1098,7 +1102,6 @@ textarea.input-field{resize:vertical;font-family:monospace;font-size:0.75rem}
             <div class="flex items-center gap-2">
               <button class="btn btn-sm btn-outline-primary" onclick="cfgResetParams()" title="恢复默认值">↩️ 重置</button>
               <button class="btn btn-sm btn-success" onclick="cfgSaveConfig()">💾 保存配置</button>
-              <button class="btn btn-sm btn-primary" onclick="cfgGenerateVariant()">🧬 生成变体</button>
             </div>
           </div>
         </div>
@@ -1483,7 +1486,6 @@ textarea.input-field{resize:vertical;font-family:monospace;font-size:0.75rem}
                 <button class="btn btn-primary" onclick="saveConfig()">💾 保存配置</button>
                 <button class="btn btn-warning" onclick="setConfigParams()">⚙️ 设置参数</button>
                 <button class="btn btn-success" onclick="transitionConfig()">✅ 过渡</button>
-                <button class="btn btn-outline-primary" onclick="generateVariant()">🧬 生成变体</button>
               </div>
               <div id="cfg-save-result" class="mt-3"></div>
             </div>
