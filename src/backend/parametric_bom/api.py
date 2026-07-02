@@ -1131,5 +1131,162 @@ def export_attachment_zip(request):
     return response
 
 
+# ── Export: BOM + Attachments Bundle ZIP ────
+
+@api_view(['GET', 'POST'])
+@permission_classes([permissions.IsAuthenticated])
+def export_bundle_zip(request):
+    """Export BOM XLSX + all attachment files in one ZIP.
+    
+    ZIP structure:
+      BOM清单.xlsx
+      附件/xxx.pdf
+      附件/yyy.jpg
+      ...
+    
+    GET: ?part_id=xxx or ?config_id=xxx
+    POST: JSON body {part_id, parameters:{}, config_id}
+    """
+    import zipfile, io, os
+    import openpyxl
+    from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
+
+    from parametric_bom.bom_expander import evaluate_configuration, evaluate_part, _flatten_bom
+    from parametric_bom.models import ProductConfiguration
+
+    if request.method == 'POST':
+        data = request.data
+    else:
+        data = request.query_params
+
+    config_id = data.get('config_id')
+    part_id = data.get('part_id')
+
+    try:
+        if config_id:
+            config = ProductConfiguration.objects.get(pk=config_id)
+            result = evaluate_configuration(config)
+        elif part_id:
+            from part.models import Part
+            part = Part.objects.get(pk=part_id)
+            user_params = data.get('parameters', {})
+            if isinstance(user_params, str):
+                import json
+                user_params = json.loads(user_params)
+            result = evaluate_part(part, user_params)
+        else:
+            return Response({'error': 'Provide config_id or part_id'}, status=400)
+    except Exception as exc:
+        logger.exception('Bundle export failed')
+        return Response({'error': str(exc)}, status=500)
+
+    bom_tree = result.get('bom_tree', {})
+    part_name = result.get('part_name', 'BOM')
+
+    # ── Generate XLSX in memory ──
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = 'BOM清单'
+
+    header_font = Font(name='微软雅黑', bold=True, size=10, color='FFFFFF')
+    header_fill = PatternFill(start_color='2563EB', end_color='2563EB', fill_type='solid')
+    header_align = Alignment(horizontal='center', vertical='center')
+    cell_font = Font(name='微软雅黑', size=9)
+    thin_border = Border(
+        left=Side(style='thin', color='D1D5DB'),
+        right=Side(style='thin', color='D1D5DB'),
+        top=Side(style='thin', color='D1D5DB'),
+        bottom=Side(style='thin', color='D1D5DB'),
+    )
+
+    headers = ['层级', '物料编码', '物料名称', '数量', '类型', '变体名称', '变体编码', '备注']
+    for col, h in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col, value=h)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = header_align
+        cell.border = thin_border
+
+    def flatten(node, row_num=2, parent_qty=1.0):
+        row = row_num
+        for child in node.get('children', []):
+            if child.get('excluded'):
+                continue
+            depth = child.get('depth', 0)
+            pid_v = child.get('actual_part_id', child.get('part_id', ''))
+            pname = child.get('actual_part_name', child.get('part_name', ''))
+            qty = child.get('calculated_quantity', 1) * parent_qty
+            ref = child.get('reference', '')
+            mode = child.get('mode', 'static')
+            vname = child.get('variant_name', '')
+            vipn = child.get('variant_ipn', '')
+            vals = [depth, pid_v, pname, qty, mode, vname, vipn, ref]
+            for col, v in enumerate(vals, 1):
+                cell = ws.cell(row=row, column=col, value=v)
+                cell.font = cell_font
+                cell.border = thin_border
+                if col == 1:
+                    cell.alignment = Alignment(horizontal='center')
+                elif col == 4:
+                    cell.number_format = '#,##0.00'
+                    cell.alignment = Alignment(horizontal='right')
+            row += 1
+            row = flatten(child, row, qty)
+        return row
+
+    flatten(bom_tree)
+
+    col_widths = [6, 14, 24, 10, 10, 16, 16, 20]
+    for i, w in enumerate(col_widths, 1):
+        ws.column_dimensions[openpyxl.utils.get_column_letter(i)].width = w
+
+    xlsx_buf = io.BytesIO()
+    wb.save(xlsx_buf)
+    xlsx_buf.seek(0)
+
+    # ── Collect attachments ──
+    part_ids = set()
+    for pid_v, _ in _flatten_bom(bom_tree):
+        if pid_v:
+            part_ids.add(int(pid_v))
+
+    attachments = []
+    if part_ids:
+        from common.models import Attachment
+        part_ct = ContentType.objects.get(app_label='part', model='part')
+        attachments = list(Attachment.objects.filter(
+            model_type=part_ct,
+            model_id__in=part_ids,
+        ).exclude(attachment=''))
+
+    # ── Build ZIP ──
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, 'w', zipfile.ZIP_DEFLATED) as zf:
+        # Add BOM xlsx
+        zf.writestr('BOM清单.xlsx', xlsx_buf.getvalue())
+        # Add attachments in 附件/ folder
+        for att in attachments:
+            try:
+                file_path = att.attachment.path if hasattr(att.attachment, 'path') else str(att.attachment)
+                if not os.path.isfile(file_path):
+                    continue
+                arcname = os.path.join('附件', os.path.basename(file_path))
+                zf.write(file_path, arcname)
+            except Exception:
+                logger.exception(f'Failed to add attachment {att.pk} to bundle')
+
+    buf.seek(0)
+
+    safe_name = part_name.replace(' ', '_').replace('/', '_')
+    response = FileResponse(
+        buf, content_type='application/zip',
+        filename=f'{safe_name}_BOM完整包.zip',
+    )
+    response['Content-Disposition'] = (
+        f'attachment; filename="{safe_name}_BOM完整包.zip"'
+    )
+    return response
+
+
 import structlog
 logger = structlog.get_logger('inventree')

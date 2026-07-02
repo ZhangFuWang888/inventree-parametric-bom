@@ -1129,6 +1129,13 @@ async function downloadAttachmentsZip() {
   }
 }
 
+// ===== DOWNLOAD: Bundle ZIP =====
+async function downloadBundleZip() {
+  const pid = configuratorPartId;
+  if (!pid) { setStatus('error', '请先选择产品'); return; }
+  window.open('/api/parametric-bom/export/bundle-zip/?part_id=' + pid, '_blank');
+}
+
 function ceInsertText(text) {
   const ta = document.getElementById('pbs-ce-input');
   if (!ta) return;
@@ -1967,6 +1974,28 @@ async function cfgDownloadAttachments() {
     a.click();
     URL.revokeObjectURL(a.href);
     setStatus('success', '附件包已下载');
+  } catch (e) { setStatus('error', '打包失败: ' + (e.message || e)); }
+}
+
+async function cfgDownloadBundle() {
+  const pid = configuratorPartId;
+  if (!pid) { setStatus('error', '请先选择产品'); return; }
+  const ctx = cfgGetParamContext();
+  setStatus('loading', '正在生成完整包...');
+  try {
+    const res = await fetch('/api/parametric-bom/export/bundle-zip/', {
+      method: 'POST', headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken()},
+      credentials: 'same-origin',
+      body: JSON.stringify({part_id: pid, parameters: ctx}),
+    });
+    if (!res.ok) { setStatus('error', '打包失败'); return; }
+    const blob = await res.blob();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'BOM完整包.zip';
+    a.click();
+    URL.revokeObjectURL(a.href);
+    setStatus('success', '完整包已下载');
   } catch (e) { setStatus('error', '打包失败: ' + (e.message || e)); }
 }
 

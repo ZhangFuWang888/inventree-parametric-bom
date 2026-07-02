@@ -25,6 +25,7 @@ from parametric_bom.api import (
     estimate_cost,
     export_attachment_zip,
     export_bom_csv,
+    export_bundle_zip,
     formula_preview,
     formula_validate,
     generate_variant,
@@ -84,4 +85,5 @@ parametric_api_urls = [
     # Export
     path('export/bom-csv/', export_bom_csv, name='export-bom-csv'),
     path('export/attachment-zip/', export_attachment_zip, name='export-attachment-zip'),
+    path('export/bundle-zip/', export_bundle_zip, name='export-bundle-zip'),
 ] + router.urls
