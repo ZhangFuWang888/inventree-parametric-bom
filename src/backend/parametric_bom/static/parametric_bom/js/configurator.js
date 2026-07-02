@@ -996,7 +996,7 @@ function renderBOMTable(items, pcfgMap, vmByPbi) {
   formulaCols.forEach(function(c) {
     colHeaders += '<th style="width:13%"><span class="col-icon">' + c.icon + '</span>' + c.label + '</th>';
   });
-  colHeaders += '<th style="width:4%"></th>';
+  colHeaders += '<th style="width:4%"></th><th style="width:2.5rem"></th>';
 
   let html = '<table class="pd-bom-spreadsheet"><thead><tr>' + colHeaders + '</tr></thead><tbody>';
 
@@ -1056,7 +1056,9 @@ function renderBOMTable(items, pcfgMap, vmByPbi) {
     }
 
     const escName = subPartName.replace(/'/g,"\\'");
-    rowHtml += '<td class="text-center"><button class="text-red-400 hover:text-red-600 text-xs p-1 rounded hover:bg-red-50" onclick="resetBomConfig(' + item.pk + ",'" + escName + "')" + '" title="从BOM移除">✕</button></td></tr>';
+    const escIpn = (subPartRef || '').replace(/'/g,"\\'");
+    rowHtml += '<td class="text-center"><button class="text-red-400 hover:text-red-600 text-xs p-1 rounded hover:bg-red-50" onclick="resetBomConfig(' + item.pk + ",'" + escName + "')" + '" title="从BOM移除">✕</button></td>';
+    rowHtml += '<td class="text-center"><button class="text-blue-400 hover:text-blue-600 text-xs p-1 rounded hover:bg-blue-50" onclick="cartAddStaticPart(' + item.sub_part + ",'" + escName + "','" + escIpn + "')" + '" title="加入购物车">🛒</button></td></tr>';
     html += rowHtml;
   }
   html += '</tbody></table>';
@@ -1883,6 +1885,9 @@ async function cfgExpandBOM() {
     document.getElementById('cfg-status-dot').textContent = '● 就绪';
     // Also estimate cost
     await cfgEstimateCost();
+    // Show cart button
+    var cartBtn = document.getElementById('cfg-add-cart-btn');
+    if (cartBtn) cartBtn.style.display = '';
   } catch(e) {
     container.innerHTML = '<div class="cfg-empty" style="color:#dc2626">❌ 展开出错</div>';
   }
@@ -3296,6 +3301,9 @@ async function expandConfigBOM() {
   await estimateConfigCost(false);
   goConfigStep(2);
   document.getElementById('cfg-to-step3').disabled = false;
+  // Show cart button
+  var cartBtn = document.getElementById('cfg-cart-btn');
+  if (cartBtn) cartBtn.style.display = '';
 }
 
 function renderBOMTree(data, containerId) {
@@ -5062,5 +5070,120 @@ async function createDemoProduct() {
     setStatus('error', `创建失败: ${e.message}`);
     btn.disabled = false;
     btn.textContent = '🚀 一键创建示例产品';
+  }
+}
+
+
+// ── Cart: Add Static Part ──
+
+async function cartAddStaticPart(partId, partName, partIpn) {
+  if (!partId) { setStatus('error', '无效零件'); return; }
+  const name = partName || '零件 #' + partId;
+  const ipn = partIpn || '';
+  const title = name + (ipn ? ' (' + ipn + ')' : '');
+  
+  // Check if already in cart
+  const listRes = await fetch('/api/parametric-bom/cart/', {credentials: 'same-origin'});
+  if (listRes.ok) {
+    const items = await listRes.json();
+    const existing = items.find(function(it) {
+      return it.item_type === 'static' && it.part === partId;
+    });
+    if (existing) {
+      // Increment quantity
+      await fetch('/api/parametric-bom/cart/' + existing.id + '/', {
+        method: 'PATCH',
+        headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken()},
+        credentials: 'same-origin',
+        body: JSON.stringify({quantity: (existing.quantity || 1) + 1})
+      });
+      setStatus('success', '✅ 数量+1: ' + name);
+      return;
+    }
+  }
+
+  const res = await fetch('/api/parametric-bom/cart/add/', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken()},
+    credentials: 'same-origin',
+    body: JSON.stringify({
+      item_type: 'static',
+      part: partId,
+      title: title,
+      quantity: 1
+    })
+  });
+  if (res.ok) {
+    setStatus('success', '✅ 已加入购物车: ' + name);
+    // Update badge
+    try {
+      const cntRes = await fetch('/api/parametric-bom/cart/count/', {credentials: 'same-origin'});
+      if (cntRes.ok) {
+        const cntData = await cntRes.json();
+        const cnt = cntData.count || 0;
+        var badge = document.getElementById('sidebar-cart-count');
+        if (badge) badge.textContent = cnt;
+        var fabBadge = document.getElementById('cart-fab-count');
+        if (fabBadge) fabBadge.textContent = cnt;
+      }
+    } catch(e) {}
+  } else {
+    const err = await res.json();
+    setStatus('error', '加入购物车失败: ' + JSON.stringify(err));
+  }
+}
+
+
+// ── Cart: Add from product detail configurator tab ──
+
+async function cfgAddToCart() {
+  const pid = configuratorPartId;
+  if (!pid) { setStatus('error', '请先选择产品'); return; }
+  if (!cfgBOMItems || !cfgBOMItems.length) { setStatus('error', '请先展开BOM'); return; }
+
+  const ctx = cfgGetParamContext();
+  const partName = document.querySelector('#pd-product-name')?.textContent?.trim() || '参数化产品';
+
+  // Build title from params
+  const paramEntries = Object.entries(ctx || {}).slice(0, 3);
+  const paramStr = paramEntries.map(function(kv) { return kv[0] + '=' + kv[1]; }).join(', ');
+  const hasMore = Object.keys(ctx || {}).length > 3;
+  const title = partName + (paramStr ? ' (' + paramStr + (hasMore ? '...' : '') + ')' : '');
+
+  const res = await fetch('/api/parametric-bom/cart/add/', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken()},
+    credentials: 'same-origin',
+    body: JSON.stringify({
+      item_type: 'parametric',
+      product_part: pid,
+      parameters: ctx,
+      bom_snapshot: {bom_tree: cfgBOMItems, part_name: partName},
+      title: title,
+      quantity: 1
+    })
+  });
+  if (res.ok) {
+    setStatus('success', '✅ 已加入购物车');
+    // Update badges
+    try {
+      var cntRes = await fetch('/api/parametric-bom/cart/count/', {credentials: 'same-origin'});
+      if (cntRes.ok) {
+        var cntData = await cntRes.json();
+        var cnt = cntData.count || 0;
+        var badge = document.getElementById('sidebar-cart-count');
+        if (badge) badge.textContent = cnt;
+        var fabBadge = document.getElementById('cart-fab-count');
+        if (fabBadge) fabBadge.textContent = cnt;
+        // Open cart panel
+        var panel = document.getElementById('cart-panel');
+        var overlay = document.getElementById('cart-overlay');
+        if (panel) panel.classList.add('open');
+        if (overlay) overlay.classList.add('show');
+      }
+    } catch(e) {}
+  } else {
+    var err = await res.json();
+    setStatus('error', '加入购物车失败: ' + JSON.stringify(err));
   }
 }

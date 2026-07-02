@@ -17,6 +17,11 @@ from parametric_bom.api import (
     VariantMappingViewSet,
     affected_variants,
     bom_evaluate,
+    cart_add,
+    cart_clear,
+    cart_count,
+    cart_item_detail,
+    cart_list,
     config_detail,
     config_set_params,
     config_snapshot,
@@ -86,4 +91,10 @@ parametric_api_urls = [
     path('export/bom-csv/', export_bom_csv, name='export-bom-csv'),
     path('export/attachment-zip/', export_attachment_zip, name='export-attachment-zip'),
     path('export/bundle-zip/', export_bundle_zip, name='export-bundle-zip'),
+    # Cart
+    path('cart/', cart_list, name='cart-list'),
+    path('cart/add/', cart_add, name='cart-add'),
+    path('cart/count/', cart_count, name='cart-count'),
+    path('cart/clear/', cart_clear, name='cart-clear'),
+    path('cart/<int:item_id>/', cart_item_detail, name='cart-item-detail'),
 ] + router.urls

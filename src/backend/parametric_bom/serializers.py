@@ -8,6 +8,7 @@ from parametric_bom.models import (
     BomCandidatePart,
     BomItemModeChoices,
     BomSpecification,
+    CartItem,
     ConfigParameterValue,
     InheritanceMapping,
     ParametricBomItem,
@@ -296,3 +297,42 @@ class PartVariableSerializer(serializers.ModelSerializer):
             return str(result) if result is not None else None
         except (EvaluationError, ParseError, ReferenceError, Exception):
             return None
+
+
+# ── Cart Serializers ─────────────────────────
+
+
+class CartItemSerializer(serializers.ModelSerializer):
+    """Serializer for CartItem."""
+
+    product_part_name = serializers.CharField(
+        source='product_part.name', read_only=True, default=None
+    )
+    product_part_ipn = serializers.CharField(
+        source='product_part.IPN', read_only=True, default=None
+    )
+    part_name = serializers.CharField(
+        source='part.name', read_only=True, default=None
+    )
+    part_ipn = serializers.CharField(
+        source='part.IPN', read_only=True, default=None
+    )
+    part_unit = serializers.CharField(
+        source='part.units', read_only=True, default=None
+    )
+    total_cost = serializers.DecimalField(
+        max_digits=19, decimal_places=4, read_only=True, default=None
+    )
+
+    class Meta:
+        model = CartItem
+        fields = [
+            'id', 'user', 'session_key', 'item_type',
+            'product_part', 'product_part_name', 'product_part_ipn',
+            'parameters', 'bom_snapshot',
+            'part', 'part_name', 'part_ipn', 'part_unit',
+            'title', 'quantity', 'notes',
+            'total_cost',
+            'created_at', 'updated_at',
+        ]
+        read_only_fields = ['user', 'created_at', 'updated_at', 'total_cost']

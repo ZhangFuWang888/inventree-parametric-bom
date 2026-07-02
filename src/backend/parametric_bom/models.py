@@ -1009,3 +1009,105 @@ class PartVariable(models.Model):
 
     def __str__(self):
         return f'{self.name} = {self.formula}'
+
+
+# ──────────────────────────────────────────────
+#  Shopping Cart
+# ──────────────────────────────────────────────
+
+class CartItem(models.Model):
+    """A shopping cart item, can be either a parametric product or a static part.
+
+    - parametric: links to a product template + parameter snapshot + BOM snapshot
+    - static: links to a single Part (standalone component)
+    """
+
+    ITEM_TYPES = [
+        ('parametric', _('Parametric product')),
+        ('static', _('Static part')),
+    ]
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='cart_items',
+        verbose_name=_('User'),
+    )
+    session_key = models.CharField(
+        max_length=64,
+        blank=True,
+        default='',
+        verbose_name=_('Session key'),
+        help_text=_('Session identifier for anonymous users'),
+    )
+    item_type = models.CharField(
+        max_length=20,
+        choices=ITEM_TYPES,
+        default='parametric',
+        verbose_name=_('Item type'),
+    )
+
+    # ── For parametric products ──
+    product_part = models.ForeignKey(
+        'part.Part',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='cart_items_as_product',
+        verbose_name=_('Product part'),
+        help_text=_('The parametric product template (for parametric items)'),
+    )
+    parameters = models.JSONField(
+        null=True,
+        blank=True,
+        verbose_name=_('Parameter snapshot'),
+        help_text=_('Parameter name-value map at add-to-cart time'),
+    )
+    bom_snapshot = models.JSONField(
+        null=True,
+        blank=True,
+        verbose_name=_('BOM snapshot'),
+        help_text=_('BOM expansion result cached at add-to-cart time'),
+    )
+
+    # ── For static parts ──
+    part = models.ForeignKey(
+        'part.Part',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='cart_items_as_part',
+        verbose_name=_('Part'),
+        help_text=_('The static part (for static items)'),
+    )
+
+    # ── Common fields ──
+    title = models.CharField(
+        max_length=256,
+        blank=True,
+        default='',
+        verbose_name=_('Title'),
+        help_text=_('Human-friendly name for this cart item'),
+    )
+    quantity = models.PositiveIntegerField(
+        default=1,
+        verbose_name=_('Quantity'),
+    )
+    notes = models.TextField(
+        blank=True,
+        default='',
+        verbose_name=_('Notes'),
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        app_label = 'parametric_bom'
+        verbose_name = _('Cart item')
+        verbose_name_plural = _('Cart items')
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return self.title or f'CartItem #{self.id}'

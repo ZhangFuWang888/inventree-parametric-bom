@@ -173,7 +173,6 @@ urlpatterns += [
     path('parametric-bom/products/', configurator_view, {'page': 'products'}, name='parametric-products'),
     path('parametric-bom/params/', configurator_view, {'page': 'params'}, name='parametric-params'),
     path('parametric-bom/bom/', configurator_view, {'page': 'bom'}, name='parametric-bom'),
-    path('parametric-bom/config/', configurator_view, {'page': 'config'}, name='parametric-config'),
     path('parametric-bom/rules/', configurator_view, {'page': 'rules'}, name='parametric-rules'),
     # Legacy redirect
     path('configurator/', RedirectView.as_view(url='/parametric-bom/', permanent=True)),

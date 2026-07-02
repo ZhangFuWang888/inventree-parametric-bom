@@ -387,10 +387,44 @@ textarea.input-field{resize:vertical;font-family:monospace;font-size:0.75rem}
 .type-part_ref{background:#fff7ed;color:#c2410c}
 
 /* Status bar */
-.status-bar{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid #e2e8f0;padding:0.5rem 1rem;font-size:0.75rem;color:#64748b;display:flex;align-items:center;gap:0.5rem;z-index:40;min-height:36px}
-.status-dot{width:8px;height:8px;border-radius:50%;display:inline-block;flex-shrink:0}
-.status-dot.idle{background:#94a3b8}
-.status-dot.loading{background:#f59e0b;animation:pulse 1s infinite}
+.status-bar{position:fixed;bottom:0;left:0;right:0;height:28px;background:#1e293b;color:#94a3b8;display:flex;align-items:center;padding:0 0.75rem;font-size:0.6875rem;gap:0.5rem;z-index:40}
+.status-dot{display:inline-block;width:6px;height:6px;border-radius:50%}
+.status-dot.idle{background:#22c55e}
+.status-dot.busy{background:#f59e0b;animation:pulse 1s infinite}
+
+/* ── Cart Panel ── */
+.cart-fab{position:fixed;bottom:3rem;right:1rem;z-index:45;display:flex;align-items:center;gap:0.375rem;background:#2563eb;color:#fff;border:none;border-radius:9999px;padding:0.625rem 1rem;cursor:pointer;font-size:0.8125rem;font-weight:500;box-shadow:0 2px 12px rgba(37,99,235,0.3);transition:all 0.15s}
+.cart-fab:hover{background:#1d4ed8;transform:scale(1.03)}
+.cart-fab .cart-badge{background:#ef4444;color:#fff;font-size:0.625rem;font-weight:700;min-width:1.125rem;height:1.125rem;border-radius:9999px;display:flex;align-items:center;justify-content:center;margin-left:0.125rem}
+
+.cart-panel-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.3);z-index:50;display:none;backdrop-filter:blur(1px)}
+.cart-panel-overlay.show{display:block}
+.cart-panel{position:fixed;top:0;right:0;width:420px;max-width:92vw;height:100vh;background:#fff;z-index:55;box-shadow:-4px 0 24px rgba(0,0,0,0.12);display:flex;flex-direction:column;transform:translateX(100%);transition:transform 0.25s ease}
+.cart-panel.open{transform:translateX(0)}
+.cart-panel-header{display:flex;align-items:center;justify-content:space-between;padding:0.875rem 1rem;border-bottom:1px solid #e2e8f0;font-size:0.9375rem;font-weight:600;color:#1e293b}
+.cart-panel-header .cart-close{background:none;border:none;font-size:1.25rem;cursor:pointer;color:#94a3b8;padding:0.25rem;line-height:1}
+.cart-panel-header .cart-close:hover{color:#475569}
+.cart-panel-body{flex:1;overflow-y:auto;padding:0.5rem}
+.cart-panel-footer{padding:0.75rem 1rem;border-top:1px solid #e2e8f0;display:flex;flex-direction:column;gap:0.5rem}
+.cart-panel-footer .cart-summary-row{display:flex;justify-content:space-between;font-size:0.8125rem;color:#64748b}
+.cart-panel-footer .cart-summary-row.total{font-weight:600;color:#1e293b;font-size:0.9375rem}
+
+.cart-item{display:flex;gap:0.625rem;padding:0.625rem 0.5rem;border-bottom:1px solid #f1f5f9;align-items:flex-start}
+.cart-item:last-child{border-bottom:none}
+.cart-item .ci-icon{font-size:1.25rem;flex-shrink:0;width:1.75rem;text-align:center;margin-top:0.125rem}
+.cart-item .ci-body{flex:1;min-width:0}
+.cart-item .ci-title{font-size:0.8125rem;font-weight:500;color:#1e293b;line-height:1.3}
+.cart-item .ci-meta{font-size:0.6875rem;color:#94a3b8;margin-top:0.125rem;display:flex;gap:0.5rem;flex-wrap:wrap}
+.cart-item .ci-actions{display:flex;align-items:center;gap:0.5rem;margin-top:0.375rem}
+.cart-item .ci-qty input{width:3.5rem;padding:0.125rem 0.375rem;border:1px solid #e2e8f0;border-radius:6px;font-size:0.75rem;text-align:center}
+.cart-item .ci-qty input:focus{outline:none;border-color:#2563eb}
+.cart-item .ci-del{background:none;border:none;color:#ef4444;cursor:pointer;font-size:0.75rem;padding:0.125rem 0.375rem;border-radius:4px}
+.cart-item .ci-del:hover{background:#fef2f2}
+
+/* Sidebar cart badge */
+.sidebar-cart{display:flex;align-items:center;gap:0.5rem;padding:0.625rem 1rem;color:#e2e8f0;cursor:pointer;transition:all 0.15s;font-size:0.8125rem;border-bottom:1px solid #334155}
+.sidebar-cart:hover{background:#334155;color:#fff}
+.sidebar-cart .sc-badge{background:#ef4444;color:#fff;font-size:0.625rem;font-weight:700;min-width:1.125rem;height:1.125rem;border-radius:9999px;display:flex;align-items:center;justify-content:center;margin-left:auto}
 .status-dot.success{background:#22c55e}
 .status-dot.error{background:#ef4444}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}
@@ -863,6 +897,9 @@ textarea.input-field{resize:vertical;font-family:monospace;font-size:0.75rem}
         🏷️ 产品管理
       </div>
     </div>
+    <div class="sidebar-cart" onclick="cartToggle()">
+      🛒 购物车 <span class="sc-badge" id="sidebar-cart-count">0</span>
+    </div>
     <div class="p-3 text-[10px] text-slate-600 border-t border-slate-700">
       参数化BOM v2.0
     </div>
@@ -1151,6 +1188,7 @@ textarea.input-field{resize:vertical;font-family:monospace;font-size:0.75rem}
               <div class="flex items-center justify-between mb-2">
                 <span class="text-xs font-semibold text-slate-500">🌳 BOM展开</span>
                 <div class="flex items-center gap-1">
+                  <button class="btn btn-sm btn-warning text-[10px] px-1.5 py-0.5" onclick="cfgAddToCart()" id="cfg-add-cart-btn" style="display:none">🛒 加入购物车</button>
                   <button class="btn btn-sm btn-outline-primary text-[10px] px-1.5 py-0.5" onclick="cfgDownloadBom()">📥 BOM清单</button>
                   <button class="btn btn-sm btn-outline-primary text-[10px] px-1.5 py-0.5" onclick="cfgDownloadAttachments()">📎 附件打包</button>
                   <button class="btn btn-sm btn-success text-[10px] px-1.5 py-0.5" onclick="cfgDownloadBundle()">📦 完整打包</button>
@@ -1397,134 +1435,37 @@ textarea.input-field{resize:vertical;font-family:monospace;font-size:0.75rem}
       </div>
     </div>
 
-    <!-- ===== PAGE 7: 产品配置器 ===== -->
-    <div class="page-panel" id="page-configurator">
-      <!-- Step indicators -->
-      <div class="page-help"><span class="icon">🚀</span><span class="text"><strong>最终用户入口</strong>。三步完成：①调参数→②实时BOM展开+成本估算→③保存生成具体变体Part。无需懂公式，像搭积木一样配产品。</span></div>
-      <!-- Step indicators -->
-      <div class="steps">
-        <div class="flex flex-col items-center">
-          <div class="step-circle active" id="cfg-step-circle-1">①</div>
-          <span class="step-label active" id="cfg-step-label-1">参数设置</span>
-        </div>
-        <div class="step-line" id="cfg-step-line-1"></div>
-        <div class="flex flex-col items-center">
-          <div class="step-circle pending" id="cfg-step-circle-2">②</div>
-          <span class="step-label pending" id="cfg-step-label-2">BOM预览</span>
-        </div>
-        <div class="step-line" id="cfg-step-line-2"></div>
-        <div class="flex flex-col items-center">
-          <div class="step-circle pending" id="cfg-step-circle-3">③</div>
-          <span class="step-label pending" id="cfg-step-label-3">保存生成</span>
-        </div>
-      </div>
-
-      <!-- Step 1: Select product & set params -->
-      <div class="step-panel active" id="cfg-step-1">
-        <div class="card">
-          <div class="card-header">📋 选择产品</div>
-          <div class="form-group mb-3">
-            <label class="block text-xs font-medium text-gray-500 mb-1.5">参数化产品</label>
-            <select class="input-field" id="cfg-part-select" onchange="onConfigPartChange(this.value)">
-              <option value="">-- 请选择产品 --</option>
-            </select>
-          </div>
-          <div id="cfg-part-info"></div>
-        </div>
-        <div class="card" id="cfg-params-card" style="display:none">
-          <div class="card-header">
-            <span>🔢 设置参数</span>
-            <span class="text-xs text-gray-400 font-normal ml-2">驱动参数</span>
-          </div>
-          <div id="cfg-param-fields"></div>
-          <div id="cfg-computed-area" style="display:none" class="mt-3"></div>
-        </div>
-        <div class="flex justify-end mt-3">
-          <button class="btn btn-primary btn-lg" id="cfg-to-step2" onclick="goConfigStep(2)" disabled>
-            展开BOM →
-          </button>
-        </div>
-      </div>
-
-      <!-- Step 2: BOM preview & cost -->
-      <div class="step-panel" id="cfg-step-2">
-        <div class="card">
-          <div class="card-header flex items-center justify-between">
-            <span>🌳 BOM展开结果</span>
-            <button class="btn btn-secondary btn-sm" onclick="expandConfigBOM()">
-              <span class="spinner" id="cfg-recalc-spinner" style="display:none"></span>
-              重新计算
-            </button>
-          </div>
-          <div id="cfg-bom-results">
-            <div class="empty-state"><div class="icon">🔍</div><p>请先展开BOM</p></div>
-          </div>
-        </div>
-        <div class="card" id="cfg-cost-card" style="display:none">
-          <div class="card-header flex items-center justify-between">
-            <span>💰 成本估算</span>
-            <div class="flex gap-1">
-              <button class="btn btn-secondary btn-sm" onclick="estimateConfigCost(false)">当前参数</button>
-              <button class="btn btn-secondary btn-sm" onclick="estimateConfigCost(true)">含加价</button>
-            </div>
-          </div>
-          <div id="cfg-cost-results">
-            <div class="empty-state"><div class="icon">💵</div><p>尚未计算成本</p></div>
-          </div>
-        </div>
-        <div class="flex justify-between mt-3">
-          <button class="btn btn-secondary" onclick="goConfigStep(1)">← 修改参数</button>
-          <button class="btn btn-primary btn-lg" id="cfg-to-step3" onclick="goConfigStep(3)" disabled>
-            保存配置 →
-          </button>
-        </div>
-      </div>
-
-      <!-- Step 3: Save & generate -->
-      <div class="step-panel" id="cfg-step-3">
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div class="md:col-span-2">
-            <div class="card">
-              <div class="card-header">💾 保存配置</div>
-              <div class="form-group mb-3">
-                <label class="block text-xs font-medium text-gray-500 mb-1.5">配置名称</label>
-                <input class="input-field" id="cfg-name-input" placeholder="例如: 标准配置 v1.0">
-              </div>
-              <div class="flex flex-wrap gap-2">
-                <button class="btn btn-primary" onclick="saveConfig()">💾 保存配置</button>
-                <button class="btn btn-warning" onclick="setConfigParams()">⚙️ 设置参数</button>
-              </div>
-              <div id="cfg-save-result" class="mt-3"></div>
-            </div>
-            <div class="card">
-              <div class="card-header">📋 参数摘要</div>
-              <div id="cfg-param-summary" class="text-sm text-gray-600">
-                <p class="text-gray-400">请先在步骤1中设置参数</p>
-              </div>
-            </div>
-          </div>
-          <div class="md:col-span-1">
-            <div class="card">
-              <div class="card-header flex items-center justify-between">
-                <span>📁 已有配置</span>
-                <span class="text-xs text-gray-400" id="cfg-config-count">0</span>
-              </div>
-              <div id="cfg-config-list" style="max-height:400px;overflow-y:auto">
-                <div class="empty-state"><div class="icon">📁</div><p>暂无配置</p></div>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="flex justify-between mt-3">
-          <button class="btn btn-secondary" onclick="goConfigStep(2)">← 返回BOM</button>
-          <button class="btn btn-success btn-lg" onclick="finishConfig()">✅ 完成配置</button>
-        </div>
-      </div>
-    </div>
     {% endif %}
 
   </div><!-- /main-content -->
 </div><!-- /layout-wrap -->
+
+<!-- ===== CART: Floating Button ===== -->
+<button class="cart-fab" id="cart-fab" onclick="cartToggle()">
+  🛒 <span>购物车</span> <span class="cart-badge" id="cart-fab-count">0</span>
+</button>
+
+<!-- ===== CART: Panel ===== -->
+<div class="cart-panel-overlay" id="cart-overlay" onclick="cartToggle()"></div>
+<div class="cart-panel" id="cart-panel">
+  <div class="cart-panel-header">
+    <span>🛒 购物车</span>
+    <div class="flex items-center gap-2">
+      <button class="text-xs text-red-500 hover:text-red-700 font-medium" onclick="cartClear()" style="background:none;border:none;cursor:pointer;padding:0.25rem 0.5rem;border-radius:4px">清空</button>
+      <button class="cart-close" onclick="cartToggle()">✕</button>
+    </div>
+  </div>
+  <div class="cart-panel-body" id="cart-items">
+    <div class="empty-state"><div class="icon">🛒</div><p>购物车是空的</p><p class="text-xs text-gray-400 mt-1">在配置器中展开BOM后点击「加入购物车」</p></div>
+  </div>
+  <div class="cart-panel-footer" id="cart-footer" style="display:none">
+    <div class="cart-summary-row">
+      <span>合计</span>
+      <span id="cart-total-items">0 件</span>
+    </div>
+    <button class="btn btn-primary w-full py-2" onclick="cartClose()">✅ 完成</button>
+  </div>
+</div>
 
 <!-- Status Bar -->
 <div class="status-bar" id="status-bar">
@@ -1860,8 +1801,158 @@ document.addEventListener('DOMContentLoaded', function() {
       window.CmFormulaEditor.initFormulaEditors(params);
     }, 500);
   }
+  // Load cart count on page load
+  setTimeout(loadCartCount, 300);
 });
 </script>
 <script src="/static/parametric_bom/js/configurator.js"></script>
+<script>
+/* ── Cart Functions ── */
+
+const CART_API_BASE = '/api/parametric-bom/cart';
+
+function csrfSafeMethod(method) {
+  return /^(GET|HEAD|OPTIONS|TRACE)$/.test(method);
+}
+
+function getCookie(name) {
+  let cookieValue = null;
+  if (document.cookie && document.cookie !== '') {
+    const cookies = document.cookie.split(';');
+    for (let i = 0; i < cookies.length; i++) {
+      const cookie = cookies[i].trim();
+      if (cookie.substring(0, name.length + 1) === (name + '=')) {
+        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+        break;
+      }
+    }
+  }
+  return cookieValue;
+}
+
+async function cartApi(method, path, body) {
+  const url = CART_API_BASE + path;
+  const opts = { method, headers: {'Content-Type': 'application/json'} };
+  if (!csrfSafeMethod(method)) {
+    opts.headers['X-CSRFToken'] = getCookie('csrftoken');
+  }
+  if (body) opts.body = JSON.stringify(body);
+  try {
+    const resp = await fetch(url, opts);
+    if (resp.status === 204) return {ok:true, data:null};
+    const data = await resp.json();
+    return {ok: resp.ok, data, status: resp.status};
+  } catch(e) {
+    return {ok:false, data:e.message};
+  }
+}
+
+async function loadCartCount() {
+  const r = await cartApi('GET', '/count/');
+  if (r.ok) {
+    const count = r.data.count || 0;
+    const sidebarBadge = document.getElementById('sidebar-cart-count');
+    if (sidebarBadge) sidebarBadge.textContent = count;
+    const fabBadge = document.getElementById('cart-fab-count');
+    if (fabBadge) fabBadge.textContent = count;
+  }
+}
+
+async function cartLoad() {
+  const r = await cartApi('GET', '/');
+  if (!r.ok) return;
+  const items = r.data;
+  const container = document.getElementById('cart-items');
+  const footer = document.getElementById('cart-footer');
+  if (!items || items.length === 0) {
+    container.innerHTML = '<div class="empty-state"><div class="icon">🛒</div><p>购物车是空的</p><p class="text-xs text-gray-400 mt-1">在配置器中展开BOM后点击「加入购物车」</p></div>';
+    footer.style.display = 'none';
+    return;
+  }
+  let html = '';
+  let totalQty = 0;
+  items.forEach(item => {
+    totalQty += item.quantity || 1;
+    html += renderCartItem(item);
+  });
+  container.innerHTML = html;
+  document.getElementById('cart-total-items').textContent = totalQty + ' 件';
+  footer.style.display = 'flex';
+  loadCartCount();
+}
+
+function renderCartItem(item) {
+  const isParametric = item.item_type === 'parametric';
+  const icon = isParametric ? '📦' : '⚙️';
+  const name = item.title || item.product_part_name || item.part_name || '未命名';
+  const meta = isParametric
+    ? `参数化产品 · ${item.product_part_ipn || ''}`
+    : `静态零件 · ${item.part_ipn || ''} · ${item.part_unit || ''}`;
+  const bomCount = item.bom_snapshot
+    ? (Array.isArray(item.bom_snapshot) ? item.bom_snapshot.length : (item.bom_snapshot.bom_tree ? item.bom_snapshot.bom_tree.length : 0))
+    : null;
+  const bomInfo = bomCount ? ` · BOM: ${bomCount}项物料` : '';
+  return `<div class="cart-item" data-id="${item.id}">
+    <div class="ci-icon">${icon}</div>
+    <div class="ci-body">
+      <div class="ci-title">${name}</div>
+      <div class="ci-meta">${meta}${bomInfo}</div>
+      <div class="ci-actions">
+        <div class="ci-qty">
+          <input type="number" min="1" max="9999" value="${item.quantity || 1}" onchange="cartUpdateQty(${item.id}, this.value)" onfocus="this.select()">
+        </div>
+        <button class="ci-del" onclick="cartDeleteItem(${item.id})">🗑️ 删除</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function cartToggle() {
+  const panel = document.getElementById('cart-panel');
+  const overlay = document.getElementById('cart-overlay');
+  const open = panel.classList.contains('open');
+  if (!open) {
+    cartLoad();
+    panel.classList.add('open');
+    overlay.classList.add('show');
+  } else {
+    panel.classList.remove('open');
+    overlay.classList.remove('show');
+  }
+}
+
+function cartClose() {
+  document.getElementById('cart-panel').classList.remove('open');
+  document.getElementById('cart-overlay').classList.remove('show');
+}
+
+async function cartUpdateQty(id, qty) {
+  qty = parseInt(qty) || 1;
+  if (qty < 1) qty = 1;
+  if (qty > 9999) qty = 9999;
+  const r = await cartApi('PATCH', '/' + id + '/', {quantity: qty});
+  if (r.ok) {
+    loadCartCount();
+    cartLoad();
+  }
+}
+
+async function cartDeleteItem(id) {
+  const r = await cartApi('DELETE', '/' + id + '/');
+  if (r.ok) {
+    loadCartCount();
+    cartLoad();
+  }
+}
+
+async function cartClear() {
+  if (!confirm('确认清空购物车吗？')) return;
+  const r = await cartApi('POST', '/clear/');
+  if (r.ok) {
+    loadCartCount();
+    cartLoad();
+  }
+}
+</script>
 </body>
 </html>

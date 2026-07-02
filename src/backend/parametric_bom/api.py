@@ -15,6 +15,7 @@ from parametric_bom.formula_engine.errors import (
 from parametric_bom.models import (
     BomCandidatePart,
     BomSpecification,
+    CartItem,
     ConfigParameterValue,
     ConfigStatusChoices,
     InheritanceMapping,
@@ -35,6 +36,7 @@ from django.contrib.contenttypes.models import ContentType
 from parametric_bom.serializers import (
     BomCandidatePartSerializer,
     BomSpecificationSerializer,
+    CartItemSerializer,
     ConfigParameterValueSerializer,
     InheritanceMappingSerializer,
     ParametricBomItemSerializer,
@@ -1281,6 +1283,93 @@ def export_bundle_zip(request):
         f'attachment; filename="{safe_name}_BOM完整包.zip"'
     )
     return response
+
+
+# ── Cart API ─────────────────────────────────
+
+
+@api_view(['GET'])
+@permission_classes([permissions.AllowAny])
+def cart_list(request):
+    """List cart items for the current user/session."""
+    if request.user.is_authenticated:
+        items = CartItem.objects.filter(user=request.user)
+    else:
+        sk = request.session.session_key or ''
+        items = CartItem.objects.filter(session_key=sk)
+    serializer = CartItemSerializer(items, many=True)
+    return Response(serializer.data)
+
+
+@api_view(['POST'])
+@permission_classes([permissions.AllowAny])
+def cart_add(request):
+    """Add an item to the cart."""
+    data = request.data.copy()
+    if request.user.is_authenticated:
+        data['user'] = request.user.pk
+    else:
+        if not request.session.session_key:
+            request.session.create()
+        data['session_key'] = request.session.session_key
+    serializer = CartItemSerializer(data=data)
+    if serializer.is_valid():
+        serializer.save()
+        return Response(serializer.data, status=201)
+    return Response(serializer.errors, status=400)
+
+
+@api_view(['PATCH', 'DELETE'])
+@permission_classes([permissions.AllowAny])
+def cart_item_detail(request, item_id):
+    """Update or delete a cart item."""
+    try:
+        item = CartItem.objects.get(pk=item_id)
+    except CartItem.DoesNotExist:
+        return Response({'error': 'Cart item not found'}, status=404)
+    # Ownership check
+    if item.user and request.user.is_authenticated and item.user != request.user:
+        return Response({'error': 'Permission denied'}, status=403)
+    elif item.session_key and item.session_key != request.session.session_key:
+        if not request.session.session_key and not request.user.is_authenticated:
+            # Anonymous request, no session — allow (first-time visitors)
+            pass
+        elif item.session_key != request.session.session_key:
+            return Response({'error': 'Permission denied'}, status=403)
+    if request.method == 'DELETE':
+        item.delete()
+        return Response(status=204)
+    # PATCH
+    serializer = CartItemSerializer(item, data=request.data, partial=True)
+    if serializer.is_valid():
+        serializer.save()
+        return Response(serializer.data)
+    return Response(serializer.errors, status=400)
+
+
+@api_view(['POST'])
+@permission_classes([permissions.AllowAny])
+def cart_clear(request):
+    """Clear all cart items for the current user/session."""
+    if request.user.is_authenticated:
+        items = CartItem.objects.filter(user=request.user)
+    else:
+        sk = request.session.session_key or ''
+        items = CartItem.objects.filter(session_key=sk)
+    count, _ = items.delete()
+    return Response({'deleted': count})
+
+
+@api_view(['GET'])
+@permission_classes([permissions.AllowAny])
+def cart_count(request):
+    """Get the cart item count for the current user/session."""
+    if request.user.is_authenticated:
+        count = CartItem.objects.filter(user=request.user).count()
+    else:
+        sk = request.session.session_key or ''
+        count = CartItem.objects.filter(session_key=sk).count()
+    return Response({'count': count})
 
 
 import structlog
