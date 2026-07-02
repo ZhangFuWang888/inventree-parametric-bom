@@ -1307,16 +1307,21 @@ def cart_add(request):
     """Add an item to the cart."""
     data = request.data.copy()
     if request.user.is_authenticated:
-        data['user'] = request.user.pk
+        # user is read_only in serializer, must pass via save()
+        serializer = CartItemSerializer(data=data)
+        if serializer.is_valid():
+            serializer.save(user=request.user)
+            return Response(serializer.data, status=201)
+        return Response(serializer.errors, status=400)
     else:
         if not request.session.session_key:
             request.session.create()
         data['session_key'] = request.session.session_key
-    serializer = CartItemSerializer(data=data)
-    if serializer.is_valid():
-        serializer.save()
-        return Response(serializer.data, status=201)
-    return Response(serializer.errors, status=400)
+        serializer = CartItemSerializer(data=data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=201)
+        return Response(serializer.errors, status=400)
 
 
 @api_view(['PATCH', 'DELETE'])
