@@ -1922,6 +1922,54 @@ function renderCfgBOM() {
   container.innerHTML = html;
 }
 
+// ===== DOWNLOAD from Configurator Step =====
+async function cfgDownloadBom() {
+  const pid = configuratorPartId;
+  if (!pid) { setStatus('error', '请先选择产品'); return; }
+  const ctx = cfgGetParamContext();
+  try {
+    const res = await fetch('/api/parametric-bom/export/bom-csv/', {
+      method: 'POST', headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken()},
+      credentials: 'same-origin',
+      body: JSON.stringify({part_id: pid, parameters: ctx}),
+    });
+    if (!res.ok) { setStatus('error', '导出失败'); return; }
+    const blob = await res.blob();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'BOM清单.xlsx';
+    a.click();
+    URL.revokeObjectURL(a.href);
+    setStatus('success', 'BOM清单已下载');
+  } catch (e) { setStatus('error', '导出失败: ' + (e.message || e)); }
+}
+
+async function cfgDownloadAttachments() {
+  const pid = configuratorPartId;
+  if (!pid) { setStatus('error', '请先选择产品'); return; }
+  const ctx = cfgGetParamContext();
+  setStatus('loading', '正在打包附件...');
+  try {
+    const res = await fetch('/api/parametric-bom/export/attachment-zip/', {
+      method: 'POST', headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken()},
+      credentials: 'same-origin',
+      body: JSON.stringify({part_id: pid, parameters: ctx}),
+    });
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      setStatus('error', errData.error || '打包失败');
+      return;
+    }
+    const blob = await res.blob();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'attachments.zip';
+    a.click();
+    URL.revokeObjectURL(a.href);
+    setStatus('success', '附件包已下载');
+  } catch (e) { setStatus('error', '打包失败: ' + (e.message || e)); }
+}
+
 async function cfgEstimateCost() {
   const pid = configuratorPartId;
   if (!pid) return;

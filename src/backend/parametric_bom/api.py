@@ -924,18 +924,27 @@ def template_library_auto_sync(request):
 
 # ── Export: BOM XLSX ─────────────────────────
 
-@api_view(['GET'])
+@api_view(['GET', 'POST'])
 @permission_classes([permissions.IsAuthenticated])
 def export_bom_csv(request):
-    """Export evaluated BOM tree as XLSX download."""
+    """Export evaluated BOM tree as XLSX download.
+    
+    GET: ?part_id=xxx or ?config_id=xxx
+    POST: JSON body {part_id, parameters:{}, config_id}
+    """
     import openpyxl, io
     from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
 
     from parametric_bom.bom_expander import evaluate_configuration, evaluate_part
     from parametric_bom.models import ProductConfiguration
 
-    config_id = request.query_params.get('config_id')
-    part_id = request.query_params.get('part_id')
+    if request.method == 'POST':
+        data = request.data
+    else:
+        data = request.query_params
+
+    config_id = data.get('config_id')
+    part_id = data.get('part_id')
 
     try:
         if config_id:
@@ -944,10 +953,10 @@ def export_bom_csv(request):
         elif part_id:
             from part.models import Part
             part = Part.objects.get(pk=part_id)
-            user_params = {}
-            if request.query_params.get('parameters'):
+            user_params = data.get('parameters', {})
+            if isinstance(user_params, str):
                 import json
-                user_params = json.loads(request.query_params['parameters'])
+                user_params = json.loads(user_params)
             result = evaluate_part(part, user_params)
         else:
             return Response({'error': 'Provide config_id or part_id'}, status=400)
@@ -1035,17 +1044,26 @@ def export_bom_csv(request):
 
 # ── Export: Attachment ZIP ──────────────────
 
-@api_view(['GET'])
+@api_view(['GET', 'POST'])
 @permission_classes([permissions.IsAuthenticated])
 def export_attachment_zip(request):
-    """Pack all attachments of BOM sub-parts into a ZIP download."""
+    """Pack all attachments of BOM sub-parts into a ZIP download.
+    
+    GET: ?part_id=xxx or ?config_id=xxx
+    POST: JSON body {part_id, parameters:{}, config_id}
+    """
     import zipfile, io, os
 
     from parametric_bom.bom_expander import evaluate_configuration, evaluate_part, _flatten_bom
     from parametric_bom.models import ProductConfiguration
 
-    config_id = request.query_params.get('config_id')
-    part_id = request.query_params.get('part_id')
+    if request.method == 'POST':
+        data = request.data
+    else:
+        data = request.query_params
+
+    config_id = data.get('config_id')
+    part_id = data.get('part_id')
 
     try:
         if config_id:
@@ -1054,10 +1072,10 @@ def export_attachment_zip(request):
         elif part_id:
             from part.models import Part
             part = Part.objects.get(pk=part_id)
-            user_params = {}
-            if request.query_params.get('parameters'):
+            user_params = data.get('parameters', {})
+            if isinstance(user_params, str):
                 import json
-                user_params = json.loads(request.query_params['parameters'])
+                user_params = json.loads(user_params)
             result = evaluate_part(part, user_params)
         else:
             return Response({'error': 'Provide config_id or part_id'}, status=400)

@@ -1149,7 +1149,11 @@ textarea.input-field{resize:vertical;font-family:monospace;font-size:0.75rem}
             <div class="card" style="padding:0.75rem">
               <div class="flex items-center justify-between mb-2">
                 <span class="text-xs font-semibold text-slate-500">🌳 BOM展开</span>
-                <button class="btn btn-sm btn-outline-primary text-[10px] px-1.5 py-0.5" onclick="cfgExpandBOM()">重新计算</button>
+                <div class="flex items-center gap-1">
+                  <button class="btn btn-sm btn-outline-primary text-[10px] px-1.5 py-0.5" onclick="cfgDownloadBom()">📥 BOM清单</button>
+                  <button class="btn btn-sm btn-outline-primary text-[10px] px-1.5 py-0.5" onclick="cfgDownloadAttachments()">📎 附件打包</button>
+                  <button class="btn btn-sm btn-outline-primary text-[10px] px-1.5 py-0.5" onclick="cfgExpandBOM()">重新计算</button>
+                </div>
               </div>
               <div id="cfg-bom-preview" class="cfg-bom-tree">
                 <div class="cfg-empty"><div class="cfg-empty-icon">📋</div>调参数后自动展开BOM</div>
