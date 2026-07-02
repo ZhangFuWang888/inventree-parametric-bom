@@ -632,7 +632,7 @@ function renderParamCard(cfg, idx) {
         <span class="ml-1">步长</span>
         <input type="number" value="${cfg.step_value != null ? cfg.step_value : ''}" step="0.01" placeholder="自动"
           style="width:60px;padding:0.125rem 0.25rem;font-size:0.65rem"
-          onchange="markDirty(${cfgId},{step_value:this.value||null}); showDirtyButtons()">
+          onchange="var s=parseFloat(this.value);if(s>0){var pc=this.closest('.pc-value');var slider=pc?pc.querySelector('input[type=range]'):null;var cur=slider?parseFloat(slider.value):0;var m=slider?parseFloat(slider.min):0;var snap=m+Math.round((cur-m)/s)*s;if(slider){slider.step=s;slider.value=snap;}if(pc){var valSpan=pc.querySelector('.pc-slider-val');if(valSpan)valSpan.textContent=snap;}markDirty(${cfgId},{step_value:s,default_value:String(snap)});}else{markDirty(${cfgId},{step_value:this.value||null});}showDirtyButtons()">
       </div>
     </div>`;
     
@@ -1740,8 +1740,11 @@ function renderCfgParamControl(cfg, name, type, val) {
     const max = cfg.max_value != null ? parseFloat(cfg.max_value) : 10000;
     const step = cfg.step_value != null ? parseFloat(cfg.step_value) : (max - min > 100 ? 1 : 0.1);
     const v = val !== '' ? parseFloat(val) : min;
+    // Values must be v + step*N within [min, max]
+    const effMin = min >= v ? min : (v + Math.ceil((min - v) / step) * step);
+    const effMax = max <= v ? max : (v + Math.floor((max - v) / step) * step);
     controlHtml = `<div class="cfg-pg-slider">
-      <input type="range" min="${min}" max="${max}" step="${step}" value="${v}" data-cfg-id="${cid}"
+      <input type="range" min="${effMin}" max="${effMax}" step="${step}" value="${v}" data-cfg-id="${cid}"
         oninput="cfgSliderInput(this, ${cid})" onchange="${changeFn}">
       <span class="cfg-pg-val" id="cfg-val-${cid}">${v}</span>
     </div>
@@ -1922,16 +1925,16 @@ async function cfgSaveConfig() {
   setStatus('loading', '保存配置...');
   const ctx = cfgGetParamContext();
   const res = await apiCall('POST', 'configurations/', {
-    part: parseInt(pid),
-    name: name || `配置 ${Date.now()}`,
-    parameters: ctx,
-    status: 'draft',
+    template_part: parseInt(pid),
+    title: name || `配置 ${Date.now()}`,
+    params_snapshot: ctx,
   });
   if (!res.error) {
     setStatus('success', `✅ 配置「${name}」已保存`);
     await cfgLoadConfigs();
   } else {
-    setStatus('error', `保存失败: ${res.error}`);
+    const detail = res.data ? (res.data.error || res.data.detail || JSON.stringify(res.data).substring(0,100)) : '未知错误';
+    setStatus('error', `保存失败: ${detail}`);
   }
 }
 
@@ -2362,12 +2365,10 @@ async function cfgLoadConfigs() {
   }
   let html = '';
   configs.forEach(c => {
-    const statusClass = c.status === 'completed' ? 'completed' : 'draft';
-    const statusLabel = c.status === 'completed' ? '已完成' : '草稿';
     html += `<div class="cfg-saved-item" onclick="loadConfigParams(${c.id})" title="点击加载此配置">
       <div class="flex items-center justify-between">
-        <span class="cfg-si-name">${c.name || `配置 #${c.id}`}</span>
-        <span class="cfg-si-status ${statusClass}">${statusLabel}</span>
+        <span class="cfg-si-name">${c.title || c.name || `配置 #${c.id}`}</span>
+        <button class="text-red-400 hover:text-red-600 text-xs p-1 rounded hover:bg-red-50 ml-2" onclick="event.stopPropagation();cfgDeleteConfig(${c.id})" title="删除此配置">✕</button>
       </div>
       <div class="cfg-si-meta">
         <span>${new Date(c.created_at || c.created || Date.now()).toLocaleDateString('zh-CN')}</span>
@@ -2376,6 +2377,17 @@ async function cfgLoadConfigs() {
     </div>`;
   });
   listEl.innerHTML = html;
+}
+
+async function cfgDeleteConfig(configId) {
+  if (!confirm('确定删除此配置？')) return;
+  const res = await apiCall('DELETE', `configurations/${configId}/`);
+  if (!res.error) {
+    setStatus('success', '✅ 配置已删除');
+    await cfgLoadConfigs();
+  } else {
+    setStatus('error', `删除失败: ${res.data ? (res.data.error || res.data.detail || '未知错误') : '未知错误'}`);
+  }
 }
 
 function loadConfigParams(configId) {
@@ -3421,7 +3433,6 @@ async function generateVariant() {
 async function finishConfig() {
   const name = document.getElementById('cfg-name-input').value.trim();
   if (name && !savedConfigId) await saveConfig();
-  if (savedConfigId) await transitionConfig();
   showCfgResult('✅ 配置流程已完成!', true);
   setStatus('success', '配置完成');
 }
