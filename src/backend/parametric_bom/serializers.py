@@ -16,7 +16,6 @@ from parametric_bom.models import (
     PartParameterConfig,
     PartVariable,
     ProductConfiguration,
-    SupplierSelectionRule,
     VariantMapping,
 )
 
@@ -67,7 +66,6 @@ class ParametricBomItemSerializer(serializers.ModelSerializer):
             ('enable_candidate', 'candidate'),
             ('enable_variant', 'variant'),
             ('enable_specification', 'specification'),
-            ('enable_supplier', 'supplier'),
             ('enable_structure', 'structure'),
         ]
         for field, mode_name in mapping:
@@ -81,10 +79,11 @@ class ParametricBomItemSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'bom_item', 'part_name', 'sub_part_name',
             'enable_qty_formula', 'enable_conditional', 'enable_candidate',
-            'enable_variant', 'enable_specification', 'enable_supplier',
-            'enable_structure',
+            'enable_variant',
+            'enable_specification', 'enable_structure',
+            'has_formula', 'active_modes',
             'qty_formula', 'condition_formula', 'part_selector_formula',
-            'supplier_formula', 'reference_formula',
+            'reference_formula', 'param_mapping',
             'formular_hash', 'has_formula', 'active_modes',
         ]
 
@@ -183,6 +182,9 @@ class VariantMappingSerializer(serializers.ModelSerializer):
     template_part_name = serializers.CharField(
         source='template_part.name', read_only=True
     )
+    template_part_ipn = serializers.CharField(
+        source='template_part.IPN', read_only=True
+    )
     parametric_bom_item_part = serializers.CharField(
         source='parametric_bom_item.bom_item.part.name', read_only=True
     )
@@ -192,8 +194,8 @@ class VariantMappingSerializer(serializers.ModelSerializer):
         model = VariantMapping
         fields = [
             'id', 'parametric_bom_item', 'parametric_bom_item_part',
-            'template_part', 'template_part_name',
-            'param_mapping', 'variant_name_template', 'auto_generate',
+            'template_part', 'template_part_name', 'template_part_ipn',
+            'param_mapping', 'variant_name_template', 'variant_ipn_template',
         ]
 
 
@@ -211,26 +213,6 @@ class BomSpecificationSerializer(serializers.ModelSerializer):
             'id', 'parametric_bom_item', 'parametric_bom_item_part',
             'spec_type', 'spec_fields',
             'drawing_ref_formula', 'unit_cost_formula', 'notes',
-        ]
-
-
-class SupplierSelectionRuleSerializer(serializers.ModelSerializer):
-    """Serializer for SupplierSelectionRule."""
-
-    supplier_part_name = serializers.CharField(
-        source='supplier_part.', read_only=True
-    )
-    parametric_bom_item_part = serializers.CharField(
-        source='parametric_bom_item.bom_item.part.name', read_only=True
-    )
-
-    class Meta:
-        """Meta options."""
-        model = SupplierSelectionRule
-        fields = [
-            'id', 'parametric_bom_item', 'parametric_bom_item_part',
-            'supplier_part', 'supplier_part_name',
-            'condition_formula', 'priority', 'label',
         ]
 
 

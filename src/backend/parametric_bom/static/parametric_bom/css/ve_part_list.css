@@ -1,0 +1,6 @@
+
+/* ── Variant Editor Part List ── */
+.ve-part-list { background: #fff; scrollbar-width: thin; }
+.ve-part-list .ve-part-item { transition: background 0.12s; font-size: 0.75rem; }
+.ve-part-list .ve-part-item:hover { background: #eff6ff; }
+.ve-part-list .ve-part-item:active { background: #dbeafe; }

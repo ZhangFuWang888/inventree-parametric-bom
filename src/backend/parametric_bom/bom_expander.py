@@ -5,7 +5,7 @@ expands the BOM tree, evaluating formulas for quantities, conditions,
 and part selection at each level.
 
 Supports all 12 parametric scenarios including candidate selection,
-variant generation, specification output, supplier selection,
+variant generation, and specification output,
 attribute formulas, and parameter inheritance.
 """
 
@@ -311,7 +311,6 @@ def _expand_single_bom_item(
     - candidate: Select from BomCandidatePart list
     - variant: Generate variant from template (VariantMapping)
     - specification: Outsource by spec (BomSpecification)
-    - supplier: Select supplier (SupplierSelectionRule)
     - structure: Structural sub-assembly control
 
     Returns None if the item is excluded by condition formula.
@@ -346,12 +345,8 @@ def _expand_single_bom_item(
     # Determine primary mode from enable flags (priority: most specific first)
     if parametric_cfg.enable_candidate:
         child_node['mode'] = 'candidate'
-    elif parametric_cfg.enable_variant:
-        child_node['mode'] = 'variant'
     elif parametric_cfg.enable_specification:
         child_node['mode'] = 'specification'
-    elif parametric_cfg.enable_supplier:
-        child_node['mode'] = 'supplier'
     elif parametric_cfg.enable_structure:
         child_node['mode'] = 'structure'
     elif parametric_cfg.enable_qty_formula:
@@ -403,22 +398,12 @@ def _expand_single_bom_item(
             child_node, parametric_cfg, params, parent_params, timeout_ms,
         ) or sub_part
 
-    elif parametric_cfg.enable_variant:
-        actual_sub_part = _resolve_variant(
-            child_node, parametric_cfg, params, parent_params, timeout_ms,
-        ) or sub_part
-
     elif parametric_cfg.enable_specification:
         _resolve_specification(
             child_node, parametric_cfg, params, parent_params, timeout_ms,
         )
         # Spec items don't recurse into sub-parts — the spec IS the part
         return child_node
-
-    elif parametric_cfg.enable_supplier:
-        _resolve_supplier(
-            child_node, parametric_cfg, params, parent_params, timeout_ms,
-        )
 
     elif parametric_cfg.enable_structure:
         # Structure mode: the condition formula already controls inclusion.
@@ -512,140 +497,6 @@ def _resolve_candidate(
     return selected
 
 
-def _resolve_variant(
-    node: BomTreeNode,
-    cfg,
-    params: ParamMap,
-    parent_params: Optional[ParamMap],
-    timeout_ms: int,
-):
-    """Resolve sub-part via VariantMapping.
-
-    Computes parameter mapping, looks up existing variant by name,
-    or creates a new variant Part if none exists.
-    """
-    from parametric_bom.models import VariantMapping
-
-    try:
-        vm = VariantMapping.objects.get(parametric_bom_item=cfg)
-    except VariantMapping.DoesNotExist:
-        node['errors'].append('No variant mapping configured')
-        return None
-
-    template_part = vm.template_part
-    node['template_part_id'] = _part_pk(template_part)
-    node['template_part_name'] = _part_display(template_part)
-
-    # Evaluate param_mapping
-    computed_params: ParamMap = {}
-    mapping_errors: List[str] = []
-    for param_name, formula in (vm.param_mapping or {}).items():
-        try:
-            result = eval_formula(
-                formula,
-                context=_ctx(params, parent_params),
-                timeout_ms=timeout_ms,
-            )
-            computed_params[param_name] = result
-        except (ParseError, ReferenceError, EvaluationError, TimeoutError) as e:
-            mapping_errors.append(f"{param_name}: {e}")
-
-    node['variant_computed_params'] = computed_params
-    if mapping_errors:
-        node['errors'].extend([f"Variant param {e}" for e in mapping_errors])
-
-    if mapping_errors:
-        return template_part  # Fall back to template on error
-
-    # Build variant name
-    if vm.variant_name_template:
-        variant_name = vm.variant_name_template
-        for k, v in computed_params.items():
-            variant_name = variant_name.replace(f'{{{k}}}', str(v) if v is not None else '')
-    else:
-        param_parts = [f"{k}={v}" for k, v in computed_params.items()]
-        variant_name = f"{_part_display(template_part)} ({', '.join(param_parts)})"
-
-    node['variant_computed_name'] = variant_name
-
-    # Look for existing variant by name
-    from part.models import Part
-
-    try:
-        existing = Part.objects.filter(
-            variant_of=template_part,
-            name=variant_name,
-        ).first()
-        if existing:
-            node['variant_existing'] = True
-            node['variant_part_id'] = _part_pk(existing)
-            node['variant_part_name'] = _part_display(existing)
-            return existing
-    except Exception:
-        pass
-
-    # Auto-generate new variant
-    if vm.auto_generate:
-        try:
-            new_part = _create_variant_part(template_part, variant_name, computed_params)
-            node['variant_generated'] = True
-            node['variant_part_id'] = _part_pk(new_part)
-            node['variant_part_name'] = _part_display(new_part)
-            return new_part
-        except Exception as e:
-            node['errors'].append(f"Failed to create variant: {e}")
-            return template_part
-
-    # Auto-generate disabled — use template as-is
-    node['variant_auto_disabled'] = True
-    return template_part
-
-
-def _create_variant_part(template_part, variant_name: str, params: ParamMap):
-    """Create a new variant Part from a template with computed params."""
-    from django.db import transaction
-    from part.models import Part
-    from common.models import Parameter
-    from django.contrib.contenttypes.models import ContentType
-
-    with transaction.atomic():
-        variant = Part.objects.create(
-            name=variant_name,
-            description=f"Auto-generated variant of {_part_display(template_part)}",
-            IPN=f"VAR-{template_part.pk}-{variant_name[:16]}",
-            variant_of=template_part,
-            category=template_part.category,
-            is_template=False,
-            assembly=template_part.assembly,
-            component=template_part.component,
-            active=True,
-            virtual=False,
-        )
-
-        # Copy parameters
-        part_ct = ContentType.objects.get_for_model(Part)
-        for param_name, value in params.items():
-            # Find template
-            from common.models import ParameterTemplate
-            tmpl = ParameterTemplate.objects.filter(name=param_name).first()
-            if tmpl:
-                Parameter.objects.create(
-                    content_type=part_ct,
-                    object_id=variant.pk,
-                    template=tmpl,
-                    data=str(value) if value is not None else '',
-                )
-
-        logger.info(
-            "variant_part_auto_created",
-            variant_part_id=variant.pk,
-            variant_name=variant_name,
-            template_part_id=_part_pk(template_part),
-        )
-
-        return variant
-
-
 def _resolve_specification(
     node: BomTreeNode,
     cfg,
@@ -721,64 +572,7 @@ def _resolve_specification(
     node['spec_notes'] = spec.notes
 
 
-def _resolve_supplier(
-    node: BomTreeNode,
-    cfg,
-    params: ParamMap,
-    parent_params: Optional[ParamMap],
-    timeout_ms: int,
-) -> None:
-    """Select supplier from SupplierSelectionRule list."""
-    from parametric_bom.models import SupplierSelectionRule
-
-    rules = SupplierSelectionRule.objects.filter(
-        parametric_bom_item=cfg,
-    ).select_related('supplier_part').order_by('priority')
-
-    if not rules:
-        node['errors'].append('No supplier rules configured')
-        return
-
-    rules_considered = []
-    selected = None
-
-    for rule in rules:
-        match = False
-        error = None
-        if rule.condition_formula:
-            try:
-                result = eval_formula(
-                    rule.condition_formula,
-                    context=_ctx(params, parent_params),
-                    timeout_ms=timeout_ms,
-                )
-                match = bool(result)
-            except (ParseError, ReferenceError, EvaluationError, TimeoutError) as e:
-                error = str(e)
-                match = False
-        else:
-            match = True
-
-        rules_considered.append({
-            'supplier_part_id': rule.supplier_part_id,
-            'supplier_label': rule.label or '',
-            'condition': rule.condition_formula or '',
-            'matched': match,
-            'error': error,
-        })
-
-        if match and selected is None:
-            selected = rule.supplier_part
-
-    node['supplier_rules_considered'] = rules_considered
-    if selected:
-        node['selected_supplier_part_id'] = _part_pk(selected)
-        node['selected_supplier_name'] = str(selected)
-    else:
-        node['errors'].append('No supplier rule matched')
-
-
-# ──────────────────────────────────────────────
+# ── Helper: extract PK ──────────────────────────
 #  Sub-part recursion
 # ──────────────────────────────────────────────
 

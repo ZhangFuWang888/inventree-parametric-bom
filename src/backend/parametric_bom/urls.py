@@ -14,7 +14,6 @@ from parametric_bom.api import (
     PartParameterConfigViewSet,
     PartVariableViewSet,
     ProductConfigurationViewSet,
-    SupplierSelectionRuleViewSet,
     VariantMappingViewSet,
     affected_variants,
     bom_evaluate,
@@ -22,10 +21,12 @@ from parametric_bom.api import (
     config_set_params,
     config_snapshot,
     config_transition,
+    create_bom_item,
     estimate_cost,
     formula_preview,
     formula_validate,
     generate_variant,
+    generate_variant_from_params,
     inherit_params,
     rules_evaluate,
     template_library_auto_sync,
@@ -44,7 +45,6 @@ router.register(r'config-values', ConfigParameterValueViewSet)
 router.register(r'candidate-parts', BomCandidatePartViewSet)
 router.register(r'variant-mappings', VariantMappingViewSet)
 router.register(r'specifications', BomSpecificationViewSet)
-router.register(r'supplier-rules', SupplierSelectionRuleViewSet)
 router.register(r'inheritance', InheritanceMappingViewSet)
 router.register(r'attributes', PartAttributeFormulaViewSet)
 router.register(r'part-variables', PartVariableViewSet)
@@ -64,6 +64,8 @@ parametric_api_urls = [
     path('rules/evaluate/', rules_evaluate, name='rules-evaluate'),
     # Variant generator
     path('generate-variant/', generate_variant, name='generate-variant'),
+    path('generate-variant-from-params/', generate_variant_from_params, name='generate-variant-from-params'),
+    path('create-bom-item/', create_bom_item, name='create-bom-item'),
     # Parameter inheritance
     path('inherit/', inherit_params, name='inherit-params'),
     path('inherit/affected/<int:part_config_id>/', affected_variants, name='affected-variants'),

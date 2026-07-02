@@ -173,11 +173,16 @@ class FormulaEvaluator:
                 return left_bool and right_bool
             return left_bool or right_bool
 
+        # String concatenation for '+'
+        if node.op in ('PLUS', '+'):
+            if isinstance(left, str) or isinstance(right, str):
+                return str(left) + str(right)
+
         # Arithmetic — coerce to numeric
         left_num = self._to_number(left)
         right_num = self._to_number(right)
 
-        if node.op == 'PLUS' or node.op == '+':
+        if node.op in ('PLUS', '+'):
             return left_num + right_num
         elif node.op == 'MINUS' or node.op == '-':
             return left_num - right_num

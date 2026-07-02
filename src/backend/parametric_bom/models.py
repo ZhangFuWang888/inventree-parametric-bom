@@ -76,7 +76,6 @@ class BomItemModeChoices(models.TextChoices):
     CANDIDATE_SELECT = 'candidate', _('Select from candidates')
     VARIANT_GENERATE = 'variant', _('Generate variant from template')
     SPECIFICATION = 'specification', _('Outsource by specification')
-    SUPPLIER_SELECT = 'supplier', _('Select supplier')
     STRUCTURE = 'structure', _('Structure control')
 
 
@@ -267,11 +266,6 @@ class ParametricBomItem(models.Model):
         verbose_name=_('Enable specification'),
         help_text=_('Outsource by specification description'),
     )
-    enable_supplier = models.BooleanField(
-        default=False,
-        verbose_name=_('Enable supplier selection'),
-        help_text=_('Select supplier dynamically'),
-    )
     enable_structure = models.BooleanField(
         default=False,
         verbose_name=_('Enable structure control'),
@@ -309,16 +303,6 @@ class ParametricBomItem(models.Model):
             'Example: IF(param.speed>15, "MOTOR-A", "MOTOR-B")'
         ),
     )
-    supplier_formula = models.CharField(
-        max_length=512,
-        blank=True,
-        default='',
-        verbose_name=_('Supplier formula'),
-        help_text=_(
-            'Formula to dynamically select supplier. '
-            'Example: IF(param.速度>30, "德国SEW", "国茂")'
-        ),
-    )
     reference_formula = models.CharField(
         max_length=512,
         blank=True,
@@ -327,6 +311,16 @@ class ParametricBomItem(models.Model):
         help_text=_(
             'Formula for dynamic reference/notes. '
             'Example: CONCAT("定制-", param.长度, "mm")'
+        ),
+    )
+    param_mapping = models.JSONField(
+        default=dict,
+        blank=True,
+        verbose_name=_('Parameter mapping'),
+        help_text=_(
+            'JSON dict mapping child parameter names → formulas. '
+            'Available for both static and dynamic items. '
+            'Example: {"载重": "parent.载重", "速度": "parent.速度*1.2"}'
         ),
     )
     formular_hash = models.CharField(
@@ -356,7 +350,6 @@ class ParametricBomItem(models.Model):
             self.enable_candidate,
             self.enable_variant,
             self.enable_specification,
-            self.enable_supplier,
             self.enable_structure,
         ])
         if not enabled:
@@ -733,12 +726,14 @@ class VariantMapping(models.Model):
             'syntax. Example: "立柱-H{高度}" → "立柱-H2800"'
         ),
     )
-    auto_generate = models.BooleanField(
-        default=True,
-        verbose_name=_('Auto-generate'),
+    variant_ipn_template = models.CharField(
+        max_length=256,
+        blank=True,
+        default='',
+        verbose_name=_('Variant IPN template'),
         help_text=_(
-            'Automatically create the variant part when the configuration '
-            'is completed. Disable for manual generation only.'
+            'Template for the generated variant IPN/part number. '
+            'Use {param_name} syntax. Example: "COL-{高度}-{宽度}" → "COL-2800-1500"'
         ),
     )
 
@@ -831,70 +826,7 @@ class BomSpecification(models.Model):
 
 
 # ──────────────────────────────────────────────
-#  SupplierSelectionRule — 场景6: 供应商选择
-# ──────────────────────────────────────────────
-
-
-class SupplierSelectionRule(models.Model):
-    """Defines which supplier to use based on configuration parameters.
-
-    Multiple rules can exist per BOM item. During evaluation, the system
-    checks rules in priority order and picks the first matching supplier.
-    """
-
-    parametric_bom_item = models.ForeignKey(
-        ParametricBomItem,
-        on_delete=models.CASCADE,
-        related_name='supplier_rules',
-        verbose_name=_('Parametric BOM item'),
-        help_text=_('The parametric BOM item this rule applies to'),
-    )
-    supplier_part = models.ForeignKey(
-        'company.SupplierPart',
-        on_delete=models.CASCADE,
-        related_name='parametric_rules',
-        verbose_name=_('Supplier part'),
-        help_text=_('The supplier part to use when this rule matches'),
-    )
-    condition_formula = models.CharField(
-        max_length=512,
-        blank=True,
-        default='',
-        verbose_name=_('Condition formula'),
-        help_text=_(
-            'Formula that triggers this supplier selection. '
-            'Empty = always use. Example: param.数量 > 1000'
-        ),
-    )
-    priority = models.IntegerField(
-        default=100,
-        validators=[MinValueValidator(0)],
-        verbose_name=_('Priority'),
-        help_text=_('Lower values are checked first (0 = highest priority)'),
-    )
-    label = models.CharField(
-        max_length=128,
-        blank=True,
-        default='',
-        verbose_name=_('Label'),
-        help_text=_('Short label shown in UI (e.g. "批量价", "零售价")'),
-    )
-
-    class Meta:
-        """Meta options for SupplierSelectionRule."""
-        app_label = 'parametric_bom'
-        verbose_name = _('Supplier selection rule')
-        verbose_name_plural = _('Supplier selection rules')
-        ordering = ['parametric_bom_item', 'priority']
-
-    def __str__(self):
-        """Human-readable representation."""
-        return f'[{self.priority}] {self.label or self.supplier_part}'
-
-
-# ──────────────────────────────────────────────
 #  InheritanceMapping — 场景9: 参数继承配置
-# ──────────────────────────────────────────────
 
 
 class InheritanceMapping(models.Model):
@@ -1038,7 +970,7 @@ class PartVariable(models.Model):
 
     A PartVariable defines a named expression that can be referenced by name
     in any formula field (qty_formula, condition_formula, part_selector_formula,
-    supplier_formula, reference_formula). Variables are evaluated before the
+    reference_formula). Variables are evaluated before the
     formula itself, making them available as named constants/computed values.
 
     Example:

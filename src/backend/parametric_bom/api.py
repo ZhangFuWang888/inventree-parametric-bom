@@ -2,6 +2,7 @@
 
 from rest_framework import permissions, viewsets
 from rest_framework.decorators import api_view, permission_classes
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 
 from parametric_bom.formula_engine import evaluate, validate as validate_formula
@@ -23,7 +24,6 @@ from parametric_bom.models import (
     PartParameterConfig,
     PartVariable,
     ProductConfiguration,
-    SupplierSelectionRule,
     VariantMapping,
 )
 from InvenTree.filters import SEARCH_ORDER_FILTER
@@ -39,9 +39,91 @@ from parametric_bom.serializers import (
     PartParameterConfigSerializer,
     PartVariableSerializer,
     ProductConfigurationSerializer,
-    SupplierSelectionRuleSerializer,
     VariantMappingSerializer,
 )
+
+
+# ── Formula Reference Check Helpers ──────────
+
+def _collect_formula_fields(part_id):
+    """Collect all formula text fields for a given part.
+    
+    Returns a list of (model_label, field_label, formula_text) tuples.
+    """
+    from parametric_bom.models import (
+        ParametricBomItem, ParametricRule, PartParameterConfig, PartVariable,
+    )
+    refs = []
+
+    # 1. ParametricBomItem formulas (via bom_item.part)
+    for item in ParametricBomItem.objects.filter(
+        bom_item__part_id=part_id
+    ).select_related('bom_item'):
+        prefix = f'BOM「{item.bom_item.sub_part.name or item.bom_item.sub_part_id}」'
+        for field, label in [
+            ('qty_formula', '数量公式'),
+            ('condition_formula', '条件公式'),
+            ('part_selector_formula', '选件公式'),
+            ('reference_formula', '参考公式'),
+        ]:
+            val = getattr(item, field, '') or ''
+            if val.strip():
+                refs.append((prefix, label, val))
+
+    # 2. ParametricRule formulas
+    for rule in ParametricRule.objects.filter(product_part_id=part_id):
+        prefix = f'规则#{rule.id}'
+        for field, label in [
+            ('condition_formula', '条件'),
+            ('value_formula', '值公式'),
+        ]:
+            val = getattr(rule, field, '') or ''
+            if val.strip():
+                refs.append((prefix, label, val))
+
+    # 3. PartParameterConfig computation formulas
+    for cfg in PartParameterConfig.objects.filter(part_id=part_id):
+        name = cfg.name or (cfg.template.name if cfg.template else f'参数#{cfg.id}')
+        val = (cfg.computation_formula or '').strip()
+        if val:
+            refs.append((f'参数「{name}」', '计算公式', val))
+
+    # 4. PartVariable formulas
+    for var in PartVariable.objects.filter(part_id=part_id):
+        name = var.name
+        val = (var.formula or '').strip()
+        if val:
+            refs.append((f'变量「{name}」', '公式', val))
+
+    return refs
+
+
+def _find_param_references(part_id, param_name):
+    """Check if param_name (referenced as param.xxx) is used in any formula."""
+    results = []
+    for prefix, label, formula in _collect_formula_fields(part_id):
+        # Match: param.参数名 or param."参数名"
+        import re
+        pattern = re.compile(r'param\.\s*' + re.escape(param_name) + r'\b')
+        if pattern.search(formula):
+            results.append(f'{prefix} → {label}')
+    return results
+
+
+def _find_variable_references(part_id, var_name):
+    """Check if var_name is referenced in any formula.
+    
+    Variables are referenced by bare name (not as param.xxx).
+    We check for word-boundary matches of the variable name.
+    """
+    results = []
+    for prefix, label, formula in _collect_formula_fields(part_id):
+        import re
+        # Match variable name as a whole word, but NOT preceded by "param."
+        pattern = re.compile(r'(?<!param\.)\b' + re.escape(var_name) + r'\b')
+        if pattern.search(formula):
+            results.append(f'{prefix} → {label}')
+    return results
 
 
 class PartParameterConfigViewSet(viewsets.ModelViewSet):
@@ -55,6 +137,16 @@ class PartParameterConfigViewSet(viewsets.ModelViewSet):
     filterset_fields = ['part', 'is_driving', 'is_computed']
     search_fields = ['name', 'part__name', 'ui_hint']
 
+    def perform_destroy(self, instance):
+        """Prevent deletion if parameter is referenced by any formula."""
+        refs = _find_param_references(
+            instance.part_id, instance.name or (instance.template.name if instance.template else '')
+        )
+        if refs:
+            detail = '该参数被以下公式引用，无法删除：\n' + '\n'.join(refs)
+            raise PermissionDenied(detail=detail)
+        instance.delete()
+
 
 class ParametricBomItemViewSet(viewsets.ModelViewSet):
     """API endpoint for ParametricBomItem."""
@@ -64,9 +156,9 @@ class ParametricBomItemViewSet(viewsets.ModelViewSet):
     serializer_class = ParametricBomItemSerializer
     permission_classes = [permissions.IsAuthenticated]
     filter_backends = SEARCH_ORDER_FILTER
-    filterset_fields = ['bom_item', 'enable_qty_formula', 'enable_conditional',
+    filterset_fields = ['bom_item', 'bom_item__part', 'enable_qty_formula', 'enable_conditional',
                         'enable_candidate', 'enable_variant', 'enable_specification',
-                        'enable_supplier', 'enable_structure']
+                        'enable_structure']
     search_fields = ['bom_item__part__name', 'qty_formula']
 
 
@@ -143,17 +235,6 @@ class BomSpecificationViewSet(viewsets.ModelViewSet):
     filterset_fields = ['parametric_bom_item', 'spec_type']
 
 
-class SupplierSelectionRuleViewSet(viewsets.ModelViewSet):
-    """API endpoint for SupplierSelectionRule."""
-    queryset = SupplierSelectionRule.objects.select_related(
-        'parametric_bom_item', 'supplier_part'
-    ).all()
-    serializer_class = SupplierSelectionRuleSerializer
-    permission_classes = [permissions.IsAuthenticated]
-    filter_backends = SEARCH_ORDER_FILTER
-    filterset_fields = ['parametric_bom_item', 'supplier_part']
-
-
 class InheritanceMappingViewSet(viewsets.ModelViewSet):
     """API endpoint for InheritanceMapping."""
     queryset = InheritanceMapping.objects.select_related(
@@ -183,6 +264,14 @@ class PartVariableViewSet(viewsets.ModelViewSet):
     filter_backends = SEARCH_ORDER_FILTER
     filterset_fields = ['part']
     search_fields = ['name']
+
+    def perform_destroy(self, instance):
+        """Prevent deletion if variable is referenced by any formula."""
+        refs = _find_variable_references(instance.part_id, instance.name)
+        if refs:
+            detail = '该变量被以下公式引用，无法删除：\n' + '\n'.join(refs)
+            raise PermissionDenied(detail=detail)
+        instance.delete()
 
 
 # ── Existing Function Endpoints ─────────────
@@ -314,7 +403,10 @@ def estimate_cost(request):
 @api_view(['POST'])
 @permission_classes([permissions.IsAuthenticated])
 def formula_preview(request):
-    """Preview/evaluate a formula with sample parameter values."""
+    """Preview/evaluate a formula with sample parameter values.
+
+    Returns the result value and its detected type (bool/number/str).
+    """
     formula = request.data.get('formula', '')
     context = request.data.get('context', {})
     timeout_ms = request.data.get('timeout_ms', 500)
@@ -324,7 +416,16 @@ def formula_preview(request):
 
     try:
         result = evaluate(formula, context, timeout_ms=timeout_ms)
-        return Response({'success': True, 'result': result})
+        # Detect result type
+        if isinstance(result, bool):
+            result_type = 'bool'
+        elif isinstance(result, (int, float)):
+            result_type = 'number'
+        elif isinstance(result, str):
+            result_type = 'str'
+        else:
+            result_type = type(result).__name__
+        return Response({'success': True, 'result': result, 'result_type': result_type})
     except ParseError as e:
         return Response({'success': False, 'error': f'Syntax error: {e}'})
     except ReferenceError as e:
@@ -501,6 +602,216 @@ def generate_variant(request):
     result = gen_variant(config_id)
     status_code = 200 if result.get('success') else 409
     return Response(result, status=status_code)
+
+
+@api_view(['POST'])
+@permission_classes([permissions.IsAuthenticated])
+def generate_variant_from_params(request):
+    """Generate variants directly from part_id + parameter values (no saved config needed).
+
+    For each VariantMapping on the product's parametric BOM items, evaluates the
+    mapping formulas, applies name/IPN templates, and creates/lookup variant Parts.
+    """
+    from parametric_bom.models import (
+        ProductConfiguration,
+        ConfigParameterValue,
+        ConfigStatusChoices,
+    )
+    from parametric_bom.variant_generator import generate_variant as gen_variant
+    from parametric_bom.models import VariantMapping, ParametricBomItem
+    from part.models import Part
+    from common.models import ParameterTemplate
+
+    part_id = request.data.get('part_id')
+    parameters = request.data.get('parameters', {})
+
+    if not part_id:
+        return Response({'error': 'Provide part_id'}, status=400)
+
+    try:
+        template_part = Part.objects.get(pk=part_id)
+    except Part.DoesNotExist:
+        return Response({'error': f'Part {part_id} not found'}, status=404)
+
+    # Look up all VariantMappings for this product's parametric BOM items
+    parametric_items = ParametricBomItem.objects.filter(
+        bom_item__part=template_part,
+    ).prefetch_related('variant_mapping')
+
+    results = []
+    for pbi in parametric_items:
+        vm = getattr(pbi, 'variant_mapping', None)
+        if not vm:
+            continue
+        if not vm.auto_generate:
+            continue
+
+        # Evaluate the name template against parameters
+        def resolve_template(tpl, params, parent_params):
+            """Replace {paramName} in a template string with values from params."""
+            import re
+            def replacer(m):
+                key = m.group(1)
+                # First try parent parameters
+                if key in params:
+                    return str(params[key])
+                # Try mapping formulas
+                formula = getattr(vm, 'param_mapping', {}).get(key, '')
+                if formula.startswith('param.'):
+                    pn = formula.replace('param.', '')
+                    if pn in params:
+                        return str(params[pn])
+                return key
+            return re.sub(r'\{(\w+)\}', replacer, tpl)
+
+        resolved_name = resolve_template(
+            vm.variant_name_template or '',
+            parameters,
+            getattr(vm, 'param_mapping', {}),
+        ) or f'{vm.template_part.name} (auto)'
+
+        resolved_ipn = resolve_template(
+            vm.variant_ipn_template or '',
+            parameters,
+            getattr(vm, 'param_mapping', {}),
+        ) or ''
+
+        # Create a temp config for this sub-component variant
+        sub_config = ProductConfiguration.objects.create(
+            template_part=vm.template_part,
+            title=f'Auto-{resolved_name}',
+            status=ConfigStatusChoices.COMPLETED,
+            params_snapshot=parameters,
+        )
+
+        # Set parameter values for the template part's own params
+        for param_name, param_value in parameters.items():
+            try:
+                tmpl = ParameterTemplate.objects.get(name=param_name)
+                ConfigParameterValue.objects.create(
+                    config=sub_config,
+                    template=tmpl,
+                    value=param_value,
+                )
+            except ParameterTemplate.DoesNotExist:
+                pass
+
+        # Generate variant with name/IPN overrides
+        result = gen_variant(
+            sub_config.pk,
+            variant_name=resolved_name if vm.variant_name_template else None,
+            variant_ipn=resolved_ipn if vm.variant_ipn_template else None,
+        )
+        results.append(result)
+
+    if not results:
+        return Response({
+            'success': False,
+            'error': 'No active VariantMappings found for this product. Set up variant mappings in the BOM formula tab first.',
+        }, status=200)
+
+    return Response({
+        'success': True,
+        'results': results,
+        'generated_count': sum(1 for r in results if r.get('success')),
+    })
+
+
+@api_view(['POST'])
+@permission_classes([permissions.IsAuthenticated])
+def create_bom_item(request):
+    """Unified endpoint: create a BOM item (static or dynamic).
+
+    For static items: BomItem + ParametricBomItem with param_mapping.
+    For dynamic items: same + VariantMapping to track template part.
+    Name/IPN templates are set later via double-click editing.
+
+    Input:
+        parent_part_id (int): The product that owns the BOM
+        sub_part_id (int): The part to use as sub-part
+        is_dynamic (bool): True for dynamic projects, False for static
+        quantity (str, optional): BOM quantity (default '1')
+        param_mappings (dict, optional): parameter value mappings {name: value}
+    """
+    from part.models import BomItem, Part
+    from .models import ParametricBomItem, VariantMapping
+    from decimal import Decimal
+
+    parent_part_id = request.data.get('parent_part_id')
+    sub_part_id = request.data.get('sub_part_id')
+    is_dynamic = request.data.get('is_dynamic', False)
+    quantity = request.data.get('quantity', '1')
+    param_mappings = request.data.get('param_mappings', {})
+
+    if not parent_part_id or not sub_part_id:
+        return Response(
+            {'success': False, 'error': 'Provide parent_part_id and sub_part_id'},
+            status=400,
+        )
+
+    try:
+        parent_part = Part.objects.get(pk=parent_part_id)
+        sub_part = Part.objects.get(pk=sub_part_id)
+    except Part.DoesNotExist as e:
+        return Response(
+            {'success': False, 'error': f'Part not found: {e}'},
+            status=404,
+        )
+
+    try:
+        qty = Decimal(str(quantity))
+    except (ValueError, TypeError):
+        qty = Decimal('1')
+
+    # Create BomItem
+    bom_item = BomItem.objects.create(
+        part=parent_part,
+        sub_part=sub_part,
+        quantity=qty,
+    )
+
+    # Create ParametricBomItem
+    pbi = ParametricBomItem.objects.create(
+        bom_item=bom_item,
+        enable_variant=is_dynamic,
+        param_mapping=param_mappings,
+    )
+
+    # For dynamic items: create VariantMapping
+    if is_dynamic:
+        # Ensure template is marked as template
+        if not sub_part.is_template:
+            sub_part.is_template = True
+            sub_part.save(update_fields=['is_template'])
+
+        VariantMapping.objects.create(
+            parametric_bom_item=pbi,
+            template_part=sub_part,
+            variant_name_template='',
+            variant_ipn_template='',
+            param_mapping=param_mappings,
+        )
+
+        logger.info(
+            'dynamic_project_created',
+            parent_part_id=parent_part.pk,
+            template_part_id=sub_part.pk,
+            bom_item_id=bom_item.pk,
+            pbi_id=pbi.pk,
+        )
+
+    return Response({
+        'success': True,
+        'bom_item': {
+            'pk': bom_item.pk,
+            'part': bom_item.part_id,
+            'sub_part': bom_item.sub_part_id,
+            'sub_part_name': sub_part.name,
+            'sub_part_IPN': sub_part.IPN or '',
+            'quantity': str(bom_item.quantity),
+            'is_dynamic': is_dynamic,
+        },
+    })
 
 
 @api_view(['POST'])

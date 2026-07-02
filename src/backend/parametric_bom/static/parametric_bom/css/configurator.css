@@ -350,6 +350,7 @@ header .text-sm.font-semibold{
 select.input-field, input.input-field, textarea.input-field{width:100%;padding:0.5rem 0.75rem;border:1px solid #d1d5db;border-radius:8px;font-size:0.8125rem;transition:border-color 0.15s;background:#fff;color:#1e293b}
 select.input-field:focus, input.input-field:focus, textarea.input-field:focus{outline:none;border-color:#2563eb;box-shadow:0 0 0 3px rgba(37,99,235,0.1)}
 select.input-field{appearance:none;background-image:url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");background-position:right 0.5rem center;background-repeat:no-repeat;background-size:1.5em 1.5em;padding-right:2.5rem}
+select.input-field[size]{background-image:none;padding-right:0.75rem}
 textarea.input-field{resize:vertical;font-family:monospace;font-size:0.75rem}
 
 /* Toggle switch */
@@ -414,6 +415,9 @@ textarea.input-field{resize:vertical;font-family:monospace;font-size:0.75rem}
 .fe-fn-pill:hover{background:#c7d2fe;border-color:#818cf8}
 .fe-param-pill{display:inline-flex;align-items:center;padding:0.1875rem 0.5rem;border-radius:6px;font-size:0.6875rem;font-weight:500;cursor:pointer;transition:all 0.12s;background:#f0fdf4;color:#166534;border:1px solid #bbf7d0;user-select:none}
 .fe-param-pill:hover{background:#bbf7d0;border-color:#86efac}
+/* Product parameter pill (blue variant) */
+.fe-pill-blue{background:#eff6ff;border-color:#bfdbfe;color:#1d4ed8}
+.fe-pill-blue:hover{background:#bfdbfe;border-color:#93c5fd}
 
 /* Empty state */
 .empty-state{padding:2rem 1rem;text-align:center;color:#94a3b8}
@@ -835,3 +839,16 @@ textarea.input-field{resize:vertical;font-family:monospace;font-size:0.75rem}
   .cost-summary{grid-template-columns:repeat(2,1fr)}
 }
 </style>
+
+/* ── Variant Editor Part List ── */
+.ve-part-list{background:#fff;scrollbar-width:thin}
+.ve-part-list .ve-part-item{transition:background 0.12s;font-size:0.75rem}
+.ve-part-list .ve-part-item:hover{background:#eff6ff}
+.ve-part-list .ve-part-item:active{background:#dbeafe}
+
+/* ── Add BOM Item Type Toggle ── */
+.ab-type-btn{flex:1;padding:0.5rem 1rem;font-size:0.8rem;border:2px solid #e2e8f0;border-radius:8px;background:#fff;color:#64748b;cursor:pointer;transition:all 0.15s;text-align:center;font-weight:500}
+.ab-type-btn:hover{border-color:#93c5fd;color:#3b82f6}
+.ab-type-btn.selected{border-color:#3b82f6;background:#eff6ff;color:#1d4ed8;font-weight:600}
+.ab-type-btn.selected[data-type="dynamic"]{border-color:#9333ea;background:#f3e8ff;color:#6b21a8}
+.ab-type-btn.selected[data-type="static"]{border-color:#3b82f6;background:#eff6ff;color:#1d4ed8}

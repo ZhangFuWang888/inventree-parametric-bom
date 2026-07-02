@@ -124,7 +124,7 @@ def _build_variant_name(template_name: str, params: Dict[str, Any]) -> str:
 
 
 @transaction.atomic
-def generate_variant(config_id: int) -> Dict[str, Any]:
+def generate_variant(config_id: int, variant_name: Optional[str] = None, variant_ipn: Optional[str] = None) -> Dict[str, Any]:
     """Generate a concrete Part variant from a completed ProductConfiguration.
 
     Args:
@@ -201,7 +201,8 @@ def generate_variant(config_id: int) -> Dict[str, Any]:
         )
 
     # ── 3) Build variant name ────────────────────────────────────────
-    variant_name = _build_variant_name(template_part.name, all_params)
+    if variant_name is None:
+        variant_name = _build_variant_name(template_part.name, all_params)
 
     # ── 4) Create the variant Part ───────────────────────────────────
     from part.models import Part
@@ -209,7 +210,7 @@ def generate_variant(config_id: int) -> Dict[str, Any]:
     variant_part = Part.objects.create(
         name=variant_name,
         description=f"Variant generated from configuration '{config.title}' (rev {config.revision})",
-        IPN=f"VAR-{template_part.pk}-{config.pk}",
+        IPN=variant_ipn if variant_ipn is not None else f"VAR-{template_part.pk}-{config.pk}",
         variant_of=template_part,
         category=template_part.category,
         is_template=False,

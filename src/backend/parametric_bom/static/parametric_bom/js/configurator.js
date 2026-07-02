@@ -914,9 +914,10 @@ async function loadPdBOMM() {
   const countBadge = document.getElementById('bom-count-badge');
   container.innerHTML = '<div class="flex items-center justify-center py-6"><span class="spinner mr-2"></span><span class="text-sm text-gray-400">加载中...</span></div>';
   
-  const [bomRes, pcfgRes] = await Promise.all([
+  const [bomRes, pcfgRes, vmRes] = await Promise.all([
     fetch('/api/bom/?part=' + pid + '&sub_part_detail=True&part_detail=True', {headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken()}, credentials: 'same-origin'}),
     apiCall('GET', 'bom-item-config/?bom_item__part=' + pid),
+    apiCall('GET', 'variant-mappings/'),
   ]);
   
   const bomItems = bomRes.ok ? (await bomRes.json()) : [];
@@ -924,6 +925,11 @@ async function loadPdBOMM() {
   const pcfgs = pcfgRes.error ? [] : (Array.isArray(pcfgRes.data) ? pcfgRes.data : (pcfgRes.data.results || []));
   const pcfgMap = {};
   pcfgs.forEach(function(c) { pcfgMap[c.bom_item] = c; });
+  
+  // Build variant mapping lookup by parametric_bom_item
+  var vmData = vmRes.error ? [] : (Array.isArray(vmRes.data) ? vmRes.data : (vmRes.data.results || []));
+  var vmByPbi = {};
+  vmData.forEach(function(v) { vmByPbi[v.parametric_bom_item] = v; });
   
   if (countBadge) countBadge.textContent = '共 ' + items.length + ' 项';
   if (!items.length) {
@@ -939,7 +945,7 @@ async function loadPdBOMM() {
     {key:'reference_formula', icon:'📝', label:'备注公式'},
   ];
 
-  let colHeaders = '<th style="width:12%">编码</th><th style="width:15%">物料</th>';
+  let colHeaders = '<th style="width:15%">物料名称</th><th style="width:12%">内部编码</th>';
   formulaCols.forEach(function(c) {
     colHeaders += '<th style="width:13%"><span class="col-icon">' + c.icon + '</span>' + c.label + '</th>';
   });
@@ -955,8 +961,34 @@ async function loadPdBOMM() {
     const cfg = pcfgMap[item.pk];
     const hasCfg = !!cfg;
     const staticQty = item.quantity;
+    const isVariant = hasCfg && cfg.enable_variant;
+    const vm = isVariant ? vmByPbi[cfg.id] : null;
+    const rowBgClass = isVariant ? ' class="bg-purple-50/50"' : '';
 
-    let rowHtml = '<tr><td class="pbs-ipn">' + (subPartRef || '<span class="text-gray-300">—</span>') + '</td><td><span class="pbs-name clickable-part" onclick="openPartDetail(' + item.sub_part + ')" title="点击查看零件详情">' + subPartName + '</span></td>';
+    let nameCell, ipnCell, tplRef, tplIpn;
+    if (isVariant && vm) {
+      var escNameVal = (vm.variant_name_template || '').replace(/'/g,"\\'").replace(/"/g,'&quot;');
+      var escIpnVal = (vm.variant_ipn_template || '').replace(/'/g,"\\'").replace(/"/g,'&quot;');
+      var mappingId = vm.id;
+      var tplId = vm.template_part || 0;
+      var tplName = vm.template_part_name || '#部件';
+      tplRef = '<div class="text-[9px] text-purple-400 mt-0.5">🌀参考: <span class="cursor-pointer hover:text-purple-600 underline decoration-dotted" onclick="openPartDetail(' + tplId + ')">' + tplName + '</span></div>';
+      tplIpn = '<div class="text-[9px] text-purple-400 mt-0.5">IPN: ' + (vm.template_part_ipn || '—') + '</div>';
+      nameCell = '<td><div class="pbs-formula-cell" ondblclick="openCellEditor(' + item.pk + ",'variant_name','" + escNameVal + "',false," + mappingId + ')" title="双击编辑动态名称">'
+        + (vm.variant_name_template ? '<span class="fmla-text">' + escHtml(vm.variant_name_template) + '</span>' : '<span class="fmla-empty">—</span>')
+        + '<span class="fmla-hint">双击编辑</span>'
+        + tplRef
+        + '</div></td>';
+      ipnCell = '<td class="pbs-ipn"><div class="pbs-formula-cell" ondblclick="openCellEditor(' + item.pk + ",'variant_ipn','" + escIpnVal + "',false," + mappingId + ')" title="双击编辑动态编码">'
+        + (vm.variant_ipn_template ? '<span class="fmla-text">' + escHtml(vm.variant_ipn_template) + '</span>' : '<span class="fmla-empty">—</span>')
+        + '<span class="fmla-hint">双击编辑</span>'
+        + tplIpn
+        + '</div></td>';
+    } else {
+      nameCell = '<td><span class="pbs-name clickable-part" onclick="openPartDetail(' + item.sub_part + ')" title="点击查看零件详情">' + subPartName + '</span></td>';
+      ipnCell = '<td class="pbs-ipn">' + (subPartRef || '<span class="text-gray-300">—</span>') + '</td>';
+    }
+    let rowHtml = '<tr' + rowBgClass + '>' + nameCell + ipnCell;
 
     for (let j = 0; j < formulaCols.length; j++) {
       const c = formulaCols[j];
@@ -972,11 +1004,11 @@ async function loadPdBOMM() {
         display = val ? '<span class="fmla-text" title="' + val.replace(/"/g,'&quot;') + '">' + val + '</span>' : '<span class="fmla-empty">—</span>';
       }
       const hint = val ? '双击编辑' : '双击添加公式';
-      const escVal = val.replace(/'/g,"\'").replace(/"/g,'&quot;');
+      const escVal = val.replace(/'/g,"\\'").replace(/"/g,'&quot;');
       rowHtml += '<td><div class="pbs-formula-cell" ondblclick="openCellEditor(' + item.pk + ",'" + c.key + "','" + escVal + "'," + (c.isQty ? 'true' : 'false') + ',' + (c.isQty ? staticQty : '0') + ')" title="' + hint + '">' + display + '<span class="fmla-hint">' + hint + '</span></div></td>';
     }
 
-    const escName = subPartName.replace(/'/g,"\'");
+    const escName = subPartName.replace(/'/g,"\\'");
     rowHtml += '<td class="text-center"><button class="text-red-400 hover:text-red-600 text-xs p-1 rounded hover:bg-red-50" onclick="resetBomConfig(' + item.pk + ",'" + escName + "')" + '" title="从BOM移除">✕</button></td></tr>';
     html += rowHtml;
   }
@@ -1086,12 +1118,14 @@ function ceLoadPills(pid) {
     html += '<div><label class="text-[9px] text-gray-400 mb-0.5 block">🔢 数学:</label><div class="flex flex-wrap gap-1">';
     ['CEIL','FLOOR','ROUND','IF','AND','OR','NOT','MIN','MAX','ABS','SQRT','POW','MOD','SUM','AVG','COUNT'].forEach(function(fn) {
       const sigs = {CEIL:'(x)',FLOOR:'(x)',ROUND:'(x,[n])',IF:'(c,t,f)',AND:'(...)',OR:'(...)',NOT:'(x)',MIN:'(a,b)',MAX:'(a,b)',ABS:'(x)',SQRT:'(x)',POW:'(base,exp)',MOD:'(a,b)',SUM:'(...)',AVG:'(...)',COUNT:'(...)'};
-      html += `<span class="fe-fn-pill text-[10px] px-1.5 py-0.5" onclick="ceInsertText('${fn}${sigs[fn]||'()'}')">${fn}</span>`;
+      const titles = {CEIL:'向上取整',FLOOR:'向下取整',ROUND:'四舍五入',IF:'条件判断',AND:'逻辑与',OR:'逻辑或',NOT:'逻辑非',MIN:'取最小值',MAX:'取最大值',ABS:'绝对值',SQRT:'平方根',POW:'幂运算',MOD:'取余数',SUM:'求和',AVG:'平均值',COUNT:'计数'};
+      html += `<span class="fe-fn-pill text-[10px] px-1.5 py-0.5" onclick="ceInsertText('${fn}${sigs[fn]||'()'}')" title="${fn}${sigs[fn]||'()'} — ${titles[fn]||''}">${fn}</span>`;
     });
     html += '</div></div><div><label class="text-[9px] text-gray-400 mb-0.5 block">🔤 字符串/类型:</label><div class="flex flex-wrap gap-1">';
     ['CONCAT','LEN','UPPER','LOWER','TRIM','INT','FLOAT','STR','BOOL'].forEach(function(fn) {
       const sigs = {CONCAT:'(...)',LEN:'(s)',UPPER:'(s)',LOWER:'(s)',TRIM:'(s)',INT:'(x)',FLOAT:'(x)',STR:'(x)',BOOL:'(x)'};
-      html += `<span class="fe-fn-pill text-[10px] px-1.5 py-0.5" onclick="ceInsertText('${fn}${sigs[fn]||'()'}')">${fn}</span>`;
+      const titles = {CONCAT:'拼接字符串',LEN:'字符串长度',UPPER:'转大写',LOWER:'转小写',TRIM:'去除首尾空格',INT:'取整',FLOAT:'转浮点数',STR:'转字符串',BOOL:'转布尔值'};
+      html += `<span class="fe-fn-pill text-[10px] px-1.5 py-0.5" onclick="ceInsertText('${fn}${sigs[fn]||'()'}')" title="${fn}${sigs[fn]||'()'} — ${titles[fn]||''}">${fn}</span>`;
     });
     html += '</div></div></div>';
     // Params
@@ -1100,7 +1134,7 @@ function ceLoadPills(pid) {
       configs.forEach(c => {
         const paramName = c.name || c.template_name || 'unknown';
         const defVal = c.default_value;
-        if (defVal) ctx[paramName] = defVal;
+        ctx[paramName] = defVal;
         html += `<span class="fe-param-pill text-[10px] px-1.5 py-0.5" onclick="ceInsertText('param.${paramName.replace(/'/g, "\\'")}')">${paramName}${defVal ? '=' + defVal : ''}</span>`;
       });
       html += '</div>';
@@ -1221,8 +1255,8 @@ window.FormulaTemplates = {
   }
 };
 
-function openCellEditor(itemPk, field, currentVal, isQty, staticQty) {
-  _ceState = { itemPk: itemPk, field: field, isQty: !!isQty, staticQty: staticQty || 1 };
+function openCellEditor(itemPk, field, currentVal, isQty, mappingId) {
+  _ceState = { itemPk: itemPk, field: field, isQty: !!isQty, staticQty: mappingId || 1, mappingId: mappingId || null };
   const overlay = document.getElementById('pbs-ce-overlay');
   const input = document.getElementById('pbs-ce-input');
   const title = document.getElementById('pbs-ce-title');
@@ -1230,7 +1264,13 @@ function openCellEditor(itemPk, field, currentVal, isQty, staticQty) {
   statusEl.innerHTML = '';
   statusEl.className = 'flex items-center gap-2 text-xs mt-0.5 min-h-[1.5em] text-gray-500';
 
-  if (isQty) {
+  if (field === 'variant_name' || field === 'variant_ipn') {
+    const labels = {variant_name:'🌀 动态名称模板', variant_ipn:'🌀 动态编码模板'};
+    const placeholders = {variant_name:'立柱-H{高度}', variant_ipn:'COL-{高度}-{宽度}'};
+    title.textContent = labels[field] || '🌀 编辑动态模板';
+    input.value = currentVal || '';
+    input.placeholder = placeholders[field] || '输入模板，用{参数名}引用...';
+  } else if (isQty) {
     const qtyText = currentVal ? ('当前: ×' + staticQty + ' + 公式「' + currentVal + '」') : ('当前: ×' + staticQty + '（静态数量）');
     title.textContent = '📐 ' + qtyText;
     input.value = currentVal || '';
@@ -1288,6 +1328,26 @@ async function saveCellFormula() {
 
   statusEl.innerHTML = '<span class="text-gray-400">⏳ 保存中...</span>';
 
+  // Variant name/ipn template: save to VariantMapping
+  if (st.field === 'variant_name' || st.field === 'variant_ipn') {
+    if (!st.mappingId) {
+      statusEl.innerHTML = '<span class="text-red-500">❌ 找不到动态映射ID</span>';
+      return;
+    }
+    var fieldKey = st.field === 'variant_name' ? 'variant_name_template' : 'variant_ipn_template';
+    var patchData = {};
+    patchData[fieldKey] = formula;
+    const res = await apiCall('PATCH', 'variant-mappings/' + st.mappingId + '/', patchData);
+    if (res.error) {
+      statusEl.innerHTML = '<span class="text-red-500">❌ ' + escHtml(res.data?.error || res.data?.detail || '保存失败') + '</span>';
+    } else {
+      statusEl.innerHTML = '<span class="text-green-600">✅ 已保存</span>';
+      clearAreaDirty('bom');
+      setTimeout(function() { document.getElementById('pbs-ce-overlay').classList.remove('open'); loadPdBOMM(); }, 600);
+    }
+    return;
+  }
+
   // Qty: plain number -> update BomItem
   if (st.isQty && /^\d+(\.\d+)?$/.test(formula)) {
     const num = parseFloat(formula);
@@ -1338,7 +1398,16 @@ async function saveCellFormula() {
 }
 
 function resetBomConfig(bomItemId, name) {
-  // 1) Delete ParametricBomItem config if exists
+  // 1) Delete VariantMapping if exists (dynamic item)
+  apiCall('GET', 'variant-mappings/?parametric_bom_item__bom_item=' + bomItemId).then(function(vmRes) {
+    if (!vmRes.error) {
+      var vms = Array.isArray(vmRes.data) ? vmRes.data : (vmRes.data.results || []);
+      if (vms.length) {
+        apiCall('DELETE', 'variant-mappings/' + vms[0].id + '/');
+      }
+    }
+  });
+  // 2) Delete ParametricBomItem config if exists
   apiCall('GET', `bom-item-config/?bom_item=${bomItemId}`).then(res => {
     if (!res.error) {
       const configs = Array.isArray(res.data) ? res.data : (res.data.results || []);
@@ -1368,35 +1437,75 @@ function resetBomConfig(bomItemId, name) {
 let _allPartsCache = null;
 let _abAllParts = []; // full list for filtering
 
+// ── Unified Add BOM Item Modal ──
+let _abItemType = 'static';
+let _abParamMapping = {};
+
+function abSetType(type) {
+  _abItemType = type;
+  document.querySelectorAll('.ab-type-btn').forEach(function(btn) {
+    btn.classList.toggle('selected', btn.dataset.type === type);
+  });
+  var label = document.getElementById('ab-part-label');
+  if (label) label.textContent = type === 'dynamic' ? '选择模板零件' : '选择子件';
+  var hint = document.getElementById('ab-dynamic-hint');
+  if (hint) hint.classList.toggle('hidden', type !== 'dynamic');
+  updateAbMappingCount();
+}
+
+function updateAbMappingCount() {
+  var countEl = document.getElementById('ab-mapping-count');
+  if (!countEl) return;
+  var keys = Object.keys(_abParamMapping);
+  countEl.textContent = keys.length ? '已配置 ' + keys.length + ' 条映射' : '未配置';
+}
+
+function abEditParamMapping() {
+  var current = JSON.stringify(_abParamMapping, null, 2);
+  var input = prompt('编辑参数映射 (JSON格式，如 {"载重": "parent.载重"}):', current === '{}' ? '' : current);
+  if (input === null) return;
+  try {
+    var parsed = input.trim() ? JSON.parse(input.trim()) : {};
+    if (typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error();
+    _abParamMapping = parsed;
+    updateAbMappingCount();
+  } catch(e) { alert('JSON格式无效，请检查'); }
+}
+
 async function openAddBomItemModal() {
   const pid = configuratorPartId;
   if (!pid) { setStatus('error', '请先选择产品'); return; }
-  
+  // Reset
+  _abItemType = 'static';
+  _abParamMapping = {};
+  document.querySelectorAll('.ab-type-btn').forEach(function(btn) {
+    btn.classList.toggle('selected', btn.dataset.type === 'static');
+  });
+  var hint = document.getElementById('ab-dynamic-hint');
+  if (hint) hint.classList.add('hidden');
+  var label = document.getElementById('ab-part-label');
+  if (label) label.textContent = '选择子件';
+  updateAbMappingCount();
+
   const product = parts.find(p => p.pk == pid);
-  document.getElementById('ab-product-name').textContent = product ? (product.name || `#${pid}`) : `#${pid}`;
-  
-  // Show empty select + loading indicator
+  document.getElementById('ab-product-name').textContent = product ? (product.name || '#' + pid) : '#' + pid;
   _allPartsCache = null;
   _abAllParts = [];
   document.getElementById('ab-search').value = '';
   renderAbPartList();
   openModal('modal-add-bom');
-  
   const countEl = document.getElementById('ab-search-count');
   if (countEl) countEl.textContent = '加载零件库中...';
-  
-  // Load all parts in background
   try {
-    const res = await fetch(`/api/part/?limit=10000&ordering=name`, {
-      headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken()},
-      credentials: 'same-origin'
+    const res = await fetch('/api/part/?limit=10000&ordering=name', {
+      headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken()}, credentials: 'same-origin'
     });
     const data = res.ok ? (await res.json()) : [];
     const all = Array.isArray(data) ? data : (data.results || []);
-    _allPartsCache = all.filter(p => p.pk != pid);
+    _allPartsCache = all.filter(function(p) { return p.pk != pid; });
     _abAllParts = _allPartsCache.slice(0, 200);
     renderAbPartList();
-    if (countEl) countEl.textContent = `共 ${_allPartsCache.length} 个零件`;
+    if (countEl) countEl.textContent = '共 ' + _allPartsCache.length + ' 个零件';
   } catch(e) {
     if (countEl) countEl.textContent = '加载失败';
   }
@@ -1445,16 +1554,13 @@ function renderAbPartList() {
   });
 }
 
-function filterAbParts(value) {
-  renderAbPartList(value.trim());
-}
-
 async function createBomItem() {
   const pid = configuratorPartId;
   const subPartId = document.getElementById('ab-sub-part').value;
   const qty = parseFloat(document.getElementById('ab-qty').value);
+  const isDynamic = _abItemType === 'dynamic';
   
-  if (!pid || !subPartId) { setStatus('error', '请选择子件'); return; }
+  if (!pid || !subPartId) { setStatus('error', isDynamic ? '请选择模板零件' : '请选择子件'); return; }
   if (!qty || qty <= 0) { setStatus('error', '请输入有效数量'); return; }
   
   // Check for duplicate sub_part in current BOM
@@ -1464,21 +1570,23 @@ async function createBomItem() {
   const dup = existingItems.find(function(i) { return String(i.sub_part) === String(subPartId); });
   if (dup) {
     const dupName = dup.sub_part_detail?.name || '#' + subPartId;
-    setStatus('error', `❌ 「${dupName}」已在BOM中，不能重复添加`);
+    setStatus('error', '❌ 「' + dupName + '」已在BOM中，不能重复添加');
     return;
   }
   
-  setStatus('loading', '正在添加BOM项...');
+  setStatus('loading', isDynamic ? '正在添加动态项目...' : '正在添加静态项目...');
   
   try {
-    const res = await fetch('/api/bom/', {
+    const res = await fetch('/api/parametric-bom/create-bom-item/', {
       method: 'POST',
       headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken()},
       credentials: 'same-origin',
       body: JSON.stringify({
-        part: pid,
-        sub_part: parseInt(subPartId),
+        parent_part_id: pid,
+        sub_part_id: parseInt(subPartId),
         quantity: qty,
+        is_dynamic: isDynamic,
+        param_mappings: _abParamMapping,
       }),
     });
     
@@ -1488,10 +1596,10 @@ async function createBomItem() {
       loadPdBOMM();
     } else {
       const err = await res.json();
-      setStatus('error', `添加失败: ${err.message || JSON.stringify(err)}`);
+      setStatus('error', '添加失败: ' + (err.message || JSON.stringify(err)));
     }
   } catch(e) {
-    setStatus('error', `网络错误: ${e.message}`);
+    setStatus('error', '网络错误: ' + e.message);
   }
 }
 
@@ -1871,7 +1979,7 @@ function avLoadPillsAndVars(editingVid) {
       configs.forEach(c => {
         const paramName = c.name || c.template_name || 'unknown';
         const defVal = c.default_value;
-        if (defVal) ctx[paramName] = defVal;
+        ctx[paramName] = defVal;
         const display = defVal ? `${paramName} <span class="text-[9px] text-gray-400 ml-0.5">=${defVal}</span>` : paramName;
         html += `<span class="fe-param-pill" onclick="avInsertText('param.${paramName.replace(/'/g, "\\'")}')">${display}</span>`;
       });
@@ -3053,7 +3161,7 @@ function renderTreeItem(item, depth, push) {
   let extraHtml = '';
 
   // Mode-specific display
-  const modeLabels = {standard:'标准', qty_formula:'数量公式', conditional:'条件包含', candidate:'🎯候选', variant:'🧬变体', specification:'📝规格', supplier:'🏢供应商', structure:'结构'};
+  const modeLabels = {standard:'标准', qty_formula:'数量公式', conditional:'条件包含', candidate:'🎯候选', variant:'🌀动态', specification:'📝规格', supplier:'🏢供应商', structure:'结构'};
   if (mode !== 'standard') {
     extraHtml += `<span class="text-[10px] px-1 py-0.5 rounded bg-gray-100 text-gray-600 ml-1">${modeLabels[mode]||mode}</span>`;
   }
@@ -3802,7 +3910,7 @@ async function loadBomFormulaConfigs(partId) {
       if (cfg.enable_qty_formula) modeBadges += '📐';
       if (cfg.enable_conditional) modeBadges += '⚡';
       if (cfg.enable_candidate) modeBadges += '🎯';
-      if (cfg.enable_variant) modeBadges += '🧬';
+      if (cfg.enable_variant) modeBadges += '🌀';
       if (cfg.enable_specification) modeBadges += '📝';
       if (cfg.enable_supplier) modeBadges += '🏢';
       if (cfg.enable_structure) modeBadges += '🔗';
@@ -3817,7 +3925,7 @@ async function loadBomFormulaConfigs(partId) {
           <option value="qty_formula">📐 数量公式</option>
           <option value="conditional">📐⚡ 数量+条件</option>
           <option value="candidate">🎯 候选零件</option>
-          <option value="variant">🧬 变体生成</option>
+          <option value="variant">🌀 动态项目</option>
           <option value="specification">📝 规格描述</option>
           <option value="supplier">🏢 供应商选择</option>
           <option value="structure">🔗 结构控制</option>
@@ -3867,7 +3975,7 @@ async function loadAllBomFormulaConfigs(container) {
     {flag:'enable_qty_formula', icon:'📐', label:'数量'},
     {flag:'enable_conditional', icon:'⚡', label:'条件'},
     {flag:'enable_candidate', icon:'🎯', label:'候选'},
-    {flag:'enable_variant', icon:'🧬', label:'变体'},
+    {flag:'enable_variant', icon:'🌀', label:'动态'},
     {flag:'enable_specification', icon:'📝', label:'规格'},
     {flag:'enable_supplier', icon:'🏢', label:'供应'},
     {flag:'enable_structure', icon:'🔗', label:'结构'},
@@ -3976,7 +4084,7 @@ async function getCurrentModeAndRender(bomItemId) {
       modeSel = document.createElement('select');
       modeSel.id = 'fe-mode-select';
       modeSel.className = 'text-[10px] border border-gray-200 rounded px-1 py-0.5 ml-2';
-      modeSel.innerHTML = `<option value="standard">— 标准</option><option value="qty_formula">📐 数量公式</option><option value="conditional">📐⚡ 数量+条件</option><option value="candidate">🎯 候选零件</option><option value="variant">🧬 变体生成</option><option value="specification">📝 规格描述</option><option value="supplier">🏢 供应商选择</option><option value="structure">🔗 结构控制</option>`;
+      modeSel.innerHTML = `<option value="standard">— 标准</option><option value="qty_formula">📐 数量公式</option><option value="conditional">📐⚡ 数量+条件</option><option value="candidate">🎯 候选零件</option><option value="variant">🌀 动态项目</option><option value="specification">📝 规格描述</option><option value="supplier">🏢 供应商选择</option><option value="structure">🔗 结构控制</option>`;
       modeSel.onchange = function() { renderModeConfig(); };
       headerDiv.appendChild(modeSel);
     }
@@ -4232,8 +4340,8 @@ function closeModal(id) {
 document.querySelectorAll('.modal-overlay').forEach(m => {
   m.addEventListener('click', function(e) {
     if (e.target === this) {
-      this.classList.remove('show');
-      document.body.style.overflow = '';
+      // 所有弹窗都不能点击空白处关闭，必须通过按钮关闭
+      return;
       // Reset param modal state if closing it
       if (this.id === 'modal-add-param') {
         _editingConfigId = null;
@@ -4261,13 +4369,13 @@ function renderModeConfig() {
   } else if (mode === 'variant') {
     zone.innerHTML = `
       <div class="card p-3 mb-3">
-        <div class="text-xs font-semibold text-gray-700 mb-2">🧬 变体映射配置</div>
+        <div class="text-xs font-semibold text-gray-700 mb-2">🧬 动态映射配置</div>
         <div class="space-y-2" id="fe-variant-form">
           <div><label class="text-[10px] text-gray-500">模板零件</label><select class="input-field text-xs" id="fe-variant-template"><option value="">-- 选择 --</option></select></div>
           <div><label class="text-[10px] text-gray-500">参数映射 (JSON)</label><textarea class="input-field font-mono text-xs" id="fe-variant-params" rows="3" placeholder='{"高度": "parent.货架高度", "材质": "\\'Q235\\'", "表面处理": "\\'喷塑\\'"}'>{"height": "parent.货架高度"}</textarea></div>
-          <div><label class="text-[10px] text-gray-500">变体名称模板</label><input class="input-field text-xs" id="fe-variant-name" placeholder='立柱-H{高度}'></div>
+          <div><label class="text-[10px] text-gray-500">动态名称模板</label><input class="input-field text-xs" id="fe-variant-name" placeholder='立柱-H{高度}'></div>
           <div class="flex items-center gap-2"><label class="toggle-wrap"><span class="toggle-track" id="fe-variant-auto"><span class="toggle-thumb"></span></span><span class="toggle-label text-[10px]">自动生成</span></label></div>
-          <button class="btn btn-sm btn-primary text-[10px] px-2 py-0.5" onclick="saveVariantMapping(${bomItemId})">💾 保存变体映射</button>
+          <button class="btn btn-sm btn-primary text-[10px] px-2 py-0.5" onclick="saveVariantMapping(${bomItemId})">💾 保存动态映射</button>
           <div id="fe-variant-result" class="text-xs mt-1"></div>
         </div>
       </div>`;
@@ -4638,7 +4746,7 @@ async function renderDashboard() {
     modeCounts[primary] = (modeCounts[primary] || 0) + 1;
   });
 
-  const modeLabels = {standard:'标准', qty_formula:'📐数量公式', conditional:'⚡条件包含', candidate:'🎯候选零件', variant:'🧬变体生成', specification:'📝规格描述', supplier:'🏢供应商选择', structure:'🏗️结构'};
+  const modeLabels = {standard:'标准', qty_formula:'📐数量公式', conditional:'⚡条件包含', candidate:'🎯候选零件', variant:'🌀动态项目', specification:'📝规格描述', supplier:'🏢供应商选择', structure:'🏗️结构'};
 
   let html = `
   <!-- Quick Stats -->

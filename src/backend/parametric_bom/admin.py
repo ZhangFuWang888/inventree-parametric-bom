@@ -12,7 +12,6 @@ from parametric_bom.models import (
     PartAttributeFormula,
     PartParameterConfig,
     ProductConfiguration,
-    SupplierSelectionRule,
     VariantMapping,
 )
 
@@ -30,7 +29,7 @@ class ParametricBomItemAdmin(admin.ModelAdmin):
     """Admin for ParametricBomItem."""
     list_display = ['bom_item', 'active_flags', 'has_formula']
     list_filter = ['enable_qty_formula', 'enable_conditional', 'enable_candidate',
-                   'enable_variant', 'enable_specification', 'enable_supplier',
+                   'enable_variant', 'enable_specification',
                    'enable_structure']
 
     def active_flags(self, obj):
@@ -42,7 +41,6 @@ class ParametricBomItemAdmin(admin.ModelAdmin):
             ('enable_candidate', '🎯'),
             ('enable_variant', '🧬'),
             ('enable_specification', '📝'),
-            ('enable_supplier', '🏢'),
             ('enable_structure', '🔗'),
         ]
         for field, label in mapping:
@@ -85,20 +83,13 @@ class BomCandidatePartAdmin(admin.ModelAdmin):
 @admin.register(VariantMapping)
 class VariantMappingAdmin(admin.ModelAdmin):
     """Admin for VariantMapping."""
-    list_display = ['parametric_bom_item', 'template_part', 'auto_generate']
+    list_display = ['parametric_bom_item', 'template_part', 'variant_name_template']
 
 
 @admin.register(BomSpecification)
 class BomSpecificationAdmin(admin.ModelAdmin):
     """Admin for BomSpecification."""
     list_display = ['parametric_bom_item', 'spec_type']
-
-
-@admin.register(SupplierSelectionRule)
-class SupplierSelectionRuleAdmin(admin.ModelAdmin):
-    """Admin for SupplierSelectionRule."""
-    list_display = ['parametric_bom_item', 'supplier_part', 'priority', 'label']
-    list_filter = ['parametric_bom_item']
 
 
 @admin.register(InheritanceMapping)
