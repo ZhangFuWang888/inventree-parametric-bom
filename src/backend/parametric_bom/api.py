@@ -1429,5 +1429,141 @@ def cart_count(request):
     return Response({'count': count})
 
 
+# ── Cart → Order ────────────────────────────
+
+@api_view(['GET'])
+@permission_classes([permissions.AllowAny])
+def cart_export_csv(request):
+    """导出购物车为CSV订单文件。"""
+    import csv
+    from django.http import HttpResponse
+
+    if request.user.is_authenticated:
+        items = CartItem.objects.filter(user=request.user)
+    else:
+        sk = request.session.session_key or ''
+        items = CartItem.objects.filter(session_key=sk)
+
+    response = HttpResponse(content_type='text/csv; charset=utf-8-sig')
+    response['Content-Disposition'] = 'attachment; filename="cart_order.csv"'
+
+    writer = csv.writer(response)
+    writer.writerow(['序号', '类型', '名称', '编号/型号', '参数摘要', '数量', '单价', '小计'])
+
+    total_qty = 0
+    total_amt = 0.0
+
+    for idx, item in enumerate(items, 1):
+        item_type = '参数化' if item.item_type == 'parametric' else '标准件'
+        name = item.title or ''
+        ipn = ''
+        params_summary = ''
+
+        if item.item_type == 'parametric' and item.product_part:
+            ipn = item.product_part.IPN or ''
+            if item.parameters and isinstance(item.parameters, dict):
+                param_parts = [f'{k}={v}' for k, v in item.parameters.items()]
+                params_summary = ', '.join(param_parts)
+        elif item.item_type == 'static' and item.part:
+            ipn = item.part.IPN or ''
+
+        qty = item.quantity or 1
+        price = float(item.unit_price) if item.unit_price else 0.0
+        subtotal = price * qty
+        total_qty += qty
+        total_amt += subtotal
+
+        writer.writerow([idx, item_type, name, ipn, params_summary, qty, price, subtotal])
+
+    writer.writerow([])
+    writer.writerow(['', '', '', '', '合计', total_qty, '', round(total_amt, 2)])
+    return response
+
+
+@api_view(['POST'])
+@permission_classes([permissions.IsAuthenticated])
+def cart_create_order(request):
+    """从购物车创建InvenTree销售订单(SalesOrder)。
+
+    - 静态零件 → 直接作为行项添加
+    - 参数化产品 → 将产品模板作为行项添加，参数存到备注
+    创建成功后清空购物车。
+    """
+    from order.models import SalesOrder, SalesOrderLineItem
+    from part.models import Part
+    from company.models import Company
+
+    try:
+        items = CartItem.objects.filter(user=request.user)
+        if not items.exists():
+            return Response({'error': '购物车是空的'}, status=400)
+
+        # 获取默认客户（取第一个客户，或允许传参）
+        customer_id = request.data.get('customer_id')
+        description = request.data.get('description', '参数化BOM购物车订单')
+
+        if customer_id:
+            customer = Company.objects.get(pk=customer_id)
+        else:
+            customer = Company.objects.filter(is_customer=True).first()
+            if not customer:
+                return Response({'error': '没有可用的客户，请先创建客户或指定customer_id'}, status=400)
+
+        # 创建销售订单
+        order = SalesOrder.objects.create(
+            customer=customer,
+            description=description,
+            created_by=request.user,
+        )
+
+        line_items_created = 0
+        for item in items:
+            part = None
+            notes = item.notes or ''
+
+            if item.item_type == 'parametric' and item.product_part:
+                part = item.product_part
+                if item.parameters and isinstance(item.parameters, dict):
+                    param_str = '; '.join(f'{k}={v}' for k, v in item.parameters.items())
+                    if notes:
+                        notes = f'参数: {param_str} | {notes}'
+                    else:
+                        notes = f'参数: {param_str}'
+            elif item.item_type == 'static' and item.part:
+                part = item.part
+
+            if not part:
+                continue
+
+            SalesOrderLineItem.objects.create(
+                order=order,
+                part=part,
+                quantity=item.quantity or 1,
+                sale_price=float(item.unit_price) if item.unit_price else None,
+                notes=notes[:500] if notes else '',
+            )
+            line_items_created += 1
+
+        if line_items_created == 0:
+            order.delete()
+            return Response({'error': '没有有效的行项可创建'}, status=400)
+
+        # 清空购物车
+        items.delete()
+
+        return Response({
+            'success': True,
+            'order_id': order.id,
+            'order_reference': order.reference,
+            'line_items': line_items_created,
+        }, status=201)
+
+    except Company.DoesNotExist:
+        return Response({'error': '指定客户不存在'}, status=404)
+    except Exception as e:
+        logger.exception('创建订单失败')
+        return Response({'error': f'创建订单失败: {str(e)}'}, status=500)
+
+
 import structlog
 logger = structlog.get_logger('inventree')

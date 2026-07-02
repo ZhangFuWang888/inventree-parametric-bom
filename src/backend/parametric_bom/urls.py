@@ -20,6 +20,8 @@ from parametric_bom.api import (
     cart_add,
     cart_clear,
     cart_count,
+    cart_create_order,
+    cart_export_csv,
     cart_item_detail,
     cart_list,
     config_detail,
@@ -97,4 +99,7 @@ parametric_api_urls = [
     path('cart/count/', cart_count, name='cart-count'),
     path('cart/clear/', cart_clear, name='cart-clear'),
     path('cart/<int:item_id>/', cart_item_detail, name='cart-item-detail'),
+    # Cart → Order
+    path('cart/export-csv/', cart_export_csv, name='cart-export-csv'),
+    path('cart/create-order/', cart_create_order, name='cart-create-order'),
 ] + router.urls

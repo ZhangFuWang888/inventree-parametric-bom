@@ -1468,9 +1468,11 @@ textarea.input-field{resize:vertical;font-family:monospace;font-size:0.75rem}
       <span>金额合计</span>
       <span id="cart-total-amount">¥0.00</span>
     </div>
-    <button class="btn btn-primary w-full py-2" onclick="cartClose()">✅ 完成</button>
+    <div class="flex gap-2 w-full">
+      <button class="btn btn-secondary flex-1 py-2 text-sm" onclick="cartExportCSV()">📥 导单</button>
+      <button class="btn btn-primary flex-1 py-2 text-sm" onclick="cartCreateOrder()">📋 下单</button>
+    </div>
   </div>
-</div>
 
 <!-- Status Bar -->
 <div class="status-bar" id="status-bar">
@@ -1835,14 +1837,20 @@ function getCookie(name) {
   return cookieValue;
 }
 
-async function cartApi(method, path, body) {
+async function cartApi(method, path, body, responseType) {
   const url = CART_API_BASE + path;
   const opts = { method, headers: {'Content-Type': 'application/json'} };
   if (!csrfSafeMethod(method)) {
     opts.headers['X-CSRFToken'] = getCookie('csrftoken');
   }
-  if (body) opts.body = JSON.stringify(body);
+  if (body && method !== 'GET') opts.body = JSON.stringify(body);
   try {
+    if (responseType === 'blob') {
+      delete opts.headers['Content-Type'];
+      const resp = await fetch(url, opts);
+      if (!resp.ok) return {ok:false, data:await resp.json().catch(()=>({}))};
+      return {ok:true, data:await resp.blob()};
+    }
     const resp = await fetch(url, opts);
     if (resp.status === 204) return {ok:true, data:null};
     const data = await resp.json();
@@ -1968,6 +1976,37 @@ async function cartClear() {
     loadCartCount();
     cartLoad();
   }
+}
+
+async function cartExportCSV() {
+  // 导单：下载CSV
+  const r = await cartApi('GET', '/export-csv/', null, 'blob');
+  if (!r.ok) return;
+  const blob = await r.data;
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = '购物车订单_' + new Date().toISOString().slice(0,10) + '.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+async function cartCreateOrder() {
+  // 下单：创建销售订单
+  if (!confirm('确认将购物车中的 ' + (document.getElementById('cart-total-items')?.textContent || '') + ' 物料创建为销售订单吗？')) return;
+  const r = await cartApi('POST', '/create-order/', {description: '参数化BOM购物车订单'});
+  if (!r.ok) {
+    const err = r.data?.error || '创建订单失败';
+    alert('❌ ' + err);
+    return;
+  }
+  const data = r.data;
+  alert('✅ 销售订单已创建！\n订单号: ' + (data.order_reference || data.order_id) + '\n行项数: ' + data.line_items);
+  cartClose();
+  loadCartCount();
+  cartLoad();
 }
 </script>
 </body>
