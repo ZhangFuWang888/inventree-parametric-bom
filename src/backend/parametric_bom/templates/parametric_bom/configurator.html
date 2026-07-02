@@ -420,6 +420,7 @@ textarea.input-field{resize:vertical;font-family:monospace;font-size:0.75rem}
 .cart-item .ci-qty input:focus{outline:none;border-color:#2563eb}
 .cart-item .ci-del{background:none;border:none;color:#ef4444;cursor:pointer;font-size:0.75rem;padding:0.125rem 0.375rem;border-radius:4px}
 .cart-item .ci-del:hover{background:#fef2f2}
+.cart-item .ci-price{font-size:0.75rem;color:#1e293b;margin-top:0.125rem}
 
 /* Sidebar cart badge */
 .sidebar-cart{display:flex;align-items:center;gap:0.5rem;padding:0.625rem 1rem;color:#e2e8f0;cursor:pointer;transition:all 0.15s;font-size:0.8125rem;border-bottom:1px solid #334155}
@@ -1460,8 +1461,12 @@ textarea.input-field{resize:vertical;font-family:monospace;font-size:0.75rem}
   </div>
   <div class="cart-panel-footer" id="cart-footer" style="display:none">
     <div class="cart-summary-row">
-      <span>合计</span>
+      <span>数量合计</span>
       <span id="cart-total-items">0 件</span>
+    </div>
+    <div class="cart-summary-row total">
+      <span>金额合计</span>
+      <span id="cart-total-amount">¥0.00</span>
     </div>
     <button class="btn btn-primary w-full py-2" onclick="cartClose()">✅ 完成</button>
   </div>
@@ -1871,12 +1876,17 @@ async function cartLoad() {
   }
   let html = '';
   let totalQty = 0;
+  let totalAmount = 0;
   items.forEach(item => {
     totalQty += item.quantity || 1;
+    const lineTotal = (item.total_cost != null) ? item.total_cost : ((item.unit_price != null) ? item.unit_price * (item.quantity || 1) : 0);
+    totalAmount += lineTotal;
     html += renderCartItem(item);
   });
   container.innerHTML = html;
   document.getElementById('cart-total-items').textContent = totalQty + ' 件';
+  const amtEl = document.getElementById('cart-total-amount');
+  if (amtEl) amtEl.textContent = '¥' + totalAmount.toFixed(2);
   footer.style.display = 'flex';
   loadCartCount();
 }
@@ -1892,11 +1902,17 @@ function renderCartItem(item) {
     ? (Array.isArray(item.bom_snapshot) ? item.bom_snapshot.length : (item.bom_snapshot.bom_tree ? item.bom_snapshot.bom_tree.length : 0))
     : null;
   const bomInfo = bomCount ? ` · BOM: ${bomCount}项物料` : '';
+  const unitPrice = item.unit_price != null ? parseFloat(item.unit_price) : null;
+  const lineTotal = item.total_cost != null ? parseFloat(item.total_cost) : (unitPrice != null ? unitPrice * (item.quantity || 1) : null);
+  const priceHtml = unitPrice != null
+    ? `<div class="ci-price">¥${unitPrice.toFixed(2)} × ${item.quantity || 1} = <strong>¥${lineTotal.toFixed(2)}</strong></div>`
+    : '';
   return `<div class="cart-item" data-id="${item.id}">
     <div class="ci-icon">${icon}</div>
     <div class="ci-body">
       <div class="ci-title">${name}</div>
       <div class="ci-meta">${meta}${bomInfo}</div>
+      ${priceHtml}
       <div class="ci-actions">
         <div class="ci-qty">
           <input type="number" min="1" max="9999" value="${item.quantity || 1}" onchange="cartUpdateQty(${item.id}, this.value)" onfocus="this.select()">

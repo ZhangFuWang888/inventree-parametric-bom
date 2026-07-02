@@ -1306,8 +1306,60 @@ def cart_list(request):
 def cart_add(request):
     """Add an item to the cart."""
     data = request.data.copy()
+
+    # Compute unit_price at add time
+    unit_price = None
+    item_type = data.get('item_type', 'parametric')
+
+    if item_type == 'parametric':
+        product_part_id = data.get('product_part')
+        if product_part_id:
+            try:
+                from part.models import Part
+                part = Part.objects.get(pk=int(product_part_id))
+                # Try to get internal price from part pricing data
+                if hasattr(part, 'pricing') and part.pricing:
+                    p = part.pricing
+                    # Try overall pricing first, then internal cost
+                    unit_price = float(
+                        p.overall_min or p.overall_max or
+                        p.internal_cost_min or p.internal_cost_max or
+                        p.bom_cost_min or p.bom_cost_max or 0
+                    )
+                else:
+                    # Fallback: use cost_estimator if available
+                    try:
+                        from parametric_bom.cost_estimator import estimate_part_cost
+                        params = data.get('parameters', {})
+                        cost_result = estimate_part_cost(part, params)
+                        total = cost_result.get('total_cost')
+                        if total is not None:
+                            unit_price = float(total)
+                    except Exception:
+                        pass
+            except Exception:
+                pass
+
+    elif item_type == 'static':
+        part_id = data.get('part')
+        if part_id:
+            try:
+                from part.models import Part
+                part = Part.objects.get(pk=int(part_id))
+                if hasattr(part, 'pricing') and part.pricing:
+                    p = part.pricing
+                    unit_price = float(
+                        p.overall_min or p.overall_max or
+                        p.internal_cost_min or p.internal_cost_max or
+                        p.bom_cost_min or p.bom_cost_max or 0
+                    )
+            except Exception:
+                pass
+
+    if unit_price is not None:
+        data['unit_price'] = str(unit_price)
+
     if request.user.is_authenticated:
-        # user is read_only in serializer, must pass via save()
         serializer = CartItemSerializer(data=data)
         if serializer.is_valid():
             serializer.save(user=request.user)

@@ -1100,6 +1100,17 @@ class CartItem(models.Model):
         default='',
         verbose_name=_('Notes'),
     )
+
+    # ── Cost / Price ──
+    unit_price = models.DecimalField(
+        max_digits=19,
+        decimal_places=4,
+        null=True,
+        blank=True,
+        verbose_name=_('Unit price'),
+        help_text=_('Unit price at add-to-cart time'),
+    )
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

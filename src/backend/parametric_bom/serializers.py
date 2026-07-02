@@ -320,9 +320,12 @@ class CartItemSerializer(serializers.ModelSerializer):
     part_unit = serializers.CharField(
         source='part.units', read_only=True, default=None
     )
-    total_cost = serializers.DecimalField(
-        max_digits=19, decimal_places=4, read_only=True, default=None
-    )
+    total_cost = serializers.SerializerMethodField(read_only=True)
+
+    def get_total_cost(self, obj):
+        if obj.unit_price is not None:
+            return float(obj.unit_price) * (obj.quantity or 1)
+        return None
 
     class Meta:
         model = CartItem
@@ -331,8 +334,7 @@ class CartItemSerializer(serializers.ModelSerializer):
             'product_part', 'product_part_name', 'product_part_ipn',
             'parameters', 'bom_snapshot',
             'part', 'part_name', 'part_ipn', 'part_unit',
-            'title', 'quantity', 'notes',
-            'total_cost',
+            'title', 'quantity', 'unit_price', 'total_cost', 'notes',
             'created_at', 'updated_at',
         ]
-        read_only_fields = ['user', 'created_at', 'updated_at', 'total_cost']
+        read_only_fields = ['user', 'total_cost', 'created_at', 'updated_at']
