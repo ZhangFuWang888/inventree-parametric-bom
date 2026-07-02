@@ -1271,7 +1271,7 @@ function openCellEditor(itemPk, field, currentVal, isQty, mappingId) {
     input.value = currentVal || '';
     input.placeholder = placeholders[field] || '输入模板，用{参数名}引用...';
   } else if (isQty) {
-    const qtyText = currentVal ? ('当前: ×' + staticQty + ' + 公式「' + currentVal + '」') : ('当前: ×' + staticQty + '（静态数量）');
+    const qtyText = currentVal ? ('当前: ×' + _ceState.staticQty + ' + 公式「' + currentVal + '」') : ('当前: ×' + _ceState.staticQty + '（静态数量）');
     title.textContent = '📐 ' + qtyText;
     input.value = currentVal || '';
     input.placeholder = '输入纯数字=改静态数量，输入公式=动态计算';
