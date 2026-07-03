@@ -250,26 +250,27 @@ class TestGetPartUnitCost(TestCase):
         cost, currency, error = _get_part_unit_cost(1, 'internal')
         self.assertEqual(cost, Decimal('5.00'))
 
-    @mock.patch('part.models.Part')
-    def test_part_not_found(self, mock_part_cls):
+    @mock.patch('part.models.Part.objects.get')
+    def test_part_not_found(self, mock_get):
         from parametric_bom.cost_estimator import _get_part_unit_cost
 
-        mock_part_cls.objects.get.side_effect = _RealPart.DoesNotExist()
+        mock_get.side_effect = _RealPart.DoesNotExist()
 
         cost, currency, error = _get_part_unit_cost(999, 'internal')
         self.assertIsNone(cost)
         self.assertIsNotNone(error)
         self.assertIn('not found', error)
 
-    @mock.patch('part.models.Part')
+    @mock.patch('part.models.PartPricing.DoesNotExist')
     @mock.patch('part.models.PartPricing')
-    def test_no_pricing_data(self, mock_pricing_cls, mock_part_cls):
+    @mock.patch('part.models.Part.objects.get')
+    def test_no_pricing_data(self, mock_get, mock_pricing_cls, mock_pricing_dne):
         from parametric_bom.cost_estimator import _get_part_unit_cost
 
         mock_part = mock.MagicMock()
         mock_part.pk = 1
         mock_part.name = 'Bolt'
-        mock_part_cls.objects.get.return_value = mock_part
+        mock_get.return_value = mock_part
 
         mock_part.pricing_data = None
 
@@ -278,25 +279,24 @@ class TestGetPartUnitCost(TestCase):
         self.assertIsNotNone(error)
         self.assertIn('No pricing data', error)
 
-    @mock.patch('part.models.Part')
-    @mock.patch('part.models.PartPricing')
-    def test_pricing_does_not_exist(self, mock_pricing_cls, mock_part_cls):
+    @mock.patch('part.models.Part.objects.get')
+    def test_pricing_does_not_exist(self, mock_get):
         from parametric_bom.cost_estimator import _get_part_unit_cost
+        from part.models import PartPricing
 
         mock_part = mock.MagicMock()
         mock_part.pk = 1
         mock_part.name = 'Bolt'
-        mock_part_cls.objects.get.return_value = mock_part
-        mock_part.pricing_data = None
+        mock_get.return_value = mock_part
 
-        # Simulate PartPricing.DoesNotExist on access
-        with mock.patch.object(type(mock_part), 'pricing_data', new_callable=mock.PropertyMock) as m_pd:
-            m_pd.side_effect = _RealPartPricing.DoesNotExist()
+        # PropertyMock on the TYPE: when pricing_data is accessed, raise PartPricing.DoesNotExist
+        dne_exc = PartPricing.DoesNotExist()
+        type(mock_part).pricing_data = mock.PropertyMock(side_effect=dne_exc)
 
-            cost, currency, error = _get_part_unit_cost(1, 'internal')
-            self.assertIsNone(cost)
-            self.assertIsNotNone(error)
-            self.assertIn('No pricing data', error)
+        cost, currency, error = _get_part_unit_cost(1, 'internal')
+        self.assertIsNone(cost)
+        self.assertIsNotNone(error)
+        self.assertIn('No pricing data', error)
 
 
 # ══════════════════════════════════════════════
