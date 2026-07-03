@@ -984,6 +984,7 @@ function renderBOMTable(items, pcfgMap, vmByPbi) {
     {key:'qty_formula', icon:'📐', label:'数量/公式', isQty:true},
     {key:'condition_formula', icon:'⚡', label:'条件公式'},
     {key:'reference_formula', icon:'📝', label:'备注公式'},
+    {key:'price_formula', icon:'💰', label:'价格公式'},
   ];
 
   let colHeaders = '<th style="width:15%">物料名称</th><th style="width:12%">内部编码</th>';
@@ -1349,9 +1350,9 @@ function openCellEditor(itemPk, field, currentVal, isQty, mappingId) {
     input.value = currentVal || '';
     input.placeholder = '输入纯数字=改静态数量，输入公式=动态计算';
   } else {
-    const labels = {qty_formula:'数量/公式', condition_formula:'条件公式', reference_formula:'备注公式'};
-    const placeholders = {qty_formula:'CEIL(长度/500)*2', condition_formula:'param.速度 > 15', reference_formula:"CONCAT('定制-',长度,'mm')"};
-    const iconMap = {qty_formula:'📐', condition_formula:'⚡', reference_formula:'📝'};
+    const labels = {qty_formula:'数量/公式', condition_formula:'条件公式', reference_formula:'备注公式', price_formula:'价格公式'};
+    const placeholders = {qty_formula:'CEIL(长度/500)*2', condition_formula:'param.速度 > 15', reference_formula:"CONCAT('定制-',长度,'mm')", price_formula:"子件单价 * CEIL(param.长度 / 1000)"};
+    const iconMap = {qty_formula:'📐', condition_formula:'⚡', reference_formula:'📝', price_formula:'💰'};
     title.textContent = (iconMap[field] || '✏️') + ' ' + (labels[field] || '编辑');
     input.value = currentVal || '';
     input.placeholder = placeholders[field] || '输入公式...';
@@ -1453,7 +1454,7 @@ async function saveCellFormula() {
   const data = {};
   data[st.field] = formula;
   if (exCfg) {
-    ['qty_formula','condition_formula','reference_formula'].forEach(function(f) {
+    ['qty_formula','condition_formula','reference_formula','price_formula'].forEach(function(f) {
       if (f !== st.field && exCfg[f]) data[f] = exCfg[f];
     });
   } else {
@@ -3381,6 +3382,8 @@ function renderTreeItem(item, depth, push) {
     ${extraHtml}
     ${item.qty_formula ? `<span class="formula-text">数量:${item.qty_formula}</span>` : ''}
     ${item.condition_formula ? `<span class="formula-text">条件:${item.condition_formula}</span>` : ''}
+    ${item.unit_price != null ? `<span class="text-[10px] text-emerald-600 ml-1">¥${Number(item.unit_price).toFixed(2)}/个</span>` : ''}
+    ${item.total_price != null ? `<span class="text-[10px] text-emerald-700 font-medium ml-1">=¥${Number(item.total_price).toFixed(2)}</span>` : ''}
     ${isExcluded ? `<span class="excluded-label">已排除</span>` : ''}
   </div>`);
   if (item.children && Array.isArray(item.children)) {
@@ -4073,7 +4076,8 @@ async function loadBomFormulaConfigs(partId) {
     const cfg = pcfgMap[item.pk];
     const qtyFormula = cfg ? (cfg.qty_formula || '') : '';
     const condFormula = cfg ? (cfg.condition_formula || '') : '';
-    const formulaSummary = qtyFormula || condFormula ? `<code class="text-blue-600 text-[10px]">${(qtyFormula?'数量:':'')} ${qtyFormula||''} ${condFormula?'| 条件:':''} ${condFormula||''}</code>` : '<span class="text-gray-400">-</span>';
+    const priceFormula = cfg ? (cfg.price_formula || '') : '';
+    const formulaSummary = [qtyFormula && ('数量:'+qtyFormula), condFormula && ('条件:'+condFormula), priceFormula && ('价格:'+priceFormula)].filter(Boolean).join(' | ') || '<span class="text-gray-400">-</span>';
     // Build mode badges from enable flags
     let modeBadges = '';
     if (cfg) {
@@ -4162,7 +4166,7 @@ async function loadAllBomFormulaConfigs(container) {
       if (cfg[m.flag]) modeBadges += `<span class="inline-block px-1 py-0.5 rounded bg-gray-100 text-gray-700 text-[10px] mr-0.5">${m.icon} ${m.label}</span>`;
     });
     if (!modeBadges) modeBadges = '<span class="text-[10px] text-gray-400">标准</span>';
-    const formulas = [cfg.qty_formula, cfg.condition_formula].filter(Boolean).join(' | ');
+    const formulas = [cfg.qty_formula, cfg.condition_formula, cfg.price_formula].filter(Boolean).join(' | ');
     html += `<tr class="border-b hover:bg-gray-50">
       <td class="p-2 font-medium text-blue-700">${bi.productName || '?'}</td>
       <td class="p-2">${bi.subPartName || '?'}</td>
@@ -4205,8 +4209,10 @@ function openFormulaEditor(bomItemId, partId, partName) {
   // Clear fields
   document.getElementById('fe-qty-formula').value = '';
   document.getElementById('fe-condition-formula').value = '';
+  document.getElementById('fe-price-formula').value = '';
   document.getElementById('fe-qty-result').innerHTML = '';
   document.getElementById('fe-condition-result').innerHTML = '';
+  document.getElementById('fe-price-result').innerHTML = '';
   document.getElementById('fe-preview-all').innerHTML = '<p class="text-xs text-gray-400">点击"预览全部"查看结果</p>';
   document.getElementById('fe-mode-config').innerHTML = '';
 
@@ -4276,6 +4282,7 @@ async function loadExistingBomItemConfig(bomItemId) {
     feState.existingConfigId = cfg.id;
     if (cfg.qty_formula) document.getElementById('fe-qty-formula').value = cfg.qty_formula;
     if (cfg.condition_formula) document.getElementById('fe-condition-formula').value = cfg.condition_formula;
+    if (cfg.price_formula) document.getElementById('fe-price-formula').value = cfg.price_formula;
   }
 }
 
@@ -4311,7 +4318,7 @@ function activateFormulaField(fieldName) {
 }
 
 function getActiveTextarea() {
-  const map = { qty: 'fe-qty-formula', condition: 'fe-condition-formula' };
+  const map = { qty: 'fe-qty-formula', condition: 'fe-condition-formula', price: 'fe-price-formula' };
   return document.getElementById(map[feState.activeField]);
 }
 
@@ -4342,8 +4349,8 @@ function insertFunction(funcName) {
 }
 
 async function validateSingleFormula(fieldName) {
-  const map = { qty: 'fe-qty-formula', condition: 'fe-condition-formula' };
-  const resultMap = { qty: 'fe-qty-result', condition: 'fe-condition-result' };
+  const map = { qty: 'fe-qty-formula', condition: 'fe-condition-formula', price: 'fe-price-formula' };
+  const resultMap = { qty: 'fe-qty-result', condition: 'fe-condition-result', price: 'fe-price-result' };
   const formula = document.getElementById(map[fieldName]).value.trim();
   const resultContainer = document.getElementById(resultMap[fieldName]);
 
@@ -4365,8 +4372,8 @@ async function validateSingleFormula(fieldName) {
 }
 
 async function previewSingleFormula(fieldName) {
-  const map = { qty: 'fe-qty-formula', condition: 'fe-condition-formula' };
-  const resultMap = { qty: 'fe-qty-result', condition: 'fe-condition-result' };
+  const map = { qty: 'fe-qty-formula', condition: 'fe-condition-formula', price: 'fe-price-formula' };
+  const resultMap = { qty: 'fe-qty-result', condition: 'fe-condition-result', price: 'fe-price-result' };
   const formula = document.getElementById(map[fieldName]).value.trim();
   const resultContainer = document.getElementById(resultMap[fieldName]);
 
@@ -4430,9 +4437,10 @@ async function previewAllFormulas() {
 async function saveBomFormula() {
   const qtyFormula = document.getElementById('fe-qty-formula').value.trim();
   const conditionFormula = document.getElementById('fe-condition-formula').value.trim();
+  const priceFormula = document.getElementById('fe-price-formula').value.trim();
   const mode = document.getElementById('fe-mode-select')?.value || 'qty_formula';
 
-  if (!qtyFormula && !conditionFormula && mode === 'qty_formula') {
+  if (!qtyFormula && !conditionFormula && !priceFormula && mode === 'qty_formula') {
     setStatus('error', '请至少输入一个公式');
     return;
   }
@@ -4442,6 +4450,7 @@ async function saveBomFormula() {
     mode: mode,
     qty_formula: qtyFormula || '',
     condition_formula: conditionFormula || '',
+    price_formula: priceFormula || '',
   };
 
   let res;

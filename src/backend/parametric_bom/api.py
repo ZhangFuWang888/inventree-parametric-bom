@@ -1301,6 +1301,19 @@ def cart_list(request):
     return Response(serializer.data)
 
 
+def _calc_tree_total(node) -> float:
+    """Recursively sum total_price from a BOM expansion tree node and its children."""
+    total = 0.0
+    # Node's own total (usually 0 for non-leaf, but include if set)
+    tp = node.get('total_price')
+    if tp is not None:
+        total += float(tp)
+    # Children totals
+    for child in node.get('children', []):
+        total += _calc_tree_total(child)
+    return total
+
+
 @api_view(['POST'])
 @permission_classes([permissions.AllowAny])
 def cart_add(request):
@@ -1317,14 +1330,18 @@ def cart_add(request):
             try:
                 from part.models import Part
                 part = Part.objects.get(pk=int(product_part_id))
-                # Use cached pricing only (fast path)
-                if hasattr(part, 'pricing') and part.pricing:
-                    p = part.pricing
-                    unit_price = float(
-                        p.overall_min or p.overall_max or
-                        p.internal_cost_min or p.internal_cost_max or
-                        p.bom_cost_min or p.bom_cost_max or 0
-                    )
+                # Server-side BOM expansion for price calculation
+                try:
+                    from parametric_bom.bom_expander import expand_bom_level
+                    params = data.get('parameters', {}) or {}
+                    bom_tree = expand_bom_level(part, params, timeout_ms=1000)
+                    data['bom_snapshot'] = bom_tree
+                    # Calculate total price from expanded BOM
+                    total = _calc_tree_total(bom_tree)
+                    if total and total > 0:
+                        data['unit_price'] = str(round(total, 4))
+                except Exception:
+                    pass
             except Exception:
                 pass
 

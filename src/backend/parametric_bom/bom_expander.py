@@ -339,6 +339,12 @@ def _expand_single_bom_item(
     except ParametricBomItem.DoesNotExist:
         child_node['parametric'] = False
         _expand_sub_part(child_node, sub_part, params, parent_params, depth, max_depth, timeout_ms)
+        # Calculate price for non-parametric items (use part base price)
+        base_p = _get_part_base_price(sub_part)
+        if base_p is not None:
+            q = child_node.get('calculated_quantity', child_node.get('quantity', 1))
+            child_node['unit_price'] = round(base_p, 4)
+            child_node['total_price'] = round(base_p * q, 4)
         return child_node
 
     child_node['parametric'] = True
@@ -456,7 +462,79 @@ def _expand_single_bom_item(
     # ── 4) Recurse into sub-part's BOM ────────────────────────────
     _expand_sub_part(child_node, actual_sub_part, params, parent_params, depth, max_depth, timeout_ms)
 
+    # ── 5) Price calculation ──────────────────────────────────────────
+    _calc_item_price(child_node, parametric_cfg, actual_sub_part, params, parent_params, timeout_ms)
+
     return child_node
+
+
+def _get_part_base_price(part) -> Optional[float]:
+    """Get the base unit price for a part.
+
+    Checks:
+    1. InvenTree PartPricing (cached overall price)
+    2. SupplierPriceBreak (lowest supplier price)
+    Returns None if no price found.
+    """
+    # 1) InvenTree PartPricing
+    try:
+        if hasattr(part, 'pricing') and part.pricing:
+            p = part.pricing
+            for field in ('overall_min', 'overall_max', 'internal_cost_min',
+                          'internal_cost_max', 'bom_cost_min', 'bom_cost_max',
+                          'purchase_cost_min', 'purchase_cost_max'):
+                val = getattr(p, field, None)
+                if val:
+                    return float(val)
+    except Exception:
+        pass
+
+    # 2) SupplierPriceBreak
+    try:
+        from company.models import SupplierPriceBreak
+        spb = SupplierPriceBreak.objects.filter(part=part).order_by('price').first()
+        if spb and spb.price:
+            return float(spb.price)
+    except Exception:
+        pass
+
+    return None
+
+
+def _calc_item_price(
+    node: BomTreeNode,
+    cfg,
+    sub_part,
+    params: ParamMap,
+    parent_params: Optional[ParamMap],
+    timeout_ms: int,
+) -> None:
+    """Calculate unit_price and total_price for a BOM tree node.
+
+    If cfg has a price_formula, evaluate it with:
+    - 子件单价 = sub-part's base price
+    - param.* = product parameters
+    Otherwise, use sub-part's base price directly.
+    """
+    base_price = _get_part_base_price(sub_part)
+    unit_price = base_price
+    qty = node.get('calculated_quantity', node.get('quantity', 1))
+
+    if cfg and cfg.price_formula:
+        ctx = _ctx(params, parent_params)
+        ctx['param']['子件单价'] = base_price or 0
+        try:
+            result = eval_formula(
+                cfg.price_formula,
+                context=ctx,
+                timeout_ms=timeout_ms,
+            )
+            unit_price = float(result)
+        except (ParseError, ReferenceError, EvaluationError, TimeoutError) as e:
+            node['errors'].append(f"Price formula error: {e}")
+
+    node['unit_price'] = round(unit_price, 4) if unit_price is not None else None
+    node['total_price'] = round(unit_price * qty, 4) if unit_price is not None else None
 
 
 # ──────────────────────────────────────────────

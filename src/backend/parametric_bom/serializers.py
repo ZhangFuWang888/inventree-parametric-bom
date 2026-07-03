@@ -84,7 +84,7 @@ class ParametricBomItemSerializer(serializers.ModelSerializer):
             'enable_specification', 'enable_structure',
             'has_formula', 'active_modes',
             'qty_formula', 'condition_formula',
-            'reference_formula', 'param_mapping',
+            'reference_formula', 'price_formula', 'param_mapping',
             'formular_hash', 'has_formula', 'active_modes',
         ]
 
@@ -323,9 +323,24 @@ class CartItemSerializer(serializers.ModelSerializer):
     total_cost = serializers.SerializerMethodField(read_only=True)
 
     def get_total_cost(self, obj):
+        # For parametric items with BOM snapshot, calculate from tree
+        if obj.item_type == 'parametric' and obj.bom_snapshot:
+            try:
+                return _sum_tree_prices(obj.bom_snapshot)
+            except Exception:
+                pass
+        # Fallback: unit_price * quantity
         if obj.unit_price is not None:
             return float(obj.unit_price) * (obj.quantity or 1)
         return None
+
+
+def _sum_tree_prices(node) -> float:
+    """Recursively sum total_price from a BOM expansion tree."""
+    total = float(node.get('total_price') or 0)
+    for child in node.get('children', []):
+        total += _sum_tree_prices(child)
+    return total
 
     class Meta:
         model = CartItem

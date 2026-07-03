@@ -1364,6 +1364,19 @@ textarea.input-field{resize:vertical;font-family:monospace;font-size:0.75rem}
             </div>
             <div id="fe-condition-result" class="mt-1 text-xs"></div>
           </div>
+
+          <!-- Price Formula -->
+          <div id="fe-price-group" class="mt-2">
+            <label class="block text-xs font-medium text-gray-500 mb-1">💰 价格公式 <span class="text-gray-400 font-normal">(可选，用 param.子件单价 引用子件基础价)</span></label>
+            <div class="flex gap-2">
+              <textarea id="fe-price-formula" class="input-field flex-1 font-mono text-xs" rows="2" placeholder="例如: param.子件单价 * CEIL(param.长度 / 1000)" onfocus="activateFormulaField('price')"></textarea>
+              <div class="flex flex-col gap-1 shrink-0">
+                <button class="btn btn-sm btn-outline-primary text-[10px] px-1.5 py-0.5" onclick="validateSingleFormula('price')" title="验证">✓</button>
+                <button class="btn btn-sm btn-outline-primary text-[10px] px-1.5 py-0.5" onclick="previewSingleFormula('price')" title="预览">▶</button>
+              </div>
+            </div>
+            <div id="fe-price-result" class="mt-1 text-xs"></div>
+          </div>
         </div>
 
         <!-- ===== MODE-SPECIFIC CONFIGURATION ZONE ===== -->
