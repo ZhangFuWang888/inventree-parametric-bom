@@ -1918,6 +1918,7 @@ function renderCfgBOM() {
         <span class="cfg-bi-name${partId ? ' clickable-part' : ''}${isVariant ? ' variant-name' : ''}"${partId ? ` onclick="openPartDetail(${partId})" title="点击查看零件详情"` : ''}>${name}${codeInfo}</span>
         ${templateInfo}
         <span class="cfg-bi-qty">×${qty}</span>
+        ${item.unit_price != null ? `<span class="cfg-bi-price">¥${Number(item.unit_price).toFixed(2)}</span>` : ''}
       </div>`;
       if (item.children && item.children.length) {
         h += renderTree(item.children, depth + 1);
@@ -1926,6 +1927,20 @@ function renderCfgBOM() {
     return h;
   }
   html = renderTree(cfgBOMItems, 0);
+  
+  // Add total at bottom if prices exist
+  var totalPrice = 0;
+  var hasPrice = false;
+  (function sumPrices(items) {
+    items.forEach(function(it) {
+      if (it.total_price != null) { totalPrice += Number(it.total_price); hasPrice = true; }
+      if (it.children && it.children.length) sumPrices(it.children);
+    });
+  })(cfgBOMItems);
+  if (hasPrice) {
+    html += '<div class="cfg-bom-total"><span>合计</span><span class="cfg-bom-total-price">¥' + totalPrice.toFixed(2) + '</span></div>';
+  }
+  
   container.innerHTML = html;
 }
 
