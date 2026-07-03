@@ -213,6 +213,7 @@ function initPartPageAddToCart() {
       var oldBtn = document.querySelector('.cart-add-btn-global');
       if (oldBtn) oldBtn.remove();
     }
+    // Re-inject if React removed it (debounced via guard check)
     tryInjectPartButton();
   });
 
@@ -230,21 +231,53 @@ function tryInjectPartButton() {
   if (!m) return;
   var partId = parseInt(m[1]);
 
-  // Already added (check includes floating fallback)
+  // Already added
   if (document.querySelector('.cart-add-btn-global')) return true;
 
-  // Use fixed-position floating button to avoid React DOM conflicts
-  var btn = document.createElement('button');
-  btn.className = 'cart-add-btn-global';
-  btn.innerHTML = '🛒 加入购物车';
-  btn.style.cssText = 'position:fixed;top:64px;right:20px;z-index:1000;background:#2563eb;color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:14px;font-weight:500;cursor:pointer;box-shadow:0 2px 12px rgba(37,99,235,0.3);transition:background 0.15s';
-  btn.onmouseover = function () { this.style.background = '#1d4ed8'; };
-  btn.onmouseout = function () { this.style.background = '#2563eb'; };
-  btn.onclick = function () {
-    addPartToCart(partId, '');
-  };
-  document.body.appendChild(btn);
-  return true;
+  // Find the page header Paper (contains the part title + action buttons)
+  var papers = document.querySelectorAll('[class*="mantine-Paper"]');
+  var paper = null;
+  for (var i = 0; i < papers.length; i++) {
+    var p = papers[i];
+    var btns = p.querySelectorAll('button');
+    if (btns.length >= 2 && p.offsetHeight > 0) {
+      paper = p;
+      break;
+    }
+  }
+  if (!paper) return false;
+
+  // Find the right-side actions Group inside the Paper
+  var groups = paper.querySelectorAll('[class*="mantine-Group"]');
+  var actionGroup = null;
+  for (var i = 0; i < groups.length; i++) {
+    var g = groups[i];
+    // The right-side action group has multiple buttons and is the last group
+    if (g.querySelectorAll('button, a, [role="button"]').length >= 1 &&
+        g.offsetHeight > 0 &&
+        (i === groups.length - 1 || g.querySelectorAll('button').length >= 2)) {
+      actionGroup = g;
+      break;
+    }
+  }
+
+  if (actionGroup) {
+    var btn = document.createElement('button');
+    btn.className = 'cart-add-btn-global';
+    btn.innerHTML = '🛒 加入购物车';
+    btn.style.cssText = 'display:inline-flex;align-items:center;gap:4px;background:#2563eb;color:#fff;border:none;border-radius:6px;padding:6px 12px;font-size:13px;font-weight:500;cursor:pointer;white-space:nowrap;margin-left:6px;line-height:1.4';
+    btn.onmouseover = function () { this.style.background = '#1d4ed8'; };
+    btn.onmouseout = function () { this.style.background = '#2563eb'; };
+    btn.onclick = function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      addPartToCart(partId, '');
+    };
+    actionGroup.appendChild(btn);
+    return true;
+  }
+
+  return false;
 }
 
 async function addPartToCart(partId, partName) {
