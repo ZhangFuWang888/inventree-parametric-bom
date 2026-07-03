@@ -1163,18 +1163,37 @@ function ceSchedulePreview() {
 async function ceDoPreview() {
   const formula = document.getElementById('pbs-ce-input').value.trim();
   const statusEl = document.getElementById('pbs-ce-status');
-  if (!formula) { statusEl.innerHTML = '<span class="text-gray-400">输入公式</span>'; return; }
+  if (!formula) {
+    statusEl.innerHTML = '<span class="text-gray-400">输入公式</span>';
+    _ceState.hasError = false;
+    _ceUpdateSaveButton();
+    return;
+  }
   statusEl.innerHTML = '<span class="text-gray-400">⏳ 计算中...</span>';
   const ctx = window.__ceParamContext || {};
   const res = await apiCall('POST', 'formula/preview/', { formula, context: { param: ctx } });
   const data = res.data || {};
   if (data.success === false || data.error) {
     const errMsg = data.error || '未知错误';
-    statusEl.innerHTML = `<span class="text-red-500">❌ ${escHtml(errMsg)}</span>`;
+    statusEl.innerHTML = `<span class=\"text-red-500\">❌ ${escHtml(errMsg)}</span>`;
+    _ceState.hasError = true;
+    _ceUpdateSaveButton();
     return;
   }
   const val = data.result !== undefined ? data.result : (data.value || '');
-  statusEl.innerHTML = `📐 结果: <strong class="text-green-600 font-mono">${escHtml(String(val))}</strong>`;
+  statusEl.innerHTML = `📐 结果: <strong class=\"text-green-600 font-mono\">${escHtml(String(val))}</strong>`;
+  _ceState.hasError = false;
+  _ceUpdateSaveButton();
+}
+
+function _ceUpdateSaveButton() {
+  const btn = document.querySelector('#pbs-ce-box .btn-primary[onclick*="saveCellFormula"]');
+  if (!btn) return;
+  const hasError = _ceState.hasError === true;
+  btn.disabled = hasError;
+  btn.style.opacity = hasError ? '0.5' : '';
+  btn.style.cursor = hasError ? 'not-allowed' : '';
+  btn.title = hasError ? '公式存在错误，请修正后再保存' : '保存';
 }
 
 function ceLoadPills(pid) {
@@ -1332,13 +1351,16 @@ window.FormulaTemplates = {
 };
 
 function openCellEditor(itemPk, field, currentVal, isQty, mappingId) {
-  _ceState = { itemPk: itemPk, field: field, isQty: !!isQty, staticQty: mappingId || 1, mappingId: mappingId || null };
+  _ceState = { itemPk: itemPk, field: field, isQty: !!isQty, staticQty: mappingId || 1, mappingId: mappingId || null, hasError: false };
   const overlay = document.getElementById('pbs-ce-overlay');
   const input = document.getElementById('pbs-ce-input');
   const title = document.getElementById('pbs-ce-title');
   const statusEl = document.getElementById('pbs-ce-status');
   statusEl.innerHTML = '';
   statusEl.className = 'flex items-center gap-2 text-xs mt-0.5 min-h-[1.5em] text-gray-500';
+
+  // Reset save button state
+  _ceUpdateSaveButton();
 
   if (field === 'variant_name' || field === 'variant_ipn') {
     const labels = {variant_name:'🧬 动态名称模板', variant_ipn:'🧬 动态编码模板'};
@@ -1383,6 +1405,8 @@ function openCellEditor(itemPk, field, currentVal, isQty, mappingId) {
       window.CmFormulaEditor.attachCmToInput(el, { inline: false, minHeight: 50 });
     }
     el.focus();
+    // Trigger auto-preview for existing formula
+    ceSchedulePreview();
   }, 100);
 }
 
@@ -1392,12 +1416,16 @@ function closeCellEditor(evt) {
     if (box && box.contains(evt.target)) return;
   }
   document.getElementById('pbs-ce-overlay').classList.remove('open');
-  _ceState = { itemPk: null, field: null };
+  _ceState = { itemPk: null, field: null, hasError: false };
 }
 
 async function saveCellFormula() {
   const st = _ceState;
   if (!st.itemPk || !st.field) return;
+  if (st.hasError) {
+    document.getElementById('pbs-ce-status').innerHTML = '<span class="text-red-500">❌ 公式存在错误，请修正后再保存</span>';
+    return;
+  }
   const input = document.getElementById('pbs-ce-input');
   const statusEl = document.getElementById('pbs-ce-status');
   const formula = input.value.trim();
@@ -4239,6 +4267,9 @@ function openFormulaEditor(bomItemId, partId, partName) {
   _formulaValidationState.price = null;
   _updateSaveButtonState();
 
+  // Attach auto-validation on input change
+  _setupAllAutoValidations();
+
   // Load existing config for this bom_item
   loadExistingBomItemConfig(bomItemId);
   // Load available params
@@ -4466,6 +4497,9 @@ async function previewAllFormulas() {
 // Each formula field tracks its validation state: 'ok', 'error', or null (unchecked)
 const _formulaValidationState = { qty: null, condition: null, price: null };
 
+// Auto-validation debounce timers
+const _formulaAutoValidateTimers = {};
+
 function _getFormulaResultText(fieldName) {
   const resultMap = { qty: 'fe-qty-result', condition: 'fe-condition-result', price: 'fe-price-result' };
   const el = document.getElementById(resultMap[fieldName]);
@@ -4491,6 +4525,71 @@ function _updateSaveButtonState() {
   btn.style.opacity = hasError ? '0.5' : '';
   btn.style.cursor = hasError ? 'not-allowed' : '';
   btn.title = hasError ? '存在公式错误，请先修正' : '保存公式';
+}
+
+async function _autoValidateFormula(fieldName) {
+  const map = { qty: 'fe-qty-formula', condition: 'fe-condition-formula', price: 'fe-price-formula' };
+  const resultMap = { qty: 'fe-qty-result', condition: 'fe-condition-result', price: 'fe-price-result' };
+  const el = document.getElementById(map[fieldName]);
+  const resultContainer = document.getElementById(resultMap[fieldName]);
+  if (!el || !resultContainer) return;
+
+  const formula = el.value.trim();
+  if (!formula) {
+    resultContainer.innerHTML = '';
+    _formulaValidationState[fieldName] = null;
+    _updateSaveButtonState();
+    return;
+  }
+
+  resultContainer.innerHTML = '<span class="text-blue-400 text-[10px]">验证中...</span>';
+  const res = await apiCall('POST', 'formula/validate/', {formula});
+  if (res.error) {
+    _formulaValidationState[fieldName] = 'error';
+    resultContainer.innerHTML = `<span class="text-red-600">❌ ${res.data?.error || JSON.stringify(res.data).substring(0, 60)}</span>`;
+  } else {
+    const valid = res.data.valid !== false;
+    _formulaValidationState[fieldName] = valid ? 'ok' : 'error';
+    resultContainer.innerHTML = valid
+      ? '<span class="text-green-600">✅ 有效</span>'
+      : `<span class="text-red-600">❌ 无效: ${(res.data.errors || []).join('; ') || '未知错误'}</span>`;
+  }
+  _updateSaveButtonState();
+}
+
+function _setupAutoFormulaValidation(fieldName) {
+  const map = { qty: 'fe-qty-formula', condition: 'fe-condition-formula', price: 'fe-price-formula' };
+  const el = document.getElementById(map[fieldName]);
+  if (!el) return;
+
+  // Remove old listener to avoid duplicates if re-opened
+  const handlerKey = '__autoValidateHandler';
+  if (el[handlerKey]) {
+    el.removeEventListener('input', el[handlerKey]);
+  }
+
+  const handler = function() {
+    clearTimeout(_formulaAutoValidateTimers[fieldName]);
+    _formulaValidationState[fieldName] = null; // reset while typing
+    _formulaAutoValidateTimers[fieldName] = setTimeout(function() {
+      _autoValidateFormula(fieldName);
+    }, 500);
+  };
+  el[handlerKey] = handler;
+  el.addEventListener('input', handler);
+}
+
+function _setupAllAutoValidations() {
+  _setupAutoFormulaValidation('qty');
+  _setupAutoFormulaValidation('condition');
+  _setupAutoFormulaValidation('price');
+}
+
+function _triggerInitialValidations() {
+  // Validate pre-filled formulas after data loads
+  setTimeout(function() { _autoValidateFormula('qty'); }, 400);
+  setTimeout(function() { _autoValidateFormula('condition'); }, 450);
+  setTimeout(function() { _autoValidateFormula('price'); }, 500);
 }
 
 async function saveBomFormula() {
