@@ -958,7 +958,13 @@ document.addEventListener('DOMContentLoaded', function() {
   setTimeout(loadCartCount, 300);
 });
 </script>
+<!-- ── Split JS modules (loaded in dependency order) ── -->
+<script src="/static/parametric_bom/js/core.js"></script>
+<script src="/static/parametric_bom/js/products.js"></script>
+<script src="/static/parametric_bom/js/bom-functions.js"></script>
 <script src="/static/parametric_bom/js/configurator.js"></script>
+<script src="/static/parametric_bom/js/formula-pages.js"></script>
+<script src="/static/parametric_bom/js/init.js"></script>
 <script>
 /* ── Cart Functions ── */
 
