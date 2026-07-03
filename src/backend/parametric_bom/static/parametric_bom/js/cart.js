@@ -262,25 +262,42 @@ function tryInjectPartButton() {
   }
 
   if (actionGroup) {
+    // Wrapper to group qty input + add button together
+    var wrapper = document.createElement('span');
+    wrapper.className = 'cart-add-btn-global';
+    wrapper.style.cssText = 'display:inline-flex;align-items:center;gap:2px;margin-left:6px';
+
+    var qtyInput = document.createElement('input');
+    qtyInput.type = 'number';
+    qtyInput.min = 1;
+    qtyInput.max = 9999;
+    qtyInput.value = 1;
+    qtyInput.id = 'cart-add-qty-' + partId;
+    qtyInput.style.cssText = 'width:44px;height:36px;border:1px solid #d0d5dd;border-radius:4px;text-align:center;font-size:14px;padding:0;outline:none;box-sizing:border-box';
+    qtyInput.onfocus = function () { this.select(); };
+
     var btn = document.createElement('button');
-    btn.className = 'cart-add-btn-global';
     btn.innerHTML = '🛒 加入购物车';
-    btn.style.cssText = 'display:inline-flex;align-items:center;gap:4px;background:#228be6;color:#fff;border:none;border-radius:4px;padding:0 12px;font-size:14px;font-weight:500;cursor:pointer;white-space:nowrap;margin-left:6px;line-height:1;height:36px';
+    btn.style.cssText = 'display:inline-flex;align-items:center;gap:4px;background:#228be6;color:#fff;border:none;border-radius:4px;padding:0 12px;font-size:14px;font-weight:500;cursor:pointer;white-space:nowrap;line-height:1;height:36px';
     btn.onmouseover = function () { this.style.background = '#1c7ed6'; };
     btn.onmouseout = function () { this.style.background = '#228be6'; };
     btn.onclick = function (e) {
       e.preventDefault();
       e.stopPropagation();
-      addPartToCart(partId, '');
+      var qty = parseInt(document.getElementById('cart-add-qty-' + partId).value) || 1;
+      addPartToCart(partId, '', qty);
     };
-    actionGroup.appendChild(btn);
+    wrapper.appendChild(qtyInput);
+    wrapper.appendChild(btn);
+    actionGroup.appendChild(wrapper);
     return true;
   }
 
   return false;
 }
 
-async function addPartToCart(partId, partName) {
+async function addPartToCart(partId, partName, qty) {
+  qty = qty || 1;
   // Get part info and unit price
   var displayName = partName || ('零件 #' + partId);
   var unitPrice = null;
@@ -311,8 +328,8 @@ async function addPartToCart(partId, partName) {
       return c.item_type === 'static' && c.part === partId;
     });
     if (existing) {
-      // Increment quantity
-      var updRes = await cartApi('PATCH', '/' + existing.id + '/', { quantity: (existing.quantity || 1) + 1 });
+      // Increment by specified quantity
+      var updRes = await cartApi('PATCH', '/' + existing.id + '/', { quantity: (existing.quantity || 1) + qty });
       if (updRes.ok) {
         loadCartCount();
         cartToggle();
@@ -326,7 +343,7 @@ async function addPartToCart(partId, partName) {
     item_type: 'static',
     part: partId,
     title: displayName,
-    quantity: 1,
+    quantity: qty,
   };
   if (unitPrice !== null) body.unit_price = String(unitPrice);
 
