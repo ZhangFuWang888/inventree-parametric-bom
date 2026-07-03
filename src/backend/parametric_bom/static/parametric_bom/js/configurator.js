@@ -153,7 +153,7 @@ function goConfigStep(step) {
 // ===== PART LOADING =====
 async function loadParts() {
   try {
-    const resp = await fetch('/api/part/?limit=5000', {credentials: 'same-origin'});
+    const resp = await fetch('/api/part/?limit=5000&ordering=-creation_date', {credentials: 'same-origin'});
     if (resp.ok) {
       const data = await resp.json();
       parts = Array.isArray(data) ? data : (data.results || []);
@@ -5111,23 +5111,18 @@ async function cartAddStaticPart(partId, partName, partIpn) {
     setStatus('success', '✅ 已加入购物车: ' + name);
     // Update badge
     try {
-      const cntRes = await fetch('/api/parametric-bom/cart/count/', {credentials: 'same-origin'});
+      var cntRes = await fetch('/api/parametric-bom/cart/count/', {credentials: 'same-origin'});
       if (cntRes.ok) {
-        const cntData = await cntRes.json();
-        const cnt = cntData.count || 0;
-        var badge = document.getElementById('sidebar-cart-count');
+        var cntData = await cntRes.json();
+        var cnt = cntData.count || 0;
+        var badge = document.getElementById('cart-fab-count');
         if (badge) badge.textContent = cnt;
-        var fabBadge = document.getElementById('cart-fab-count');
-        if (fabBadge) fabBadge.textContent = cnt;
       }
     } catch(e) {}
-  } else {
-    const err = await res.json();
-    setStatus('error', '加入购物车失败: ' + JSON.stringify(err));
   }
 }
 
-
+// ── Cart: Add from BOM configurator (cfgAddToCart) ──
 // ── Cart: Add from product detail configurator tab ──
 
 async function cfgAddToCart() {
@@ -5165,11 +5160,8 @@ async function cfgAddToCart() {
       if (cntRes.ok) {
         var cntData = await cntRes.json();
         var cnt = cntData.count || 0;
-        var badge = document.getElementById('sidebar-cart-count');
+        var badge = document.getElementById('cart-fab-count');
         if (badge) badge.textContent = cnt;
-        var fabBadge = document.getElementById('cart-fab-count');
-        if (fabBadge) fabBadge.textContent = cnt;
-        // Open cart panel
         var panel = document.getElementById('cart-panel');
         var overlay = document.getElementById('cart-overlay');
         if (panel) panel.classList.add('open');

@@ -1317,26 +1317,14 @@ def cart_add(request):
             try:
                 from part.models import Part
                 part = Part.objects.get(pk=int(product_part_id))
-                # Try to get internal price from part pricing data
+                # Use cached pricing only (fast path)
                 if hasattr(part, 'pricing') and part.pricing:
                     p = part.pricing
-                    # Try overall pricing first, then internal cost
                     unit_price = float(
                         p.overall_min or p.overall_max or
                         p.internal_cost_min or p.internal_cost_max or
                         p.bom_cost_min or p.bom_cost_max or 0
                     )
-                else:
-                    # Fallback: use cost_estimator if available
-                    try:
-                        from parametric_bom.cost_estimator import estimate_part_cost
-                        params = data.get('parameters', {})
-                        cost_result = estimate_part_cost(part, params)
-                        total = cost_result.get('total_cost')
-                        if total is not None:
-                            unit_price = float(total)
-                    except Exception:
-                        pass
             except Exception:
                 pass
 

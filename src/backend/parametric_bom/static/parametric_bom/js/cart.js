@@ -194,54 +194,86 @@ document.addEventListener('DOMContentLoaded', function () {
   initPartPageAddToCart();
 });
 
-// ===== Part Detail Page: Inject "Add to Cart" =====
+// ===== Part Detail Page: "Add to Cart" Button =====
 function initPartPageAddToCart() {
-  // Match /web/part/<id>/ or /part/<id>/
+  // Don't inject on parametric BOM pages (they have their own cart)
+  if (document.getElementById('cart-fab')) return;
+
   var m = window.location.pathname.match(/\/web\/part\/(\d+)/) || window.location.pathname.match(/\/part\/(\d+)/);
   if (!m) return;
   var partId = parseInt(m[1]);
 
-  // Wait for the Vue SPA to render the part name
-  var observer = new MutationObserver(function () {
-    // InvenTree renders part name in an h1 or inside a heading element
-    var headings = document.querySelectorAll('h1, h2, h3, h4');
-    var partTitle = null;
-    for (var i = 0; i < headings.length; i++) {
-      var h = headings[i];
-      // Look for a heading that contains text (not just icons)
-      var txt = h.textContent.trim();
-      if (txt.length > 1 && !h.querySelector('.cart-add-btn')) {
-        partTitle = h;
-        break;
+  // Retry several times - Vue SPA renders asynchronously
+  var attempts = 0;
+  var timer = setInterval(function () {
+    attempts++;
+    if (tryAddPartButton(partId)) {
+      clearInterval(timer);
+      return;
+    }
+    if (attempts >= 20) { // 20 * 500ms = 10 seconds max
+      clearInterval(timer);
+      // Fallback: add floating button anyway
+      addFloatingPartButton(partId, '零件 #' + partId);
+    }
+  }, 500);
+}
+
+function tryAddPartButton(partId) {
+  // Already added
+  if (document.querySelector('.cart-add-btn-global')) return true;
+
+  // Find the part title area - InvenTree renders it inside #root
+  // Look for any heading element that contains the part number (from URL)
+  var headings = document.querySelectorAll('h1, h2, h3, h4, h5, h6, .part-name, [class*="title"], [class*="heading"]');
+  var target = null;
+
+  for (var i = 0; i < headings.length; i++) {
+    var el = headings[i];
+    var txt = el.textContent.trim();
+    // Only consider elements with substantial text
+    if (txt.length > 2 && txt.length < 100) {
+      // Check if this looks like a part name (not nav/header text)
+      if (!target || el.offsetHeight > 0) {
+        target = el;
       }
     }
-    if (!partTitle) return;
+  }
 
-    // Already added
-    if (partTitle.querySelector('.cart-add-btn')) return;
+  if (!target || target.offsetHeight === 0) return false; // Not rendered yet
 
-    // Get part name from the heading
-    var partName = partTitle.textContent.trim().replace(/[🛒➕]/g, '').trim();
+  // Found a heading, add button next to it
+  var btn = document.createElement('button');
+  btn.className = 'cart-add-btn-global';
+  btn.innerHTML = '🛒 加入购物车';
+  btn.style.cssText = 'display:inline-flex;align-items:center;gap:4px;margin-left:8px;background:#2563eb;color:#fff;border:none;border-radius:6px;padding:4px 12px;font-size:13px;font-weight:500;cursor:pointer;vertical-align:middle;white-space:nowrap';
+  btn.onmouseover = function () { this.style.background = '#1d4ed8'; };
+  btn.onmouseout = function () { this.style.background = '#2563eb'; };
 
-    // Inject "Add to Cart" button
-    var btn = document.createElement('button');
-    btn.className = 'cart-add-btn';
-    btn.innerHTML = '🛒 加入购物车';
-    btn.style.cssText = 'margin-left:0.75rem;background:#2563eb;color:#fff;border:none;border-radius:6px;padding:0.375rem 0.75rem;font-size:0.8125rem;font-weight:500;cursor:pointer;transition:all 0.15s;vertical-align:middle';
-    btn.onmouseover = function () { this.style.background = '#1d4ed8'; };
-    btn.onmouseout = function () { this.style.background = '#2563eb'; };
-    btn.onclick = function (e) {
-      e.stopPropagation();
-      addPartToCart(partId, partName);
-    };
-    partTitle.appendChild(btn);
-    observer.disconnect();
-  });
+  // Get part name from the heading
+  var partName = target.textContent.trim().replace(/[🛒➕★☆◆◇]/g, '').trim();
+  
+  btn.onclick = function (e) {
+    e.preventDefault();
+    e.stopPropagation();
+    addPartToCart(partId, partName);
+  };
 
-  observer.observe(document.body, { childList: true, subtree: true });
+  // Append to the heading's parent, right after the heading text
+  target.appendChild(btn);
+  return true;
+}
 
-  // Stop observing after 15 seconds to avoid memory leaks
-  setTimeout(function () { observer.disconnect(); }, 15000);
+function addFloatingPartButton(partId, partName) {
+  if (document.getElementById('cart-fallback-btn')) return;
+  var btn = document.createElement('button');
+  btn.id = 'cart-fallback-btn';
+  btn.innerHTML = '🛒 加入购物车';
+  btn.style.cssText = 'position:fixed;top:60px;right:16px;z-index:1035;background:#2563eb;color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:14px;font-weight:500;cursor:pointer;box-shadow:0 2px 12px rgba(37,99,235,0.3)';
+  btn.onmouseover = function () { this.style.background = '#1d4ed8'; };
+  btn.onmouseout = function () { this.style.background = '#2563eb'; };
+  btn.onclick = function () { addPartToCart(partId, partName); };
+  document.body.appendChild(btn);
 }
 
 async function addPartToCart(partId, partName) {
