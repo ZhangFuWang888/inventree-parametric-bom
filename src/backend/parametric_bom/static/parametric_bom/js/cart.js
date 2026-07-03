@@ -265,9 +265,9 @@ function tryInjectPartButton() {
     var btn = document.createElement('button');
     btn.className = 'cart-add-btn-global';
     btn.innerHTML = '🛒 加入购物车';
-    btn.style.cssText = 'display:inline-flex;align-items:center;gap:4px;background:#2563eb;color:#fff;border:none;border-radius:6px;padding:6px 12px;font-size:13px;font-weight:500;cursor:pointer;white-space:nowrap;margin-left:6px;line-height:1.4';
-    btn.onmouseover = function () { this.style.background = '#1d4ed8'; };
-    btn.onmouseout = function () { this.style.background = '#2563eb'; };
+    btn.style.cssText = 'display:inline-flex;align-items:center;gap:4px;background:#228be6;color:#fff;border:none;border-radius:4px;padding:0 12px;font-size:14px;font-weight:500;cursor:pointer;white-space:nowrap;margin-left:6px;line-height:1;height:36px';
+    btn.onmouseover = function () { this.style.background = '#1c7ed6'; };
+    btn.onmouseout = function () { this.style.background = '#228be6'; };
     btn.onclick = function (e) {
       e.preventDefault();
       e.stopPropagation();
