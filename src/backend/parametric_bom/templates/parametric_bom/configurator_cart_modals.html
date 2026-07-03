@@ -1,0 +1,325 @@
+
+<!-- ===== CART: Floating Button (standalone product page only) ===== -->
+{% if standalone %}
+<button class="cart-fab" id="cart-fab" onclick="cartToggle()">
+  🛒 <span>购物车</span> <span class="cart-badge" id="cart-fab-count">0</span>
+</button>
+{% endif %}
+
+<!-- ===== CART: Panel ===== -->
+<div class="cart-panel-overlay" id="cart-overlay" onclick="cartToggle()"></div>
+<div class="cart-panel" id="cart-panel">
+  <div class="cart-panel-header">
+    <span>🛒 购物车</span>
+    <div class="flex items-center gap-2">
+      <button class="text-xs text-red-500 hover:text-red-700 font-medium" onclick="cartClear()" style="background:none;border:none;cursor:pointer;padding:0.25rem 0.5rem;border-radius:4px">清空</button>
+      <button class="cart-close" onclick="cartToggle()">✕</button>
+    </div>
+  </div>
+  <div class="cart-panel-body" id="cart-items">
+    <div class="empty-state"><div class="icon">🛒</div><p>购物车是空的</p><p class="text-xs text-gray-400 mt-1">在配置器中展开BOM后点击「加入购物车」</p></div>
+  </div>
+  <div class="cart-panel-footer" id="cart-footer" style="display:none">
+    <div class="cart-summary-row">
+      <span>数量合计</span>
+      <span id="cart-total-items">0 件</span>
+    </div>
+    <div class="cart-summary-row total">
+      <span>金额合计</span>
+      <span id="cart-total-amount">¥0.00</span>
+    </div>
+    <div class="flex gap-2 w-full">
+      <button class="btn btn-secondary flex-1 py-2 text-sm" onclick="cartExportCSV()">📥 导单</button>
+      <button class="btn btn-primary flex-1 py-2 text-sm" onclick="cartCreateOrder()">📋 下单</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODAL: Add/Edit Variable ===== -->
+<div class="modal-overlay" id="modal-add-variable">
+  <div class="modal-box" style="max-width:600px">
+    <h3 class="text-base font-semibold text-gray-800 mb-3">📐 新建中间变量</h3>
+    <input type="hidden" id="av-editing-id" value="">
+    <div class="grid grid-cols-2 gap-3 mb-3">
+      <div>
+        <label class="block text-xs font-medium text-gray-500 mb-1">变量名 *</label>
+        <input class="input-field" id="av-name" placeholder="例如: 总重量, 板面积" autocomplete="off">
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-gray-500 mb-1">描述 <span class="text-gray-400 font-normal">(可选)</span></label>
+        <input class="input-field" id="av-description" placeholder="说明此变量的用途">
+      </div>
+    </div>
+    <div class="mb-2">
+      <label class="block text-xs font-medium text-gray-500 mb-1">公式 *</label>
+      <!-- Available params -->
+      <div class="mb-1.5">
+        <div class="flex items-center justify-between cursor-pointer" onclick="avTogglePills()">
+          <label class="text-[10px] text-gray-400">可用参数/函数 <span id="av-pills-toggle-icon">▾</span></label>
+        </div>
+        <div id="av-pills-area" class="max-h-28 overflow-y-auto border border-gray-100 rounded-lg p-1.5">
+          <div class="mb-1">
+            <label class="text-[9px] text-gray-400 mb-0.5 block">📌 可用参数 (点击插入):</label>
+            <div id="av-param-pills" class="flex flex-wrap gap-1">
+              <span class="text-[10px] text-gray-400">加载中...</span>
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-x-2 gap-y-0.5">
+            <div>
+              <label class="text-[9px] text-gray-400 mb-0.5 block">🔢 数学:</label>
+              <div class="flex flex-wrap gap-1">
+                <span class="fe-fn-pill text-[10px] px-1.5 py-0.5" onclick="avInsertText('CEIL(x)')" title="CEIL(x) 向上取整">CEIL</span>
+                <span class="fe-fn-pill text-[10px] px-1.5 py-0.5" onclick="avInsertText('FLOOR(x)')" title="FLOOR(x) 向下取整">FLOOR</span>
+                <span class="fe-fn-pill text-[10px] px-1.5 py-0.5" onclick="avInsertText('ROUND(x, [n])')" title="ROUND(x, [n]) 四舍五入">ROUND</span>
+                <span class="fe-fn-pill text-[10px] px-1.5 py-0.5" onclick="avInsertText('IF(c, t, f)')" title="IF(条件, 真值, 假值)">IF</span>
+                <span class="fe-fn-pill text-[10px] px-1.5 py-0.5" onclick="avInsertText('AND(...exprs)')" title="AND(...) 逻辑与">AND</span>
+                <span class="fe-fn-pill text-[10px] px-1.5 py-0.5" onclick="avInsertText('OR(...exprs)')" title="OR(...) 逻辑或">OR</span>
+                <span class="fe-fn-pill text-[10px] px-1.5 py-0.5" onclick="avInsertText('NOT(x)')" title="NOT(x) 逻辑非">NOT</span>
+                <span class="fe-fn-pill text-[10px] px-1.5 py-0.5" onclick="avInsertText('MIN(a, b)')" title="MIN(a, b) 最小值">MIN</span>
+                <span class="fe-fn-pill text-[10px] px-1.5 py-0.5" onclick="avInsertText('MAX(a, b)')" title="MAX(a, b) 最大值">MAX</span>
+                <span class="fe-fn-pill text-[10px] px-1.5 py-0.5" onclick="avInsertText('ABS(x)')" title="ABS(x) 绝对值">ABS</span>
+                <span class="fe-fn-pill text-[10px] px-1.5 py-0.5" onclick="avInsertText('SQRT(x)')" title="SQRT(x) 平方根">SQRT</span>
+                <span class="fe-fn-pill text-[10px] px-1.5 py-0.5" onclick="avInsertText('POW(base, exp)')" title="POW(base, exp) 幂运算">POW</span>
+                <span class="fe-fn-pill text-[10px] px-1.5 py-0.5" onclick="avInsertText('MOD(a, b)')" title="MOD(a, b) 取模">MOD</span>
+                <span class="fe-fn-pill text-[10px] px-1.5 py-0.5" onclick="avInsertText('SUM(...vals)')" title="SUM(...) 求和">SUM</span>
+                <span class="fe-fn-pill text-[10px] px-1.5 py-0.5" onclick="avInsertText('AVG(...vals)')" title="AVG(...) 平均值">AVG</span>
+                <span class="fe-fn-pill text-[10px] px-1.5 py-0.5" onclick="avInsertText('COUNT(...vals)')" title="COUNT(...) 计数">COUNT</span>
+              </div>
+            </div>
+            <div>
+              <label class="text-[9px] text-gray-400 mb-0.5 block">🔤 字符串/类型:</label>
+              <div class="flex flex-wrap gap-1">
+                <span class="fe-fn-pill text-[10px] px-1.5 py-0.5" onclick="avInsertText('CONCAT(...vals)')" title="CONCAT(...) 拼接">CONCAT</span>
+                <span class="fe-fn-pill text-[10px] px-1.5 py-0.5" onclick="avInsertText('LEN(s)')" title="LEN(s) 长度">LEN</span>
+                <span class="fe-fn-pill text-[10px] px-1.5 py-0.5" onclick="avInsertText('UPPER(s)')" title="UPPER(s) 大写">UPPER</span>
+                <span class="fe-fn-pill text-[10px] px-1.5 py-0.5" onclick="avInsertText('LOWER(s)')" title="LOWER(s) 小写">LOWER</span>
+                <span class="fe-fn-pill text-[10px] px-1.5 py-0.5" onclick="avInsertText('TRIM(s)')" title="TRIM(s) 去空格">TRIM</span>
+                <span class="fe-fn-pill text-[10px] px-1.5 py-0.5" onclick="avInsertText('INT(x)')" title="INT(x) 转整型">INT</span>
+                <span class="fe-fn-pill text-[10px] px-1.5 py-0.5" onclick="avInsertText('FLOAT(x)')" title="FLOAT(x) 转浮点">FLOAT</span>
+                <span class="fe-fn-pill text-[10px] px-1.5 py-0.5" onclick="avInsertText('STR(x)')" title="STR(x) 转字符串">STR</span>
+                <span class="fe-fn-pill text-[10px] px-1.5 py-0.5" onclick="avInsertText('BOOL(x)')" title="BOOL(x) 转布尔">BOOL</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <textarea id="av-formula" class="input-field w-full font-mono text-xs" rows="3" placeholder="例如: param.长度 * param.宽度 * 厚度 * 7.85 / 1000000" onfocus="feState.activeField='var-formula'" oninput="avSchedulePreview()"></textarea>
+      <div id="av-formula-status" class="flex items-center gap-2 text-[11px] mt-1 min-h-[1.4em]"></div>
+    </div>
+    <div class="flex justify-end gap-2 mt-3">
+      <button class="btn btn-secondary" onclick="closeModal('modal-add-variable')">取消</button>
+      <button class="btn btn-primary" onclick="confirmAddVariable()">✅ 创建变量</button>
+    </div>
+  </div>
+</div>
+<div class="modal-overlay" id="modal-add-param">
+  <div class="modal-box" style="max-width:640px">
+    <h3 class="text-base font-semibold text-gray-800 mb-4">➕ 新增参数配置</h3>
+    <div class="mb-3 p-2 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-700" id="ap-product-info">
+      产品: <strong id="ap-product-name-display">—</strong>
+      <input type="hidden" id="ap-part" value="">
+    </div>
+    <div class="mb-3">
+      <label class="block text-xs font-medium text-gray-500 mb-1">参数模板</label>
+      <select class="input-field" id="ap-template" onchange="onAddParamTemplateChange()"><option value="">-- 请选择 --</option></select>
+    </div>
+    <div class="mb-3">
+      <label class="block text-xs font-medium text-gray-500 mb-1">参数类型</label>
+      <select class="input-field" id="ap-type" onchange="onAddParamTypeChange()">
+        <option value="number">数值 (Number)</option>
+        <option value="option">选项 (Option)</option>
+        <option value="multi_option">多选项 (Multi Option)</option>
+        <option value="boolean">布尔 (Boolean)</option>
+        <option value="text">文本 (Text)</option>
+        <option value="long_text">长文本 (Long Text)</option>
+        <option value="file_ref">文件引用 (File Ref)</option>
+        <option value="part_ref">零件引用 (Part Ref)</option>
+      </select>
+    </div>
+    <!-- Type-conditional fields -->
+    <div id="ap-type-fields">
+      <!-- Default: number -->
+      <div class="grid grid-cols-4 gap-2 mb-3">
+        <div>
+          <label class="block text-xs font-medium text-gray-500 mb-1">默认值</label>
+          <input class="input-field" id="ap-default" placeholder="默认值">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-gray-500 mb-1">最小值</label>
+          <input class="input-field" id="ap-min" type="number" placeholder="最小">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-gray-500 mb-1">最大值</label>
+          <input class="input-field" id="ap-max" type="number" placeholder="最大">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-gray-500 mb-1">步长</label>
+          <input class="input-field" id="ap-step" type="number" step="0.01" placeholder="步长">
+        </div>
+      </div>
+      <!-- Options (hidden by default, shown for option/multi_option) -->
+      <div class="mb-3" id="ap-options-group" style="display:none">
+        <label class="block text-xs font-medium text-gray-500 mb-1">选项 (逗号分隔)</label>
+        <input class="input-field" id="ap-options" placeholder="例如: 红色,蓝色,绿色">
+      </div>
+      <!-- Boolean default (hidden by default) -->
+      <div class="mb-3" id="ap-boolean-group" style="display:none">
+        <label class="block text-xs font-medium text-gray-500 mb-1">默认值</label>
+        <select class="input-field" id="ap-boolean-default">
+          <option value="true">是 (True)</option>
+          <option value="false">否 (False)</option>
+        </select>
+      </div>
+    </div>
+    <div class="grid grid-cols-2 gap-3 mb-3">
+      <div class="flex items-center gap-3">
+        <label class="flex items-center gap-1.5 text-xs text-gray-600"><input type="checkbox" id="ap-driving" checked> 驱动参数</label>
+        <label class="flex items-center gap-1.5 text-xs text-gray-600"><input type="checkbox" id="ap-computed" onchange="document.getElementById('ap-formula-group').style.display=this.checked?'block':'none'"> 计算参数</label>
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-gray-500 mb-1">显示顺序</label>
+        <input class="input-field" id="ap-order" type="number" value="100">
+      </div>
+    </div>
+    <div class="mb-3" id="ap-formula-group" style="display:none">
+      <label class="block text-xs font-medium text-gray-500 mb-1">计算公式</label>
+      <input class="input-field" id="ap-formula" placeholder="例如: param.载重 * param.速度 / 0.85">
+    </div>
+    <div class="flex justify-end gap-2">
+      <button class="btn btn-secondary" onclick="cancelAddParamModal()">取消</button>
+      <button class="btn btn-primary" id="modal-add-param-submit" onclick="createParamConfig()">创建</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODAL: Quick Add Param (双击/拖拽) ===== -->
+<div class="modal-overlay" id="modal-quick-param">
+  <div class="modal-box" style="max-width:420px">
+    <div class="flex items-center justify-between mb-3">
+      <h3 class="text-sm font-semibold text-gray-800">⚡ 添加参数: <span id="qp-name" class="text-blue-600"></span></h3>
+      <button class="text-gray-400 hover:text-gray-600 text-lg leading-none" onclick="closeModal('modal-quick-param')">&times;</button>
+    </div>
+    <input type="hidden" id="qp-tpl-id" value="">
+    <div class="mb-3">
+      <label class="block text-xs font-medium text-gray-500 mb-1.5">参数类型</label>
+      <select class="input-field" id="qp-type" onchange="onQuickParamTypeChange()">
+        <option value="number">数值 (Number)</option>
+        <option value="option">选项 (Option)</option>
+        <option value="multi_option">多选项 (Multi Option)</option>
+        <option value="boolean">布尔 (Boolean)</option>
+        <option value="text">文本 (Text)</option>
+        <option value="long_text">长文本 (Long Text)</option>
+        <option value="file_ref">文件引用 (File Ref)</option>
+        <option value="part_ref">零件引用 (Part Ref)</option>
+      </select>
+    </div>
+    <div class="grid grid-cols-4 gap-2 mb-3" id="qp-num-fields">
+      <div>
+        <label class="block text-xs font-medium text-gray-500 mb-1">默认值</label>
+        <input class="input-field" id="qp-default" placeholder="默认值">
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-gray-500 mb-1">最小值</label>
+        <input class="input-field" id="qp-min" type="number" placeholder="最小">
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-gray-500 mb-1">最大值</label>
+        <input class="input-field" id="qp-max" type="number" placeholder="最大">
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-gray-500 mb-1">步长</label>
+        <input class="input-field" id="qp-step" type="number" step="0.01" placeholder="步长">
+      </div>
+    </div>
+    <div class="mb-3" id="qp-options-group" style="display:none">
+      <label class="block text-xs font-medium text-gray-500 mb-1">选项 (逗号分隔)</label>
+      <input class="input-field" id="qp-options" placeholder="例如: 红色,蓝色,绿色">
+    </div>
+    <div class="mb-3" id="qp-boolean-group" style="display:none">
+      <label class="block text-xs font-medium text-gray-500 mb-1">默认值</label>
+      <select class="input-field" id="qp-boolean-default">
+        <option value="true">是 (True)</option>
+        <option value="false">否 (False)</option>
+      </select>
+    </div>
+    <div class="flex items-center gap-3 mb-3">
+      <label class="flex items-center gap-1.5 text-xs text-gray-600"><input type="checkbox" id="qp-driving" checked> 驱动参数</label>
+      <label class="flex items-center gap-1.5 text-xs text-gray-600"><input type="checkbox" id="qp-computed" onchange="document.getElementById('qp-formula-group').style.display=this.checked?'block':'none'"> 计算参数</label>
+    </div>
+    <div class="mb-3" id="qp-formula-group" style="display:none">
+      <label class="block text-xs font-medium text-gray-500 mb-1">计算公式</label>
+      <input class="input-field" id="qp-formula" placeholder="例如: param.载重 * param.速度 / 0.85">
+    </div>
+    <div class="flex justify-end gap-2">
+      <button class="btn btn-secondary" onclick="closeModal('modal-quick-param')">取消</button>
+      <button class="btn btn-primary" onclick="quickAddParam()">确定添加</button>
+    </div>
+  </div>
+</div>
+
+<!-- 规则弹窗已移除 -->
+
+<!-- ===== MODAL: Add BOM Item ===== -->
+<div class="modal-overlay" id="modal-add-bom" onclick="if(event.target===this){event.stopImmediatePropagation();return false}">
+  <div class="modal-box" style="max-width:520px">
+    <h3 class="text-base font-semibold text-gray-800 mb-4">➕ 添加BOM项目</h3>
+
+    <!-- Type toggle -->
+    <div class="mb-4">
+      <label class="block text-xs font-medium text-gray-500 mb-1.5">项目类型</label>
+      <div class="flex gap-2">
+        <button class="ab-type-btn selected" data-type="static" onclick="abSetType('static')">
+          📦 静态项目
+        </button>
+        <button class="ab-type-btn" data-type="dynamic" onclick="abSetType('dynamic')">
+          🧬 动态项目
+        </button>
+      </div>
+    </div>
+
+    <div class="mb-3">
+      <label class="block text-xs font-medium text-gray-500 mb-1">当前产品</label>
+      <div class="text-sm font-medium text-slate-700" id="ab-product-name">—</div>
+    </div>
+    <div class="mb-3">
+      <label class="block text-xs font-medium text-gray-500 mb-1" id="ab-part-label">选择子件</label>
+      <input class="input-field mb-1.5" id="ab-search" type="text" placeholder="🔍 搜索零件名称/IPN..." oninput="filterAbParts(this.value)">
+      <select class="input-field" id="ab-sub-part" size="6">
+        <option value="">-- 请选择零件 --</option>
+      </select>
+      <div class="text-[10px] text-slate-400 mt-1" id="ab-search-count"></div>
+    </div>
+    <div class="mb-3">
+      <label class="block text-xs font-medium text-gray-500 mb-1">数量</label>
+      <input class="input-field" id="ab-qty" type="number" value="1" min="1" step="1">
+    </div>
+    <div class="mb-3">
+      <label class="block text-xs font-medium text-gray-500 mb-1">参数映射</label>
+      <button class="btn btn-sm btn-outline-secondary text-[10px]" onclick="abEditParamMapping()" type="button">📐 编辑参数映射</button>
+      <span class="text-[10px] text-gray-400 ml-2" id="ab-mapping-count">未配置</span>
+    </div>
+
+    <!-- Dynamic-only hint -->
+    <div id="ab-dynamic-hint" class="text-[10px] text-purple-500 mb-3 hidden">
+      🧬 动态项目：名称模板和编码模板可在插入后双击编辑
+    </div>
+
+    <div class="flex justify-end gap-2">
+      <button class="btn btn-secondary" onclick="closeModal('modal-add-bom')">取消</button>
+      <button class="btn btn-primary" onclick="createBomItem()">确定添加</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODAL: Cost Detail ===== -->
+<div class="modal-overlay" id="modal-cost">
+  <div class="modal-box">
+    <h3 class="text-base font-semibold text-gray-800 mb-4">💰 成本明细</h3>
+    <div id="cost-detail-content"></div>
+    <div class="flex justify-end mt-4">
+      <button class="btn btn-secondary" onclick="closeModal('modal-cost')">关闭</button>
+    </div>
+  </div>
+</div>
+
+<script>

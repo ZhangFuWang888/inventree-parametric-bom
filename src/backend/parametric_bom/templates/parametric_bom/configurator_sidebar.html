@@ -1,0 +1,22 @@
+<div class="layout-wrap">
+  <!-- Sidebar -->
+  {% if not standalone and not embedded %}
+  <nav class="sidebar" id="sidebar">
+    <div class="py-2 flex-1">
+      <!-- 首页 -->
+      <div class="sidebar-item active" data-page="dashboard" onclick="switchPage('dashboard')">
+        🏠 首页
+      </div>
+      <!-- 产品管理（总入口） -->
+      <div class="sidebar-item" data-page="products" onclick="switchPage('products')">
+        🏷️ 产品管理
+      </div>
+    </div>
+    <div class="p-3 text-[10px] text-slate-600 border-t border-slate-700">
+      参数化BOM v2.0
+    </div>
+  </nav>
+  {% endif %}
+
+  <!-- Main Content -->
+  <div class="main-content{% if standalone %} standalone{% endif %}{% if embedded %} embedded{% endif %}" id="main-content">

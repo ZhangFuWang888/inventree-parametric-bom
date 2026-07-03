@@ -1,0 +1,245 @@
+// ── Django template variables (used by external configurator.js) ──
+let configuratorPartId = null;
+let parts = [];
+let templates = [];
+let currentPartInfo = null;
+let currentParams = {};
+let currentParamConfigs = [];
+let currentBOMResult = null;
+let currentCostResult = null;
+let configs = [];
+let selectedConfigId = null;
+let savedConfigId = null;
+let currentStep = 1;
+let initialProductId = {% if initial_product_id %}{{ initial_product_id }}{% else %}null{% endif %};
+let initialPage = '{{ initial_page }}';
+let standalone = {% if standalone %}true{% else %}false{% endif %};
+</script>
+
+
+
+<!-- CodeMirror 5 Formula Editor -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/codemirror.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/addon/hint/show-hint.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/addon/hint/show-hint.min.css">
+<script type="module" src="/static/parametric_bom/js/codemirror-formula.js"></script>
+<script>
+// Initialize CodeMirror formula editors after page load
+document.addEventListener('DOMContentLoaded', function() {
+  // Patch selector list to include variable modal's formula field
+  const orig = window.CmFormulaEditor?.initFormulaEditors;
+  if (orig) {
+    // Auto-init formula editors on page load (BOM editor fields)
+    setTimeout(() => {
+      const params = window.configuratorPartData?.parameters || [];
+      window.CmFormulaEditor.initFormulaEditors(params);
+    }, 500);
+  }
+  // Load cart count on page load
+  setTimeout(loadCartCount, 300);
+});
+</script>
+<!-- ── Split JS modules (loaded in dependency order) ── -->
+<script src="/static/parametric_bom/js/core.js"></script>
+<script src="/static/parametric_bom/js/products.js"></script>
+<script src="/static/parametric_bom/js/bom-functions.js"></script>
+<script src="/static/parametric_bom/js/configurator.js"></script>
+<script src="/static/parametric_bom/js/formula-pages.js"></script>
+<script src="/static/parametric_bom/js/init.js"></script>
+<script>
+/* ── Cart Functions ── */
+
+const CART_API_BASE = '/api/parametric-bom/cart';
+
+function csrfSafeMethod(method) {
+  return /^(GET|HEAD|OPTIONS|TRACE)$/.test(method);
+}
+
+function getCookie(name) {
+  let cookieValue = null;
+  if (document.cookie && document.cookie !== '') {
+    const cookies = document.cookie.split(';');
+    for (let i = 0; i < cookies.length; i++) {
+      const cookie = cookies[i].trim();
+      if (cookie.substring(0, name.length + 1) === (name + '=')) {
+        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+        break;
+      }
+    }
+  }
+  return cookieValue;
+}
+
+async function cartApi(method, path, body, responseType) {
+  const url = CART_API_BASE + path;
+  const opts = { method, headers: {'Content-Type': 'application/json'} };
+  if (!csrfSafeMethod(method)) {
+    opts.headers['X-CSRFToken'] = getCookie('csrftoken');
+  }
+  if (body && method !== 'GET') opts.body = JSON.stringify(body);
+  try {
+    if (responseType === 'blob') {
+      delete opts.headers['Content-Type'];
+      const resp = await fetch(url, opts);
+      if (!resp.ok) return {ok:false, data:await resp.json().catch(()=>({}))};
+      return {ok:true, data:await resp.blob()};
+    }
+    const resp = await fetch(url, opts);
+    if (resp.status === 204) return {ok:true, data:null};
+    const data = await resp.json();
+    return {ok: resp.ok, data, status: resp.status};
+  } catch(e) {
+    return {ok:false, data:e.message};
+  }
+}
+
+async function loadCartCount() {
+  const r = await cartApi('GET', '/count/');
+  if (r.ok) {
+    const count = r.data.count || 0;
+    const sidebarBadge = document.getElementById('sidebar-cart-count');
+    if (sidebarBadge) sidebarBadge.textContent = count;
+    const fabBadge = document.getElementById('cart-fab-count');
+    if (fabBadge) fabBadge.textContent = count;
+  }
+}
+
+async function cartLoad() {
+  const r = await cartApi('GET', '/');
+  if (!r.ok) return;
+  const items = r.data;
+  const container = document.getElementById('cart-items');
+  const footer = document.getElementById('cart-footer');
+  if (!items || items.length === 0) {
+    container.innerHTML = '<div class="empty-state"><div class="icon">🛒</div><p>购物车是空的</p><p class="text-xs text-gray-400 mt-1">在配置器中展开BOM后点击「加入购物车」</p></div>';
+    footer.style.display = 'none';
+    return;
+  }
+  let html = '';
+  let totalQty = 0;
+  let totalAmount = 0;
+  items.forEach(item => {
+    totalQty += item.quantity || 1;
+    const lineTotal = (item.total_cost != null) ? item.total_cost : ((item.unit_price != null) ? item.unit_price * (item.quantity || 1) : 0);
+    totalAmount += lineTotal;
+    html += renderCartItem(item);
+  });
+  container.innerHTML = html;
+  document.getElementById('cart-total-items').textContent = totalQty + ' 件';
+  const amtEl = document.getElementById('cart-total-amount');
+  if (amtEl) amtEl.textContent = '¥' + totalAmount.toFixed(2);
+  footer.style.display = 'flex';
+  loadCartCount();
+}
+
+function renderCartItem(item) {
+  const isParametric = item.item_type === 'parametric';
+  const icon = isParametric ? '📦' : '⚙️';
+  const name = item.title || item.product_part_name || item.part_name || '未命名';
+  const meta = isParametric
+    ? `参数化产品 · ${item.product_part_ipn || ''}`
+    : `静态零件 · ${item.part_ipn || ''} · ${item.part_unit || ''}`;
+  const bomCount = item.bom_snapshot
+    ? (Array.isArray(item.bom_snapshot) ? item.bom_snapshot.length : (item.bom_snapshot.bom_tree ? item.bom_snapshot.bom_tree.length : 0))
+    : null;
+  const bomInfo = bomCount ? ` · BOM: ${bomCount}项物料` : '';
+  const unitPrice = item.unit_price != null ? parseFloat(item.unit_price) : null;
+  const lineTotal = item.total_cost != null ? parseFloat(item.total_cost) : (unitPrice != null ? unitPrice * (item.quantity || 1) : null);
+  const priceHtml = unitPrice != null
+    ? `<div class="ci-price">¥${unitPrice.toFixed(2)} × ${item.quantity || 1} = <strong>¥${lineTotal.toFixed(2)}</strong></div>`
+    : '';
+  return `<div class="cart-item" data-id="${item.id}">
+    <div class="ci-icon">${icon}</div>
+    <div class="ci-body">
+      <div class="ci-title">${name}</div>
+      <div class="ci-meta">${meta}${bomInfo}</div>
+      ${priceHtml}
+      <div class="ci-actions">
+        <div class="ci-qty">
+          <input type="number" min="1" max="9999" value="${item.quantity || 1}" onchange="cartUpdateQty(${item.id}, this.value)" onfocus="this.select()">
+        </div>
+        <button class="ci-del" onclick="cartDeleteItem(${item.id})">🗑️ 删除</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function cartToggle() {
+  const panel = document.getElementById('cart-panel');
+  const overlay = document.getElementById('cart-overlay');
+  const open = panel.classList.contains('open');
+  if (!open) {
+    cartLoad();
+    panel.classList.add('open');
+    overlay.classList.add('show');
+  } else {
+    panel.classList.remove('open');
+    overlay.classList.remove('show');
+  }
+}
+
+function cartClose() {
+  document.getElementById('cart-panel').classList.remove('open');
+  document.getElementById('cart-overlay').classList.remove('show');
+}
+
+async function cartUpdateQty(id, qty) {
+  qty = parseInt(qty) || 1;
+  if (qty < 1) qty = 1;
+  if (qty > 9999) qty = 9999;
+  const r = await cartApi('PATCH', '/' + id + '/', {quantity: qty});
+  if (r.ok) {
+    loadCartCount();
+    cartLoad();
+  }
+}
+
+async function cartDeleteItem(id) {
+  const r = await cartApi('DELETE', '/' + id + '/');
+  if (r.ok) {
+    loadCartCount();
+    cartLoad();
+  }
+}
+
+async function cartClear() {
+  if (!confirm('确认清空购物车吗？')) return;
+  const r = await cartApi('POST', '/clear/');
+  if (r.ok) {
+    loadCartCount();
+    cartLoad();
+  }
+}
+
+async function cartExportCSV() {
+  // 导单：下载CSV
+  const r = await cartApi('GET', '/export-csv/', null, 'blob');
+  if (!r.ok) return;
+  const blob = await r.data;
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = '购物车订单_' + new Date().toISOString().slice(0,10) + '.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+async function cartCreateOrder() {
+  // 下单：创建销售订单
+  if (!confirm('确认将购物车中的 ' + (document.getElementById('cart-total-items')?.textContent || '') + ' 物料创建为销售订单吗？')) return;
+  const r = await cartApi('POST', '/create-order/', {description: '参数化BOM购物车订单'});
+  if (!r.ok) {
+    const err = r.data?.error || '创建订单失败';
+    showToast('error', '❌ ' + err);
+    return;
+  }
+  const data = r.data;
+  showToast('success', '✅ 销售订单已创建！ 订单号: ' + (data.order_reference || data.order_id) + '，行项数: ' + data.line_items);
+  cartClose();
+  loadCartCount();
+  cartLoad();
+}
+</script>
