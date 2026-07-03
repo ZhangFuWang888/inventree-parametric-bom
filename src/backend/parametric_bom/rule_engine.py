@@ -211,7 +211,7 @@ def _evaluate_condition(
 
     # Empty formula = always active
     if not formula or not formula.strip():
-        return None  # signals "always active"
+        return True  # always active
 
     try:
         raw_result = eval_formula(

@@ -4,7 +4,7 @@
 // ===== VARIABLES (场景12: 中间变量) =====
 function avDestroyCm() {
   const el = document.getElementById('av-formula');
-| !el.dataset.cmInit || !window.CmFormulaEditor) return;
+  if (!el || !el.dataset.cmInit || !window.CmFormulaEditor) return;
   const inst = window.CmFormulaEditor.getCmInstance(el);
   if (inst) {
     const wrap = inst.editor.getWrapperElement();
@@ -41,9 +41,9 @@ function openEditVariableModal(vid, name, formula, desc) {
   document.getElementById('av-editing-id').value = vid;
   document.querySelector('#modal-add-variable h3').textContent = '✏️ 编辑变量';
   document.querySelector('#modal-add-variable .btn-primary').innerHTML = '💾 保存修改';
-| '';
-| '';
-| '';
+  document.getElementById('av-name').value = name || '';
+  document.getElementById('av-formula').value = formula || '';
+  document.getElementById('av-description').value = desc || '';
   document.getElementById('av-formula-status').innerHTML = '';
   avLoadPillsAndVars(vid);
   openModal('modal-add-variable');
@@ -66,15 +66,15 @@ function avLoadPillsAndVars(editingVid) {
     apiCall('GET', `part-config/?part=${pid}`),
     apiCall('GET', `part-variables/?part=${pid}&limit=9999`),
   ]).then(([paramRes, varRes]) => {
-| []));
-| []));
+    const configs = paramRes.error ? [] : (Array.isArray(paramRes.data) ? paramRes.data : (paramRes.data.results || []));
+    const vars = varRes.error ? [] : (Array.isArray(varRes.data) ? varRes.data : (varRes.data.results || []));
     let html = '';
     const ctx = {};
     // Params
     if (configs.length) {
       html += '<div class="mb-1"><label class="text-[9px] text-gray-400 mb-0.5 block">📌 参数 (点击插入):</label><div class="flex flex-wrap gap-1">';
       configs.forEach(c => {
-| c.template_name || 'unknown';
+        const paramName = c.name || c.template_name || 'unknown';
         const defVal = c.default_value;
         ctx[paramName] = defVal;
         const display = defVal ? `${paramName} <span class="text-[9px] text-gray-400 ml-0.5">=${defVal}</span>` : paramName;
@@ -87,7 +87,7 @@ function avLoadPillsAndVars(editingVid) {
     if (otherVars.length) {
       html += '<div><label class="text-[9px] text-gray-400 mb-0.5 block">📐 其他变量 (点击插入):</label><div class="flex flex-wrap gap-1">';
       otherVars.forEach(v => {
-| 'unknown';
+        const vName = v.name || 'unknown';
         const vVal = v.computed_value;
         if (vVal != null) ctx[vName] = vVal;
         const display = vVal != null ? `${vName} <span class="text-[9px] text-gray-400 ml-0.5">=${escHtml(String(vVal))}</span>` : vName;
@@ -121,7 +121,7 @@ function avTogglePills() {
 function avToggleTemplates() {
   const area = document.getElementById('av-template-area');
   const icon = document.getElementById('av-tpl-toggle-icon');
-| !icon) return;
+  if (!area || !icon) return;
   if (area.style.display === 'none') {
     area.style.display = '';
     icon.textContent = '▾';
@@ -173,9 +173,9 @@ function avSchedulePreview() {
 
 function avAttachCmListener() {
   const el = document.getElementById('av-formula');
-| !el.dataset.cmInit || !window.CmFormulaEditor) return;
+  if (!el || !el.dataset.cmInit || !window.CmFormulaEditor) return;
   const inst = window.CmFormulaEditor.getCmInstance(el);
-| inst._avListener) return;
+  if (!inst || inst._avListener) return;
   inst._avListener = true;
   inst.editor.on('change', function() { avSchedulePreview(); });
 }
@@ -185,16 +185,16 @@ async function avDoPreview() {
   const statusEl = document.getElementById('av-formula-status');
   if (!formula) { statusEl.innerHTML = '<span class="text-gray-400">请输入公式</span>'; return; }
   statusEl.innerHTML = '<span class="text-gray-400">⏳ 计算中...</span>';
-| {};
+  const ctx = window.__avParamContext || {};
   const res = await apiCall('POST', 'formula/preview/', { formula, context: { param: ctx } });
   // API returns HTTP 200 even on error, check body.success
-| {};
-| data.error) {
-| '未知错误';
+  const data = res.data || {};
+  if (data.success === false || data.error) {
+    const errMsg = data.error || '未知错误';
     statusEl.innerHTML = `<span class="text-red-500">❌ ${escHtml(errMsg)}</span>`;
     return;
   }
-| '');
+  const val = data.result !== undefined ? data.result : (data.value || '');
   statusEl.innerHTML = `<span>📐 结果: <strong class="text-green-600 font-mono">${escHtml(String(val))}</strong></span>
     <span class="text-[10px] text-gray-400 ml-auto">基于默认参数值计算</span>`;
 }
@@ -215,7 +215,7 @@ async function confirmAddVariable() {
   if (!editId) {
     // Create mode: check duplicate name
     const checkRes = await apiCall('GET', `part-variables/?part=${pid}&limit=9999`);
-| []));
+    const existing = checkRes.error ? [] : (Array.isArray(checkRes.data) ? checkRes.data : (checkRes.data.results || []));
     if (existing.some(v => v.name === name)) {
       showToast('error', `变量名「${name}」已存在，请使用不同的名称`);
       return;
@@ -236,11 +236,11 @@ async function confirmAddVariable() {
 async function loadPdVariables() {
   const pid = configuratorPartId;
   const listEl = document.getElementById('pd-variables-list');
-| !pid) return;
+  if (!listEl || !pid) return;
   listEl.innerHTML = '<div class="empty-state"><div class="icon">⏳</div><p>加载变量列表...</p></div>';
 
   const res = await apiCall('GET', `part-variables/?part=${pid}`);
-| []));
+  const vars = res.error ? [] : (Array.isArray(res.data) ? res.data : (res.data.results || []));
 
   if (!vars.length) {
     listEl.innerHTML = '<div class="empty-state"><div class="icon">📐</div><p>暂未定义变量，点击上方"新建变量"添加</p></div>';
@@ -260,15 +260,15 @@ async function loadPdVariables() {
     <tbody id="pv-tbody">`;
   vars.forEach((v, i) => {
     const escName = escHtml(v.name);
-| '');
-| '');
+    const escFmla = escHtml(v.formula || '');
+    const escDesc = escHtml(v.description || '');
     const computedVal = v.computed_value;
-| '').length > 30 ? escHtml(v.formula.substring(0, 30) + '…') : escFmla;
+    const fmlaShort = (v.formula || '').length > 30 ? escHtml(v.formula.substring(0, 30) + '…') : escFmla;
     html += `<tr id="pv-row-${v.id}">
       <td ondblclick="pvEditCell(this, 'name')"><span class="pbs-name">${escName}</span></td>
       <td ondblclick="pvEditCell(this, 'formula')" title="双击编辑公式"><div class="pbs-formula-cell">${fmlaShort ? `<span class="fmla-text">${fmlaShort}</span>` : '<span class="fmla-empty">双击编辑公式</span>'}</div></td>
       <td><span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-xs font-mono font-medium ${computedVal != null ? 'bg-green-50 text-green-700 border border-green-200' : 'text-gray-400'}">${computedVal != null ? escHtml(String(computedVal)) : '—'}</span></td>
-| '<span class="text-gray-300 italic">—</span>'}</span></td>
+      <td ondblclick="pvEditCell(this, 'description')"><span class="pbs-ref">${escDesc || '<span class="text-gray-300 italic">—</span>'}</span></td>
       <td><button class="btn-ghost text-red-500 text-xs" onclick="pvDelete(${v.id}, '${escName.replace(/'/g, "\\'")}')" title="删除">🗑️</button></td>
     </tr>`;
   });
@@ -290,7 +290,7 @@ async function pvEditCell(td, field) {
     const res = await apiCall('GET', `part-variables/${vid}/`);
     if (res.error) return;
     const v = res.data;
-| '', v.description || '');
+    openEditVariableModal(v.id, v.name, v.formula || '', v.description || '');
     return;
   }
   // Inline editing for name and description
@@ -302,7 +302,7 @@ async function pvEditCell(td, field) {
   if (field === 'name') {
     currentVal = td.textContent.trim();
   } else if (field === 'formula') {
-| '';
+    currentVal = td.querySelector('.fmla-text')?.textContent || '';
   } else {
     currentVal = td.textContent.replace(/[—\s]/g, '').trim();
   }
@@ -325,9 +325,9 @@ async function pvEditCell(td, field) {
     const row = document.getElementById('pv-row-' + vid);
     const cells = row ? row.querySelectorAll('td') : [];
     let nameVal, fmlaVal, descVal;
-| cells[1]?.textContent.trim(); descVal = cells[3]?.querySelector('input')?.value || cells[3]?.textContent.trim(); }
-| cells[0]?.textContent.trim(); fmlaVal = val; descVal = cells[3]?.querySelector('input')?.value || cells[3]?.textContent.trim(); }
-| cells[0]?.textContent.trim(); fmlaVal = cells[1]?.querySelector('input')?.value || cells[1]?.textContent.trim(); descVal = val; }
+    if (field === 'name') { nameVal = val; fmlaVal = cells[1]?.querySelector('input')?.value || cells[1]?.textContent.trim(); descVal = cells[3]?.querySelector('input')?.value || cells[3]?.textContent.trim(); }
+    else if (field === 'formula') { nameVal = cells[0]?.querySelector('input')?.value || cells[0]?.textContent.trim(); fmlaVal = val; descVal = cells[3]?.querySelector('input')?.value || cells[3]?.textContent.trim(); }
+    else { nameVal = cells[0]?.querySelector('input')?.value || cells[0]?.textContent.trim(); fmlaVal = cells[1]?.querySelector('input')?.value || cells[1]?.textContent.trim(); descVal = val; }
     // Check duplicate name
     const nameCheck = nameVal.trim();
     if (nameCheck) {
@@ -372,7 +372,7 @@ function pvRestoreRow(vid, name, formula, desc) {
       cells[1].innerHTML = '<div class="pbs-formula-cell"><span class="fmla-empty">双击编辑公式</span></div>';
     }
     // td2 (computed_value) is read-only — leave as-is after inline save
-| '<span class="text-gray-300 italic">—</span>'}</span>`;
+    cells[3].innerHTML = `<span class="pbs-ref">${escHtml(desc) || '<span class="text-gray-300 italic">—</span>'}</span>`;
   }
 }
 
@@ -390,7 +390,7 @@ async function cfgLoadConfigs() {
   const countEl = document.getElementById('cfg-config-count');
   const res = await apiCall('GET', `configurations/?part=${pid}`);
   if (res.error) return;
-| (Array.isArray(res.data) ? res.data : []);
+  const configs = res.data.results || (Array.isArray(res.data) ? res.data : []);
   if (countEl) countEl.textContent = configs.length;
   if (!configs.length) {
     listEl.innerHTML = '<div class="cfg-empty"><div class="cfg-empty-icon">📁</div>暂无保存的配置</div>';
@@ -400,12 +400,12 @@ async function cfgLoadConfigs() {
   configs.forEach(c => {
     html += `<div class="cfg-saved-item" onclick="loadConfigParams(${c.id})" title="点击加载此配置">
       <div class="flex items-center justify-between">
-| c.name || `配置 #${c.id}`}</span>
+        <span class="cfg-si-name">${c.title || c.name || `配置 #${c.id}`}</span>
         <button class="text-red-400 hover:text-red-600 text-xs p-1 rounded hover:bg-red-50 ml-2" onclick="event.stopPropagation();cfgDeleteConfig(${c.id})" title="删除此配置">✕</button>
       </div>
       <div class="cfg-si-meta">
-| c.created || Date.now()).toLocaleDateString('zh-CN')}</span>
-| {}).length} 个参数</span>
+        <span>${new Date(c.created_at || c.created || Date.now()).toLocaleDateString('zh-CN')}</span>
+        <span>${Object.keys(c.parameters || {}).length} 个参数</span>
       </div>
     </div>`;
   });
@@ -419,17 +419,17 @@ async function cfgDeleteConfig(configId) {
     setStatus('success', '✅ 配置已删除');
     await cfgLoadConfigs();
   } else {
-| res.data.detail || '未知错误') : '未知错误'}`);
+    setStatus('error', `删除失败: ${res.data ? (res.data.error || res.data.detail || '未知错误') : '未知错误'}`);
   }
 }
 
 function loadConfigParams(configId) {
   // Load a saved config's parameters
   apiCall('GET', `configurations/${configId}/`).then(res => {
-| !res.data) return;
-| {};
+    if (res.error || !res.data) return;
+    const params = res.data.parameters || {};
     cfgParams.forEach(c => {
-| `param_${c.id}`;
+      const name = c.name || `param_${c.id}`;
       if (params[name] !== undefined) {
         cfgParamValues[c.id] = String(params[name]);
       }
@@ -437,7 +437,7 @@ function loadConfigParams(configId) {
     renderCfgParams();
     cfgExpandBOM();
     document.getElementById('cfg-status-dot').textContent = '● 已加载配置';
-| configId}」`);
+    setStatus('success', `✅ 已加载配置「${res.data.name || configId}」`);
   });
 }
 
@@ -479,7 +479,7 @@ function pdValidateFormula() {
   }).then(r => r.json()).then(data => {
     resultDiv.innerHTML = data.valid
       ? '<div class="action-result success">✅ 公式语法正确</div>'
-| '语法错误'}</div>`;
+      : `<div class="action-result error">❌ ${data.error || '语法错误'}</div>`;
   }).catch(e => {
     resultDiv.innerHTML = `<div class="action-result error">网络错误: ${e.message}</div>`;
   });
@@ -491,8 +491,8 @@ let _tplCategoryFilter = 'all';
 
 // Infer template category from name + units
 function inferTplCategory(tpl) {
-| '').toLowerCase();
-| '').toLowerCase();
+  const name = (tpl.name || '').toLowerCase();
+  const units = (tpl.units || '').toLowerCase();
   // Common (常用) patterns
   const commonNames = ['长度','宽度','高度','厚度','直径','材质','颜色','数量','重量','型号','规格'];
   if (commonNames.some(k => name.includes(k))) return '常用';
@@ -526,18 +526,18 @@ async function quickAddTemplate(tplId, tplName) {
   if (!partId) { setStatus('error', '请先选择产品'); return; }
   
   // Check duplicate
-| [];
+  const configs = window.__paramConfigs || [];
   if (configs.some(c => c.template === tplId)) {
     setStatus('error', `❌ 「${tplName}」已存在`);
     return;
   }
   
   // Smart default type based on name keywords
-| '').toLowerCase();
+  const name = (tplName || '').toLowerCase();
   let defaultType = 'number';
-| name.includes('材质') || name.includes('型号') || name.includes('规格')) {
+  if (name.includes('颜色') || name.includes('材质') || name.includes('型号') || name.includes('规格')) {
     defaultType = 'option';
-| name.includes('是否') || name.includes('有无') || name.includes('需要')) {
+  } else if (name.includes('布尔') || name.includes('是否') || name.includes('有无') || name.includes('需要')) {
     defaultType = 'boolean';
   }
   
@@ -564,14 +564,14 @@ async function quickAddTemplate(tplId, tplName) {
 function onQuickParamTypeChange() {
   const type = document.getElementById('qp-type').value;
   document.getElementById('qp-num-fields').style.display = (type === 'number') ? 'grid' : 'none';
-| type === 'multi_option') ? 'block' : 'none';
+  document.getElementById('qp-options-group').style.display = (type === 'option' || type === 'multi_option') ? 'block' : 'none';
   document.getElementById('qp-boolean-group').style.display = (type === 'boolean') ? 'block' : 'none';
 }
 
 async function quickAddParam() {
   const tplId = _quickAddTplId;
   const partId = configuratorPartId;
-| !tplId) { setStatus('error', '参数错误'); return; }
+  if (!partId || !tplId) { setStatus('error', '参数错误'); return; }
   
   const type = document.getElementById('qp-type').value;
   const body = {
@@ -582,10 +582,10 @@ async function quickAddParam() {
     min_value: (type === 'number' && document.getElementById('qp-min').value) ? parseFloat(document.getElementById('qp-min').value) : null,
     max_value: (type === 'number' && document.getElementById('qp-max').value) ? parseFloat(document.getElementById('qp-max').value) : null,
     step_value: (type === 'number' && document.getElementById('qp-step').value) ? parseFloat(document.getElementById('qp-step').value) : null,
-| type === 'multi_option') ? document.getElementById('qp-options').value.split(',').map(s=>s.trim()).filter(Boolean) : null,
+    options: (type === 'option' || type === 'multi_option') ? document.getElementById('qp-options').value.split(',').map(s=>s.trim()).filter(Boolean) : null,
     is_driving: document.getElementById('qp-driving').checked,
     is_computed: document.getElementById('qp-computed').checked,
-| '',
+    computation_formula: document.getElementById('qp-formula').value || '',
     display_order: 100,
   };
   
@@ -609,7 +609,7 @@ async function addTemplateToProduct(templateId, templateName) {
   if (!partId) { setStatus('error', '请先选择产品'); return; }
   
   // Check for duplicates using current config list
-| [];
+  const configs = window.__paramConfigs || [];
   const isDuplicate = configs.some(c => c.template === templateId);
   if (isDuplicate) {
     setStatus('error', `❌ 「${templateName}」已存在，不能重复添加`);
@@ -663,7 +663,7 @@ document.addEventListener('DOMContentLoaded', function() {
       try {
         const raw = e.dataTransfer.getData('text/plain');
         const data = JSON.parse(raw);
-| data.tplType;
+        const type = data.type || data.tplType;
         if (type && typeLabels[type]) {
           ghostEl.textContent = typeLabels[type];
           ghostEl.className = 'drag-ghost type-' + type;
@@ -681,7 +681,7 @@ document.addEventListener('DOMContentLoaded', function() {
       ghostEl.style.display = 'flex';
 
       // Show insert indicator + card highlighting
-| (() => {
+      const indicator = document.getElementById('drop-indicator') || (() => {
         const el = document.createElement('div');
         el.id = 'drop-indicator';
         this.appendChild(el);
@@ -797,24 +797,24 @@ async function addIndependentParam(type, insertBeforeId) {
   if (!_paramCounter[type]) _paramCounter[type] = 0;
   _paramCounter[type]++;
   const typeLabels = {number:'数值', option:'选项', boolean:'布尔', text:'文本', multi_option:'多选', long_text:'长文本'};
-| type;
+  const label = typeLabels[type] || type;
   const paramName = `${label}参数${_paramCounter[type]}`;
 
   // Calculate display_order based on insert position
   let displayOrder = 100;
   if (insertBeforeId && window.__paramConfigs) {
-|0)-(b.display_order||0));
+    const configs = window.__paramConfigs.sort((a,b)=>(a.display_order||0)-(b.display_order||0));
     const idx = configs.findIndex(c => c.id === insertBeforeId);
     if (idx > 0) {
       // Between previous and target
-| 0;
-| 100;
+      const prev = configs[idx - 1].display_order || 0;
+      const next = configs[idx].display_order || 100;
       displayOrder = Math.round((prev + next) / 2);
       // If no space, re-number
       if (displayOrder <= prev) displayOrder = prev + 5;
     } else if (idx === 0) {
       // Insert before first
-| 100) / 2) - 5;
+      displayOrder = Math.round((configs[0].display_order || 100) / 2) - 5;
       if (displayOrder < 0) displayOrder = 5;
     }
     // else idx === -1, append at end (default 100)
@@ -847,7 +847,7 @@ async function addIndependentParam(type, insertBeforeId) {
       window.__paramConfigs.push(res.data);
     }
     // Re-sort and re-render
-|0)-(b.display_order||0));
+    const sorted = window.__paramConfigs.sort((a,b)=>(a.display_order||0)-(b.display_order||0));
     const canvas = document.getElementById('pd-params-canvas');
     const countBadge = document.getElementById('pd-param-count');
     canvas.innerHTML = sorted.map((c,i)=>renderParamCard(c,i)).join('');
@@ -917,12 +917,12 @@ function clearActiveProduct() {
 // ===== TYPE BADGE HELPER =====
 function typeBadge(type) {
   const labels = {number:'数值', option:'选项', boolean:'布尔', text:'文本', multi_option:'多选项', long_text:'长文本', file_ref:'文件', part_ref:'零件'};
-|type}</span>`;
+  return `<span class="type-badge type-${type}">${labels[type]||type}</span>`;
 }
 
 // ===== PARAM TYPE-AWARE INPUT RENDER =====
 function renderTypeAwareInput(cfg, paramName, defVal) {
-| 'number';
+  const type = cfg.parameter_type || 'number';
   const options = cfg.options;
   const minVal = cfg.min_value != null ? cfg.min_value : 0;
   const maxVal = cfg.max_value != null ? cfg.max_value : 100;
@@ -985,7 +985,7 @@ function renderTypeAwareInput(cfg, paramName, defVal) {
       </div>`;
 
     case 'boolean':
-| defVal === true || defVal === '1' || defVal === 1 || defVal === '是';
+      const isTrue = defVal === 'true' || defVal === true || defVal === '1' || defVal === 1 || defVal === '是';
       return `<div class="param-group">
         <div class="param-label">
           <span>${paramName} ${typeBadge(type)}</span>
@@ -1002,7 +1002,7 @@ function renderTypeAwareInput(cfg, paramName, defVal) {
         <div class="param-label">
           <span>${paramName} ${typeBadge(type)}</span>
         </div>
-|''}" onchange="updateCfgParam(this)" placeholder="输入文本...">
+        <input class="input-field" data-param="${paramName}" value="${defVal||''}" onchange="updateCfgParam(this)" placeholder="输入文本...">
         ${hint}
       </div>`;
 
@@ -1011,7 +1011,7 @@ function renderTypeAwareInput(cfg, paramName, defVal) {
         <div class="param-label">
           <span>${paramName} ${typeBadge(type)}</span>
         </div>
-|''}</textarea>
+        <textarea class="input-field" data-param="${paramName}" onchange="updateCfgParam(this)" rows="3" placeholder="输入长文本...">${defVal||''}</textarea>
         ${hint}
       </div>`;
 
@@ -1019,7 +1019,7 @@ function renderTypeAwareInput(cfg, paramName, defVal) {
       return `<div class="param-group">
         <div class="param-label">
           <span>${paramName} ${typeBadge(type)}</span>
-|'未选择'}</span>
+          <span class="text-xs text-gray-400" id="cfg-file-${paramName}-name">${defVal||'未选择'}</span>
         </div>
         <div class="flex gap-2">
           <input type="file" class="input-field" data-param="${paramName}" style="padding:0.25rem" onchange="updateCfgFileParam(this,'${paramName}')">
@@ -1035,7 +1035,7 @@ function renderTypeAwareInput(cfg, paramName, defVal) {
         </div>
         <select class="input-field" data-param="${paramName}" onchange="updateCfgParam(this)">
           <option value="">-- 选择零件 --</option>
-|'Unnamed'} (ID:${p.pk})</option>`).join('')}
+          ${parts.map(p => `<option value="${p.pk}"${String(p.pk)===String(defVal)?' selected':''}>${p.name||'Unnamed'} (ID:${p.pk})</option>`).join('')}
         </select>
         ${hint}
       </div>`;
@@ -1045,7 +1045,7 @@ function renderTypeAwareInput(cfg, paramName, defVal) {
         <div class="param-label">
           <span>${paramName} ${typeBadge(type)}</span>
         </div>
-|''}" onchange="updateCfgParam(this)">
+        <input class="input-field" data-param="${paramName}" value="${defVal||''}" onchange="updateCfgParam(this)">
         ${hint}
       </div>`;
   }
@@ -1055,7 +1055,7 @@ function renderTypeAwareInput(cfg, paramName, defVal) {
 function syncCfgSlider(sliderId, numId, paramName) {
   const slider = document.getElementById(sliderId);
   const num = document.getElementById(numId);
-| !num) return;
+  if (!slider || !num) return;
   num.value = slider.value;
   const valEl = document.getElementById(`${sliderId}-val`);
   if (valEl) valEl.textContent = slider.value;
@@ -1065,7 +1065,7 @@ function syncCfgSlider(sliderId, numId, paramName) {
 function syncCfgNum(sliderId, numId, paramName) {
   const slider = document.getElementById(sliderId);
   const num = document.getElementById(numId);
-| !num) return;
+  if (!slider || !num) return;
   slider.value = num.value;
   const valEl = document.getElementById(`${sliderId}-val`);
   if (valEl) valEl.textContent = num.value;
@@ -1122,12 +1122,12 @@ async function onConfigPartChange(partId) {
   const part = parts.find(p => p.pk == partId);
   currentPartInfo = part;
   if (part) {
-| '';
+    document.getElementById('cfg-part-name-bar').textContent = part.name || '';
     document.getElementById('cfg-part-info').innerHTML = `
       <div class="part-info">
         <div class="icon">📦</div>
         <div class="info-text">
-| '未命名产品'}</div>
+          <div class="name">${part.name || '未命名产品'}</div>
           ${part.description ? `<div class="desc">${part.description}</div>` : ''}
           <div class="meta">ID: ${part.pk} ${part.category_name ? '· ' + part.category_name : ''}</div>
         </div>
@@ -1149,22 +1149,22 @@ async function loadConfiguratorParams(partId) {
     return;
   }
   
-| (Array.isArray(res.data) ? res.data : []);
+  const configs = res.data.results || (Array.isArray(res.data) ? res.data : []);
   currentParams = {};
   currentParamConfigs = configs;
   
-| []).sort((a,b) => (a.display_order||0) - (b.display_order||0));
+  const sorted = (configs || []).sort((a,b) => (a.display_order||0) - (b.display_order||0));
   let drivingHtml = '';
   let computedHtml = '';
   let hasDriving = false;
   let hasComputed = false;
   
   sorted.forEach(cfg => {
-| `param_${cfg.template}`;
+    const tplName = cfg.template_name || `param_${cfg.template}`;
     
     if (cfg.is_computed) {
       hasComputed = true;
-| '';
+      const val = cfg.default_value || '';
       computedHtml += `<div class="computed-item">
         <div>
           <span>${tplName}</span>
@@ -1173,7 +1173,7 @@ async function loadConfiguratorParams(partId) {
         <span class="value">${val}</span>
       </div>`;
       currentParams[tplName] = {value: val, isComputed: true, config: cfg};
-| cfg.is_driving === undefined) {
+    } else if (cfg.is_driving || cfg.is_driving === undefined) {
       hasDriving = true;
       const defVal = cfg.default_value != null ? cfg.default_value : '';
       
@@ -1236,11 +1236,11 @@ async function expandConfigBOM() {
 
 function renderBOMTree(data, containerId) {
   const container = document.getElementById(containerId);
-| (!data.bom_tree && !data.items && !Array.isArray(data))) {
+  if (!data || (!data.bom_tree && !data.items && !Array.isArray(data))) {
     container.innerHTML = '<div class="empty-state"><div class="icon">📭</div><p>无BOM数据</p></div>';
     return;
   }
-| data.items || data;
+  const tree = data.bom_tree || data.items || data;
   let html = '';
   if (data.part_name) {
     html += `<div class="flex items-center gap-2 pb-2 mb-2 border-b border-gray-100">
@@ -1254,31 +1254,31 @@ function renderBOMTree(data, containerId) {
   } else if (typeof tree === 'object') {
     renderTreeItem(tree, 0, (h) => { html += h; });
   }
-| '<div class="empty-state"><div class="icon">📭</div><p>无BOM数据</p></div>';
+  container.innerHTML = html || '<div class="empty-state"><div class="icon">📭</div><p>无BOM数据</p></div>';
 }
 
 function renderTreeItem(item, depth, push) {
-| item.condition_met === false;
-| (item.errors && item.errors.length > 0);
-| 'standard';
-| mode !== 'standard' || item.qty_formula || item.condition_formula;
+  const isExcluded = item.excluded || item.condition_met === false;
+  const hasError = item.error || (item.errors && item.errors.length > 0);
+  const mode = item.mode || 'standard';
+  const isParametric = item.parametric || mode !== 'standard' || item.qty_formula || item.condition_formula;
   const depthClass = `tree-depth-${Math.min(depth, 9)}`;
   let badgeClass = isExcluded ? 'badge-red' : (hasError ? 'badge-yellow' : (isParametric ? 'badge-blue' : 'badge-gray'));
   let badgeText = isExcluded ? '已排除' : (hasError ? '错误' : (isParametric ? '参数化' : '静态'));
   const qty = item.calculated_quantity != null ? item.calculated_quantity : (item.quantity != null ? item.quantity : '');
-| item.selected_candidate_part_name || item.variant_part_name || item.part_name || item.sub_part_name || item.name || '未知部件';
+  const partName = item.actual_part_name || item.selected_candidate_part_name || item.variant_part_name || item.part_name || item.sub_part_name || item.name || '未知部件';
   let extraHtml = '';
 
   // Mode-specific display
   const modeLabels = {standard:'标准', qty_formula:'数量公式', conditional:'条件包含', candidate:'🎯候选', variant:'🧬动态', specification:'📝规格', structure:'结构'};
   if (mode !== 'standard') {
-|mode}</span>`;
+    extraHtml += `<span class="text-[10px] px-1 py-0.5 rounded bg-gray-100 text-gray-600 ml-1">${modeLabels[mode]||mode}</span>`;
   }
 
   // Candidate mode: show selection
   if (mode === 'candidate' && item.candidates_considered) {
     const matched = item.candidates_considered.filter(c => c.matched).map(c => c.part_name);
-| '无匹配'}</span>`;
+    extraHtml += `<span class="text-xs text-emerald-600 ml-1">候选: ${item.selected_candidate_part_name || '无匹配'}</span>`;
   }
 
   // Variant mode: show generated variant
@@ -1292,7 +1292,7 @@ function renderTreeItem(item, depth, push) {
 
   // Specification mode: show fields
   if (mode === 'specification' && item.spec_fields_evaluated) {
-|''}`).join(', ');
+    const specs = item.spec_fields_evaluated.map(f => `${f.name}=${f.value}${f.unit||''}`).join(', ');
     extraHtml += `<span class="text-xs text-amber-600 ml-1">${specs}</span>`;
     if (item.unit_cost != null) {
       extraHtml += `<span class="text-xs text-gray-500 ml-1">¥${item.unit_cost}</span>`;
@@ -1306,7 +1306,7 @@ function renderTreeItem(item, depth, push) {
     extraHtml += `<span class="text-red-500 text-[10px] ml-1" title="${item.errors.join('; ')}">⚠️</span>`;
   }
 
-| item.part_id;
+  const partId = item.actual_part_id || item.part_id;
 
   push(`<div class="tree-item ${depthClass}">
     <span class="qty-badge ${badgeClass}">${badgeText}</span>
@@ -1347,19 +1347,19 @@ function renderCostSummary(data, containerId) {
   let html = `<div class="cost-summary">
     <div class="cost-card total">
       <div class="label">总成本</div>
-|0).toFixed(2)}</div>
+      <div class="value">¥${Number(data.total_cost||0).toFixed(2)}</div>
     </div>
     <div class="cost-card">
       <div class="label">基础成本</div>
-|0).toFixed(2)}</div>
+      <div class="value">¥${Number(data.total_cost_before_markup||0).toFixed(2)}</div>
     </div>
     <div class="cost-card">
       <div class="label">加价率</div>
-|0}%</div>
+      <div class="value">${data.markup_pct||0}%</div>
     </div>
     <div class="cost-card">
       <div class="label">部件数</div>
-|0}</div>
+      <div class="value">${data.item_count||0}</div>
     </div>
   </div>`;
   html += `<div class="flex justify-end mt-2">
@@ -1373,15 +1373,15 @@ function showCostDetail() {
   if (!data) { setStatus('error', '无成本数据'); return; }
   const container = document.getElementById('cost-detail-content');
   let html = '<div class="cost-summary">';
-|0).toFixed(2)}</div></div>`;
-|0).toFixed(2)}</div></div>`;
-|0}%</div></div>`;
-|0}</div></div>`;
+  html += `<div class="cost-card total"><div class="label">总成本</div><div class="value">¥${Number(data.total_cost||0).toFixed(2)}</div></div>`;
+  html += `<div class="cost-card"><div class="label">基础成本</div><div class="value">¥${Number(data.total_cost_before_markup||0).toFixed(2)}</div></div>`;
+  html += `<div class="cost-card"><div class="label">加价率</div><div class="value">${data.markup_pct||0}%</div></div>`;
+  html += `<div class="cost-card"><div class="label">部件数</div><div class="value">${data.item_count||0}</div></div>`;
   html += '</div>';
   if (data.items && data.items.length > 0) {
     html += '<div class="overflow-x-auto mt-3"><table class="w-full text-xs border-collapse"><thead><tr class="bg-gray-50"><th class="p-2 text-left font-semibold text-gray-600 border-b">部件</th><th class="p-2 text-right font-semibold text-gray-600 border-b">数量</th><th class="p-2 text-right font-semibold text-gray-600 border-b">单价</th><th class="p-2 text-right font-semibold text-gray-600 border-b">小计</th></tr></thead><tbody>';
     data.items.forEach(item => {
-|'未知'}</td><td class="p-2 text-right">${item.quantity||0}</td><td class="p-2 text-right">¥${Number(item.unit_cost||0).toFixed(2)}</td><td class="p-2 text-right font-medium">¥${Number(item.subtotal||0).toFixed(2)}</td></tr>`;
+      html += `<tr class="border-b border-gray-50"><td class="p-2">${item.part_name||'未知'}</td><td class="p-2 text-right">${item.quantity||0}</td><td class="p-2 text-right">¥${Number(item.unit_cost||0).toFixed(2)}</td><td class="p-2 text-right font-medium">¥${Number(item.subtotal||0).toFixed(2)}</td></tr>`;
     });
     html += '</tbody></table></div>';
   }
@@ -1406,7 +1406,7 @@ function buildParamSummary() {
       </div>`;
     }
   });
-| '<p class="text-gray-400">请先在步骤1中设置参数</p>';
+  container.innerHTML = html || '<p class="text-gray-400">请先在步骤1中设置参数</p>';
 }
 
 async function saveConfig() {
@@ -1446,7 +1446,7 @@ async function transitionConfig() {
   }
   const cfg = configs.find(c => c.id === savedConfigId);
   const transitions = {draft: 'completed', completed: 'released'};
-| 'completed';
+  const nextStatus = transitions[cfg ? cfg.status : 'draft'] || 'completed';
   const res = await apiCall('POST', `configs/${savedConfigId}/transition/`, {status: nextStatus});
   if (res.error) { showCfgResult(`过渡失败: ${JSON.stringify(res.data).substring(0,150)}`, false); return; }
   showCfgResult(`✅ 状态已切换为: ${nextStatus}`, true);
@@ -1462,7 +1462,7 @@ async function generateVariant() {
   }
   const res = await apiCall('POST', 'generate-variant/', {config_id: savedConfigId});
   if (res.error) { showCfgResult(`生成变体失败: ${JSON.stringify(res.data).substring(0,150)}`, false); return; }
-|''} (ID: ${res.data.variant_part_id||''})`;
+  const msg = `变体已生成: ${res.data.variant_part_name||''} (ID: ${res.data.variant_part_id||''})`;
   showCfgResult(`✅ ${msg}`, true);
   setStatus('success', msg);
   await loadConfigList();
@@ -1486,28 +1486,28 @@ async function loadConfigList() {
   const res = await apiCall('GET', 'configurations/');
   if (res.error) return;
   const data = res.data;
-| (Array.isArray(data) ? data : []);
+  configs = data.results || (Array.isArray(data) ? data : []);
   renderConfigSidebar();
 }
 
 function renderConfigSidebar() {
   const container = document.getElementById('cfg-config-list');
   document.getElementById('cfg-config-count').textContent = configs.length;
-| configs.length === 0) {
+  if (!configs || configs.length === 0) {
     container.innerHTML = '<div class="empty-state"><div class="icon">📁</div><p>暂无配置</p></div>';
     return;
   }
   let html = '';
   configs.forEach(cfg => {
     const sel = selectedConfigId === cfg.id ? ' selected' : '';
-| 'draft');
+    const statusClass = 'status-' + (cfg.status || 'draft');
     html += `<div class="config-card${sel}" onclick="selectSidebarConfig(${cfg.id})">
       <div class="flex justify-between items-center">
-|'未命名'}</strong>
-|'draft'}</span>
+        <strong class="text-xs font-semibold text-gray-700">${cfg.title||'未命名'}</strong>
+        <span class="status-badge ${statusClass} text-xs">${cfg.status||'draft'}</span>
       </div>
-|''} · rev ${cfg.revision||'1.0'}</div>
-|0} · ${cfg.created_by_name||'system'}</div>
+      <div class="text-xs text-gray-400 mt-0.5">${cfg.template_part_name||''} · rev ${cfg.revision||'1.0'}</div>
+      <div class="text-xs text-gray-400">参数: ${cfg.parameter_count||0} · ${cfg.created_by_name||'system'}</div>
     </div>`;
   });
   container.innerHTML = html;
@@ -1519,7 +1519,7 @@ function selectSidebarConfig(id) {
   renderConfigSidebar();
   const cfg = configs.find(c => c.id === id);
   if (cfg) {
-| '';
+    document.getElementById('cfg-name-input').value = cfg.title || '';
     showCfgResult(`已选择配置: ${cfg.title} (ID: ${id})`, true);
   }
 }
@@ -1531,38 +1531,38 @@ async function loadParamConfigs(partId) {
   container.innerHTML = '<div class="flex items-center justify-center py-3"><span class="spinner mr-2"></span><span class="text-sm text-gray-400">加载中...</span></div>';
   const res = await apiCall('GET', `part-config/?part=${parseInt(partId)}`);
   if (res.error) { container.innerHTML = '<div class="text-red-500 text-sm">加载失败</div>'; return; }
-| (Array.isArray(res.data) ? res.data : []);
+  const configs = res.data.results || (Array.isArray(res.data) ? res.data : []);
   let html = `<div class="flex items-center gap-2 mb-2">
     <span class="text-xs text-gray-400">共 ${configs.length} 个参数</span>
-</span>
+    <span class="text-xs text-gray-300">|</span>
     <span class="text-xs text-gray-400">💡 拖拽行头 <span class="text-gray-300">⠿</span> 可调整排序</span>
   </div>`;
   html += '<div class="overflow-x-auto"><table class="w-full text-xs border-collapse" id="param-config-table"><thead><tr class="bg-gray-50"><th class="p-2 text-center font-semibold text-gray-600 border-b w-8">#</th><th class="p-2 text-left font-semibold text-gray-600 border-b">参数</th><th class="p-2 text-center font-semibold text-gray-600 border-b">类型</th><th class="p-2 text-center font-semibold text-gray-600 border-b">驱动</th><th class="p-2 text-center font-semibold text-gray-600 border-b">计算</th><th class="p-2 text-right font-semibold text-gray-600 border-b">默认值</th><th class="p-2 text-right font-semibold text-gray-600 border-b">最小</th><th class="p-2 text-right font-semibold text-gray-600 border-b">最大</th><th class="p-2 text-right font-semibold text-gray-600 border-b">步长</th><th class="p-2 text-left font-semibold text-gray-600 border-b">选项</th><th class="p-2 text-left font-semibold text-gray-600 border-b">公式</th><th class="p-2 text-center font-semibold text-gray-600 border-b w-20">操作</th></tr></thead><tbody>';
-| []).sort((a,b) => (a.display_order||0) - (b.display_order||0));
+  const sorted = (configs || []).sort((a,b) => (a.display_order||0) - (b.display_order||0));
   sorted.forEach((cfg, idx) => {
-| 'number';
+    const type = cfg.parameter_type || 'number';
     const optStr = cfg.options ? (Array.isArray(cfg.options) ? cfg.options.join(', ') : (typeof cfg.options === 'string' ? cfg.options : JSON.stringify(cfg.options))) : '-';
     html += `<tr class="border-b border-gray-50 hover:bg-gray-50/50" draggable="true"
-|0}"
+      data-config-id="${cfg.id}" data-display-order="${cfg.display_order||0}"
       ondragstart="onParamDragStart(event, ${cfg.id})"
       ondragover="onParamDragOver(event)"
       ondrop="onParamDrop(event, ${cfg.id})"
       ondragend="onParamDragEnd(event)">
       <td class="p-2 text-center cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-500 select-none" title="拖拽排序">⠿</td>
-|''}</td>
+      <td class="p-2 font-medium">${cfg.template_name||''}</td>
       <td class="p-2 text-center">${typeBadge(type)}</td>
       <td class="p-2 text-center">${cfg.is_driving ? '✅' : '❌'}</td>
       <td class="p-2 text-center">${cfg.is_computed ? '✅' : '❌'}</td>
-|'-'}</td>
+      <td class="p-2 text-right">${cfg.default_value||'-'}</td>
       <td class="p-2 text-right text-gray-500">${cfg.min_value != null ? cfg.min_value : '-'}</td>
       <td class="p-2 text-right text-gray-500">${cfg.max_value != null ? cfg.max_value : '-'}</td>
       <td class="p-2 text-right text-gray-500">${cfg.step_value != null ? cfg.step_value : '-'}</td>
       <td class="p-2 text-gray-500 max-w-[100px] truncate" title="${optStr}">${optStr}</td>
-|''}">${cfg.computation_formula||'-'}</td>
+      <td class="p-2 text-gray-500 max-w-[120px] truncate" title="${cfg.computation_formula||''}">${cfg.computation_formula||'-'}</td>
       <td class="p-2 text-center">
         <div class="flex items-center justify-center gap-1">
           <button class="btn btn-sm text-[11px] px-1.5 py-0.5 bg-transparent text-blue-500 hover:text-blue-700 hover:bg-blue-50 border-0" onclick="openEditParamModal(${cfg.id})" title="编辑">✏️</button>
-|'').replace(/'/g, "\\'")}')" title="删除">🗑️</button>
+          <button class="btn btn-sm text-[11px] px-1.5 py-0.5 bg-transparent text-red-400 hover:text-red-600 hover:bg-red-50 border-0" onclick="deleteParamConfig(${cfg.id}, '${(cfg.template_name||'').replace(/'/g, "\\'")}')" title="删除">🗑️</button>
         </div>
       </td>
     </tr>`;
@@ -1619,7 +1619,7 @@ async function onCardDrop(event, targetId) {
 
   // Case 2: Card reorder
   const sourceId = parseInt(rawData);
-| isNaN(sourceId) || sourceId === targetId) return;
+  if (!sourceId || isNaN(sourceId) || sourceId === targetId) return;
   await reorderParams(sourceId, targetId);
 }
 
@@ -1669,7 +1669,7 @@ async function onCanvasDrop(event) {
   // ── Case 2: Card reorder ──
   const sourceId = _dragCardSourceId !== null ? _dragCardSourceId : parseInt(rawData);
   _dragCardSourceId = null;
-| isNaN(sourceId)) return;
+  if (!sourceId || isNaN(sourceId)) return;
 
   const cards = Array.from(document.querySelectorAll('#pd-params-canvas .param-card'));
   if (!cards.length) return;
@@ -1688,17 +1688,17 @@ async function onCanvasDrop(event) {
 
   const targetCard = cards[Math.min(targetIdx, cards.length - 1)];
   const targetId = parseInt(targetCard?.dataset.configId);
-| sourceId === targetId) return;
+  if (!targetId || sourceId === targetId) return;
   await reorderParams(sourceId, targetId);
 }
 
 async function reorderParams(sourceId, targetId) {
   const configs = window.__paramConfigs;
-| !configs.length) return;
+  if (!configs || !configs.length) return;
 
   const srcIdx = configs.findIndex(c => c.id === sourceId);
   const tgtIdx = configs.findIndex(c => c.id === targetId);
-| tgtIdx === -1) return;
+  if (srcIdx === -1 || tgtIdx === -1) return;
 
   // Move source to target position in array
   const [moved] = configs.splice(srcIdx, 1);
@@ -1745,7 +1745,7 @@ async function deleteParamConfig(configId, paramName) {
   // Remove from local array and re-render
   if (window.__paramConfigs) {
     window.__paramConfigs = window.__paramConfigs.filter(c => c.id !== configId);
-|0)-(b.display_order||0));
+    const sorted = window.__paramConfigs.sort((a,b)=>(a.display_order||0)-(b.display_order||0));
     const canvas = document.getElementById('pd-params-canvas');
     const countBadge = document.getElementById('pd-param-count');
     if (sorted.length === 0) {
@@ -1777,13 +1777,13 @@ async function openEditParamModal(configId) {
     // Set hidden field to existing part
     document.getElementById('ap-part').value = cfg.part;
     const part = parts.find(p => p.pk == cfg.part);
-| part.full_name || '—') : `#${cfg.part}`;
+    document.getElementById('ap-product-name-display').textContent = part ? (part.name || part.full_name || '—') : `#${cfg.part}`;
   }
   
   // Template selector — show all for editing, filter out used ones for create
   const tmplSel = document.getElementById('ap-template');
   tmplSel.innerHTML = '<option value="">-- 请选择 --</option>';
-| [];
+  const currentConfigs = window.__paramConfigs || [];
   const existingIds = new Set();
   currentConfigs.forEach(c => { if (c.id !== configId) existingIds.add(c.template); });
   templates.forEach(t => {
@@ -1796,23 +1796,23 @@ async function openEditParamModal(configId) {
   });
   
   // Fill in values
-| 'number';
-| '';
+  document.getElementById('ap-type').value = cfg.parameter_type || 'number';
+  document.getElementById('ap-default').value = cfg.default_value || '';
   document.getElementById('ap-min').value = cfg.min_value != null ? cfg.min_value : '';
   document.getElementById('ap-max').value = cfg.max_value != null ? cfg.max_value : '';
   document.getElementById('ap-step').value = cfg.step_value != null ? cfg.step_value : '';
   document.getElementById('ap-options').value = cfg.options ? (Array.isArray(cfg.options) ? cfg.options.join(', ') : cfg.options) : '';
   document.getElementById('ap-driving').checked = cfg.is_driving;
   document.getElementById('ap-computed').checked = cfg.is_computed;
-| '';
-| 100;
+  document.getElementById('ap-formula').value = cfg.computation_formula || '';
+  document.getElementById('ap-order').value = cfg.display_order || 100;
   
   // Show/hide conditional sections
   onAddParamTypeChange();
   document.getElementById('ap-formula-group').style.display = cfg.is_computed ? 'block' : 'none';
   
   // Change modal title and button
-| ''}`;
+  document.querySelector('#modal-add-param h3').textContent = `✏️ 编辑参数配置: ${cfg.template_name || ''}`;
   const btn = document.querySelector('#modal-add-param .btn-primary');
   btn.textContent = '保存修改';
   btn.onclick = updateParamConfig;
@@ -1831,11 +1831,11 @@ async function updateParamConfig() {
     min_value: (type === 'number' && document.getElementById('ap-min').value) ? parseFloat(document.getElementById('ap-min').value) : null,
     max_value: (type === 'number' && document.getElementById('ap-max').value) ? parseFloat(document.getElementById('ap-max').value) : null,
     step_value: (type === 'number' && document.getElementById('ap-step').value) ? parseFloat(document.getElementById('ap-step').value) : null,
-| type === 'multi_option') ? document.getElementById('ap-options').value.split(',').map(s=>s.trim()).filter(Boolean) : null,
+    options: (type === 'option' || type === 'multi_option') ? document.getElementById('ap-options').value.split(',').map(s=>s.trim()).filter(Boolean) : null,
     is_driving: document.getElementById('ap-driving').checked,
     is_computed: document.getElementById('ap-computed').checked,
-| '',
-| 100,
+    computation_formula: document.getElementById('ap-formula').value || '',
+    display_order: parseInt(document.getElementById('ap-order').value) || 100,
   };
 
   const res = await apiCall('PATCH', `part-config/${configId}/`, body);
@@ -1865,12 +1865,12 @@ function openAddParamModal() {
   // Auto-set current product
   const partId = configuratorPartId;
   const part = parts.find(p => p.pk == partId);
-| '';
-| part.full_name || '—') : '—';
+  document.getElementById('ap-part').value = partId || '';
+  document.getElementById('ap-product-name-display').textContent = part ? (part.name || part.full_name || '—') : '—';
   
   const tmplSel = document.getElementById('ap-template');
   tmplSel.innerHTML = '<option value="">-- 请选择 --</option>';
-| [];
+  const configs = window.__paramConfigs || [];
   const existingTemplateIds = new Set(configs.map(c => c.template));
   templates.forEach(t => {
     if (existingTemplateIds.has(t.pk)) return; // skip already added
@@ -1916,7 +1916,7 @@ function onAddParamTypeChange() {
   const booleanGroup = document.getElementById('ap-boolean-group');
   
   // Show/hide conditional sections
-| type === 'multi_option') {
+  if (type === 'option' || type === 'multi_option') {
     optionsGroup.style.display = 'block';
   } else {
     optionsGroup.style.display = 'none';
@@ -1943,10 +1943,10 @@ function onAddParamTypeChange() {
 async function createParamConfig() {
   const partId = document.getElementById('ap-part').value;
   const templateId = document.getElementById('ap-template').value;
-| !templateId) { setStatus('error', '请选择零件和参数模板'); return; }
+  if (!partId || !templateId) { setStatus('error', '请选择零件和参数模板'); return; }
   
   // Check for duplicates
-| [];
+  const configs = window.__paramConfigs || [];
   if (configs.some(c => c.template == templateId)) {
     const tpl = templates.find(t => t.pk == templateId);
     setStatus('error', `❌ 「${tpl ? tpl.name : '该参数'}」已存在，不能重复添加`);
@@ -1962,16 +1962,16 @@ async function createParamConfig() {
     min_value: (type === 'number' && document.getElementById('ap-min').value) ? parseFloat(document.getElementById('ap-min').value) : null,
     max_value: (type === 'number' && document.getElementById('ap-max').value) ? parseFloat(document.getElementById('ap-max').value) : null,
     step_value: (type === 'number' && document.getElementById('ap-step').value) ? parseFloat(document.getElementById('ap-step').value) : null,
-| type === 'multi_option') ? document.getElementById('ap-options').value.split(',').map(s=>s.trim()).filter(Boolean) : null,
+    options: (type === 'option' || type === 'multi_option') ? document.getElementById('ap-options').value.split(',').map(s=>s.trim()).filter(Boolean) : null,
     is_driving: document.getElementById('ap-driving').checked,
     is_computed: document.getElementById('ap-computed').checked,
-| '',
-| 100,
+    computation_formula: document.getElementById('ap-formula').value || '',
+    display_order: parseInt(document.getElementById('ap-order').value) || 100,
   };
   
   const res = await apiCall('POST', 'part-config/', body);
   if (!res.error) {
-| res.data.pk})`);
+    setStatus('success', `参数配置已创建 (ID: ${res.data.id || res.data.pk})`);
     closeModal('modal-add-param');
     // Reload param configs if on param management page
     const partSelect = document.getElementById('pm-part-select');

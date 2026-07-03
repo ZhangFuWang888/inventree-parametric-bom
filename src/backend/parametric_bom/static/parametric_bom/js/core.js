@@ -29,7 +29,7 @@ async function apiCall(method, endpoint, body, opts = {}) {
       }
     }
     if (!resp.ok) {
-| data.detail || (typeof data === 'object' ? JSON.stringify(data).substring(0,120) : String(data));
+      const errMsg = data.error || data.detail || (typeof data === 'object' ? JSON.stringify(data).substring(0,120) : String(data));
       setStatus('error', `错误 ${resp.status}: ${errMsg}`);
       return {error: true, status: resp.status, data};
     }
@@ -43,7 +43,7 @@ async function apiCall(method, endpoint, body, opts = {}) {
 
 function getCsrfToken() {
   const name = 'csrftoken';
- )' + name + '=([^;]+)'));
+  const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
   return match ? decodeURIComponent(match[2]) : '';
 }
 
@@ -58,9 +58,9 @@ function setStatus(type, msg) {
   const colors = { error: '#dc2626', success: '#16a34a', loading: '#2563eb', info: '#0284c7' };
   const bgColors = { error: '#fef2f2', success: '#f0fdf4', loading: '#eff6ff', info: '#f0f9ff' };
   bar.style.display = 'flex';
-| '#f8fafc';
-| '#94a3b8'}`;
-| '💡'}</span><span style="flex:1;color:${colors[type] || '#475569'}">${escHtml(msg)}</span>`;
+  bar.style.background = bgColors[type] || '#f8fafc';
+  bar.style.borderLeft = `3px solid ${colors[type] || '#94a3b8'}`;
+  bar.innerHTML = `<span style="flex-shrink:0">${icons[type] || '💡'}</span><span style="flex:1;color:${colors[type] || '#475569'}">${escHtml(msg)}</span>`;
   if (type !== 'loading') {
     _statusBarTimer = setTimeout(function() {
       bar.style.display = 'none';
@@ -90,7 +90,7 @@ function goBackFromProduct() {
   // Check if we're in standalone/embedded mode
   const standalone = document.querySelector('.main-content.standalone');
   const embedded = document.querySelector('.main-content.embedded');
-| embedded) {
+  if (standalone || embedded) {
     // Navigate back to the product list by reloading without the product param
     const url = new URL(window.location);
     url.searchParams.delete('product');

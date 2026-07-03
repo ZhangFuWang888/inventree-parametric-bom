@@ -15,10 +15,10 @@ async function loadBomFormulaConfigs(partId) {
   // ── 单个产品模式 ────────────────────────────────────────
   const bomItemsRes = await fetch(`/api/bom/?part=${partId}&sub_part_detail=True&part_detail=True`, {headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken()}, credentials: 'same-origin'});
   const bomItems = await bomItemsRes.json();
-| []);
+  const items = Array.isArray(bomItems) ? bomItems : (bomItems.results || []);
 
   const pcfgRes = await apiCall('GET', `bom-item-config/?bom_item__part=${partId}`);
-| []));
+  const pcfgs = pcfgRes.error ? [] : (Array.isArray(pcfgRes.data) ? pcfgRes.data : (pcfgRes.data.results || []));
   const pcfgMap = {};
   pcfgs.forEach(c => { pcfgMap[c.bom_item] = c; });
   
@@ -29,10 +29,10 @@ async function loadBomFormulaConfigs(partId) {
     const subPartId = item.sub_part_detail ? item.sub_part_detail.pk : item.sub_part;
     const subPartName = item.sub_part_detail ? item.sub_part_detail.name : `#${item.sub_part}`;
     const cfg = pcfgMap[item.pk];
-| '') : '';
-| '') : '';
-| '') : '';
- ') || '<span class="text-gray-400">-</span>';
+    const qtyFormula = cfg ? (cfg.qty_formula || '') : '';
+    const condFormula = cfg ? (cfg.condition_formula || '') : '';
+    const priceFormula = cfg ? (cfg.price_formula || '') : '';
+    const formulaSummary = [qtyFormula && ('数量:'+qtyFormula), condFormula && ('条件:'+condFormula), priceFormula && ('价格:'+priceFormula)].filter(Boolean).join(' | ') || '<span class="text-gray-400">-</span>';
     // Build mode badges from enable flags
     let modeBadges = '';
     if (cfg) {
@@ -74,7 +74,7 @@ async function loadAllBomFormulaConfigs(container) {
   // Fetch all parametric BOM configs
   const pcfgRes = await apiCall('GET', 'bom-item-config/');
   if (pcfgRes.error) { container.innerHTML = '<div class="text-red-500 text-sm">加载失败</div>'; return; }
-| []);
+  const pcfgs = Array.isArray(pcfgRes.data) ? pcfgRes.data : (pcfgRes.data.results || []);
   if (!pcfgs.length) {
     container.innerHTML = '<div class="empty-state"><div class="icon">📋</div><p>暂无参数化BOM配置</p></div>';
     return;
@@ -90,13 +90,13 @@ async function loadAllBomFormulaConfigs(container) {
     headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken()}, credentials: 'same-origin'
   });
   const bomData = await bomItemRes.json();
-| []);
+  const bomItems = Array.isArray(bomData) ? bomData : (bomData.results || []);
 
   // Build bom_item_id → {bom_item, product_name, sub_part_name}
   const bomMap = {};
   bomItems.forEach(bi => {
-| bi.part_detail?.full_name || `#${bi.part}`;
-| `#${bi.sub_part}`;
+    const productName = bi.part_detail?.name || bi.part_detail?.full_name || `#${bi.part}`;
+    const subPartName = bi.sub_part_detail?.name || `#${bi.sub_part}`;
     bomMap[bi.pk] = { productName, subPartName, quantity: bi.quantity };
   });
 
@@ -114,21 +114,21 @@ async function loadAllBomFormulaConfigs(container) {
   <div class="overflow-x-auto"><table class="w-full text-xs border-collapse">
     <thead><tr class="bg-gray-50"><th class="p-2 text-left border-b font-semibold text-gray-600">所属产品</th><th class="p-2 text-left border-b font-semibold text-gray-600">物料</th><th class="p-2 text-left border-b font-semibold text-gray-600">数量</th><th class="p-2 text-left border-b font-semibold text-gray-600">模式</th><th class="p-2 text-left border-b font-semibold text-gray-600">公式摘要</th><th class="p-2 text-center border-b font-semibold text-gray-600 w-16">配置</th></tr></thead><tbody>`;
   for (const cfg of pcfgs) {
-| {};
+    const bi = bomMap[cfg.bom_item] || {};
     // Build mode badges from enable flags
     let modeBadges = '';
     activeModeMapping.forEach(m => {
       if (cfg[m.flag]) modeBadges += `<span class="inline-block px-1 py-0.5 rounded bg-gray-100 text-gray-700 text-[10px] mr-0.5">${m.icon} ${m.label}</span>`;
     });
     if (!modeBadges) modeBadges = '<span class="text-[10px] text-gray-400">标准</span>';
- ');
+    const formulas = [cfg.qty_formula, cfg.condition_formula, cfg.price_formula].filter(Boolean).join(' | ');
     html += `<tr class="border-b hover:bg-gray-50">
-| '?'}</td>
-| '?'}</td>
-| '-'}</td>
+      <td class="p-2 font-medium text-blue-700">${bi.productName || '?'}</td>
+      <td class="p-2">${bi.subPartName || '?'}</td>
+      <td class="p-2">${bi.quantity || '-'}</td>
       <td class="p-2">${modeBadges}</td>
-| '<span class="text-gray-400">-</span>'}</code></td>
-|'').replace(/'/g, "\\'")}')">编辑</button></td>
+      <td class="p-2 max-w-[200px]"><code class="text-blue-600 text-[10px] truncate block" title="${formulas}">${formulas || '<span class="text-gray-400">-</span>'}</code></td>
+      <td class="p-2 text-center"><button class="btn btn-sm btn-outline-primary text-[10px] px-2 py-0.5" onclick="openFormulaEditor(${cfg.bom_item}, 0, '${(bi.subPartName||'').replace(/'/g, "\\'")}')">编辑</button></td>
     </tr>`;
   }
   html += '</tbody></table></div>';
@@ -193,7 +193,7 @@ function openFormulaEditor(bomItemId, partId, partName) {
 async function getCurrentModeAndRender(bomItemId) {
   const res = await apiCall('GET', `bom-item-config/?bom_item=${bomItemId}`);
   if (res.error) return;
-| []);
+  const items = Array.isArray(res.data) ? res.data : (res.data.results || []);
   const cfg = items.length > 0 ? items[0] : null;
 
   // Determine active modes from enable flags
@@ -214,7 +214,7 @@ async function getCurrentModeAndRender(bomItemId) {
   // Show/hide condition formula group
   const condGroup = document.getElementById('fe-condition-group');
   if (condGroup) {
-| activeModes.includes('candidate') ? '' : 'none';
+    condGroup.style.display = activeModes.includes('conditional') || activeModes.includes('candidate') ? '' : 'none';
   }
   // Add mode selector to editor header
   const headerDiv = document.querySelector('#modal-formula-editor .flex.items-center');
@@ -240,7 +240,7 @@ function closeFormulaEditor() {
 async function loadExistingBomItemConfig(bomItemId) {
   const res = await apiCall('GET', `bom-item-config/?bom_item=${bomItemId}`);
   if (res.error) return;
-| []);
+  const items = Array.isArray(res.data) ? res.data : (res.data.results || []);
   if (items.length > 0) {
     const cfg = items[0];
     feState.existingConfigId = cfg.id;
@@ -258,7 +258,7 @@ async function loadFormulaEditorParams(partId) {
     container.innerHTML = '<span class="text-xs text-red-400">加载参数失败</span>';
     return;
   }
-| []);
+  const configs = Array.isArray(res.data) ? res.data : (res.data.results || []);
   if (!configs.length) {
     container.innerHTML = '<span class="text-xs text-gray-400">该零件未配置参数</span>';
     return;
@@ -271,7 +271,7 @@ async function loadFormulaEditorParams(partId) {
 
   let html = '';
   configs.forEach(c => {
-| c.param_template_detail?.name || 'unknown';
+    const paramName = c.param_name || c.param_template_detail?.name || 'unknown';
     html += `<span class="fe-param-pill" onclick="insertParam('${paramName.replace(/'/g, "\\'")}')">${paramName}</span>`;
   });
   container.innerHTML = html;
@@ -329,13 +329,13 @@ async function validateSingleFormula(fieldName) {
   const res = await apiCall('POST', 'formula/validate/', {formula});
   if (res.error) {
     _formulaValidationState[fieldName] = 'error';
-| JSON.stringify(res.data).substring(0, 80)}</span>`;
+    resultContainer.innerHTML = `<span class="text-red-600">❌ 验证失败: ${res.data?.error || JSON.stringify(res.data).substring(0, 80)}</span>`;
   } else {
     const valid = res.data.valid !== false;
     _formulaValidationState[fieldName] = valid ? 'ok' : 'error';
     resultContainer.innerHTML = valid
       ? '<span class="text-green-600">✅ 有效</span>'
-| []).join('; ') || '未知错误'}</span>`;
+      : `<span class="text-red-600">❌ 无效: ${(res.data.errors || []).join('; ') || '未知错误'}</span>`;
   }
   _updateSaveButtonState();
 }
@@ -357,7 +357,7 @@ async function previewSingleFormula(fieldName) {
     context: feState.paramContext
   });
   if (res.error) {
-| JSON.stringify(res.data).substring(0, 80)}</span>`;
+    resultContainer.innerHTML = `<span class="text-red-600">❌ 错误: ${res.data?.error || JSON.stringify(res.data).substring(0, 80)}</span>`;
   } else {
     const result = res.data.result;
     resultContainer.innerHTML = `<span class="text-green-700">✅ 结果: <strong>${result != null ? result : '(空)'}</strong></span>`;
@@ -390,7 +390,7 @@ async function previewAllFormulas() {
     }
     const res = await apiCall('POST', 'formula/preview/', {formula: f.value, context: feState.paramContext});
     if (res.error) {
-| '错误'}</span></div>`;
+      output += `<div class="flex justify-between py-0.5"><span class="text-gray-500">${f.label}:</span><span class="text-red-500">❌ ${res.data?.error || '错误'}</span></div>`;
     } else {
       const result = res.data.result;
       output += `<div class="flex justify-between py-0.5"><span class="text-gray-500">${f.label}:</span><span class="font-mono font-semibold text-blue-700">${result != null ? result : '(空)'}</span></div>`;
@@ -414,7 +414,7 @@ function _getFormulaResultText(fieldName) {
   const resultMap = { qty: 'fe-qty-result', condition: 'fe-condition-result', price: 'fe-price-result' };
   const el = document.getElementById(resultMap[fieldName]);
   if (!el) return '';
-| el.innerText || '';
+  return el.textContent || el.innerText || '';
 }
 
 function _hasFormulaError(fieldName) {
@@ -430,7 +430,7 @@ function _hasFormulaError(fieldName) {
 function _updateSaveButtonState() {
   const btn = document.querySelector('#modal-formula-editor .btn-primary[onclick*="saveBomFormula"]');
   if (!btn) return;
-| _hasFormulaError('condition') || _hasFormulaError('price');
+  const hasError = _hasFormulaError('qty') || _hasFormulaError('condition') || _hasFormulaError('price');
   btn.disabled = hasError;
   btn.style.opacity = hasError ? '0.5' : '';
   btn.style.cursor = hasError ? 'not-allowed' : '';
@@ -442,7 +442,7 @@ async function _autoValidateFormula(fieldName) {
   const resultMap = { qty: 'fe-qty-result', condition: 'fe-condition-result', price: 'fe-price-result' };
   const el = document.getElementById(map[fieldName]);
   const resultContainer = document.getElementById(resultMap[fieldName]);
-| !resultContainer) return;
+  if (!el || !resultContainer) return;
 
   const formula = el.value.trim();
   if (!formula) {
@@ -456,13 +456,13 @@ async function _autoValidateFormula(fieldName) {
   const res = await apiCall('POST', 'formula/validate/', {formula});
   if (res.error) {
     _formulaValidationState[fieldName] = 'error';
-| JSON.stringify(res.data).substring(0, 60)}</span>`;
+    resultContainer.innerHTML = `<span class="text-red-600">❌ ${res.data?.error || JSON.stringify(res.data).substring(0, 60)}</span>`;
   } else {
     const valid = res.data.valid !== false;
     _formulaValidationState[fieldName] = valid ? 'ok' : 'error';
     resultContainer.innerHTML = valid
       ? '<span class="text-green-600">✅ 有效</span>'
-| []).join('; ') || '未知错误'}</span>`;
+      : `<span class="text-red-600">❌ 无效: ${(res.data.errors || []).join('; ') || '未知错误'}</span>`;
   }
   _updateSaveButtonState();
 }
@@ -504,7 +504,7 @@ function _triggerInitialValidations() {
 
 async function saveBomFormula() {
   // Check for formula errors before saving
-| _hasFormulaError('condition') || _hasFormulaError('price')) {
+  if (_hasFormulaError('qty') || _hasFormulaError('condition') || _hasFormulaError('price')) {
     setStatus('error', '❌ 公式存在错误，请修正后再保存');
     _updateSaveButtonState();
     return;
@@ -513,7 +513,7 @@ async function saveBomFormula() {
   const qtyFormula = document.getElementById('fe-qty-formula').value.trim();
   const conditionFormula = document.getElementById('fe-condition-formula').value.trim();
   const priceFormula = document.getElementById('fe-price-formula').value.trim();
-| 'qty_formula';
+  const mode = document.getElementById('fe-mode-select')?.value || 'qty_formula';
 
   if (!qtyFormula && !conditionFormula && !priceFormula && mode === 'qty_formula') {
     setStatus('error', '请至少输入一个公式');
@@ -523,9 +523,9 @@ async function saveBomFormula() {
   const body = {
     bom_item: feState.bomItemId,
     mode: mode,
-| '',
-| '',
-| '',
+    qty_formula: qtyFormula || '',
+    condition_formula: conditionFormula || '',
+    price_formula: priceFormula || '',
   };
 
   let res;
@@ -544,7 +544,7 @@ async function saveBomFormula() {
     const partSelect = document.getElementById('bom-part-select');
     if (partSelect.value) loadBomFormulaConfigs(partSelect.value);
   } else {
-| JSON.stringify(res.data).substring(0, 100)}`);
+    setStatus('error', `保存失败: ${res.data?.error || JSON.stringify(res.data).substring(0, 100)}`);
   }
 }
 
@@ -552,13 +552,13 @@ async function saveBomFormula() {
 async function testFormula() {
   const formula = document.getElementById('fm-formula').value.trim();
   let context = {};
-| '{}'); } catch(e) { setStatus('error', 'JSON格式错误'); return; }
+  try { context = JSON.parse(document.getElementById('fm-context').value || '{}'); } catch(e) { setStatus('error', 'JSON格式错误'); return; }
   if (!formula) { setStatus('error', '请输入公式'); return; }
   const res = await apiCall('POST', 'formula/preview/', {formula, context});
   const container = document.getElementById('fm-result');
   container.style.display = 'block';
   if (res.error) {
-|res.data)}</div>`;
+    container.innerHTML = `<div class="text-red-600">❌ 错误: ${JSON.stringify(res.data.error||res.data)}</div>`;
   } else {
     container.innerHTML = `<div class="text-green-700">✅ 结果: ${res.data.result != null ? res.data.result : 'ok'}</div>`;
   }
@@ -606,7 +606,7 @@ document.querySelectorAll('.modal-overlay').forEach(m => {
 // ===== INLINE MODE CONFIG RENDER =====
 function renderModeConfig() {
   const zone = document.getElementById('fe-mode-config');
-| 'qty_formula';
+  const mode = document.getElementById('fe-mode-select')?.value || 'qty_formula';
   const bomItemId = feState.bomItemId;
   if (!bomItemId) { zone.innerHTML = ''; return; }
   if (mode === 'candidate') {
@@ -666,10 +666,10 @@ async function updateBomItemMode(bomItemId, mode) {
   const extraFields = {enable_qty_formula:false, enable_conditional:false,
     enable_candidate:false, enable_variant:false, enable_specification:false,
     enable_structure:false};
-| {})};
+  const data = {...extraFields, ...(modeToFlags[mode] || {})};
   const res = await apiCall('GET', `bom-item-config/?bom_item=${bomItemId}`);
   if (res.error) return;
-| []);
+  const items = Array.isArray(res.data) ? res.data : (res.data.results || []);
   if (items.length > 0) {
     await apiCall('PATCH', `bom-item-config/${items[0].id}/`, data);
   } else {
@@ -684,14 +684,14 @@ async function loadCandidateParts(bomItemId) {
   const container = document.getElementById('fe-candidate-list');
   const res = await apiCall('GET', `candidate-parts/?parametric_bom_item=${bomItemId}`);
   if (res.error) { container.innerHTML = '<span class="text-xs text-red-400">加载失败</span>'; return; }
-| []);
+  const items = Array.isArray(res.data) ? res.data : (res.data.results || []);
   if (!items.length) { container.innerHTML = '<span class="text-xs text-gray-400">暂无候选零件，点击上方按钮添加</span>'; return; }
   let html = '';
   items.forEach(c => {
     html += `<div class="flex items-center gap-2 p-1.5 bg-gray-50 rounded text-[10px]">
       <span class="font-medium w-4 text-center">${c.priority}</span>
       <span class="flex-1">${c.part_name}${c.label?' <span class="text-gray-400">('+c.label+')</span>':''}</span>
-|''}">${c.condition_formula||'<span class="text-gray-400">always</span>'}</code>
+      <code class="text-purple-600 flex-1 truncate" title="${c.condition_formula||''}">${c.condition_formula||'<span class="text-gray-400">always</span>'}</code>
       <button class="text-red-500 hover:text-red-700" onclick="deleteCandidatePart(${c.id})">✕</button>
     </div>`;
   });
@@ -702,11 +702,11 @@ async function addCandidatePart(bomItemId) {
   if (!partName) return;
   const condition = prompt('条件公式 (留空=始终可用):', '');
   const label = prompt('显示标签 (选填):', '');
-| 100;
+  const priority = parseInt(prompt('优先级 (0=最高):', '100')) || 100;
   // Try to find the part by name
   const partsRes = await fetch(`/api/part/?search=${encodeURIComponent(partName)}&limit=5`, {headers:{'Content-Type':'application/json','X-CSRFToken':getCsrfToken()}, credentials:'same-origin'});
   const partsData = await partsRes.json();
-| partsData || [];
+  const parts = partsData.results || partsData || [];
   let partId = null;
   if (parts.length === 1) {
     partId = parts[0].pk;
@@ -737,22 +737,22 @@ async function loadVariantPartSelect() {
   if (!sel) return;
   const res = await fetch('/api/part/?is_template=True&limit=100', {headers:{'Content-Type':'application/json','X-CSRFToken':getCsrfToken()}, credentials:'same-origin'});
   const data = await res.json();
-| data || [];
+  const parts = data.results || data || [];
   sel.innerHTML = '<option value="">-- 选择模板 --</option>';
-|p.name} (ID:${p.pk})`; sel.appendChild(opt); });
+  parts.forEach(p => { const opt = document.createElement('option'); opt.value=p.pk; opt.textContent=`${p.full_name||p.name} (ID:${p.pk})`; sel.appendChild(opt); });
 }
 async function loadVariantMapping(bomItemId) {
   const res = await apiCall('GET', `variant-mappings/?parametric_bom_item=${bomItemId}`);
   if (res.error) return;
-| []);
+  const items = Array.isArray(res.data) ? res.data : (res.data.results || []);
   if (!items.length) return;
   const vm = items[0];
   const sel = document.getElementById('fe-variant-template');
   if (sel) { sel.value = vm.template_part; }
   const paramsEl = document.getElementById('fe-variant-params');
-| {}, null, 2);
+  if (paramsEl) paramsEl.value = JSON.stringify(vm.param_mapping || {}, null, 2);
   const nameEl = document.getElementById('fe-variant-name');
-| '';
+  if (nameEl) nameEl.value = vm.variant_name_template || '';
   const auto = document.getElementById('fe-variant-auto');
   if (auto) auto.classList.toggle('on', vm.auto_generate !== false);
   feState.variantMappingId = vm.id;
@@ -781,17 +781,17 @@ async function saveVariantMapping(bomItemId) {
 async function loadSpecification(bomItemId) {
   const res = await apiCall('GET', `specifications/?parametric_bom_item=${bomItemId}`);
   if (res.error) return;
-| []);
+  const items = Array.isArray(res.data) ? res.data : (res.data.results || []);
   if (!items.length) return;
   const s = items[0];
-| 'custom';
-| [], null, 2);
-| '';
-| '';
+  document.getElementById('fe-spec-type').value = s.spec_type || 'custom';
+  document.getElementById('fe-spec-fields').value = JSON.stringify(s.spec_fields || [], null, 2);
+  document.getElementById('fe-spec-drawing').value = s.drawing_ref_formula || '';
+  document.getElementById('fe-spec-cost').value = s.unit_cost_formula || '';
   feState.specId = s.id;
 }
 async function saveSpecification(bomItemId) {
-| 'custom';
+  const specType = document.getElementById('fe-spec-type').value || 'custom';
   let specFields = [];
   try { specFields = JSON.parse(document.getElementById('fe-spec-fields').value); } catch(e) { setStatus('error', '规格字段JSON格式错误'); return; }
   const drawingRef = document.getElementById('fe-spec-drawing').value;
@@ -816,15 +816,15 @@ async function loadInheritanceMappings(partId) {
   if (partId) url += `?target_part=${parseInt(partId)}`;
   const res = await apiCall('GET', url);
   if (res.error) { container.innerHTML = '<span class="text-red-500 text-sm">加载失败</span>'; return; }
-| []);
+  const items = Array.isArray(res.data) ? res.data : (res.data.results || []);
   if (!items.length) { container.innerHTML = '<div class="empty-state"><div class="icon">⬇️</div><p>暂无继承映射</p></div>'; return; }
   let html = '<div class="overflow-x-auto"><table class="w-full text-xs border-collapse"><thead><tr class="bg-gray-50"><th class="p-2 text-left border-b font-semibold">目标零件</th><th class="p-2 text-left border-b font-semibold">目标参数</th><th class="p-2 text-left border-b font-semibold">源参数</th><th class="p-2 text-left border-b font-semibold">公式</th><th class="p-2 text-center border-b font-semibold">启用</th></tr></thead><tbody>';
   items.forEach(m => {
     html += `<tr class="border-b hover:bg-gray-50">
       <td class="p-2">${m.target_part_name}</td>
       <td class="p-2 font-medium">${m.target_template_name}</td>
-|'(同名)'}</td>
-|'-'}</code></td>
+      <td class="p-2 text-gray-500">${m.source_template_name||'(同名)'}</td>
+      <td class="p-2"><code class="text-blue-600">${m.formula||'-'}</code></td>
       <td class="p-2 text-center">${m.enabled!==false?'✅':'❌'}</td>
     </tr>`;
   });
@@ -842,7 +842,7 @@ async function openAddInheritanceModal() {
   // Find target template by name
   const templateRes = await fetch(`/api/parameter/template/?search=${encodeURIComponent(targetParam)}&limit=5`, {headers:{'Content-Type':'application/json','X-CSRFToken':getCsrfToken()}, credentials:'same-origin'});
   const tmplData = await templateRes.json();
-| tmplData || [];
+  const tmpls = tmplData.results || tmplData || [];
   let targetTmplId = null;
   if (tmpls.length === 1) targetTmplId = tmpls[0].pk;
   else if (tmpls.length > 1) targetTmplId = parseInt(prompt(`找到多个参数模板:\n${tmpls.map(t=>t.pk+': '+t.name).join('\n')}\n输入ID:`));
@@ -852,16 +852,16 @@ async function openAddInheritanceModal() {
   if (sourceParam && sourceParam !== targetParam) {
     const sRes = await fetch(`/api/parameter/template/?search=${encodeURIComponent(sourceParam)}&limit=5`, {headers:{'Content-Type':'application/json','X-CSRFToken':getCsrfToken()}, credentials:'same-origin'});
     const sData = await sRes.json();
-| sData || [];
+    const sTmpls = sData.results || sData || [];
     if (sTmpls.length === 1) sourceTmplId = sTmpls[0].pk;
     else if (sTmpls.length > 1) sourceTmplId = parseInt(prompt(`找到多个源参数模板:\n${sTmpls.map(t=>t.pk+': '+t.name).join('\n')}\n输入ID:`));
   }
 
-| '', enabled: true};
+  const body = {target_part: parseInt(targetPart), target_template: targetTmplId, source_template: sourceTmplId, formula: formula || '', enabled: true};
   const saveRes = await apiCall('POST', 'inheritance/', body);
   if (!saveRes.error) {
     const sel = document.getElementById('inh-part-select');
-| '');
+    loadInheritanceMappings(sel?.value || '');
   }
 }
 
@@ -872,7 +872,7 @@ async function loadAttributeFormulas(partId) {
   if (partId) url += `?part=${parseInt(partId)}`;
   const res = await apiCall('GET', url);
   if (res.error) { container.innerHTML = '<span class="text-red-500 text-sm">加载失败</span>'; return; }
-| []);
+  const items = Array.isArray(res.data) ? res.data : (res.data.results || []);
   if (!items.length) { container.innerHTML = '<div class="empty-state"><div class="icon">🏷️</div><p>暂无属性公式</p></div>'; return; }
   let html = '<div class="overflow-x-auto"><table class="w-full text-xs border-collapse"><thead><tr class="bg-gray-50"><th class="p-2 text-left border-b font-semibold">零件</th><th class="p-2 text-left border-b font-semibold">属性</th><th class="p-2 text-left border-b font-semibold">类型</th><th class="p-2 text-left border-b font-semibold">公式</th><th class="p-2 text-left border-b font-semibold">单位</th></tr></thead><tbody>';
   items.forEach(a => {
@@ -880,9 +880,9 @@ async function loadAttributeFormulas(partId) {
     html += `<tr class="border-b hover:bg-gray-50">
       <td class="p-2">${a.part_name}</td>
       <td class="p-2 font-medium">${a.attribute_name}</td>
-|'text'}">${typeLabels[a.attribute_type]||a.attribute_type}</span></td>
+      <td class="p-2"><span class="type-badge type-${a.attribute_type||'text'}">${typeLabels[a.attribute_type]||a.attribute_type}</span></td>
       <td class="p-2"><code class="text-blue-600 text-[10px]">${a.formula}</code></td>
-|'-'}</td>
+      <td class="p-2 text-gray-500">${a.unit||'-'}</td>
     </tr>`;
   });
   html += '</tbody></table></div>';
@@ -893,7 +893,7 @@ async function openAddAttributeModal() {
   if (!partId) return;
   const attrName = prompt('属性名称 (如: weight, color_code):');
   if (!attrName) return;
-| 'text';
+  const attrType = prompt('属性类型 (number/boolean/text/option):', 'text') || 'text';
   const formula = prompt('计算公式 (如: param.长度 * param.宽度 * 5 * 7.85 / 1000000):');
   if (!formula) return;
   const unit = prompt('单位 (如: kg, mm):', '');
@@ -901,6 +901,6 @@ async function openAddAttributeModal() {
   const res = await apiCall('POST', 'attributes/', body);
   if (!res.error) {
     const sel = document.getElementById('attr-part-select');
-| '');
+    loadAttributeFormulas(sel?.value || '');
   }
 }

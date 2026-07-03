@@ -8,7 +8,7 @@ let _cePreviewTimer = null;
 function ceTogglePills() {
   const area = document.getElementById('ce-pills-area');
   const icon = document.getElementById('ce-pills-toggle-icon');
-| !icon) return;
+  if (!area || !icon) return;
   if (area.style.display === 'none') {
     area.style.display = '';
     icon.textContent = '▾';
@@ -21,7 +21,7 @@ function ceTogglePills() {
 function ceToggleTemplates() {
   const area = document.getElementById('ce-template-area');
   const icon = document.getElementById('ce-tpl-toggle-icon');
-| !icon) return;
+  if (!area || !icon) return;
   if (area.style.display === 'none') {
     area.style.display = '';
     icon.textContent = '▾';
@@ -109,17 +109,17 @@ async function ceDoPreview() {
     return;
   }
   statusEl.innerHTML = '<span class="text-gray-400">⏳ 计算中...</span>';
-| {};
+  const ctx = window.__ceParamContext || {};
   const res = await apiCall('POST', 'formula/preview/', { formula, context: { param: ctx } });
-| {};
-| data.error) {
-| '未知错误';
+  const data = res.data || {};
+  if (data.success === false || data.error) {
+    const errMsg = data.error || '未知错误';
     statusEl.innerHTML = `<span class=\"text-red-500\">❌ ${escHtml(errMsg)}</span>`;
     _ceState.hasError = true;
     _ceUpdateSaveButton();
     return;
   }
-| '');
+  const val = data.result !== undefined ? data.result : (data.value || '');
   statusEl.innerHTML = `📐 结果: <strong class=\"text-green-600 font-mono\">${escHtml(String(val))}</strong>`;
   _ceState.hasError = false;
   _ceUpdateSaveButton();
@@ -137,14 +137,14 @@ function _ceUpdateSaveButton() {
 
 function ceLoadPills(pid) {
   const pillsEl = document.getElementById('ce-param-pills');
-| !pillsEl) { pillsEl.innerHTML = '<span class="text-[10px] text-gray-400">请先选择产品</span>'; return; }
+  if (!pid || !pillsEl) { pillsEl.innerHTML = '<span class="text-[10px] text-gray-400">请先选择产品</span>'; return; }
   pillsEl.innerHTML = '<span class="text-[10px] text-gray-400">加载中...</span>';
   Promise.all([
     apiCall('GET', `part-config/?part=${pid}`),
     apiCall('GET', `part-variables/?part=${pid}&limit=9999`),
   ]).then(([paramRes, varRes]) => {
-| []));
-| []));
+    const configs = paramRes.error ? [] : (Array.isArray(paramRes.data) ? paramRes.data : (paramRes.data.results || []));
+    const vars = varRes.error ? [] : (Array.isArray(varRes.data) ? varRes.data : (varRes.data.results || []));
     let html = '';
     const ctx = {};
     // Function pills — grouped in two columns like variable dialog
@@ -153,20 +153,20 @@ function ceLoadPills(pid) {
     ['CEIL','FLOOR','ROUND','IF','AND','OR','NOT','MIN','MAX','ABS','SQRT','POW','MOD','SUM','AVG','COUNT'].forEach(function(fn) {
       const sigs = {CEIL:'(x)',FLOOR:'(x)',ROUND:'(x,[n])',IF:'(c,t,f)',AND:'(...)',OR:'(...)',NOT:'(x)',MIN:'(a,b)',MAX:'(a,b)',ABS:'(x)',SQRT:'(x)',POW:'(base,exp)',MOD:'(a,b)',SUM:'(...)',AVG:'(...)',COUNT:'(...)'};
       const titles = {CEIL:'向上取整',FLOOR:'向下取整',ROUND:'四舍五入',IF:'条件判断',AND:'逻辑与',OR:'逻辑或',NOT:'逻辑非',MIN:'取最小值',MAX:'取最大值',ABS:'绝对值',SQRT:'平方根',POW:'幂运算',MOD:'取余数',SUM:'求和',AVG:'平均值',COUNT:'计数'};
-|'()'}')" title="${fn}${sigs[fn]||'()'} — ${titles[fn]||''}">${fn}</span>`;
+      html += `<span class="fe-fn-pill text-[10px] px-1.5 py-0.5" onclick="ceInsertText('${fn}${sigs[fn]||'()'}')" title="${fn}${sigs[fn]||'()'} — ${titles[fn]||''}">${fn}</span>`;
     });
     html += '</div></div><div><label class="text-[9px] text-gray-400 mb-0.5 block">🔤 字符串/类型:</label><div class="flex flex-wrap gap-1">';
     ['CONCAT','LEN','UPPER','LOWER','TRIM','INT','FLOAT','STR','BOOL'].forEach(function(fn) {
       const sigs = {CONCAT:'(...)',LEN:'(s)',UPPER:'(s)',LOWER:'(s)',TRIM:'(s)',INT:'(x)',FLOAT:'(x)',STR:'(x)',BOOL:'(x)'};
       const titles = {CONCAT:'拼接字符串',LEN:'字符串长度',UPPER:'转大写',LOWER:'转小写',TRIM:'去除首尾空格',INT:'取整',FLOAT:'转浮点数',STR:'转字符串',BOOL:'转布尔值'};
-|'()'}')" title="${fn}${sigs[fn]||'()'} — ${titles[fn]||''}">${fn}</span>`;
+      html += `<span class="fe-fn-pill text-[10px] px-1.5 py-0.5" onclick="ceInsertText('${fn}${sigs[fn]||'()'}')" title="${fn}${sigs[fn]||'()'} — ${titles[fn]||''}">${fn}</span>`;
     });
     html += '</div></div></div>';
     // Params
     if (configs.length) {
       html += '<div class="flex flex-wrap gap-1 mb-1">';
       configs.forEach(c => {
-| c.template_name || 'unknown';
+        const paramName = c.name || c.template_name || 'unknown';
         const defVal = c.default_value;
         ctx[paramName] = defVal;
         html += `<span class="fe-param-pill text-[10px] px-1.5 py-0.5" onclick="ceInsertText('param.${paramName.replace(/'/g, "\\'")}')">${paramName}${defVal ? '=' + defVal : ''}</span>`;
@@ -177,7 +177,7 @@ function ceLoadPills(pid) {
     if (vars.length) {
       html += '<div class="flex flex-wrap gap-1">';
       vars.forEach(v => {
-| 'unknown';
+        const vName = v.name || 'unknown';
         const vVal = v.computed_value;
         if (vVal != null) ctx[vName] = vVal;
         html += `<span class="fe-param-pill text-[10px] px-1.5 py-0.5" style="background:#eff6ff;border-color:#bfdbfe;color:#1d4ed8" onclick="ceInsertText('param.${vName.replace(/'/g, "\\'")}')">${vName}${vVal != null ? '=' + escHtml(String(vVal)) : ''}</span>`;
@@ -198,16 +198,16 @@ window.FormulaTemplates = {
 
   getAll() {
     try {
-| [];
+      return JSON.parse(localStorage.getItem(this.STORAGE_KEY)) || [];
     } catch(e) { return []; }
   },
 
   save(name, formula, category) {
-| !formula) return false;
+    if (!name || !formula) return false;
     const list = this.getAll();
     // Check duplicate name — overwrite
     const idx = list.findIndex(t => t.name === name);
-| '通用', created_at: Date.now() };
+    const entry = { name, formula, category: category || '通用', created_at: Date.now() };
     if (idx >= 0) list[idx] = entry;
     else list.push(entry);
     localStorage.setItem(this.STORAGE_KEY, JSON.stringify(list));
@@ -221,7 +221,7 @@ window.FormulaTemplates = {
 
   getCategories() {
     const cats = new Set();
-| '通用'));
+    this.getAll().forEach(t => cats.add(t.category || '通用'));
     return Array.from(cats).sort();
   },
 
@@ -229,8 +229,8 @@ window.FormulaTemplates = {
   renderInto(containerId, opts = {}) {
     const container = document.getElementById(containerId);
     if (!container) return;
-| function(f) { document.getElementById(opts.targetInput || 'pbs-ce-input').value = f; };
-| function() {};
+    const onApply = opts.onApply || function(f) { document.getElementById(opts.targetInput || 'pbs-ce-input').value = f; };
+    const onSave = opts.onSave || function() {};
     const templates = this.getAll();
     const cats = this.getCategories();
 
@@ -239,10 +239,10 @@ window.FormulaTemplates = {
       html += '<div class="text-[10px] text-gray-400 py-1">暂无模板，先保存一个</div>';
     } else {
       cats.forEach(cat => {
-| '通用') === cat);
+        const items = templates.filter(t => (t.category || '通用') === cat);
         html += `<div class="ft-cat mb-1"><div class="text-[10px] font-medium text-gray-500 mb-0.5">${escHtml(cat)}</div>`;
         items.forEach(t => {
-| '').length > 40 ? escHtml(t.formula.substring(0, 40) + '…') : escHtml(t.formula);
+          const short = (t.formula || '').length > 40 ? escHtml(t.formula.substring(0, 40) + '…') : escHtml(t.formula);
           html += `<div class="ft-item" data-name="${escHtml(t.name)}" data-formula="${escHtml(t.formula).replace(/"/g,'&quot;')}">
             <span class="ft-item-name">${escHtml(t.name)}</span>
             <span class="ft-item-fmla">${short}</span>
@@ -279,18 +279,18 @@ window.FormulaTemplates = {
   },
 
   promptSave(containerId) {
-| document.getElementById('av-formula')?.value || '').trim();
+    const currentFormula = (document.getElementById('pbs-ce-input')?.value || document.getElementById('av-formula')?.value || '').trim();
     if (!currentFormula) { showToast('error', '公式为空，无法保存'); return; }
     const name = prompt('请输入模板名称（例如：标准数量公式）', '');
     if (!name) return;
     const cat = prompt('分类（例如：数量、条件、选件、自定义）', '通用');
-| '通用');
+    this.save(name, currentFormula, cat || '通用');
     this.renderInto(containerId);
   }
 };
 
 function openCellEditor(itemPk, field, currentVal, isQty, mappingId) {
-| 1, mappingId: mappingId || null, hasError: false };
+  _ceState = { itemPk: itemPk, field: field, isQty: !!isQty, staticQty: mappingId || 1, mappingId: mappingId || null, hasError: false };
   const overlay = document.getElementById('pbs-ce-overlay');
   const input = document.getElementById('pbs-ce-input');
   const title = document.getElementById('pbs-ce-title');
@@ -301,24 +301,24 @@ function openCellEditor(itemPk, field, currentVal, isQty, mappingId) {
   // Reset save button state
   _ceUpdateSaveButton();
 
-| field === 'variant_ipn') {
+  if (field === 'variant_name' || field === 'variant_ipn') {
     const labels = {variant_name:'🧬 动态名称模板', variant_ipn:'🧬 动态编码模板'};
     const placeholders = {variant_name:'立柱-H{高度}', variant_ipn:'COL-{高度}-{宽度}'};
-| '🧬 编辑动态模板';
-| '';
-| '输入模板，用{参数名}引用...';
+    title.textContent = labels[field] || '🧬 编辑动态模板';
+    input.value = currentVal || '';
+    input.placeholder = placeholders[field] || '输入模板，用{参数名}引用...';
   } else if (isQty) {
     const qtyText = currentVal ? ('当前: ×' + _ceState.staticQty + ' + 公式「' + currentVal + '」') : ('当前: ×' + _ceState.staticQty + '（静态数量）');
     title.textContent = '📐 ' + qtyText;
-| '';
+    input.value = currentVal || '';
     input.placeholder = '输入纯数字=改静态数量，输入公式=动态计算';
   } else {
     const labels = {qty_formula:'数量/公式', condition_formula:'条件公式', reference_formula:'备注公式', price_formula:'价格公式'};
     const placeholders = {qty_formula:'CEIL(长度/500)*2', condition_formula:'param.速度 > 15', reference_formula:"CONCAT('定制-',长度,'mm')", price_formula:"子件单价 * CEIL(param.长度 / 1000)"};
     const iconMap = {qty_formula:'📐', condition_formula:'⚡', reference_formula:'📝', price_formula:'💰'};
-| '✏️') + ' ' + (labels[field] || '编辑');
-| '';
-| '输入公式...';
+    title.textContent = (iconMap[field] || '✏️') + ' ' + (labels[field] || '编辑');
+    input.value = currentVal || '';
+    input.placeholder = placeholders[field] || '输入公式...';
   }
 
   overlay.classList.add('open');
@@ -360,7 +360,7 @@ function closeCellEditor(evt) {
 
 async function saveCellFormula() {
   const st = _ceState;
-| !st.field) return;
+  if (!st.itemPk || !st.field) return;
   if (st.hasError) {
     document.getElementById('pbs-ce-status').innerHTML = '<span class="text-red-500">❌ 公式存在错误，请修正后再保存</span>';
     return;
@@ -372,7 +372,7 @@ async function saveCellFormula() {
   statusEl.innerHTML = '<span class="text-gray-400">⏳ 保存中...</span>';
 
   // Variant name/ipn template: save to VariantMapping
-| st.field === 'variant_ipn') {
+  if (st.field === 'variant_name' || st.field === 'variant_ipn') {
     if (!st.mappingId) {
       statusEl.innerHTML = '<span class="text-red-500">❌ 找不到动态映射ID</span>';
       return;
@@ -382,7 +382,7 @@ async function saveCellFormula() {
     patchData[fieldKey] = formula;
     const res = await apiCall('PATCH', 'variant-mappings/' + st.mappingId + '/', patchData);
     if (res.error) {
-| res.data?.detail || '保存失败') + '</span>';
+      statusEl.innerHTML = '<span class="text-red-500">❌ ' + escHtml(res.data?.error || res.data?.detail || '保存失败') + '</span>';
     } else {
       statusEl.innerHTML = '<span class="text-green-600">✅ 已保存</span>';
       clearAreaDirty('bom');
@@ -402,12 +402,12 @@ async function saveCellFormula() {
     });
     if (!res.ok) {
       const errData = await res.json().catch(function() { return {}; });
-| errData.detail || '保存失败') + '</span>';
+      statusEl.innerHTML = '<span class="text-red-500">❌ ' + escHtml(errData.error || errData.detail || '保存失败') + '</span>';
     } else {
       statusEl.innerHTML = '<span class="text-green-600">✅ 数量已更新</span>';
       clearAreaDirty('bom');
       const exRes = await apiCall('GET', 'bom-item-config/?bom_item=' + st.itemPk);
-| [])) : [];
+      const exList = exRes.data && !exRes.error ? (Array.isArray(exRes.data) ? exRes.data : (exRes.data.results || [])) : [];
       if (exList[0] && exList[0].qty_formula) {
         await apiCall('PATCH', 'bom-item-config/' + exList[0].id + '/', { qty_formula: '' });
       }
@@ -418,7 +418,7 @@ async function saveCellFormula() {
 
   // Formula save
   const exRes = await apiCall('GET', 'bom-item-config/?bom_item=' + st.itemPk);
-| [])) : [];
+  const exList = exRes.data && !exRes.error ? (Array.isArray(exRes.data) ? exRes.data : (exRes.data.results || [])) : [];
   const exCfg = exList[0];
   const data = {};
   data[st.field] = formula;
@@ -431,7 +431,7 @@ async function saveCellFormula() {
   }
   let res = exCfg ? await apiCall('PATCH', 'bom-item-config/' + exCfg.id + '/', data) : await apiCall('POST', 'bom-item-config/', data);
   if (res.error) {
-| res.data?.detail || (typeof res.data === 'object' ? JSON.stringify(res.data).substring(0,120) : '保存失败');
+    const errMsg = res.data?.error || res.data?.detail || (typeof res.data === 'object' ? JSON.stringify(res.data).substring(0,120) : '保存失败');
     statusEl.innerHTML = '<span class="text-red-500">❌ ' + escHtml(errMsg) + '</span>';
   } else {
     statusEl.innerHTML = '<span class="text-green-600">✅ 已保存</span>';
@@ -444,7 +444,7 @@ function resetBomConfig(bomItemId, name) {
   // 1) Delete VariantMapping if exists (dynamic item)
   apiCall('GET', 'variant-mappings/?parametric_bom_item__bom_item=' + bomItemId).then(function(vmRes) {
     if (!vmRes.error) {
-| []);
+      var vms = Array.isArray(vmRes.data) ? vmRes.data : (vmRes.data.results || []);
       if (vms.length) {
         apiCall('DELETE', 'variant-mappings/' + vms[0].id + '/');
       }
@@ -453,7 +453,7 @@ function resetBomConfig(bomItemId, name) {
   // 2) Delete ParametricBomItem config if exists
   apiCall('GET', `bom-item-config/?bom_item=${bomItemId}`).then(res => {
     if (!res.error) {
-| []);
+      const configs = Array.isArray(res.data) ? res.data : (res.data.results || []);
       if (configs.length) {
         apiCall('DELETE', `bom-item-config/${configs[0].id}/`);
       }
@@ -465,7 +465,7 @@ function resetBomConfig(bomItemId, name) {
     headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken()},
     credentials: 'same-origin',
   }).then(res => {
-| res.status === 204) {
+    if (res.ok || res.status === 204) {
       setStatus('success', `✅ 已移除「${name}」`);
       loadPdBOMM();
     } else {
@@ -509,7 +509,7 @@ function abEditParamMapping() {
   if (input === null) return;
   try {
     var parsed = input.trim() ? JSON.parse(input.trim()) : {};
-| Array.isArray(parsed)) throw new Error();
+    if (typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error();
     _abParamMapping = parsed;
     updateAbMappingCount();
   } catch(e) { showToast('error', 'JSON格式无效，请检查'); }
@@ -531,7 +531,7 @@ async function openAddBomItemModal() {
   updateAbMappingCount();
 
   const product = parts.find(p => p.pk == pid);
-| '#' + pid) : '#' + pid;
+  document.getElementById('ab-product-name').textContent = product ? (product.name || '#' + pid) : '#' + pid;
   _allPartsCache = null;
   _abAllParts = [];
   document.getElementById('ab-search').value = '';
@@ -544,10 +544,10 @@ async function openAddBomItemModal() {
       headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken()}, credentials: 'same-origin'
     });
     const data = res.ok ? (await res.json()) : [];
-| []);
+    const all = Array.isArray(data) ? data : (data.results || []);
     _allPartsCache = all.filter(function(p) { return p.pk != pid; });
     // Auto-retry search if user already typed something while loading
-| '').trim();
+    const searchVal = (document.getElementById('ab-search').value || '').trim();
     if (searchVal) {
       doAbFilter(searchVal);
     } else {
@@ -567,7 +567,7 @@ function filterAbParts(value) {
 }
 
 function doAbFilter(value) {
-| '').trim().toLowerCase();
+  const q = (value || '').trim().toLowerCase();
   const countEl = document.getElementById('ab-search-count');
   
   if (!_allPartsCache) {
@@ -583,9 +583,9 @@ function doAbFilter(value) {
   }
   
   const matched = _allPartsCache.filter(p =>
-| p.full_name || '').toLowerCase().includes(q) ||
-| p.IPN || '').toLowerCase().includes(q) ||
-| '').toLowerCase().includes(q)
+    (p.name || p.full_name || '').toLowerCase().includes(q) ||
+    (p.ipn || p.IPN || '').toLowerCase().includes(q) ||
+    (p.description || '').toLowerCase().includes(q)
   );
   _abAllParts = matched.slice(0, 200);
   renderAbPartList();
@@ -598,8 +598,8 @@ function renderAbPartList() {
   const sel = document.getElementById('ab-sub-part');
   sel.innerHTML = '<option value="">-- 请选择零件 --</option>';
   _abAllParts.forEach(p => {
-| p.IPN || '';
-| p.full_name || `#${p.pk}`}${ipn ? ` (${ipn})` : ''}`;
+    const ipn = p.ipn || p.IPN || '';
+    const label = `${p.name || p.full_name || `#${p.pk}`}${ipn ? ` (${ipn})` : ''}`;
     sel.innerHTML += `<option value="${p.pk}">${label}</option>`;
   });
 }
@@ -610,16 +610,16 @@ async function createBomItem() {
   const qty = parseFloat(document.getElementById('ab-qty').value);
   const isDynamic = _abItemType === 'dynamic';
   
-| !subPartId) { setStatus('error', isDynamic ? '请选择模板零件' : '请选择子件'); return; }
-| qty <= 0) { setStatus('error', '请输入有效数量'); return; }
+  if (!pid || !subPartId) { setStatus('error', isDynamic ? '请选择模板零件' : '请选择子件'); return; }
+  if (!qty || qty <= 0) { setStatus('error', '请输入有效数量'); return; }
   
   // Check for duplicate sub_part in current BOM
   const existingRes = await fetch('/api/bom/?part=' + pid + '&sub_part_detail=True', {headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken()}, credentials: 'same-origin'});
   const existingData = existingRes.ok ? (await existingRes.json()) : [];
-| []);
+  const existingItems = Array.isArray(existingData) ? existingData : (existingData.results || []);
   const dup = existingItems.find(function(i) { return String(i.sub_part) === String(subPartId); });
   if (dup) {
-| '#' + subPartId;
+    const dupName = dup.sub_part_detail?.name || '#' + subPartId;
     setStatus('error', '❌ 「' + dupName + '」已在BOM中，不能重复添加');
     return;
   }
@@ -646,7 +646,7 @@ async function createBomItem() {
       loadPdBOMM();
     } else {
       const err = await res.json();
-| JSON.stringify(err)));
+      setStatus('error', '添加失败: ' + (err.message || JSON.stringify(err)));
     }
   } catch(e) {
     setStatus('error', '网络错误: ' + e.message);
@@ -666,9 +666,9 @@ async function loadPdConfigurator() {
   
   const res = await apiCall('GET', `part-config/?part=${parseInt(pid)}`);
   if (res.error) { container.innerHTML = '<div class="cfg-empty" style="color:#dc2626">❌ 加载失败</div>'; return; }
-| (Array.isArray(res.data) ? res.data : []);
+  const configs = res.data.results || (Array.isArray(res.data) ? res.data : []);
   
-|0) - (b.display_order||0));
+  cfgParams = configs.sort((a,b) => (a.display_order||0) - (b.display_order||0));
   cfgParamValues = {};
   cfgParams.forEach(c => { cfgParamValues[c.id] = c.default_value != null ? c.default_value : ''; });
   
@@ -696,8 +696,8 @@ function renderCfgParams() {
   // Driving params
   let html = '';
   drivingParams.forEach(cfg => {
-| '参数';
-| 'number';
+    const name = cfg.name || '参数';
+    const type = cfg.parameter_type || 'number';
     const val = cfgParamValues[cfg.id] != null ? cfgParamValues[cfg.id] : '';
     
     html += renderCfgParamControl(cfg, name, type, val);
@@ -709,8 +709,8 @@ function renderCfgParams() {
     computedCard.style.display = 'block';
     let ch = '';
     computedParams.forEach(cfg => {
-| '计算参数';
-| '—';
+      const name = cfg.name || '计算参数';
+      const val = cfg.default_value || '—';
       ch += `<div class="cfg-computed-row">
         <span>${name}</span>
         <span class="cfg-cr-value" id="cfg-comp-${cfg.id}">${val}</span>
@@ -726,7 +726,7 @@ function renderCfgParamControl(cfg, name, type, val) {
   const cid = cfg.id;
   const safeName = name.replace(/'/g, "\\'");
   const typeLabels = {number:'🔢 数值', option:'🔘 选项', boolean:'☑️ 布尔', text:'📝 文本', multi_option:'多选', long_text:'长文本'};
-| type;
+  const tlabel = typeLabels[type] || type;
   const changeFn = `cfgOnParamChange(${cid}, this)`;
   
   let controlHtml = '';
@@ -765,7 +765,7 @@ function renderCfgParamControl(cfg, name, type, val) {
     </div>`;
     
   } else if (type === 'boolean') {
-| val === true || val === '1';
+    const isTrue = val === 'true' || val === true || val === '1';
     controlHtml = `<div class="cfg-pg-bool">
       <div class="toggle-switch ${isTrue ? 'on' : ''}"
         onclick="this.classList.toggle('on'); this.nextElementSibling.textContent=this.classList.contains('on')?'是':'否'; cfgOnParamChange(${cid}, {value: this.classList.contains('on')?'true':'false'})">
@@ -827,7 +827,7 @@ function cfgOnMultiChange(cid) {
 function cfgGetParamContext() {
   const ctx = {};
   cfgParams.forEach(c => {
-| `param_${c.id}`;
+    const name = c.name || `param_${c.id}`;
     ctx[name] = cfgParamValues[c.id] != null ? cfgParamValues[c.id] : '';
   });
   return ctx;
@@ -843,8 +843,8 @@ async function cfgExpandBOM() {
   try {
     const res = await apiCall('POST', 'evaluate/', {part_id: parseInt(pid), parameters: ctx});
     if (res.error) { container.innerHTML = '<div class="cfg-empty" style="color:#dc2626">❌ BOM展开失败</div>'; return; }
-| [];
-| []);
+    const bomTree = res.data.bom_tree || [];
+    cfgBOMItems = Array.isArray(bomTree) ? bomTree : (bomTree.children || []);
     renderCfgBOM();
     document.getElementById('cfg-status-dot').textContent = '● 就绪';
     // Also estimate cost
@@ -867,16 +867,16 @@ function renderCfgBOM() {
   let html = '';
   // Helper to render tree
   function renderTree(items, depth) {
-| !items.length) return '';
+    if (!items || !items.length) return '';
     let h = '';
     items.forEach(item => {
       const isVariant = item.mode === 'variant';
       const hasDynamicName = isVariant && !!item.variant_name;
       const icon = isVariant ? '🧬' : '📦';
-| item.name || '未知');
-| 1));
-| item.ipn || item.part_ipn || '') : (item.ipn || item.part_ipn || '');
-| item.part_id;
+      const name = hasDynamicName ? item.variant_name : (item.part_name || item.name || '未知');
+      const qty = item.calculated_quantity != null ? item.calculated_quantity : (item.quantity != null ? item.quantity : (item.required_quantity || 1));
+      const code = hasDynamicName ? (item.variant_ipn || item.ipn || item.part_ipn || '') : (item.ipn || item.part_ipn || '');
+      const partId = item.actual_part_id || item.part_id;
       
       const variantClass = isVariant ? ' variant-item' : '';
       const codeInfo = code ? `<span class="cfg-bi-code">(${code})</span>` : '';
@@ -932,7 +932,7 @@ async function cfgDownloadBom() {
     a.click();
     URL.revokeObjectURL(a.href);
     setStatus('success', 'BOM清单已下载');
-| e)); }
+  } catch (e) { setStatus('error', '导出失败: ' + (e.message || e)); }
 }
 
 async function cfgDownloadAttachments() {
@@ -948,7 +948,7 @@ async function cfgDownloadAttachments() {
     });
     if (!res.ok) {
       const errData = await res.json().catch(() => ({}));
-| '打包失败');
+      setStatus('error', errData.error || '打包失败');
       return;
     }
     const blob = await res.blob();
@@ -958,7 +958,7 @@ async function cfgDownloadAttachments() {
     a.click();
     URL.revokeObjectURL(a.href);
     setStatus('success', '附件包已下载');
-| e)); }
+  } catch (e) { setStatus('error', '打包失败: ' + (e.message || e)); }
 }
 
 async function cfgDownloadBundle() {
@@ -980,7 +980,7 @@ async function cfgDownloadBundle() {
     a.click();
     URL.revokeObjectURL(a.href);
     setStatus('success', '完整包已下载');
-| e)); }
+  } catch (e) { setStatus('error', '打包失败: ' + (e.message || e)); }
 }
 
 async function cfgEstimateCost() {
@@ -1010,14 +1010,14 @@ async function cfgSaveConfig() {
   const ctx = cfgGetParamContext();
   const res = await apiCall('POST', 'configurations/', {
     template_part: parseInt(pid),
-| `配置 ${Date.now()}`,
+    title: name || `配置 ${Date.now()}`,
     params_snapshot: ctx,
   });
   if (!res.error) {
     setStatus('success', `✅ 配置「${name}」已保存`);
     await cfgLoadConfigs();
   } else {
-| res.data.detail || JSON.stringify(res.data).substring(0,100)) : '未知错误';
+    const detail = res.data ? (res.data.error || res.data.detail || JSON.stringify(res.data).substring(0,100)) : '未知错误';
     setStatus('error', `保存失败: ${detail}`);
   }
 }
@@ -1032,7 +1032,7 @@ async function cfgGenerateVariant() {
   const ctx = cfgGetParamContext();
   const res = await apiCall('POST', 'generate-variant/', {
     part_id: parseInt(pid),
-| `变体 ${Date.now()}`,
+    variant_name: name || `变体 ${Date.now()}`,
     param_context: ctx,
   });
   if (!res.error) {

@@ -17,6 +17,7 @@ from decimal import Decimal
 from typing import Any, Dict, List, Optional, Tuple
 
 from django.utils import timezone
+from django.core.exceptions import ObjectDoesNotExist
 
 import structlog
 
@@ -398,7 +399,7 @@ def _expand_single_bom_item(
                     child_node['variant_ipn'] = str(dynamic_ipn)
                 child_node['template_part_id'] = _part_pk(sub_part)
                 child_node['template_part_name'] = _part_display(sub_part)
-        except ParametricBomItem.variant_mapping.RelatedObjectDoesNotExist:
+        except ObjectDoesNotExist:
             pass
 
     # ── 0) Condition evaluation (all modes except standard) ──

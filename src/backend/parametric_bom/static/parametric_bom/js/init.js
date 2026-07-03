@@ -6,9 +6,9 @@ let globalPartId = null;
 let globalPartName = '';
 
 function onGlobalPartChange(partId) {
-| null;
+  globalPartId = partId || null;
   const part = parts.find(p => p.pk == partId);
-| part.full_name || '') : '';
+  globalPartName = part ? (part.name || part.full_name || '') : '';
   // Sync with product management state
   if (partId) {
     configuratorPartId = parseInt(partId);
@@ -16,8 +16,8 @@ function onGlobalPartChange(partId) {
   }
   // Auto-refresh current page if it depends on product
   const activePage = document.querySelector('.page-panel.active')?.id?.replace('page-', '');
-| '');
-| '');
+  if (activePage === 'bom-formula') loadBomFormulaConfigs(partId || '');
+  else if (activePage === 'param-types') loadParamConfigs(partId || '');
 }
 
 // ===== DASHBOARD =====
@@ -30,10 +30,10 @@ async function renderDashboard() {
     apiCall('GET', 'bom-item-config/'),
     apiCall('GET', 'configurations/'),
   ]);
-| cfgRes.data || []) : [];
-| bomRes.data || []) : [];
-| configRes.data || []) : [];
-| [];
+  const pcfgs = !cfgRes.error ? (cfgRes.data.results || cfgRes.data || []) : [];
+  const boms = !bomRes.error ? (bomRes.data.results || bomRes.data || []) : [];
+  const configs = !configRes.error ? (configRes.data.results || configRes.data || []) : [];
+  const products = parts || [];
 
   // Count products with parametric configs
   const partIds = new Set(pcfgs.map(c => c.part));
@@ -49,7 +49,7 @@ async function renderDashboard() {
     else if (b.enable_candidate) primary = 'candidate';
     else if (b.enable_conditional) primary = 'conditional';
     else if (b.enable_qty_formula) primary = 'qty_formula';
-| 0) + 1;
+    modeCounts[primary] = (modeCounts[primary] || 0) + 1;
   });
 
   const modeLabels = {standard:'标准', qty_formula:'📐数量公式', conditional:'⚡条件包含', candidate:'🎯候选零件', variant:'🧬动态项目', specification:'📝规格描述', structure:'🏗️结构'};
@@ -95,8 +95,8 @@ async function renderDashboard() {
     <div class="text-xs font-semibold text-gray-700 mb-2">📊 BOM模式分布</div>
     <div class="flex flex-wrap gap-1.5">
       ${Object.entries(modeCounts).map(([m, c]) =>
-|m}: ${c}</span>`
-| '<span class="text-[10px] text-gray-400">暂无数据，先创建示例产品试试</span>'}
+        `<span class="text-[10px] px-2 py-0.5 rounded-full bg-gray-100 text-gray-700">${modeLabels[m]||m}: ${c}</span>`
+      ).join('') || '<span class="text-[10px] text-gray-400">暂无数据，先创建示例产品试试</span>'}
     </div>
   </div>
 
@@ -152,7 +152,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     if (sel && typeof parts !== 'undefined') {
       parts.forEach(p => {
         const opt = document.createElement('option');
-| p.full_name || 'Unnamed'} (ID:${p.pk})`;
+        opt.value = p.pk; opt.textContent = `${p.name || p.full_name || 'Unnamed'} (ID:${p.pk})`;
         sel.appendChild(opt);
       });
     }
@@ -173,7 +173,7 @@ document.addEventListener('DOMContentLoaded', async function() {
 // ── Create Demo Product ──
 async function createDemoProduct() {
   const btn = document.getElementById('btn-demo');
-| btn.disabled) return;
+  if (!btn || btn.disabled) return;
   btn.disabled = true;
   btn.textContent = '⏳ 创建中...';
   setStatus('loading', '正在创建示例产品...');
@@ -192,7 +192,7 @@ async function createDemoProduct() {
       throw new Error(`创建产品失败: ${errMsg}`);
     }
     const product = await productRes.json();
-| product.id;
+    const productId = product.pk || product.id;
     
     const params = [
       {name:'总长度', type:'number', driving:true, comp:false, def:'3000', extra:{min_value:1000,max_value:6000}, order:10},
@@ -233,7 +233,7 @@ async function createDemoProduct() {
       await fetch('/api/bom/', {method:'POST',
         headers:{'Content-Type':'application/json','X-CSRFToken':getCsrfToken()},
         credentials:'same-origin',
-|subParts[i].id, quantity:qtys[i]})
+        body:JSON.stringify({part:productId, sub_part:subParts[i].pk||subParts[i].id, quantity:qtys[i]})
       });
     }
     
@@ -252,8 +252,8 @@ async function createDemoProduct() {
 
 async function cartAddStaticPart(partId, partName, partIpn) {
   if (!partId) { setStatus('error', '无效零件'); return; }
-| '零件 #' + partId;
-| '';
+  const name = partName || '零件 #' + partId;
+  const ipn = partIpn || '';
   const title = name + (ipn ? ' (' + ipn + ')' : '');
   
   // Check if already in cart
@@ -269,7 +269,7 @@ async function cartAddStaticPart(partId, partName, partIpn) {
         method: 'PATCH',
         headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken()},
         credentials: 'same-origin',
-| 1) + 1})
+        body: JSON.stringify({quantity: (existing.quantity || 1) + 1})
       });
       setStatus('success', '✅ 数量+1: ' + name);
       return;
@@ -294,7 +294,7 @@ async function cartAddStaticPart(partId, partName, partIpn) {
       var cntRes = await fetch('/api/parametric-bom/cart/count/', {credentials: 'same-origin'});
       if (cntRes.ok) {
         var cntData = await cntRes.json();
-| 0;
+        var cnt = cntData.count || 0;
         var badge = document.getElementById('cart-fab-count');
         if (badge) badge.textContent = cnt;
       }
@@ -308,15 +308,15 @@ async function cartAddStaticPart(partId, partName, partIpn) {
 async function cfgAddToCart() {
   const pid = configuratorPartId;
   if (!pid) { setStatus('error', '请先选择产品'); return; }
-| !cfgBOMItems.length) { setStatus('error', '请先展开BOM'); return; }
+  if (!cfgBOMItems || !cfgBOMItems.length) { setStatus('error', '请先展开BOM'); return; }
 
   const ctx = cfgGetParamContext();
-| '参数化产品';
+  const partName = document.querySelector('#pd-product-name')?.textContent?.trim() || '参数化产品';
 
   // Build title from params
-| {}).slice(0, 3);
+  const paramEntries = Object.entries(ctx || {}).slice(0, 3);
   const paramStr = paramEntries.map(function(kv) { return kv[0] + '=' + kv[1]; }).join(', ');
-| {}).length > 3;
+  const hasMore = Object.keys(ctx || {}).length > 3;
   const title = partName + (paramStr ? ' (' + paramStr + (hasMore ? '...' : '') + ')' : '');
 
   const res = await fetch('/api/parametric-bom/cart/add/', {
@@ -339,7 +339,7 @@ async function cfgAddToCart() {
       var cntRes = await fetch('/api/parametric-bom/cart/count/', {credentials: 'same-origin'});
       if (cntRes.ok) {
         var cntData = await cntRes.json();
-| 0;
+        var cnt = cntData.count || 0;
         var badge = document.getElementById('cart-fab-count');
         if (badge) badge.textContent = cnt;
         var panel = document.getElementById('cart-panel');

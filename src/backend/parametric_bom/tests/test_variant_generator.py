@@ -224,10 +224,10 @@ class TestGenerateVariant(TestCase):
         return mock_config
 
     @mock.patch('django.db.transaction.atomic')
-    @mock.patch('parametric_bom.variant_generator.BomItem')
-    @mock.patch('parametric_bom.variant_generator.Parameter')
-    @mock.patch('parametric_bom.variant_generator.ContentType')
-    @mock.patch('parametric_bom.variant_generator.Part')
+    @mock.patch('part.models.BomItem')
+    @mock.patch('common.models.Parameter')
+    @mock.patch('django.contrib.contenttypes.models.ContentType')
+    @mock.patch('part.models.Part')
     @mock.patch('parametric_bom.variant_generator.evaluate_configuration')
     @mock.patch('parametric_bom.variant_generator.ProductConfiguration')
     @mock.patch('parametric_bom.variant_generator.ConfigParameterValue')
@@ -265,7 +265,7 @@ class TestGenerateVariant(TestCase):
         mock_ct_cls.objects.get_for_model.return_value = mock_ct
 
         # Mock ParameterTemplate lookup for computed params
-        with mock.patch('parametric_bom.variant_generator.ParameterTemplate') as mock_pt_cls:
+        with mock.patch('common.models.ParameterTemplate') as mock_pt_cls:
             mock_pt = mock.MagicMock()
             mock_pt.name = 'power'
             mock_pt_cls.objects.get.return_value = mock_pt

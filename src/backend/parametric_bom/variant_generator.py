@@ -25,6 +25,7 @@ from parametric_bom.models import (
     ConfigStatusChoices,
     ProductConfiguration,
 )
+from common.models import ParameterTemplate
 
 logger = structlog.get_logger('inventree')
 

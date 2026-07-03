@@ -146,14 +146,29 @@ class MockParametricBomItem:
     """Minimal mock for ParametricBomItem used in tests.
 
     Fields accessed in _expand_single_bom_item:
-      - qty_formula
-      - condition_formula
+      - qty_formula, condition_formula, reference_formula, price_formula
+      - enable_variant, enable_conditional, enable_candidate
+      - enable_specification, enable_structure, enable_qty_formula
+      - variant_mapping (None by default)
     """
 
-    def __init__(self, bom_item, qty_formula='', condition_formula=''):
+    def __init__(self, bom_item, qty_formula='', condition_formula='',
+                 reference_formula='', price_formula='',
+                 enable_variant=False, enable_conditional=False,
+                 enable_candidate=False, enable_specification=False,
+                 enable_structure=False, enable_qty_formula=False):
         self.bom_item = bom_item
         self.qty_formula = qty_formula
         self.condition_formula = condition_formula
+        self.reference_formula = reference_formula
+        self.price_formula = price_formula
+        self.enable_variant = enable_variant
+        self.enable_conditional = enable_conditional
+        self.enable_candidate = enable_candidate
+        self.enable_specification = enable_specification
+        self.enable_structure = enable_structure
+        self.enable_qty_formula = enable_qty_formula
+        self.variant_mapping = None
 
 
 _DoesNotExist = type('DoesNotExist', (Exception,), {})
@@ -187,6 +202,11 @@ def _make_cfg_mock(exists_return=True, configs=None):
 
 
 class TestComputeParameters(TestCase):
+    def setUp(self):
+        patcher = mock.patch('parametric_bom.bom_expander._compute_attributes')
+        self.mock_compute_attrs = patcher.start()
+        self.addCleanup(patcher.stop)
+
     """Tests for the compute_parameters() function."""
 
     @mock.patch('parametric_bom.models.PartParameterConfig')
@@ -359,6 +379,14 @@ class TestComputeParameters(TestCase):
 class TestExpandBomLevel(TestCase):
     """Tests for the expand_bom_level() function."""
 
+    def setUp(self):
+        patcher = mock.patch('parametric_bom.bom_expander._compute_attributes')
+        self.mock_compute_attrs = patcher.start()
+        self.addCleanup(patcher.stop)
+        patcher2 = mock.patch('parametric_bom.bom_expander._apply_inheritance')
+        self.mock_apply_inherit = patcher2.start()
+        self.addCleanup(patcher2.stop)
+
     # Helper: make a PartParameterConfig filter mock that returns exists()=False
     @staticmethod
     def _no_configs_mock(mock_config_cls):
@@ -376,7 +404,8 @@ class TestExpandBomLevel(TestCase):
         parent.add_bom_item(child, quantity=4.0)
 
         mock_pbom_cls.DoesNotExist = _DoesNotExist
-        mock_pbom_cls.objects.get.side_effect = _DoesNotExist()
+        # Chain: objects.select_related().get() — set side_effect on the full chain
+        mock_pbom_cls.objects.select_related.return_value.get.side_effect = _DoesNotExist()
         self._no_configs_mock(mock_config_cls)
 
         from parametric_bom.bom_expander import expand_bom_level
@@ -402,7 +431,7 @@ class TestExpandBomLevel(TestCase):
         parent = MockPart('Root', pk=1)
 
         mock_pbom_cls.DoesNotExist = _DoesNotExist
-        mock_pbom_cls.objects.get.side_effect = _DoesNotExist()
+        mock_pbom_cls.objects.select_related.return_value.get.side_effect = _DoesNotExist()
 
         from parametric_bom.bom_expander import expand_bom_level
 
@@ -426,7 +455,7 @@ class TestExpandBomLevel(TestCase):
         )
 
         mock_pbom_cls.DoesNotExist = _DoesNotExist
-        mock_pbom_cls.objects.get.return_value = param_cfg
+        mock_pbom_cls.objects.select_related.return_value.get.return_value = param_cfg
         self._no_configs_mock(mock_config_cls)
 
         from parametric_bom.bom_expander import expand_bom_level
@@ -453,7 +482,7 @@ class TestExpandBomLevel(TestCase):
         )
 
         mock_pbom_cls.DoesNotExist = _DoesNotExist
-        mock_pbom_cls.objects.get.return_value = param_cfg
+        mock_pbom_cls.objects.select_related.return_value.get.return_value = param_cfg
         self._no_configs_mock(mock_config_cls)
 
         from parametric_bom.bom_expander import expand_bom_level
@@ -478,7 +507,7 @@ class TestExpandBomLevel(TestCase):
         )
 
         mock_pbom_cls.DoesNotExist = _DoesNotExist
-        mock_pbom_cls.objects.get.return_value = param_cfg
+        mock_pbom_cls.objects.select_related.return_value.get.return_value = param_cfg
         self._no_configs_mock(mock_config_cls)
 
         from parametric_bom.bom_expander import expand_bom_level
@@ -503,7 +532,7 @@ class TestExpandBomLevel(TestCase):
         )
 
         mock_pbom_cls.DoesNotExist = _DoesNotExist
-        mock_pbom_cls.objects.get.return_value = param_cfg
+        mock_pbom_cls.objects.select_related.return_value.get.return_value = param_cfg
         self._no_configs_mock(mock_config_cls)
 
         from parametric_bom.bom_expander import expand_bom_level
@@ -524,7 +553,7 @@ class TestExpandBomLevel(TestCase):
         parent.add_bom_item(child2, quantity=4.0)
 
         mock_pbom_cls.DoesNotExist = _DoesNotExist
-        mock_pbom_cls.objects.get.side_effect = _DoesNotExist()
+        mock_pbom_cls.objects.select_related.return_value.get.side_effect = _DoesNotExist()
         self._no_configs_mock(mock_config_cls)
 
         from parametric_bom.bom_expander import expand_bom_level
@@ -549,7 +578,7 @@ class TestExpandBomLevel(TestCase):
         )
 
         mock_pbom_cls.DoesNotExist = _DoesNotExist
-        mock_pbom_cls.objects.get.return_value = param_cfg
+        mock_pbom_cls.objects.select_related.return_value.get.return_value = param_cfg
         self._no_configs_mock(mock_config_cls)
 
         from parametric_bom.bom_expander import expand_bom_level
@@ -571,7 +600,7 @@ class TestExpandBomLevel(TestCase):
         parent.add_bom_item(sub_assy, quantity=1.0)
 
         mock_pbom_cls.DoesNotExist = _DoesNotExist
-        mock_pbom_cls.objects.get.side_effect = _DoesNotExist()
+        mock_pbom_cls.objects.select_related.return_value.get.side_effect = _DoesNotExist()
         self._no_configs_mock(mock_config_cls)
 
         from parametric_bom.bom_expander import expand_bom_level
@@ -596,7 +625,7 @@ class TestExpandBomLevel(TestCase):
         parent.add_bom_item(sub_assy, quantity=1.0)
 
         mock_pbom_cls.DoesNotExist = _DoesNotExist
-        mock_pbom_cls.objects.get.side_effect = _DoesNotExist()
+        mock_pbom_cls.objects.select_related.return_value.get.side_effect = _DoesNotExist()
 
         cfg = MockPartParameterConfig(
             template_name='length',
@@ -635,6 +664,11 @@ class TestExpandBomLevel(TestCase):
 
 
 class TestEvaluatePart(TestCase):
+    def setUp(self):
+        patcher = mock.patch('parametric_bom.bom_expander._compute_attributes')
+        self.mock_compute_attrs = patcher.start()
+        self.addCleanup(patcher.stop)
+
     """Tests for the evaluate_part() function."""
 
     @mock.patch('django.utils.timezone.now', return_value=mock.MagicMock(
@@ -670,7 +704,7 @@ class TestEvaluatePart(TestCase):
         self.assertEqual(result['total_bom_items'], 0)
         self.assertIsNotNone(result['expanded_at'])
 
-        mock_compute.assert_called_once_with(mock_part, {'speed': 10}, 500)
+        mock_compute.assert_called_once_with(mock_part, {'speed': 10}, timeout_ms=500)
         mock_expand.assert_called_once()
 
     @mock.patch('django.utils.timezone.now', return_value=mock.MagicMock(
@@ -725,7 +759,7 @@ class TestEvaluatePart(TestCase):
 
         result = evaluate_part(mock_part, {'x': 1}, timeout_ms=100, max_depth=3)
 
-        mock_compute.assert_called_once_with(mock_part, {'x': 1}, 100)
+        mock_compute.assert_called_once_with(mock_part, {'x': 1}, timeout_ms=100)
         mock_expand.assert_called_once_with(
             mock_part, {'x': 1}, depth=0, max_depth=3, timeout_ms=100,
         )
@@ -737,13 +771,18 @@ class TestEvaluatePart(TestCase):
 
 
 class TestTreeStructure(TestCase):
+    def setUp(self):
+        patcher = mock.patch('parametric_bom.bom_expander._compute_attributes')
+        self.mock_compute_attrs = patcher.start()
+        self.addCleanup(patcher.stop)
+
     """Tests for the tree structure output of expand_bom_level."""
 
     @mock.patch('parametric_bom.models.ParametricBomItem')
     def test_minimal_tree_structure(self, mock_pbom_cls):
         """Verify the tree node structure has all expected keys."""
         mock_pbom_cls.DoesNotExist = _DoesNotExist
-        mock_pbom_cls.objects.get.side_effect = _DoesNotExist()
+        mock_pbom_cls.objects.select_related.return_value.get.side_effect = _DoesNotExist()
 
         from parametric_bom.bom_expander import expand_bom_level
 
@@ -776,7 +815,7 @@ class TestTreeStructure(TestCase):
         parent.add_bom_item(child, quantity=3.0)
 
         mock_pbom_cls.DoesNotExist = _DoesNotExist
-        mock_pbom_cls.objects.get.side_effect = _DoesNotExist()
+        mock_pbom_cls.objects.select_related.return_value.get.side_effect = _DoesNotExist()
 
         mock_cfg_qs = mock.MagicMock()
         mock_cfg_qs.exists.return_value = False
@@ -817,7 +856,7 @@ class TestTreeStructure(TestCase):
         parent.add_bom_item(child2, quantity=1.0)
 
         mock_pbom_cls.DoesNotExist = _DoesNotExist
-        mock_pbom_cls.objects.get.side_effect = _DoesNotExist()
+        mock_pbom_cls.objects.select_related.return_value.get.side_effect = _DoesNotExist()
 
         with mock.patch('parametric_bom.models.PartParameterConfig') as m_cfg:
             m_cfg_qs = mock.MagicMock()
@@ -841,6 +880,11 @@ class TestTreeStructure(TestCase):
 
 
 class TestConditionExclusion(TestCase):
+    def setUp(self):
+        patcher = mock.patch('parametric_bom.bom_expander._compute_attributes')
+        self.mock_compute_attrs = patcher.start()
+        self.addCleanup(patcher.stop)
+
     """Focused tests on condition formula exclusion behavior."""
 
     @mock.patch('parametric_bom.models.ParametricBomItem')
@@ -859,7 +903,7 @@ class TestConditionExclusion(TestCase):
         )
 
         mock_pbom_cls.DoesNotExist = _DoesNotExist
-        mock_pbom_cls.objects.get.return_value = param_cfg
+        mock_pbom_cls.objects.select_related.return_value.get.return_value = param_cfg
         mock_cfg_qs = mock.MagicMock()
         mock_cfg_qs.exists.return_value = False
         mock_config_cls.objects.filter.return_value = mock_cfg_qs
@@ -890,7 +934,7 @@ class TestConditionExclusion(TestCase):
         )
 
         mock_pbom_cls.DoesNotExist = _DoesNotExist
-        mock_pbom_cls.objects.get.return_value = param_cfg
+        mock_pbom_cls.objects.select_related.return_value.get.return_value = param_cfg
 
         mock_cfg_qs = mock.MagicMock()
         mock_cfg_qs.exists.return_value = False
@@ -924,7 +968,7 @@ class TestConditionExclusion(TestCase):
             raise _DoesNotExist()
 
         mock_pbom_cls.DoesNotExist = _DoesNotExist
-        mock_pbom_cls.objects.get.side_effect = get_side_effect
+        mock_pbom_cls.objects.select_related.return_value.get.side_effect = get_side_effect
 
         with mock.patch('parametric_bom.models.PartParameterConfig') as m_cfg:
             m_cfg_qs = mock.MagicMock()
@@ -948,7 +992,7 @@ class TestConditionExclusion(TestCase):
         parent.add_bom_item(child, quantity=1.0)
 
         mock_pbom_cls.DoesNotExist = _DoesNotExist
-        mock_pbom_cls.objects.get.side_effect = _DoesNotExist()
+        mock_pbom_cls.objects.select_related.return_value.get.side_effect = _DoesNotExist()
 
         mock_cfg_qs = mock.MagicMock()
         mock_cfg_qs.exists.return_value = False

@@ -11,6 +11,7 @@ from __future__ import annotations
 from typing import Any
 
 import structlog
+from django.core.exceptions import ObjectDoesNotExist
 
 logger = structlog.get_logger('inventree')
 
@@ -112,7 +113,7 @@ def get_category_template_detail(category_id: int) -> dict[str, Any]:
 
     try:
         category = PartCategory.objects.get(pk=category_id)
-    except PartCategory.DoesNotExist:
+    except ObjectDoesNotExist:
         return {'error': f'Category {category_id} not found'}
 
     cat_templates = PartCategoryParameterTemplate.objects.filter(
@@ -195,7 +196,7 @@ def bulk_assign_templates(
 
     try:
         category = PartCategory.objects.get(pk=category_id)
-    except PartCategory.DoesNotExist:
+    except ObjectDoesNotExist:
         return {**result, 'error': f'Category {category_id} not found'}
 
     # Normalise input
@@ -250,7 +251,7 @@ def bulk_assign_templates(
                 default_value=item['default_value'],
             )
             result['assigned'] += 1
-        except ParameterTemplate.DoesNotExist:
+        except ObjectDoesNotExist:
             result['errors'].append(f'ParameterTemplate {tpl_id} not found')
         except Exception as exc:
             result['errors'].append(

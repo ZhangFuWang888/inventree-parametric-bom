@@ -7,7 +7,7 @@ async function loadParts() {
     const resp = await fetch('/api/part/?limit=5000&ordering=-creation_date', {credentials: 'same-origin'});
     if (resp.ok) {
       const data = await resp.json();
-| []);
+      parts = Array.isArray(data) ? data : (data.results || []);
     } else {
       parts = [];
     }
@@ -26,7 +26,7 @@ async function loadParts() {
     parts.forEach(p => {
       const opt = document.createElement('option');
       opt.value = p.pk;
-| p.full_name || 'Unnamed'} (ID:${p.pk})`;
+      opt.textContent = `${p.name || p.full_name || 'Unnamed'} (ID:${p.pk})`;
       sel.appendChild(opt);
     });
     if (currentVal) sel.value = currentVal;
@@ -39,7 +39,7 @@ async function loadParts() {
     });
     if (tmplResp.ok) {
       const tmplData = await tmplResp.json();
-| []);
+      templates = Array.isArray(tmplData) ? tmplData : (tmplData.results || []);
     }
   } catch(e) {}
   
@@ -79,7 +79,7 @@ async function renderProductGrid() {
   const grid = document.getElementById('product-grid');
   if (!grid) return;
   
-| parts.length === 0) {
+  if (!parts || parts.length === 0) {
     grid.innerHTML = '<div class="empty-state"><div class="icon">📦</div><p>暂无产品</p></div>';
     document.getElementById('product-count-badge').textContent = '';
     document.getElementById('product-pagination-bar').style.display = 'none';
@@ -106,21 +106,21 @@ async function renderProductGrid() {
   ]);
   
   const configMap = {};
-| paramRes.data || []);
+  const paramCfgs = paramRes.error ? [] : (paramRes.data.results || paramRes.data || []);
   paramCfgs.forEach(c => {
     if (!configMap[c.part]) configMap[c.part] = { paramCount: 0 };
-| 0) + 1;
+    configMap[c.part].paramCount = (configMap[c.part].paramCount || 0) + 1;
   });
   
   // Apply search & filter
-| '').toLowerCase().trim();
+  const searchQ = (document.getElementById('product-search-input').value || '').toLowerCase().trim();
   const catPk = document.getElementById('product-category-filter').value;
   
   _filteredParts = parts.filter(p => {
     if (catPk && p.category != parseInt(catPk)) return false;
     if (searchQ) {
-| p.full_name || '').toLowerCase();
-| p.ipn || '').toLowerCase();
+      const name = (p.name || p.full_name || '').toLowerCase();
+      const ipn = (p.IPN || p.ipn || '').toLowerCase();
       if (!name.includes(searchQ) && !ipn.includes(searchQ)) return false;
     }
     return true;
@@ -145,7 +145,7 @@ async function renderProductGrid() {
   const totalParts = parts.length;
   const filteredCount = _filteredParts.length;
   document.getElementById('product-count-badge').textContent = `共 ${totalParts} 个产品（${withConfigCount} 个已参数化）`;
-| catPk ? `筛选: ${filteredCount} / ${totalParts}` : '';
+  document.getElementById('product-filter-count').textContent = searchQ || catPk ? `筛选: ${filteredCount} / ${totalParts}` : '';
   
   // Paginate
   const totalPages = Math.max(1, Math.ceil(_filteredParts.length / _productPageSize));
@@ -187,11 +187,11 @@ async function renderProductGrid() {
   
   let html = '<div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">';
   pageItems.forEach(p => {
-| p.full_name || 'Unnamed';
-| { paramCount: 0 };
+    const name = p.name || p.full_name || 'Unnamed';
+    const cfg = configMap[p.pk] || { paramCount: 0 };
     const isParametric = cfg.paramCount > 0;
-| p.ipn || '';
-| '';
+    const ipn = p.IPN || p.ipn || '';
+    const description = p.description || '';
     
     html += `<div class="product-card ${isParametric ? 'is-parametric' : ''}" onclick="window.open('/parametric-bom/product/${p.pk}/', '_blank')">
       <div class="flex items-start gap-3">
@@ -209,7 +209,7 @@ async function renderProductGrid() {
       <div class="product-meta">
         <span class="product-stat">📐 ${cfg.paramCount} 参数</span>
         <span class="product-type-badge ${p.assembly ? 'is-assembly' : 'is-part'}">${p.assembly ? '部装' : '零件'}</span>
-| ''}</span>
+        <span class="product-date">${p.creation_date || ''}</span>
       </div>
     </div>`;
   });
@@ -305,9 +305,9 @@ async function loadProductDetail(partId) {
   if (!partId) return;
   const part = parts.find(p => p.pk == partId);
   if (part) {
-| part.full_name || '—';
-| part.ipn || '';
-| '';
+    document.getElementById('pd-product-name').textContent = part.name || part.full_name || '—';
+    document.getElementById('pd-product-ipn').textContent = part.IPN || part.ipn || '';
+    document.getElementById('pd-product-desc').textContent = part.description || '';
   }
   // Load first tab
   switchProductTab('params');
@@ -343,13 +343,13 @@ function clearAreaDirty(area) {
 }
 
 function isAnyDirty() {
-| __hasDirty;
+  return __dirtyAreas.size > 0 || __hasDirty;
 }
 
 function getDirtySummary() {
   const areas = Array.from(__dirtyAreas);
   const labels = {params:'参数配置', bom:'BOM列表', variables:'变量', configurator:'配置器'};
-| a).join('、');
+  return areas.map(a => labels[a] || a).join('、');
 }
 
 function showDirtyButtons() {
@@ -360,7 +360,7 @@ function showDirtyButtons() {
 function confirmDiscardChanges(message) {
   if (!isAnyDirty()) return true;
   const summary = getDirtySummary();
-| `有未保存的修改（${summary}），确定要离开吗？`);
+  return confirm(message || `有未保存的修改（${summary}），确定要离开吗？`);
 }
 
 async function saveAllParams() {
@@ -411,12 +411,12 @@ async function loadPdParams() {
 
   const res = await apiCall('GET', `part-config/?part=${parseInt(pid)}`);
   if (res.error) { container.innerHTML = '<div class="text-red-500 text-sm p-3">❌ 加载失败</div>'; return; }
-| (Array.isArray(res.data) ? res.data : []);
+  const configs = res.data.results || (Array.isArray(res.data) ? res.data : []);
   
   window.__paramConfigs = configs;
   window.__currentPartId = pid;
   
-| []).sort((a,b) => (a.display_order||0) - (b.display_order||0));
+  const sorted = (configs || []).sort((a,b) => (a.display_order||0) - (b.display_order||0));
   
   if (!sorted.length) {
     if (countBadge) countBadge.textContent = '0 个参数';
@@ -444,15 +444,15 @@ async function loadPdParams() {
 function renderPdTemplateList() {}
 
 function renderParamCard(cfg, idx) {
-| 'number';
-|'参数').replace(/'/g, "\\'");
+  const type = cfg.parameter_type || 'number';
+  const safeName = (cfg.name||'参数').replace(/'/g, "\\'");
   const cfgId = cfg.id;
   const typeLabels = {number:'数值', option:'选项', multi_option:'多选', boolean:'布尔', text:'文本', long_text:'长文本'};
-| type;
+  const typeLabel = typeLabels[type] || type;
   const defVal = cfg.default_value != null ? cfg.default_value : '';
   
   const typeIconMap = {number:'🔢', option:'🔘', multi_option:'☑️', boolean:'☑️', text:'📝', long_text:'📄'};
-| '🔢';
+  const icon = typeIconMap[type] || '🔢';
   
   // ── Input control (row 1: default value) ──
   let inputHtml = '';
@@ -461,7 +461,7 @@ function renderParamCard(cfg, idx) {
     const min = cfg.min_value != null ? parseFloat(cfg.min_value) : 0;
     const max = cfg.max_value != null ? parseFloat(cfg.max_value) : 10000;
     const step = cfg.step_value != null ? parseFloat(cfg.step_value) : (max - min > 100 ? 1 : 0.1);
-| min;
+    const val = defVal || min;
     inputHtml = `<div class="pc-value">
       <div class="pc-slider-row">
         <input type="range" min="${min}" max="${max}" step="${step}" value="${val}"
@@ -479,7 +479,7 @@ function renderParamCard(cfg, idx) {
         <span class="ml-1">步长</span>
         <input type="number" value="${cfg.step_value != null ? cfg.step_value : ''}" step="0.01" placeholder="自动"
           style="width:60px;padding:0.125rem 0.25rem;font-size:0.65rem"
-|null});}showDirtyButtons()">
+          onchange="var s=parseFloat(this.value);if(s>0){var pc=this.closest('.pc-value');var slider=pc?pc.querySelector('input[type=range]'):null;var cur=slider?parseFloat(slider.value):0;var m=slider?parseFloat(slider.min):0;var snap=m+Math.round((cur-m)/s)*s;if(slider){slider.step=s;slider.value=snap;}if(pc){var valSpan=pc.querySelector('.pc-slider-val');if(valSpan)valSpan.textContent=snap;}markDirty(${cfgId},{step_value:s,default_value:String(snap)});}else{markDirty(${cfgId},{step_value:this.value||null});}showDirtyButtons()">
       </div>
     </div>`;
     
@@ -514,7 +514,7 @@ function renderParamCard(cfg, idx) {
     </div>`;
     
   } else if (type === 'boolean') {
-| defVal === true || defVal === '1';
+    const isTrue = defVal === 'true' || defVal === true || defVal === '1';
     inputHtml = `<div class="pc-value">
       <div class="flex items-center gap-2">
         <div class="toggle-switch ${isTrue ? 'on' : ''}"
@@ -541,7 +541,7 @@ function renderParamCard(cfg, idx) {
   }
   
   // ── Description (uses ui_hint field) ──
-| '';
+  const desc = cfg.ui_hint || '';
   const descHtml = desc
     ? `<div class="pc-desc-editor" onclick="startEditDesc(${cfgId}, this)">
         📝 <span class="pc-desc-text">${desc}</span>
@@ -555,7 +555,7 @@ function renderParamCard(cfg, idx) {
   const isComputed = cfg.is_computed;
   
   return `<div class="param-card type-${type}"
-|0}"
+    data-config-id="${cfgId}" data-display-order="${cfg.display_order||0}"
     ondragover="onCardDragOver(event)"
     ondrop="onCardDrop(event, ${cfgId})"
     ondragend="onCardDragEnd(event)">
@@ -745,7 +745,7 @@ function finishEditDesc(cfgId, input) {
 function appendParamCard(config) {
   if (!window.__paramConfigs) window.__paramConfigs = [];
   window.__paramConfigs.push(config);
-|0)-(b.display_order||0));
+  const sorted = window.__paramConfigs.sort((a,b)=>(a.display_order||0)-(b.display_order||0));
   const canvas = document.getElementById('pd-params-canvas');
   const countBadge = document.getElementById('pd-param-count');
   canvas.innerHTML = sorted.map((c,i)=>renderParamCard(c,i)).join('');
@@ -768,13 +768,13 @@ async function loadPdBOMM() {
   ]);
   
   const bomItems = bomRes.ok ? (await bomRes.json()) : [];
-| []);
-| []));
+  const items = Array.isArray(bomItems) ? bomItems : (bomItems.results || []);
+  const pcfgs = pcfgRes.error ? [] : (Array.isArray(pcfgRes.data) ? pcfgRes.data : (pcfgRes.data.results || []));
   const pcfgMap = {};
   pcfgs.forEach(function(c) { pcfgMap[c.bom_item] = c; });
   
   // Build variant mapping lookup by parametric_bom_item
-| []));
+  var vmData = vmRes.error ? [] : (Array.isArray(vmRes.data) ? vmRes.data : (vmRes.data.results || []));
   var vmByPbi = {};
   vmData.forEach(function(v) { vmByPbi[v.parametric_bom_item] = v; });
   
@@ -792,10 +792,10 @@ async function loadPdBOMM() {
 }
 
 function filterBOMList() {
-| '').toLowerCase().trim();
-| [];
-| {};
-| {};
+  const q = (document.getElementById('bom-search-input').value || '').toLowerCase().trim();
+  const items = window.__bomItems || [];
+  const pcfgMap = window.__bomPcfgMap || {};
+  const vmByPbi = window.__bomVmByPbi || {};
   const countBadge = document.getElementById('bom-count-badge');
   const filterCount = document.getElementById('bom-filter-count');
   
@@ -805,16 +805,16 @@ function filterBOMList() {
     if (filterCount) filterCount.textContent = '';
   } else {
     filtered = items.filter(function(item) {
-| {};
-| '').toLowerCase();
-| '').toLowerCase();
+      const subPartDetail = item.sub_part_detail || {};
+      const name = (subPartDetail.name || '').toLowerCase();
+      const ipn = (subPartDetail.ipn || '').toLowerCase();
       // Also search in variant mapping template names
       const cfg = pcfgMap[item.pk];
       var vm = null;
       if (cfg && cfg.enable_variant) vm = vmByPbi[cfg.id];
-| '').toLowerCase() : '';
-| '').toLowerCase() : '';
-| ipn.indexOf(q) !== -1 || tplName.indexOf(q) !== -1 || tplIpn.indexOf(q) !== -1;
+      const tplName = vm ? (vm.template_part_name || '').toLowerCase() : '';
+      const tplIpn = vm ? (vm.template_part_ipn || '').toLowerCase() : '';
+      return name.indexOf(q) !== -1 || ipn.indexOf(q) !== -1 || tplName.indexOf(q) !== -1 || tplIpn.indexOf(q) !== -1;
     });
     if (filterCount) filterCount.textContent = filtered.length + '/' + items.length;
   }
@@ -826,7 +826,7 @@ function filterBOMList() {
 function renderBOMTable(items, pcfgMap, vmByPbi) {
   const container = document.getElementById('pd-bom-list');
   if (!items.length) {
-| '').trim();
+    const q = (document.getElementById('bom-search-input').value || '').trim();
     container.innerHTML = q
       ? '<div class="bom-empty-state"><div class="bom-empty-icon">🔍</div><p>没有匹配的BOM项</p></div>'
       : '<div class="bom-empty-state"><div class="bom-empty-icon">📋</div><p>该产品暂无BOM项</p></div>';
@@ -850,9 +850,9 @@ function renderBOMTable(items, pcfgMap, vmByPbi) {
 
   for (let i = 0; i < items.length; i++) {
     const item = items[i];
-| {};
-| '#' + item.sub_part;
-| '';
+    const subPartDetail = item.sub_part_detail || {};
+    const subPartName = subPartDetail.name || '#' + item.sub_part;
+    const subPartRef = subPartDetail.ipn || '';
     const cfg = pcfgMap[item.pk];
     const hasCfg = !!cfg;
     const staticQty = item.quantity;
@@ -862,13 +862,13 @@ function renderBOMTable(items, pcfgMap, vmByPbi) {
 
     let nameCell, ipnCell, tplRef, tplIpn;
     if (isVariant && vm) {
-| '').replace(/'/g,"\\'").replace(/"/g,'&quot;');
-| '').replace(/'/g,"\\'").replace(/"/g,'&quot;');
+      var escNameVal = (vm.variant_name_template || '').replace(/'/g,"\\'").replace(/"/g,'&quot;');
+      var escIpnVal = (vm.variant_ipn_template || '').replace(/'/g,"\\'").replace(/"/g,'&quot;');
       var mappingId = vm.id;
-| 0;
-| '#部件';
+      var tplId = vm.template_part || 0;
+      var tplName = vm.template_part_name || '#部件';
       tplRef = '<div class="text-[9px] text-purple-400 mt-0.5">🧬参考: <span class="cursor-pointer hover:text-purple-600 underline decoration-dotted" onclick="openPartDetail(' + tplId + ')">' + tplName + '</span></div>';
-| '—') + '</div>';
+      tplIpn = '<div class="text-[9px] text-purple-400 mt-0.5">IPN: ' + (vm.template_part_ipn || '—') + '</div>';
       nameCell = '<td><div class="pbs-formula-cell" ondblclick="openCellEditor(' + item.pk + ",'variant_name','" + escNameVal + "',false," + mappingId + ')" title="双击编辑动态名称">'
         + (vm.variant_name_template ? '<span class="fmla-text">' + escHtml(vm.variant_name_template) + '</span>' : '<span class="fmla-empty">—</span>')
         + '<span class="fmla-hint">双击编辑</span>'
@@ -881,13 +881,13 @@ function renderBOMTable(items, pcfgMap, vmByPbi) {
         + '</div></td>';
     } else {
       nameCell = '<td><span class="pbs-name clickable-part" onclick="openPartDetail(' + item.sub_part + ')" title="点击查看零件详情">' + subPartName + '</span></td>';
-| '<span class="text-gray-300">—</span>') + '</td>';
+      ipnCell = '<td class="pbs-ipn">' + (subPartRef || '<span class="text-gray-300">—</span>') + '</td>';
     }
     let rowHtml = '<tr' + rowBgClass + '>' + nameCell + ipnCell;
 
     for (let j = 0; j < formulaCols.length; j++) {
       const c = formulaCols[j];
-| '') : '';
+      const val = hasCfg ? (cfg[c.key] || '') : '';
       let display;
       if (c.isQty) {
         if (val) {
@@ -904,7 +904,7 @@ function renderBOMTable(items, pcfgMap, vmByPbi) {
     }
 
     const escName = subPartName.replace(/'/g,"\\'");
-| '').replace(/'/g,"\\'");
+    const escIpn = (subPartRef || '').replace(/'/g,"\\'");
     rowHtml += '<td class="text-center"><button class="text-red-400 hover:text-red-600 text-xs p-1 rounded hover:bg-red-50" onclick="resetBomConfig(' + item.pk + ",'" + escName + "')" + '" title="从BOM移除">✕</button></td>';
     rowHtml += '<td class="text-center"><button class="text-blue-400 hover:text-blue-600 text-xs p-1 rounded hover:bg-blue-50" onclick="cartAddStaticPart(' + item.sub_part + ",'" + escName + "','" + escIpn + "')" + '" title="加入购物车">🛒</button></td></tr>';
     html += rowHtml;
