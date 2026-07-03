@@ -209,7 +209,7 @@ function initPartPageAddToCart() {
     // Detect SPA route changes
     if (window.location.pathname !== lastUrl) {
       lastUrl = window.location.pathname;
-      // Remove any old add-to-cart button
+      // Remove cart button when navigating away from part page
       var oldBtn = document.querySelector('.cart-add-btn-global');
       if (oldBtn) oldBtn.remove();
     }
@@ -230,59 +230,39 @@ function tryInjectPartButton() {
   if (!m) return;
   var partId = parseInt(m[1]);
 
-  // Already added
+  // Already added (check includes floating fallback)
   if (document.querySelector('.cart-add-btn-global')) return true;
 
-  // Try to find the part title - InvenTree SPA renders it inside #root
-  // Strategy 1: Look in part-detail panel heading area
-  var target = null;
-
-  // Strategy A: find a heading that looks like a part name (large visible text)
-  var allText = document.querySelectorAll('h1, h2, h3, h4, h5, h6, [class*="heading"], [class*="part-name"], [class*="product-name"]');
-  for (var i = 0; i < allText.length; i++) {
-    var el = allText[i];
-    var txt = el.textContent.trim();
-    if (txt.length > 2 && txt.length < 120 && el.offsetHeight > 0) {
-      target = el;
-      break;
-    }
-  }
-
-  // Strategy B: check for the panel header inside part-detail
-  if (!target) {
-    var panels = document.querySelectorAll('[class*="panel"], [class*="detail"], main, [class*="content"]');
-    for (var i = 0; i < panels.length; i++) {
-      var h = panels[i].querySelector('h1, h2, h3, h4');
-      if (h && h.textContent.trim().length > 2 && h.offsetHeight > 0) {
-        target = h;
-        break;
-      }
-    }
-  }
-
-  if (!target || target.offsetHeight === 0) return false;
-
-  var partName = target.textContent.trim().replace(/[🛒➕★☆◆◇]/g, '').trim();
-
+  // Use fixed-position floating button to avoid React DOM conflicts
   var btn = document.createElement('button');
   btn.className = 'cart-add-btn-global';
   btn.innerHTML = '🛒 加入购物车';
-  btn.style.cssText = 'display:inline-flex;align-items:center;gap:4px;margin-left:8px;background:#2563eb;color:#fff;border:none;border-radius:6px;padding:4px 12px;font-size:13px;font-weight:500;cursor:pointer;vertical-align:middle;white-space:nowrap;line-height:1.4';
+  btn.style.cssText = 'position:fixed;top:64px;right:20px;z-index:1000;background:#2563eb;color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:14px;font-weight:500;cursor:pointer;box-shadow:0 2px 12px rgba(37,99,235,0.3);transition:background 0.15s';
   btn.onmouseover = function () { this.style.background = '#1d4ed8'; };
   btn.onmouseout = function () { this.style.background = '#2563eb'; };
-  btn.onclick = function (e) {
-    e.preventDefault();
-    e.stopPropagation();
-    addPartToCart(partId, partName);
+  btn.onclick = function () {
+    addPartToCart(partId, '');
   };
-
-  target.appendChild(btn);
+  document.body.appendChild(btn);
   return true;
 }
 
 async function addPartToCart(partId, partName) {
-  // Get unit price from pricing API
+  // Get part info and unit price
+  var displayName = partName || ('零件 #' + partId);
   var unitPrice = null;
+
+  try {
+    // Fetch part details to get name (from InvenTree API)
+    var partRes = await fetch('/api/part/' + partId + '/', { credentials: 'same-origin' });
+    if (partRes.ok) {
+      var partData = await partRes.json();
+      if (partData.full_name) displayName = partData.full_name;
+      else if (partData.name) displayName = partData.name;
+      else if (partData.IPN) displayName = partData.IPN + ' - ' + (partData.name || '');
+    }
+  } catch (e) {}
+
   try {
     var pr = await fetch('/api/part/pricing/' + partId + '/', { credentials: 'same-origin' });
     if (pr.ok) {
@@ -312,7 +292,7 @@ async function addPartToCart(partId, partName) {
   var body = {
     item_type: 'static',
     part: partId,
-    title: partName || ('零件 #' + partId),
+    title: displayName,
     quantity: 1,
   };
   if (unitPrice !== null) body.unit_price = String(unitPrice);
