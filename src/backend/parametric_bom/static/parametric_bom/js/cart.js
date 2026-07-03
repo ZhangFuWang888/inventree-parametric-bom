@@ -298,37 +298,43 @@ function tryInjectPartButton() {
 
 async function addPartToCart(partId, partName, qty) {
   qty = qty || 1;
-  // Get part info and unit price
+
+  // Fire all API calls in parallel, then decide
+  var results = await Promise.allSettled([
+    // [0] Part info
+    fetch('/api/part/' + partId + '/', { credentials: 'same-origin' }).catch(function(){}),
+    // [1] Pricing info
+    fetch('/api/part/pricing/' + partId + '/', { credentials: 'same-origin' }).catch(function(){}),
+    // [2] Current cart list (for dedup check)
+    cartApi('GET', '/'),
+  ]);
+
+  // Resolve part info
   var displayName = partName || ('零件 #' + partId);
+  if (results[0].status === 'fulfilled' && results[0].value && results[0].value.ok) {
+    try {
+      var pd = await results[0].value.json();
+      if (pd.full_name) displayName = pd.full_name;
+      else if (pd.name) displayName = pd.name;
+      else if (pd.IPN) displayName = pd.IPN + ' - ' + (pd.name || '');
+    } catch (e) {}
+  }
+
+  // Resolve pricing (optional)
   var unitPrice = null;
-
-  try {
-    // Fetch part details to get name (from InvenTree API)
-    var partRes = await fetch('/api/part/' + partId + '/', { credentials: 'same-origin' });
-    if (partRes.ok) {
-      var partData = await partRes.json();
-      if (partData.full_name) displayName = partData.full_name;
-      else if (partData.name) displayName = partData.name;
-      else if (partData.IPN) displayName = partData.IPN + ' - ' + (partData.name || '');
-    }
-  } catch (e) {}
-
-  try {
-    var pr = await fetch('/api/part/pricing/' + partId + '/', { credentials: 'same-origin' });
-    if (pr.ok) {
-      var pData = await pr.json();
+  if (results[1].status === 'fulfilled' && results[1].value && results[1].value.ok) {
+    try {
+      var pData = await results[1].value.json();
       unitPrice = parseFloat(pData.overall_min || pData.overall_max || pData.internal_cost_min || pData.bom_cost_min || 0) || null;
-    }
-  } catch (e) {}
+    } catch (e) {}
+  }
 
-  // Check if already in cart
-  var listRes = await cartApi('GET', '/');
-  if (listRes.ok && Array.isArray(listRes.data)) {
-    var existing = listRes.data.find(function (c) {
+  // Check if already in cart → increment
+  if (results[2].status === 'fulfilled' && results[2].value && results[2].value.ok && Array.isArray(results[2].value.data)) {
+    var existing = results[2].value.data.find(function (c) {
       return c.item_type === 'static' && c.part === partId;
     });
     if (existing) {
-      // Increment by specified quantity
       var updRes = await cartApi('PATCH', '/' + existing.id + '/', { quantity: (existing.quantity || 1) + qty });
       if (updRes.ok) {
         loadCartCount();
