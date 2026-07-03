@@ -198,8 +198,8 @@ document.addEventListener('DOMContentLoaded', function () {
 var _partBtnObserver = null;
 
 function initPartPageAddToCart() {
-  // Don't inject on parametric BOM pages (they have their own cart)
-  if (document.getElementById('cart-fab')) return;
+  // Only inject on part detail pages (not parametric BOM pages)
+  if (window.location.pathname.includes('/parametric-bom/')) return;
 
   // Use MutationObserver to handle both direct loads and SPA navigation
   var lastUrl = window.location.pathname;
