@@ -1325,15 +1325,20 @@ def cart_add(request):
     item_type = data.get('item_type', 'parametric')
 
     if item_type == 'parametric':
-        product_part_id = data.get('product_part')
+        # Accept both 'product_part' and 'parametric_part_id'
+        product_part_id = data.get('product_part') or data.get('parametric_part_id')
+        if not product_part_id:
+            product_part_id = data.get('product_part_id')
         if product_part_id:
+            data['product_part'] = int(product_part_id)  # normalize FK field name
             try:
                 from part.models import Part
                 part = Part.objects.get(pk=int(product_part_id))
                 # Server-side BOM expansion for price calculation
                 try:
                     from parametric_bom.bom_expander import expand_bom_level
-                    params = data.get('parameters', {}) or {}
+                    params = data.get('parameters', {}) or data.get('params', {}) or {}
+                    data['parameters'] = params  # normalize field name
                     bom_tree = expand_bom_level(part, params, timeout_ms=1000)
                     data['bom_snapshot'] = bom_tree
                     # Calculate total price from expanded BOM

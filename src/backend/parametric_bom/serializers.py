@@ -335,13 +335,6 @@ class CartItemSerializer(serializers.ModelSerializer):
         return None
 
 
-def _sum_tree_prices(node) -> float:
-    """Recursively sum total_price from a BOM expansion tree."""
-    total = float(node.get('total_price') or 0)
-    for child in node.get('children', []):
-        total += _sum_tree_prices(child)
-    return total
-
     class Meta:
         model = CartItem
         fields = [
@@ -353,3 +346,11 @@ def _sum_tree_prices(node) -> float:
             'created_at', 'updated_at',
         ]
         read_only_fields = ['user', 'total_cost', 'created_at', 'updated_at']
+
+
+def _sum_tree_prices(node) -> float:
+    """Recursively sum total_price from a BOM expansion tree."""
+    total = float(node.get('total_price') or 0)
+    for child in node.get('children', []):
+        total += _sum_tree_prices(child)
+    return total
