@@ -1997,11 +1997,11 @@ async function cartCreateOrder() {
   const r = await cartApi('POST', '/create-order/', {description: '参数化BOM购物车订单'});
   if (!r.ok) {
     const err = r.data?.error || '创建订单失败';
-    alert('❌ ' + err);
+    showToast('error', '❌ ' + err);
     return;
   }
   const data = r.data;
-  alert('✅ 销售订单已创建！\n订单号: ' + (data.order_reference || data.order_id) + '\n行项数: ' + data.line_items);
+  showToast('success', '✅ 销售订单已创建！ 订单号: ' + (data.order_reference || data.order_id) + '，行项数: ' + data.line_items);
   cartClose();
   loadCartCount();
   cartLoad();

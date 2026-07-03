@@ -44,9 +44,41 @@ function getCsrfToken() {
   return match ? decodeURIComponent(match[2]) : '';
 }
 
-function setStatus(type, msg) {
-  // 状态栏已移除
+// ─── Global Toast Notification ──────────────────────────────────
+function showToast(type, msg, duration) {
+  duration = duration || (type === 'error' ? 5000 : type === 'success' ? 3000 : 2000);
+  const container = document.getElementById('toast-container');
+  if (!container) return;
+  const icons = { error: '❌', success: '✅', loading: '⏳', info: '💡' };
+  const colors = { error: '#fee2e2 #dc2626', success: '#dcfce7 #16a34a', loading: '#dbeafe #2563eb', info: '#e0f2fe #0284c7' };
+  const [bg, fg] = (colors[type] || '#f1f5f9 #475569').split(' ');
+  const toast = document.createElement('div');
+  toast.className = 'toast-item';
+  toast.style.cssText = `background:${bg};color:${fg};padding:0.5rem 1rem;border-radius:8px;font-size:0.8125rem;display:flex;align-items:center;gap:0.5rem;box-shadow:0 2px 8px rgba(0,0,0,0.1);margin-bottom:0.375rem;animation:toastIn 0.2s ease;max-width:400px;word-break:break-word`;
+  toast.innerHTML = `<span>${icons[type] || '💡'}</span><span class="flex-1">${escHtml(msg)}</span>`;
+  container.appendChild(toast);
+  if (type !== 'loading') {
+    setTimeout(function() {
+      toast.style.opacity = '0';
+      toast.style.transition = 'opacity 0.3s';
+      setTimeout(function() { if (toast.parentNode) toast.parentNode.removeChild(toast); }, 300);
+    }, duration);
+  }
+  return toast; // caller can remove manually for loading state
 }
+
+function setStatus(type, msg) {
+  showToast(type, msg);
+}
+
+// ─── Toast container init ────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', function() {
+  const container = document.createElement('div');
+  container.id = 'toast-container';
+  container.style.cssText = 'position:fixed;top:0.75rem;right:0.75rem;z-index:99999;display:flex;flex-direction:column;gap:0;pointer-events:none';
+  container.innerHTML = '<style>@keyframes toastIn{from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:translateX(0)}}</style>';
+  document.body.appendChild(container);
+});
 
 // ===== SIDEBAR NAVIGATION =====
 function toggleSidebar() {
@@ -1341,7 +1373,7 @@ window.FormulaTemplates = {
 
   promptSave(containerId) {
     const currentFormula = (document.getElementById('pbs-ce-input')?.value || document.getElementById('av-formula')?.value || '').trim();
-    if (!currentFormula) { alert('公式为空，无法保存'); return; }
+    if (!currentFormula) { showToast('error', '公式为空，无法保存'); return; }
     const name = prompt('请输入模板名称（例如：标准数量公式）', '');
     if (!name) return;
     const cat = prompt('分类（例如：数量、条件、选件、自定义）', '通用');
@@ -1573,7 +1605,7 @@ function abEditParamMapping() {
     if (typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error();
     _abParamMapping = parsed;
     updateAbMappingCount();
-  } catch(e) { alert('JSON格式无效，请检查'); }
+  } catch(e) { showToast('error', 'JSON格式无效，请检查'); }
 }
 
 async function openAddBomItemModal() {
@@ -2317,29 +2349,29 @@ async function addVariable() {
 
 async function confirmAddVariable() {
   const pid = configuratorPartId;
-  if (!pid) { alert('请先选择一个产品'); return; }
+  if (!pid) { showToast('error', '请先选择一个产品'); return; }
   const editId = document.getElementById('av-editing-id').value;
   const name = document.getElementById('av-name').value.trim();
   const formula = document.getElementById('av-formula').value.trim();
   const description = document.getElementById('av-description').value.trim();
-  if (!name) { alert('请输入变量名'); return; }
-  if (!formula) { alert('请输入公式'); return; }
+  if (!name) { showToast('error', '请输入变量名'); return; }
+  if (!formula) { showToast('error', '请输入公式'); return; }
   if (!editId) {
     // Create mode: check duplicate name
     const checkRes = await apiCall('GET', `part-variables/?part=${pid}&limit=9999`);
     const existing = checkRes.error ? [] : (Array.isArray(checkRes.data) ? checkRes.data : (checkRes.data.results || []));
     if (existing.some(v => v.name === name)) {
-      alert(`变量名「${name}」已存在，请使用不同的名称`);
+      showToast('error', `变量名「${name}」已存在，请使用不同的名称`);
       return;
     }
     const res = await apiCall('POST', 'part-variables/', {
       part: pid, name, formula, description
     });
-    if (res.error) { alert('创建失败: ' + res.error); return; }
+    if (res.error) { showToast('error', '创建失败: ' + res.error); return; }
   } else {
     // Edit mode
     const res = await apiCall('PATCH', `part-variables/${editId}/`, { name, formula, description });
-    if (res.error) { alert('保存失败: ' + res.error); return; }
+    if (res.error) { showToast('error', '保存失败: ' + res.error); return; }
   }
   clearAreaDirty('variables');
   closeModal('modal-add-variable');
@@ -2449,7 +2481,7 @@ async function pvEditCell(td, field) {
         const otherTds = row.querySelectorAll('td');
         const otherName = otherTds[0]?.textContent?.trim();
         if (otherName === nameCheck) {
-          alert(`变量名「${nameCheck}」已存在，请使用不同的名称`);
+          showToast('error', `变量名「${nameCheck}」已存在，请使用不同的名称`);
           pvRestoreRow(vid, nameVal, fmlaVal, descVal);
           return;
         }
@@ -2460,7 +2492,7 @@ async function pvEditCell(td, field) {
     pvRestoreRow(vid, nameVal, fmlaVal, descVal);
     // Save to API
     const res = await apiCall('PATCH', `part-variables/${vid}/`, { name: nameVal, formula: fmlaVal, description: descVal });
-    if (res.error) { alert('保存失败: ' + res.error); loadPdVariables(); return; }
+    if (res.error) { showToast('error', '保存失败: ' + res.error); loadPdVariables(); return; }
     clearAreaDirty('variables');
   };
   input.addEventListener('blur', save);
@@ -2491,7 +2523,7 @@ function pvRestoreRow(vid, name, formula, desc) {
 async function pvDelete(varId, varName) {
   if (!confirm(`确定删除变量「${varName}」？`)) return;
   const res = await apiCall('DELETE', `part-variables/${varId}/`);
-  if (res.error) { alert('删除失败: ' + res.error); return; }
+  if (res.error) { showToast('error', '删除失败: ' + res.error); return; }
   loadPdVariables();
 }
 
@@ -4807,7 +4839,7 @@ async function addCandidatePart(bomItemId) {
     partId = parseInt(choice);
   } else {
     partId = parseInt(partName);
-    if (isNaN(partId)) { alert('未找到零件'); return; }
+    if (isNaN(partId)) { showToast('error', '未找到零件'); return; }
   }
   const res = await apiCall('POST', 'candidate-parts/', {parametric_bom_item: bomItemId, part: partId, label, condition_formula: condition, priority});
   if (!res.error) loadCandidateParts(bomItemId);
@@ -4936,7 +4968,7 @@ async function openAddInheritanceModal() {
   let targetTmplId = null;
   if (tmpls.length === 1) targetTmplId = tmpls[0].pk;
   else if (tmpls.length > 1) targetTmplId = parseInt(prompt(`找到多个参数模板:\n${tmpls.map(t=>t.pk+': '+t.name).join('\n')}\n输入ID:`));
-  if (!targetTmplId) { alert('参数模板未找到，请在参数管理页先创建'); return; }
+  if (!targetTmplId) { showToast('error', '参数模板未找到，请在参数管理页先创建'); return; }
 
   let sourceTmplId = null;
   if (sourceParam && sourceParam !== targetParam) {
