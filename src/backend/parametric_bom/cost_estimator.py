@@ -137,6 +137,7 @@ def estimate_from_bom_tree(
     items = _flatten_bom_for_cost(bom_tree)
 
     total_cost = Decimal('0.0')
+    material_cost = Decimal('0.0')
     currency: Optional[str] = None
     cost_items: List[Dict[str, Any]] = []
     errors: List[str] = []
@@ -146,9 +147,16 @@ def estimate_from_bom_tree(
         quantity = Decimal(str(item['quantity']))
         part_name = item['part_name']
 
-        unit_cost, cost_currency, cost_error = _get_part_unit_cost(
-            part_id, pricing_preference,
-        )
+        # Try pre-calculated unit_price from BOM expander (price_formula) first
+        pre_calculated = item.get('unit_price')
+        if pre_calculated is not None:
+            unit_cost = Decimal(str(pre_calculated))
+            cost_currency = None
+            cost_error = None
+        else:
+            unit_cost, cost_currency, cost_error = _get_part_unit_cost(
+                part_id, pricing_preference,
+            )
 
         if cost_error:
             errors.append(cost_error)
@@ -168,6 +176,7 @@ def estimate_from_bom_tree(
 
         subtotal = quantity * unit_cost
         total_cost += subtotal
+        material_cost += subtotal
 
         cost_items.append({
             'part_id': part_id,
@@ -187,6 +196,8 @@ def estimate_from_bom_tree(
 
     return {
         'total_cost': float(total_cost_marked_up),
+        'material_cost': float(material_cost * markup_factor),
+        'labor_cost': 0.0,
         'total_cost_before_markup': float(total_cost),
         'markup_pct': markup_pct,
         'currency': currency or 'USD',
@@ -216,7 +227,9 @@ def _flatten_bom_for_cost(
         parent_qty: Cumulative multiplier from parent assemblies.
 
     Returns:
-        List of dicts with 'part_id', 'part_name', 'quantity'.
+        List of dicts with 'part_id', 'part_name', 'quantity',
+        and optionally 'unit_price' if the BOM expander already
+        calculated one (via price_formula).
     """
     items: List[Dict[str, Any]] = []
 
@@ -237,12 +250,16 @@ def _flatten_bom_for_cost(
             sub_items = _flatten_bom_for_cost(child, cumulative_qty)
             items.extend(sub_items)
         else:
-            # Leaf item
-            items.append({
+            # Leaf item — carry over pre-calculated unit_price if available
+            item = {
                 'part_id': part_id,
                 'part_name': part_name,
                 'quantity': cumulative_qty,
-            })
+            }
+            unit_price = child.get('unit_price')
+            if unit_price is not None:
+                item['unit_price'] = float(unit_price)
+            items.append(item)
 
     return items
 
