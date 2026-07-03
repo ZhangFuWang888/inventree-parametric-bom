@@ -4233,6 +4233,12 @@ function openFormulaEditor(bomItemId, partId, partName) {
   document.getElementById('fe-preview-all').innerHTML = '<p class="text-xs text-gray-400">点击"预览全部"查看结果</p>';
   document.getElementById('fe-mode-config').innerHTML = '';
 
+  // Reset formula validation state & save button
+  _formulaValidationState.qty = null;
+  _formulaValidationState.condition = null;
+  _formulaValidationState.price = null;
+  _updateSaveButtonState();
+
   // Load existing config for this bom_item
   loadExistingBomItemConfig(bomItemId);
   // Load available params
@@ -4373,19 +4379,24 @@ async function validateSingleFormula(fieldName) {
 
   if (!formula) {
     resultContainer.innerHTML = '<span class="text-gray-400">公式为空，跳过验证</span>';
+    _formulaValidationState[fieldName] = null;
+    _updateSaveButtonState();
     return;
   }
 
   resultContainer.innerHTML = '<span class="text-blue-500"><span class="spinner inline-block mr-1"></span>验证中...</span>';
   const res = await apiCall('POST', 'formula/validate/', {formula});
   if (res.error) {
+    _formulaValidationState[fieldName] = 'error';
     resultContainer.innerHTML = `<span class="text-red-600">❌ 验证失败: ${res.data?.error || JSON.stringify(res.data).substring(0, 80)}</span>`;
   } else {
     const valid = res.data.valid !== false;
+    _formulaValidationState[fieldName] = valid ? 'ok' : 'error';
     resultContainer.innerHTML = valid
       ? '<span class="text-green-600">✅ 有效</span>'
       : `<span class="text-red-600">❌ 无效: ${(res.data.errors || []).join('; ') || '未知错误'}</span>`;
   }
+  _updateSaveButtonState();
 }
 
 async function previewSingleFormula(fieldName) {
@@ -4451,7 +4462,45 @@ async function previewAllFormulas() {
   container.innerHTML = output;
 }
 
+// ─── Formula Error Tracking ─────────────────────────────────────────
+// Each formula field tracks its validation state: 'ok', 'error', or null (unchecked)
+const _formulaValidationState = { qty: null, condition: null, price: null };
+
+function _getFormulaResultText(fieldName) {
+  const resultMap = { qty: 'fe-qty-result', condition: 'fe-condition-result', price: 'fe-price-result' };
+  const el = document.getElementById(resultMap[fieldName]);
+  if (!el) return '';
+  return el.textContent || el.innerText || '';
+}
+
+function _hasFormulaError(fieldName) {
+  if (_formulaValidationState[fieldName] === 'error') return true;
+  if (_formulaValidationState[fieldName] === 'ok') return false;
+  // fallback: parse the result container text
+  const text = _getFormulaResultText(fieldName);
+  if (text.includes('❌')) return true;
+  if (text.includes('✅')) return false;
+  return false; // no result = not validated = allow
+}
+
+function _updateSaveButtonState() {
+  const btn = document.querySelector('#modal-formula-editor .btn-primary[onclick*="saveBomFormula"]');
+  if (!btn) return;
+  const hasError = _hasFormulaError('qty') || _hasFormulaError('condition') || _hasFormulaError('price');
+  btn.disabled = hasError;
+  btn.style.opacity = hasError ? '0.5' : '';
+  btn.style.cursor = hasError ? 'not-allowed' : '';
+  btn.title = hasError ? '存在公式错误，请先修正' : '保存公式';
+}
+
 async function saveBomFormula() {
+  // Check for formula errors before saving
+  if (_hasFormulaError('qty') || _hasFormulaError('condition') || _hasFormulaError('price')) {
+    setStatus('error', '❌ 公式存在错误，请修正后再保存');
+    _updateSaveButtonState();
+    return;
+  }
+
   const qtyFormula = document.getElementById('fe-qty-formula').value.trim();
   const conditionFormula = document.getElementById('fe-condition-formula').value.trim();
   const priceFormula = document.getElementById('fe-price-formula').value.trim();
