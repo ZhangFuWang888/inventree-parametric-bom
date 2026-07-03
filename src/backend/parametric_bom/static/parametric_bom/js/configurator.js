@@ -357,6 +357,8 @@ async function renderProductGrid() {
       </div>
       <div class="product-meta">
         <span class="product-stat">📐 ${cfg.paramCount} 参数</span>
+        <span class="product-type-badge ${p.assembly ? 'is-assembly' : 'is-part'}">${p.assembly ? '部装' : '零件'}</span>
+        <span class="product-date">${p.creation_date || ''}</span>
       </div>
     </div>`;
   });
