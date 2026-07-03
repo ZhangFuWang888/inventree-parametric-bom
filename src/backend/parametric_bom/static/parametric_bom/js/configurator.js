@@ -44,41 +44,29 @@ function getCsrfToken() {
   return match ? decodeURIComponent(match[2]) : '';
 }
 
-// ─── Global Toast Notification ──────────────────────────────────
-function showToast(type, msg, duration) {
-  duration = duration || (type === 'error' ? 5000 : type === 'success' ? 3000 : 2000);
-  const container = document.getElementById('toast-container');
-  if (!container) return;
-  const icons = { error: '❌', success: '✅', loading: '⏳', info: '💡' };
-  const colors = { error: '#fee2e2 #dc2626', success: '#dcfce7 #16a34a', loading: '#dbeafe #2563eb', info: '#e0f2fe #0284c7' };
-  const [bg, fg] = (colors[type] || '#f1f5f9 #475569').split(' ');
-  const toast = document.createElement('div');
-  toast.className = 'toast-item';
-  toast.style.cssText = `background:${bg};color:${fg};padding:0.5rem 1rem;border-radius:8px;font-size:0.8125rem;display:flex;align-items:center;gap:0.5rem;box-shadow:0 2px 8px rgba(0,0,0,0.1);margin-bottom:0.375rem;animation:toastIn 0.2s ease;max-width:400px;word-break:break-word`;
-  toast.innerHTML = `<span>${icons[type] || '💡'}</span><span class="flex-1">${escHtml(msg)}</span>`;
-  container.appendChild(toast);
-  if (type !== 'loading') {
-    setTimeout(function() {
-      toast.style.opacity = '0';
-      toast.style.transition = 'opacity 0.3s';
-      setTimeout(function() { if (toast.parentNode) toast.parentNode.removeChild(toast); }, 300);
-    }, duration);
-  }
-  return toast; // caller can remove manually for loading state
-}
+// ─── Status Bar (bottom) ─────────────────────────────────────────
+let _statusBarTimer = null;
 
 function setStatus(type, msg) {
-  showToast(type, msg);
+  clearTimeout(_statusBarTimer);
+  const bar = document.getElementById('status-bar');
+  if (!bar) return;
+  const icons = { error: '❌', success: '✅', loading: '⏳', info: '💡' };
+  const colors = { error: '#dc2626', success: '#16a34a', loading: '#2563eb', info: '#0284c7' };
+  const bgColors = { error: '#fef2f2', success: '#f0fdf4', loading: '#eff6ff', info: '#f0f9ff' };
+  bar.style.display = 'flex';
+  bar.style.background = bgColors[type] || '#f8fafc';
+  bar.style.borderLeft = `3px solid ${colors[type] || '#94a3b8'}`;
+  bar.innerHTML = `<span style="flex-shrink:0">${icons[type] || '💡'}</span><span style="flex:1;color:${colors[type] || '#475569'}">${escHtml(msg)}</span>`;
+  if (type !== 'loading') {
+    _statusBarTimer = setTimeout(function() {
+      bar.style.display = 'none';
+    }, type === 'error' ? 6000 : 3500);
+  }
 }
 
-// ─── Toast container init ────────────────────────────────────────
-document.addEventListener('DOMContentLoaded', function() {
-  const container = document.createElement('div');
-  container.id = 'toast-container';
-  container.style.cssText = 'position:fixed;top:0.75rem;right:0.75rem;z-index:99999;display:flex;flex-direction:column;gap:0;pointer-events:none';
-  container.innerHTML = '<style>@keyframes toastIn{from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:translateX(0)}}</style>';
-  document.body.appendChild(container);
-});
+// Backward compatibility
+function showToast(type, msg) { setStatus(type, msg); }
 
 // ===== SIDEBAR NAVIGATION =====
 function toggleSidebar() {
