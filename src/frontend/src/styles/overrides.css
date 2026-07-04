@@ -12,3 +12,39 @@
 .mantine-datatable-resizable-columns {
   table-layout: auto !important;
 }
+
+/* ── Login Page Overrides ── */
+
+/* Login card input fields */
+.mantine-TextInput-input,
+.mantine-PasswordInput-input {
+  border-radius: 8px !important;
+  transition: border-color 0.2s, box-shadow 0.2s !important;
+}
+
+.mantine-TextInput-input:focus,
+.mantine-PasswordInput-input:focus {
+  border-color: #2563eb !important;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1) !important;
+}
+
+/* Login button */
+.mantine-Button-root[type='submit'] {
+  border-radius: 8px !important;
+  font-weight: 600 !important;
+  transition: all 0.15s !important;
+}
+
+.mantine-Button-root[type='submit']:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3) !important;
+}
+
+/* Links */
+.mantine-Anchor-root {
+  transition: color 0.15s !important;
+}
+
+.mantine-Anchor-root:hover {
+  color: #2563eb !important;
+}
