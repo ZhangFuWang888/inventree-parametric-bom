@@ -72,6 +72,13 @@ function DrawerContent({ closeFunc }: Readonly<{ closeFunc?: () => void }>) {
         icon: 'part'
       },
       {
+        id: 'parametric-bom',
+        title: '参数化BOM',
+        link: '/parametric-bom/',
+        icon: 'bom',
+        hidden: !user.hasViewRole(UserRoles.parametric_bom)
+      },
+      {
         id: 'stock',
         title: t`Stock`,
         link: '/stock',
@@ -98,13 +105,6 @@ function DrawerContent({ closeFunc }: Readonly<{ closeFunc?: () => void }>) {
         link: '/sales/',
         hidden: !user.hasViewRole(UserRoles.sales_order),
         icon: 'sales_orders'
-      },
-      {
-        id: 'parametric-bom',
-        title: '参数化BOM',
-        link: '/parametric-bom/',
-        icon: 'bom',
-        hidden: !user.hasViewRole(UserRoles.parametric_bom)
       },
       {
         id: 'users',

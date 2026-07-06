@@ -2,7 +2,7 @@
 <!-- ===== CART: Floating Button (standalone product page only) ===== -->
 {% if standalone %}
 <button class="cart-fab" id="cart-fab" onclick="cartToggle()">
-  🛒 <span>购物车</span> <span class="cart-badge" id="cart-fab-count">0</span>
+  🛒 <span class="cart-badge" id="cart-fab-count">0</span>
 </button>
 {% endif %}
 
@@ -10,7 +10,7 @@
 <div class="cart-panel-overlay" id="cart-overlay" onclick="cartToggle()"></div>
 <div class="cart-panel" id="cart-panel">
   <div class="cart-panel-header">
-    <span>🛒 购物车</span>
+    <span>🛒</span>
     <div class="flex items-center gap-2">
       <button class="text-xs text-red-500 hover:text-red-700 font-medium" onclick="cartClear()" style="background:none;border:none;cursor:pointer;padding:0.25rem 0.5rem;border-radius:4px">清空</button>
       <button class="cart-close" onclick="cartToggle()">✕</button>
