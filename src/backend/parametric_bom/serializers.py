@@ -323,10 +323,10 @@ class CartItemSerializer(serializers.ModelSerializer):
     total_cost = serializers.SerializerMethodField(read_only=True)
 
     def get_total_cost(self, obj):
-        # For parametric items with BOM snapshot, calculate from tree
+        # For parametric items with BOM snapshot, calculate from tree × quantity
         if obj.item_type == 'parametric' and obj.bom_snapshot:
             try:
-                return _sum_tree_prices(obj.bom_snapshot)
+                return _sum_tree_prices(obj.bom_snapshot) * (obj.quantity or 1)
             except Exception:
                 pass
         # Fallback: unit_price * quantity

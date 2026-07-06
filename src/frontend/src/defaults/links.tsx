@@ -77,8 +77,9 @@ export function getNavTabs(user: UserStateProps): NavTab[] {
     }
   ];
 
-  // Add parametric BOM tab
-  navTabs.push({
+  // Add parametric BOM tab after 'part'
+  const partIdx = navTabs.findIndex(t => t.name === 'part');
+  navTabs.splice(partIdx + 1, 0, {
     name: 'parametric-bom',
     title: '参数化BOM',
     icon: <IconClipboardData />,
