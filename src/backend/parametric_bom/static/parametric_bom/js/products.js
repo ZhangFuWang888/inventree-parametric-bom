@@ -840,7 +840,7 @@ function renderBOMTable(items, pcfgMap, vmByPbi) {
     {key:'price_formula', icon:'💰', label:'价格公式'},
   ];
 
-  let colHeaders = '<th style="width:15%">物料名称</th><th style="width:12%">内部编码</th>';
+  let colHeaders = '<th style="width:15%">物料名称</th><th style="width:12%">产品型号</th>';
   formulaCols.forEach(function(c) {
     colHeaders += '<th style="width:13%"><span class="col-icon">' + c.icon + '</span>' + c.label + '</th>';
   });
@@ -868,13 +868,13 @@ function renderBOMTable(items, pcfgMap, vmByPbi) {
       var tplId = vm.template_part || 0;
       var tplName = vm.template_part_name || '#部件';
       tplRef = '<div class="text-[9px] text-purple-400 mt-0.5">🧬参考: <span class="cursor-pointer hover:text-purple-600 underline decoration-dotted" onclick="openPartDetail(' + tplId + ')">' + tplName + '</span></div>';
-      tplIpn = '<div class="text-[9px] text-purple-400 mt-0.5">IPN: ' + (vm.template_part_ipn || '—') + '</div>';
+      tplIpn = '<div class="text-[9px] text-purple-400 mt-0.5">型号: ' + (vm.template_part_ipn || '—') + '</div>';
       nameCell = '<td><div class="pbs-formula-cell" ondblclick="openCellEditor(' + item.pk + ",'variant_name','" + escNameVal + "',false," + mappingId + ')" title="双击编辑动态名称">'
         + (vm.variant_name_template ? '<span class="fmla-text">' + escHtml(vm.variant_name_template) + '</span>' : '<span class="fmla-empty">—</span>')
         + '<span class="fmla-hint">双击编辑</span>'
         + tplRef
         + '</div></td>';
-      ipnCell = '<td class="pbs-ipn"><div class="pbs-formula-cell" ondblclick="openCellEditor(' + item.pk + ",'variant_ipn','" + escIpnVal + "',false," + mappingId + ')" title="双击编辑动态编码">'
+      ipnCell = '<td class="pbs-ipn"><div class="pbs-formula-cell" ondblclick="openCellEditor(' + item.pk + ",'variant_ipn','" + escIpnVal + "',false," + mappingId + ')" title="双击编辑动态型号">'
         + (vm.variant_ipn_template ? '<span class="fmla-text">' + escHtml(vm.variant_ipn_template) + '</span>' : '<span class="fmla-empty">—</span>')
         + '<span class="fmla-hint">双击编辑</span>'
         + tplIpn

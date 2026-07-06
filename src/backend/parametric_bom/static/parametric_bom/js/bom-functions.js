@@ -302,7 +302,7 @@ function openCellEditor(itemPk, field, currentVal, isQty, mappingId) {
   _ceUpdateSaveButton();
 
   if (field === 'variant_name' || field === 'variant_ipn') {
-    const labels = {variant_name:'🧬 动态名称模板', variant_ipn:'🧬 动态编码模板'};
+    const labels = {variant_name:'🧬 动态名称模板', variant_ipn:'🧬 动态型号模板'};
     const placeholders = {variant_name:'立柱-H{高度}', variant_ipn:'COL-{高度}-{宽度}'};
     title.textContent = labels[field] || '🧬 编辑动态模板';
     input.value = currentVal || '';
