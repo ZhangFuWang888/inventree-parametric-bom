@@ -5718,7 +5718,7 @@ msgstr "库存量单位"
 
 #: order/serializers.py:752 part/models.py:1157 part/serializers.py:363
 msgid "Internal Part Number"
-msgstr "内部零件编号"
+msgstr "产品型号"
 
 #: order/serializers.py:760
 msgid "Internal Part Name"
@@ -6280,7 +6280,7 @@ msgstr "零件类别"
 #: part/models.py:1156 part/serializers.py:855
 #: report/templates/report/inventree_stock_location_report.html:103
 msgid "IPN"
-msgstr "内部零件号 IPN"
+msgstr "产品型号"
 
 #: part/models.py:1164
 msgid "Part revision or version number"

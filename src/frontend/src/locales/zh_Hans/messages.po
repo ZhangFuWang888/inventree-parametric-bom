@@ -4798,7 +4798,7 @@ msgstr "已分配的库存物料将退回可用库存"
 #: src/tables/stock/TransferOrderAllocationTable.tsx:120
 #: src/tables/stock/TransferOrderLineItemTable.tsx:95
 msgid "IPN"
-msgstr "内部零件编码 IPN"
+msgstr "产品型号"
 
 #: src/forms/BuildForms.tsx:668
 #: src/forms/BuildForms.tsx:833
@@ -11205,11 +11205,11 @@ msgstr "信息"
 
 #: src/tables/part/PartBuildAllocationsTable.tsx:64
 msgid "Assembly IPN"
-msgstr "装配内部零件号"
+msgstr "装配产品型号"
 
 #: src/tables/part/PartBuildAllocationsTable.tsx:73
 msgid "Part IPN"
-msgstr "零件的内部零件号"
+msgstr "零件产品型号"
 
 #: src/tables/part/PartBuildAllocationsTable.tsx:91
 msgid "Required Stock"
@@ -11417,7 +11417,7 @@ msgstr "按拥有单位的零件筛选"
 
 #: src/tables/part/PartTableFilters.tsx:65
 msgid "Has IPN"
-msgstr "有内部零件编码"
+msgstr "有产品型号"
 
 #: src/tables/part/PartTableFilters.tsx:66
 msgid "Filter by parts which have an internal part number"
