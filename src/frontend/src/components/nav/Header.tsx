@@ -41,7 +41,7 @@ import {
 import { useUserState } from '../../states/UserState';
 import { ScanButton } from '../buttons/ScanButton';
 import { SpotlightButton } from '../buttons/SpotlightButton';
-import { Alerts, errorCodeLink } from './Alerts';
+import { Alerts } from './Alerts';
 import { MainMenu } from './MainMenu';
 import { NavHoverMenu } from './NavHoverMenu';
 import { NavigationDrawer } from './NavigationDrawer';
@@ -223,21 +223,20 @@ export function Header() {
           </Group>
         </Group>
       </Container>
-      {showSuperuserAlert &&
+      {false && showSuperuserAlert &&
         showElevated &&
         (user?.is_superuser || user?.is_staff) && (
           <Paper p={0} m={5}>
             <Alert
               icon={<IconUserBolt />}
-              color={user.is_superuser ? 'red' : 'orange'}
-              title={user.is_superuser ? t`Superuser Mode` : t`Admin Mode`}
+              color={user?.is_superuser ? 'red' : 'orange'}
+              title={user?.is_superuser ? t`Superuser Mode` : t`Admin Mode`}
               withCloseButton
               onClose={() => setShowSuperuserAlert(false)}
               p={5}
             >
               <Text p={0}>
-                {t`The current user has elevated privileges and should not be used for regular usage.`}{' '}
-                {errorCodeLink('INVE-W14')}
+                {t`The current user has elevated privileges and should not be used for regular usage.`}
               </Text>
             </Alert>
           </Paper>

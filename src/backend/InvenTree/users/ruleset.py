@@ -20,6 +20,7 @@ class RuleSetEnum(StringEnum):
     SALES_ORDER = 'sales_order'
     RETURN_ORDER = 'return_order'
     TRANSFER_ORDER = 'transfer_order'
+    PARAMETRIC_BOM = 'parametric_bom'
 
 
 # This is a list of all the ruleset choices available in the system.
@@ -36,6 +37,7 @@ RULESET_CHOICES = [
     (RuleSetEnum.SALES_ORDER, _('Sales Orders')),
     (RuleSetEnum.RETURN_ORDER, _('Return Orders')),
     (RuleSetEnum.TRANSFER_ORDER, _('Transfer Orders')),
+    (RuleSetEnum.PARAMETRIC_BOM, _('参数化BOM')),
 ]
 
 # Ruleset names available in the system.

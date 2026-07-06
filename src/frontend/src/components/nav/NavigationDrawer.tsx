@@ -6,7 +6,6 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { StylishText } from '@lib/components/StylishText';
 import { ModelType } from '@lib/enums/ModelType';
 import { UserRoles } from '@lib/enums/Roles';
-import { AboutLinks, DocumentationLinks } from '../../defaults/links';
 import useInstanceName from '../../hooks/UseInstanceName';
 import * as classes from '../../main.css';
 import { useGlobalSettingsState } from '../../states/SettingsStates';
@@ -104,7 +103,8 @@ function DrawerContent({ closeFunc }: Readonly<{ closeFunc?: () => void }>) {
         id: 'parametric-bom',
         title: '参数化BOM',
         link: '/parametric-bom/',
-        icon: 'bom'
+        icon: 'bom',
+        hidden: !user.hasViewRole(UserRoles.parametric_bom)
       },
       {
         id: 'users',
@@ -164,16 +164,6 @@ function DrawerContent({ closeFunc }: Readonly<{ closeFunc?: () => void }>) {
     ];
   }, [user]);
 
-  const menuItemsDocumentation: MenuLinkItem[] = useMemo(
-    () => DocumentationLinks(),
-    []
-  );
-
-  const menuItemsAbout: MenuLinkItem[] = useMemo(
-    () => AboutLinks(globalSettings, user),
-    []
-  );
-
   return (
     <Flex direction='column' mih='100vh' p={16}>
       <Group wrap='nowrap'>
@@ -209,18 +199,6 @@ function DrawerContent({ closeFunc }: Readonly<{ closeFunc?: () => void }>) {
         )}
       </Container>
       <div ref={ref}>
-        <Space h='md' />
-        <MenuLinks
-          title={t`Documentation`}
-          links={menuItemsDocumentation}
-          beforeClick={closeFunc}
-        />
-        <Space h='md' />
-        <MenuLinks
-          title={t`About`}
-          links={menuItemsAbout}
-          beforeClick={closeFunc}
-        />
       </div>
     </Flex>
   );

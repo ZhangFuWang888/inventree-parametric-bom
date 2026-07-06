@@ -14,7 +14,8 @@ export enum UserRoles {
   transfer_order = 'transfer_order',
   sales_order = 'sales_order',
   stock = 'stock',
-  stock_location = 'stock_location'
+  stock_location = 'stock_location',
+  parametric_bom = 'parametric_bom'
 }
 
 /*
@@ -49,6 +50,8 @@ export function userRoleLabel(role: UserRoles): string {
       return t`Stock Items`;
     case UserRoles.stock_location:
       return t`Stock Location`;
+    case UserRoles.parametric_bom:
+      return t`参数化BOM`;
     default:
       return role as string;
   }

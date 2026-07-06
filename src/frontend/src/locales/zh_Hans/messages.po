@@ -1861,11 +1861,11 @@ msgstr "邮箱"
 #: src/components/forms/AuthenticationForm.tsx:174
 #: src/pages/Auth/Reset.tsx:18
 msgid "We will send you a link to login - if you are registered"
-msgstr "我们将向您发送登录链接 - 如果您已注册"
+msgstr "输入已注册邮箱，发送免密登录链接"
 
 #: src/components/forms/AuthenticationForm.tsx:190
 msgid "Send me an email"
-msgstr "给我发一封电子邮件"
+msgstr "邮箱免密登录"
 
 #: src/components/forms/AuthenticationForm.tsx:192
 msgid "Use username and password"
@@ -1878,7 +1878,7 @@ msgstr "登录"
 #: src/components/forms/AuthenticationForm.tsx:203
 #: src/pages/Auth/Reset.tsx:26
 msgid "Send Email"
-msgstr "发送电子邮件"
+msgstr "发送登录链接"
 
 #: src/components/forms/AuthenticationForm.tsx:239
 msgid "Passwords do not match"

@@ -238,6 +238,7 @@ class InfoApiSerializer(serializers.Serializer):
         login_message = serializers.CharField(allow_null=True)
         navbar_message = serializers.CharField(allow_null=True)
         disable_theme_storage = serializers.BooleanField(default=False)
+        company_name = serializers.CharField(allow_null=True)
 
     server = serializers.CharField(read_only=True)
     id = serializers.CharField(read_only=True, allow_null=True)
@@ -313,6 +314,7 @@ class InfoView(APIView):
                 'disable_theme_storage': str2bool(
                     helpers.getCustomOption('disable_theme_storage')
                 ),
+                'company_name': get_global_setting('INVENTREE_COMPANY_NAME', ''),
             },
             'active_plugins': plugins_info(),
             # Following fields are only available to staff users

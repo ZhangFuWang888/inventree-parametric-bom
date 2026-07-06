@@ -172,7 +172,8 @@ export default function PartDetail() {
     endpoint: ApiEndpoints.bom_validate,
     pk: id,
     hasPrimaryKey: true,
-    refetchOnMount: true
+    refetchOnMount: true,
+    disabled: !user.hasViewRole(UserRoles.bom)
   });
 
   const { instance: serials } = useInstance({
@@ -951,12 +952,6 @@ export default function PartDetail() {
         color='blue'
         visible={allocated > 0}
         key='allocated'
-      />,
-      <DetailsBadge
-        label={`${t`Required`}: ${formatDecimal(required)}`}
-        color='grape'
-        visible={required > 0}
-        key='required'
       />,
       <DetailsBadge
         label={`${t`On Order`}: ${formatDecimal(partRequirements.ordering)}`}

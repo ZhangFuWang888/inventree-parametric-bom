@@ -77,11 +77,12 @@ export function getNavTabs(user: UserStateProps): NavTab[] {
     }
   ];
 
-  // Add parametric BOM tab (always visible)
+  // Add parametric BOM tab
   navTabs.push({
     name: 'parametric-bom',
     title: '参数化BOM',
-    icon: <IconClipboardData />
+    icon: <IconClipboardData />,
+    visible: user.hasViewRole(UserRoles.parametric_bom)
   });
 
   return navTabs.filter((tab) => {

@@ -85,6 +85,7 @@
   {% endif %}
 
 <!-- Cart: Floating Button -->
+<div id="parametric-cart-container">
 <button class="cart-fab" id="cart-fab" onclick="cartToggle()">
   🛒 <span>购物车</span> <span class="cart-badge" id="cart-fab-count">0</span>
 </button>
@@ -117,21 +118,23 @@
     </div>
   </div>
 </div>
+</div>
 
 <script src="{% static 'parametric_bom/js/cart.js' %}"></script>
 
 <script>
-// 在参数化BOM页面隐藏购物车按钮
-function hideCartOnParametricBom() {
-  if (window.location.pathname.includes('/parametric-bom/')) {
-    var btn = document.getElementById('cart-fab');
-    if (btn) btn.style.display = 'none';
-  }
+// 只在登录后的页面显示购物车
+function toggleCartVisibility() {
+  var container = document.getElementById('parametric-cart-container');
+  if (!container) return;
+  var authPaths = ['/login', '/register', '/reset-password', '/set-password', '/verify-email', '/logged-in', '/logout', '/mfa', '/mfa-setup', '/change-password'];
+  var isAuthPage = authPaths.some(function(p) { return window.location.pathname.startsWith(p) || window.location.pathname.startsWith('/web' + p); });
+  container.style.display = isAuthPage ? 'none' : '';
 }
-hideCartOnParametricBom();
+toggleCartVisibility();
 // SPA内路由变化时重新检查
 if (window.navigation) {
-  window.navigation.addEventListener('navigatesuccess', hideCartOnParametricBom);
+  window.navigation.addEventListener('navigatesuccess', toggleCartVisibility);
 }
 </script>
 
