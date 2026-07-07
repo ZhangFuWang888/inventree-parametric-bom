@@ -234,6 +234,11 @@ header .text-sm.font-semibold{
 .param-filter-pill:hover{border-color:#93c5fd;color:#2563eb;background:#eff6ff}
 .param-filter-pill.active{border-color:#2563eb;background:#2563eb;color:#fff;font-weight:500}
 .param-filter-pill.active:hover{background:#1d4ed8;border-color:#1d4ed8}
+
+.type-filter-pill{font-size:0.7rem;padding:0.25rem 0.625rem;border-radius:999px;border:1px solid #e2e8f0;background:#fff;color:#64748b;cursor:pointer;transition:all 0.12s;white-space:nowrap;user-select:none}
+.type-filter-pill:hover{border-color:#93c5fd;color:#2563eb;background:#eff6ff}
+.type-filter-pill.active{background:#f8fafc;color:#1e293b;font-weight:500;border-color:#cbd5e1;box-shadow:inset 0 1px 2px rgba(0,0,0,0.04)}
+.type-filter-pill.active:hover{background:#f1f5f9}
 /* Mode-specific field icons */
 .bic-icon-qty{color:#2563eb}
 .bic-icon-cond{color:#d97706}
@@ -447,6 +452,7 @@ textarea.input-field{resize:vertical;font-family:monospace;font-size:0.75rem}
 .product-card .product-meta{display:flex;align-items:center;gap:0.5rem;margin-top:0.75rem;padding-top:0.625rem;border-top:1px solid #f1f5f9}
 .product-card .product-stat{font-size:0.65rem;color:#64748b;background:#f8fafc;padding:0.125rem 0.5rem;border-radius:6px;font-weight:500}
 .product-card .product-type-badge{font-size:0.65rem;font-weight:400;color:#94a3b8;padding-left:0.5rem;border-left:1px solid #e2e8f0}
+.product-card .product-type-badge.is-product{color:#2563eb}
 .product-card .product-type-badge.is-assembly{color:#16a34a}
 .product-card .product-type-badge.is-part{color:#94a3b8}
 .product-card .product-date{font-size:0.65rem;color:#cbd5e1;margin-left:auto}

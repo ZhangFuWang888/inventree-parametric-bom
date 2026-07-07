@@ -33,6 +33,11 @@
           <button class="param-filter-pill active" data-filter="all" onclick="setParamFilter('all')">全部</button>
           <button class="param-filter-pill" data-filter="parametric" onclick="setParamFilter('parametric')">🔧 已参数化</button>
           <button class="param-filter-pill" data-filter="non-parametric" onclick="setParamFilter('non-parametric')">⚙️ 未参数化</button>
+          <span class="text-xs text-gray-300 mx-1">|</span>
+          <button class="type-filter-pill active" data-filter="all" onclick="setTypeFilter('all')">📋 全部</button>
+          <button class="type-filter-pill" data-filter="product" onclick="setTypeFilter('product')">📦 产品</button>
+          <button class="type-filter-pill" data-filter="subassembly" onclick="setTypeFilter('subassembly')">📂 部装</button>
+          <button class="type-filter-pill" data-filter="part" onclick="setTypeFilter('part')">⚙️ 零件</button>
           <span class="text-xs text-gray-400 ml-auto" id="product-filter-count"></span>
         </div>
         <div id="product-grid" class="min-h-[200px]">

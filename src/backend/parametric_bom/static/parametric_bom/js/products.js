@@ -65,10 +65,32 @@ let _productPage = 1;
 let _productPageSize = 24;
 let _filteredParts = [];
 let _paramFilter = 'all';
+let _typeFilter = 'all';  // 'all' | 'product' | 'subassembly' | 'part'
+
+const TYPE_LABELS = {
+  product: { label: '产品', icon: '📦', cls: 'bg-blue-50 text-blue-700 border-blue-200' },
+  subassembly: { label: '部装', icon: '📂', cls: 'bg-green-50 text-green-700 border-green-200' },
+  part: { label: '零件', icon: '⚙️', cls: 'bg-gray-50 text-gray-600 border-gray-200' },
+};
+
+function getPartType(p) {
+  if (p.assembly && p.is_template) return 'product';
+  if (p.assembly) return 'subassembly';
+  return 'part';
+}
 
 function setParamFilter(val) {
   _paramFilter = val;
   document.querySelectorAll('.param-filter-pill').forEach(el => {
+    el.classList.toggle('active', el.dataset.filter === val);
+  });
+  _productPage = 1;
+  renderProductGrid();
+}
+
+function setTypeFilter(val) {
+  _typeFilter = val;
+  document.querySelectorAll('.type-filter-pill').forEach(el => {
     el.classList.toggle('active', el.dataset.filter === val);
   });
   _productPage = 1;
@@ -133,6 +155,11 @@ async function renderProductGrid() {
       const isPara = cfg && cfg.paramCount > 0;
       return _paramFilter === 'parametric' ? isPara : !isPara;
     });
+  }
+
+  // Apply type filter
+  if (_typeFilter !== 'all') {
+    _filteredParts = _filteredParts.filter(p => getPartType(p) === _typeFilter);
   }
   
   let withConfigCount = 0;
@@ -208,7 +235,7 @@ async function renderProductGrid() {
       </div>
       <div class="product-meta">
         <span class="product-stat">📐 ${cfg.paramCount} 参数</span>
-        <span class="product-type-badge ${p.assembly ? 'is-assembly' : 'is-part'}">${p.assembly ? '部装' : '零件'}</span>
+        <span class="product-type-badge ${getPartType(p) === 'product' ? 'is-product' : getPartType(p) === 'subassembly' ? 'is-assembly' : 'is-part'}">${TYPE_LABELS[getPartType(p)].icon} ${TYPE_LABELS[getPartType(p)].label}</span>
         <span class="product-date">${p.creation_date || ''}</span>
       </div>
     </div>`;
