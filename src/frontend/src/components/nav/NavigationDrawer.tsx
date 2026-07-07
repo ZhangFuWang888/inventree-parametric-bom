@@ -73,14 +73,14 @@ function DrawerContent({ closeFunc }: Readonly<{ closeFunc?: () => void }>) {
       },
       {
         id: 'parametric-bom',
-        title: '参数化BOM',
+        title: '参数化',
         link: '/parametric-bom/',
         icon: 'bom',
         hidden: !user.hasViewRole(UserRoles.parametric_bom)
       },
       {
         id: 'projects',
-        title: '项目管理',
+        title: '项目',
         link: '/parametric-bom/?page=projects',
         icon: 'list',
         hidden: !user.hasViewRole(UserRoles.parametric_bom)
