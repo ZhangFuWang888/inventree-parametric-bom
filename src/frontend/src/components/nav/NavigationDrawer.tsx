@@ -82,7 +82,7 @@ function DrawerContent({ closeFunc }: Readonly<{ closeFunc?: () => void }>) {
       {
         id: 'projects',
         title: '项目',
-        link: '/parametric-bom/?page=projects',
+        link: '/parametric-bom/',
         icon: 'list',
         external: true,
         hidden: !user.hasViewRole(UserRoles.parametric_bom)

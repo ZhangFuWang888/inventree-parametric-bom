@@ -92,7 +92,7 @@ export function getNavTabs(user: UserStateProps): NavTab[] {
     name: 'projects',
     title: '项目',
     icon: <IconClipboardData />,
-    href: '/parametric-bom/?page=projects',
+    href: '/parametric-bom/',
     visible: user.hasViewRole(UserRoles.parametric_bom)
   });
 
