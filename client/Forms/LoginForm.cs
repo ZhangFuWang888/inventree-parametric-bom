@@ -1,4 +1,5 @@
 using BomQueryClient.Api;
+using BomQueryClient.Api.Models;
 using BomQueryClient.Api.Services;
 using BomQueryClient.Properties;
 
