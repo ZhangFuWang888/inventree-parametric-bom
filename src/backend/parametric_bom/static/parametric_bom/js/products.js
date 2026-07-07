@@ -326,6 +326,27 @@ function markDirty(cfgId, updates) {
   showDirtyButtons();
 }
 
+function syncSliderRange(el, field) {
+  var s = el.closest('.pc-value').querySelector('input[type=range]');
+  if (!s) return;
+  var v = parseFloat(el.value);
+  if (isNaN(v)) return;
+  if (field === 'min') {
+    s.min = v;
+    if (parseFloat(s.value) < v) { s.value = v; }
+  } else {
+    s.max = v;
+    if (parseFloat(s.value) > v) { s.value = v; }
+  }
+  var vs = el.closest('.pc-value').querySelector('.pc-slider-val');
+  if (vs) vs.textContent = s.value;
+  var card = el.closest('[data-config-id]');
+  var cid = card ? parseInt(card.dataset.configId) : null;
+  if (cid != null) {
+    markDirty(cid, (field === 'min' ? {min_value: el.value, default_value: s.value} : {max_value: el.value, default_value: s.value}));
+  }
+}
+
 function clearDirty() {
   __dirtyUpdates = {};
   __hasDirty = false;
@@ -472,10 +493,10 @@ function renderParamCard(cfg, idx) {
       <div class="pc-range-inline">
         <span>范围</span>
         <input type="number" value="${min}" placeholder="最小值"
-          onchange="markDirty(${cfgId},{min_value:this.value}); showDirtyButtons()">
+          onchange="syncSliderRange(this,'min')">
         <span>~</span>
         <input type="number" value="${max}" placeholder="最大值"
-          onchange="markDirty(${cfgId},{max_value:this.value}); showDirtyButtons()">
+          onchange="syncSliderRange(this,'max')">
         <span class="ml-1">步长</span>
         <input type="number" value="${cfg.step_value != null ? cfg.step_value : ''}" step="0.01" placeholder="自动"
           style="width:60px;padding:0.125rem 0.25rem;font-size:0.65rem"
