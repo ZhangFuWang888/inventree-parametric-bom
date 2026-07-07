@@ -227,13 +227,15 @@ export function PartListTable({
   basePartInstance,
   props,
   tableName = 'part-list',
-  defaultPartData
+  defaultPartData,
+  createButtonLabel
 }: Readonly<{
   enableImport?: boolean;
   props?: InvenTreeTableProps;
   basePartInstance?: any;
   tableName?: string;
   defaultPartData?: any;
+  createButtonLabel?: string;
 }>) {
   const tableColumns = useMemo(() => partTableColumns(), []);
 
@@ -287,7 +289,7 @@ export function PartListTable({
 
   const newPart = useCreateApiFormModal({
     url: ApiEndpoints.part_list,
-    title: t`Add Part`,
+    title: createButtonLabel || t`Add Part`,
     fields: newPartFields,
     initialData: initialPartData,
     follow: true,
@@ -426,15 +428,15 @@ export function PartListTable({
       />,
       <ActionDropdown
         key='add-parts-actions'
-        tooltip={t`Add Parts`}
+        tooltip={createButtonLabel || t`Add Parts`}
         position='bottom-start'
         icon={<IconPlus />}
         hidden={!user.hasAddRole(UserRoles.part)}
         actions={[
           {
-            name: t`Create Part`,
+            name: createButtonLabel || t`Create Part`,
             icon: <IconPlus />,
-            tooltip: t`Create a new part`,
+            tooltip: createButtonLabel || t`Create a new part`,
             onClick: () => newPart.open()
           },
           {

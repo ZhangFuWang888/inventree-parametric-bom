@@ -4,10 +4,8 @@ import {
   IconCategory,
   IconInfoCircle,
   IconListCheck,
-  IconListDetails,
   IconPackages,
-  IconSitemap,
-  IconTable
+  IconSitemap
 } from '@tabler/icons-react';
 import { useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -17,7 +15,6 @@ import { ModelType } from '@lib/enums/ModelType';
 import { UserRoles } from '@lib/enums/Roles';
 import { getDetailUrl } from '@lib/functions/Navigation';
 import type { PanelType } from '@lib/types/Panel';
-import { useLocalStorage } from '@mantine/hooks';
 import AdminButton from '../../components/buttons/AdminButton';
 import StarredToggleButton from '../../components/buttons/StarredToggleButton';
 import {
@@ -35,7 +32,6 @@ import InstanceDetail from '../../components/nav/InstanceDetail';
 import NavigationTree from '../../components/nav/NavigationTree';
 import { PageDetail } from '../../components/nav/PageDetail';
 import { PanelGroup } from '../../components/panels/PanelGroup';
-import SegmentedControlPanel from '../../components/panels/SegmentedControlPanel';
 import { partCategoryFields } from '../../forms/PartForms';
 import {
   useDeleteApiFormModal,
@@ -44,7 +40,6 @@ import {
 import { useInstance } from '../../hooks/UseInstance';
 import { useUserSettingsState } from '../../states/SettingsStates';
 import { useUserState } from '../../states/UserState';
-import ParametricPartTable from '../../tables/part/ParametricPartTable';
 import { PartCategoryTable } from '../../tables/part/PartCategoryTable';
 import PartCategoryTemplateTable from '../../tables/part/PartCategoryTemplateTable';
 import { PartListTable } from '../../tables/part/PartTable';
@@ -178,7 +173,7 @@ export default function CategoryDetail() {
   const editCategory = useEditApiFormModal({
     url: ApiEndpoints.category_list,
     pk: id,
-    title: t`Edit Part Category`,
+    title: '编辑物料类别',
     fields: partCategoryFields({}),
     onFormSuccess: refreshInstance
   });
@@ -199,7 +194,7 @@ export default function CategoryDetail() {
   const deleteCategory = useDeleteApiFormModal({
     url: ApiEndpoints.category_list,
     pk: id,
-    title: t`Delete Part Category`,
+    title: '删除物料类别',
     fields: {
       delete_parts: {
         label: t`Parts Action`,
@@ -259,58 +254,42 @@ export default function CategoryDetail() {
     ];
   }, [id, user, category.pk, category.starred]);
 
-  const [partsView, setPartsView] = useLocalStorage<string>({
-    key: 'category-parts-view',
-    defaultValue: 'table'
-  });
-
   const panels: PanelType[] = useMemo(
     () => [
       {
         name: 'details',
-        label: t`Category Details`,
+        label: '类别详情',
         icon: <IconInfoCircle />,
         content: detailsPanel,
         hidden: !id || !category?.pk
       },
       {
         name: 'subcategories',
-        label: id ? t`Subcategories` : t`Part Categories`,
+        label: id ? '子类别' : '物料类别',
         icon: <IconSitemap />,
         content: <PartCategoryTable parentId={id} />
       },
-      SegmentedControlPanel({
-        name: 'parts',
-        label: t`Parts`,
+      {
+        name: 'products',
+        label: '产品',
         icon: <IconCategory />,
-        selection: partsView,
-        onChange: setPartsView,
-        options: [
-          {
-            value: 'table',
-            label: t`Table View`,
-            icon: <IconTable />,
-            content: (
-              <PartListTable
-                props={{
-                  params: {
-                    category: id
-                  }
-                }}
-              />
-            )
-          },
-          {
-            value: 'parametric',
-            label: t`Parametric View`,
-            icon: <IconListDetails />,
-            content: <ParametricPartTable categoryId={id} />
-          }
-        ]
-      }),
+        content: <PartListTable createButtonLabel='添加产品' props={{ params: { category: id, assembly: true, is_template: true } }} />
+      },
+      {
+        name: 'subassemblies',
+        label: '部装',
+        icon: <IconCategory />,
+        content: <PartListTable createButtonLabel='添加工件' props={{ params: { category: id, assembly: true, is_template: false } }} />
+      },
+      {
+        name: 'parts',
+        label: '零件',
+        icon: <IconCategory />,
+        content: <PartListTable createButtonLabel='添加物料' props={{ params: { category: id, assembly: false } }} />
+      },
       {
         name: 'stockitem',
-        label: t`Stock Items`,
+        label: '库存物料',
         icon: <IconPackages />,
         hidden: !id,
         content: (
@@ -325,18 +304,18 @@ export default function CategoryDetail() {
       },
       {
         name: 'category_parameters',
-        label: t`Category Parameters`,
+        label: '类别参数',
         icon: <IconListCheck />,
         hidden: !id || !category.pk,
         content: <PartCategoryTemplateTable categoryId={category?.pk} />
       }
     ],
-    [category, id, partsView]
+    [category, id]
   );
 
   const breadcrumbs = useMemo(
     () => [
-      { name: t`Parts`, url: '/part' },
+      { name: '物料', url: '/part' },
       ...(category.path ?? []).map((c: any) => ({
         name: c.name,
         url: getDetailUrl(ModelType.partcategory, c.pk),
@@ -369,7 +348,7 @@ export default function CategoryDetail() {
           <LoadingOverlay visible={instanceQuery.isFetching} />
           <NavigationTree
             modelType={ModelType.partcategory}
-            title={t`Part Categories`}
+            title='物料类别'
             endpoint={ApiEndpoints.category_tree}
             opened={treeOpen}
             onClose={() => {
@@ -378,7 +357,7 @@ export default function CategoryDetail() {
             selectedId={category?.pk}
           />
           <PageDetail
-            title={(category?.name ?? id) ? t`Part Category` : t`Parts`}
+            title={(category?.name ?? id) ? '物料类别' : '物料'}
             subtitle={category?.description}
             icon={category?.icon && <ApiIcon name={category?.icon} />}
             breadcrumbs={breadcrumbs}

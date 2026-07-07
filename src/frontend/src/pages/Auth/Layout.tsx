@@ -54,7 +54,7 @@ export function Wrapper({
   smallPadding?: boolean;
 }>) {
   const navigate = useNavigate();
-  const [companyName, setCompanyName] = useState('XX智能科技');
+  const [companyName, setCompanyName] = useState('');
 
   useEffect(() => {
     api
@@ -79,19 +79,28 @@ export function Wrapper({
     >
         <Stack gap={smallPadding ? 0 : 'md'}>
           {/* Company Branding */}
-          <div style={{ textAlign: 'center', marginBottom: '0.75rem' }}>
-            <Text
-              size='24px'
-              fw={700}
-              c='#1e293b'
-              style={{ letterSpacing: '0.02em' }}
-            >
-              🏭 {companyName}
-            </Text>
-            <Text size='sm' c='#64748b' mt={4}>
-              参数化BOM管理系统
-            </Text>
-          </div>
+          {companyName && (
+            <div style={{ textAlign: 'center', marginBottom: '0.75rem' }}>
+              <Text
+                size='24px'
+                fw={700}
+                c='#1e293b'
+                style={{ letterSpacing: '0.02em' }}
+              >
+                🏭 {companyName}
+              </Text>
+              <Text size='sm' c='#64748b' mt={4}>
+                参数化BOM管理系统
+              </Text>
+            </div>
+          )}
+          {!companyName && (
+            <div style={{ textAlign: 'center', marginBottom: '0.75rem' }}>
+              <Text size='sm' c='#64748b' mt={4}>
+                参数化BOM管理系统
+              </Text>
+            </div>
+          )}
           <Divider p='xs' />
           {loader && (
             <Group justify='center'>
@@ -108,9 +117,11 @@ export function Wrapper({
             </>
           )}
           {/* Footer */}
-          <Text ta='center' size='10px' c='#94a3b8' mt='sm'>
-            © 2026 {companyName}
-          </Text>
+          {companyName && (
+            <Text ta='center' size='10px' c='#94a3b8' mt='sm'>
+              © 2026 {companyName}
+            </Text>
+          )}
         </Stack>
       </Paper>
   );
