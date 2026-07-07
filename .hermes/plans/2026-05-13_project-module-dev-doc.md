@@ -424,10 +424,10 @@ Request:
 
 ### Phase 4：报表+增强
 
-1. 项目导出 CSV
-2. 项目模板功能
-3. 变更日志
-4. 附件上传
+1. 项目导出 CSV ✅
+2. 项目模板功能 ✅
+3. 变更日志 ✅
+4. 附件上传 ✅（InvenTreeAttachmentMixin + API + 前端Tab）
 
 ---
 

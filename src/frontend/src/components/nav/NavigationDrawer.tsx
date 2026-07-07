@@ -79,6 +79,13 @@ function DrawerContent({ closeFunc }: Readonly<{ closeFunc?: () => void }>) {
         hidden: !user.hasViewRole(UserRoles.parametric_bom)
       },
       {
+        id: 'projects',
+        title: '项目管理',
+        link: '/parametric-bom/?page=projects',
+        icon: 'list',
+        hidden: !user.hasViewRole(UserRoles.parametric_bom)
+      },
+      {
         id: 'stock',
         title: t`Stock`,
         link: '/stock',

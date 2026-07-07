@@ -15,6 +15,7 @@ VALID_PAGES = {
     'params': '参数设置',
     'bom': 'BOM公式',
     'config': '产品配置器',
+    'projects': '项目管理',
 }
 
 # Map URL path names to page values
