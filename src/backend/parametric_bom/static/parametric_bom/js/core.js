@@ -137,6 +137,13 @@ function switchPage(page) {
         switchProductTab('params'); 
     }
   }
+  // Auto-load project pages
+  if (page === 'projects') { renderProjectList(); }
+  else if (page === 'project-detail') { 
+    if (!window._currentProjectId) switchPage('projects');
+  }
+  // Load cart
+  if (page === 'cart') { loadCart(); }
 }
 
 function toggleGroup(header) {

@@ -12,6 +12,8 @@ from parametric_bom.models import (
     PartAttributeFormula,
     PartParameterConfig,
     ProductConfiguration,
+    Project,
+    ProjectItem,
     VariantMapping,
 )
 
@@ -104,3 +106,20 @@ class PartAttributeFormulaAdmin(admin.ModelAdmin):
     """Admin for PartAttributeFormula."""
     list_display = ['part', 'attribute_name', 'attribute_type', 'unit']
     list_filter = ['attribute_type']
+
+
+@admin.register(Project)
+class ProjectAdmin(admin.ModelAdmin):
+    """Admin for Project."""
+    list_display = ['project_code', 'name', 'customer', 'status', 'owner', 'created_at']
+    list_filter = ['status', 'is_active']
+    search_fields = ['name', 'project_code', 'description']
+    readonly_fields = ['project_code', 'created_at', 'updated_at']
+
+
+@admin.register(ProjectItem)
+class ProjectItemAdmin(admin.ModelAdmin):
+    """Admin for ProjectItem."""
+    list_display = ['title', 'project', 'item_type', 'quantity', 'created_at']
+    list_filter = ['item_type']
+    search_fields = ['title']

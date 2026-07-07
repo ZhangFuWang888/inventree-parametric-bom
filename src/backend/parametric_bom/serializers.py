@@ -17,6 +17,8 @@ from parametric_bom.models import (
     PartParameterConfig,
     PartVariable,
     ProductConfiguration,
+    Project,
+    ProjectItem,
     VariantMapping,
 )
 
@@ -354,3 +356,144 @@ def _sum_tree_prices(node) -> float:
     for child in node.get('children', []):
         total += _sum_tree_prices(child)
     return total
+
+
+# ── Project Serializers ──────────────────────
+
+class ProjectItemSerializer(serializers.ModelSerializer):
+    """Serializer for ProjectItem."""
+
+    part_name = serializers.CharField(source='part.name', read_only=True, default=None)
+    part_ipn = serializers.CharField(source='part.IPN', read_only=True, default=None)
+    config_title = serializers.CharField(
+        source='product_config.title', read_only=True, default=None
+    )
+    user_role = serializers.SerializerMethodField()
+
+    def get_user_role(self, obj):
+        request = self.context.get('request')
+        if not request or not request.user:
+            return 'none'
+        project = obj.project
+        if request.user.is_staff:
+            return 'admin'
+        if project.owner == request.user:
+            return 'owner'
+        if project.members.filter(id=request.user.id).exists():
+            return 'member'
+        return 'none'
+
+    class Meta:
+        model = ProjectItem
+        fields = [
+            'id', 'project', 'item_type',
+            'product_config', 'config_title',
+            'part', 'part_name', 'part_ipn',
+            'title', 'quantity', 'bom_snapshot',
+            'unit_cost', 'unit_price', 'notes',
+            'sort_order', 'created_at', 'user_role',
+        ]
+        read_only_fields = ['created_at']
+
+
+class ProjectListSerializer(serializers.ModelSerializer):
+    """Compact serializer for project list views."""
+
+    customer_name = serializers.CharField(
+        source='customer.name', read_only=True, default=None
+    )
+    owner_name = serializers.SerializerMethodField()
+    item_count = serializers.SerializerMethodField()
+    user_role = serializers.SerializerMethodField()
+
+    def get_owner_name(self, obj):
+        return obj.owner.get_full_name() or obj.owner.username if obj.owner else None
+
+    def get_item_count(self, obj):
+        return obj.items.count()
+
+    def get_user_role(self, obj):
+        request = self.context.get('request')
+        if not request or not request.user:
+            return 'none'
+        user = request.user
+        if user.is_staff:
+            return 'admin'
+        if obj.owner == user:
+            return 'owner'
+        if obj.members.filter(id=user.id).exists():
+            return 'member'
+        return 'none'
+
+    class Meta:
+        model = Project
+        fields = [
+            'id', 'name', 'project_code', 'customer', 'customer_name',
+            'status', 'owner', 'owner_name', 'manager', 'deadline',
+            'is_public', 'item_count', 'user_role',
+            'created_at', 'updated_at', 'is_active',
+        ]
+        read_only_fields = ['project_code', 'created_at', 'updated_at', 'is_active']
+
+
+class ProjectDetailSerializer(serializers.ModelSerializer):
+    """Full serializer for project detail views."""
+
+    customer_name = serializers.CharField(
+        source='customer.name', read_only=True, default=None
+    )
+    owner_name = serializers.SerializerMethodField()
+    manager_name = serializers.SerializerMethodField()
+    created_by_name = serializers.SerializerMethodField()
+    items = ProjectItemSerializer(many=True, read_only=True)
+    user_role = serializers.SerializerMethodField()
+
+    def get_owner_name(self, obj):
+        return obj.owner.get_full_name() or obj.owner.username if obj.owner else None
+
+    def get_manager_name(self, obj):
+        return obj.manager.get_full_name() or obj.manager.username if obj.manager else None
+
+    def get_created_by_name(self, obj):
+        return obj.created_by.get_full_name() or obj.created_by.username if obj.created_by else None
+
+    def get_user_role(self, obj):
+        request = self.context.get('request')
+        if not request or not request.user:
+            return 'none'
+        user = request.user
+        if user.is_staff:
+            return 'admin'
+        if obj.owner == user:
+            return 'owner'
+        if obj.members.filter(id=user.id).exists():
+            return 'member'
+        return 'none'
+
+    class Meta:
+        model = Project
+        fields = [
+            'id', 'name', 'project_code', 'customer', 'customer_name',
+            'status', 'description',
+            'owner', 'owner_name', 'members', 'is_public',
+            'manager', 'manager_name', 'deadline',
+            'created_by', 'created_by_name',
+            'created_at', 'updated_at', 'is_active',
+            'items', 'user_role',
+        ]
+        read_only_fields = [
+            'project_code', 'created_by', 'created_at',
+            'updated_at', 'items', 'user_role',
+        ]
+
+
+class FromCartSerializer(serializers.Serializer):
+    """Serializer for converting cart items into a project."""
+
+    name = serializers.CharField(max_length=256)
+    customer_id = serializers.IntegerField(required=False, allow_null=True)
+    description = serializers.CharField(required=False, allow_blank=True, default='')
+    cart_item_ids = serializers.ListField(
+        child=serializers.IntegerField(), allow_empty=False
+    )
+    deadline = serializers.DateField(required=False, allow_null=True)

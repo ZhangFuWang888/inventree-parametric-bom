@@ -1,7 +1,7 @@
 """REST API views for Parametric BOM models."""
 
 from rest_framework import permissions, viewsets
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 
@@ -25,6 +25,9 @@ from parametric_bom.models import (
     PartParameterConfig,
     PartVariable,
     ProductConfiguration,
+    Project,
+    ProjectItem,
+    ProjectStatusChoices,
     VariantMapping,
 )
 from InvenTree.filters import SEARCH_ORDER_FILTER
@@ -32,12 +35,18 @@ from InvenTree.filters import SEARCH_ORDER_FILTER
 from django.conf import settings
 from django.http import StreamingHttpResponse, FileResponse
 from django.contrib.contenttypes.models import ContentType
+from django.db import models as django_models
+from django.shortcuts import get_object_or_404
+
+import structlog
+logger = structlog.get_logger('inventree')
 
 from parametric_bom.serializers import (
     BomCandidatePartSerializer,
     BomSpecificationSerializer,
     CartItemSerializer,
     ConfigParameterValueSerializer,
+    FromCartSerializer,
     InheritanceMappingSerializer,
     ParametricBomItemSerializer,
     ParametricRuleSerializer,
@@ -45,6 +54,9 @@ from parametric_bom.serializers import (
     PartParameterConfigSerializer,
     PartVariableSerializer,
     ProductConfigurationSerializer,
+    ProjectDetailSerializer,
+    ProjectItemSerializer,
+    ProjectListSerializer,
     VariantMappingSerializer,
 )
 
@@ -1575,5 +1587,305 @@ def cart_create_order(request):
         return Response({'error': f'创建订单失败: {str(e)}'}, status=500)
 
 
-import structlog
-logger = structlog.get_logger('inventree')
+# ── Project Permission ───────────────────────
+
+class ProjectPermission(permissions.BasePermission):
+    """Three-tier project permission check."""
+
+    def has_permission(self, request, view):
+        return request.user.is_authenticated
+
+    def has_object_permission(self, request, view, obj):
+        user = request.user
+        if user.is_staff:
+            return True
+        if obj.owner == user:
+            return True
+        if request.method in permissions.SAFE_METHODS:
+            if obj.is_public or obj.members.filter(id=user.id).exists():
+                return True
+            return False
+        return False
+
+
+# ── Project ViewSet ─────────────────────────
+
+class ProjectViewSet(viewsets.ModelViewSet):
+    """API endpoints for Project management."""
+
+    queryset = Project.objects.all()
+    permission_classes = [permissions.IsAuthenticated, ProjectPermission]
+    search_fields = ['name', 'project_code', 'description']
+    filterset_fields = ['status', 'is_active']
+
+    def get_serializer_class(self):
+        if self.action == 'list':
+            return ProjectListSerializer
+        return ProjectDetailSerializer
+
+    def get_queryset(self):
+        qs = Project.objects.all()
+        user = self.request.user
+        if not user.is_staff:
+            qs = qs.filter(
+                django_models.Q(owner=user)
+                | django_models.Q(members=user)
+                | django_models.Q(is_public=True)
+            ).distinct()
+        if not self.request.query_params.get('inactive'):
+            qs = qs.filter(is_active=True)
+        return qs
+
+    def perform_create(self, serializer):
+        serializer.save(
+            created_by=self.request.user,
+            owner=self.request.user,
+        )
+
+    @action(detail=True, methods=['get'])
+    def items(self, request, pk=None):
+        """Get all items for a project."""
+        project = self.get_object()
+        items = project.items.all()
+        serializer = ProjectItemSerializer(items, many=True, context={'request': request})
+        return Response(serializer.data)
+
+    @action(detail=True, methods=['post'])
+    def add_item(self, request, pk=None):
+        """Add an item to a project."""
+        project = self.get_object()
+        item_type = request.data.get('item_type', 'configuration')
+        serializer = ProjectItemSerializer(
+            data={**request.data, 'project': project.id},
+            context={'request': request},
+        )
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=201)
+        return Response(serializer.errors, status=400)
+
+    @action(detail=True, methods=['delete'], url_path='items/(?P<item_id>[^/.]+)')
+    def remove_item(self, request, pk=None, item_id=None):
+        """Remove an item from a project."""
+        project = self.get_object()
+        item = get_object_or_404(ProjectItem, id=item_id, project=project)
+        item.delete()
+        return Response({'success': True}, status=200)
+
+    @action(detail=False, methods=['post'])
+    def from_cart(self, request):
+        """Convert cart items into a project."""
+        serializer = FromCartSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=400)
+
+        data = serializer.validated_data
+        cart_items = CartItem.objects.filter(id__in=data['cart_item_ids'])
+
+        if not cart_items.exists():
+            return Response({'error': '购物车中未找到指定条目'}, status=400)
+
+        # Create the project
+        customer = None
+        if data.get('customer_id'):
+            from company.models import Company
+            try:
+                customer = Company.objects.get(id=data['customer_id'])
+            except Company.DoesNotExist:
+                return Response({'error': '指定客户不存在'}, status=404)
+
+        project = Project.objects.create(
+            name=data['name'],
+            customer=customer,
+            description=data.get('description', ''),
+            deadline=data.get('deadline'),
+            created_by=request.user,
+            owner=request.user,
+        )
+
+        # Create ProjectItems from CartItems
+        for ci in cart_items:
+            item_kwargs = {
+                'project': project,
+                'title': ci.title or ci.product_part.name if ci.product_part else ci.part.name if ci.part else '',
+                'quantity': ci.quantity,
+            }
+            if ci.item_type == 'parametric' and ci.product_part:
+                item_kwargs['item_type'] = 'configuration'
+                item_kwargs['product_config'] = ci.product_config if hasattr(ci, 'product_config') else None
+                item_kwargs['bom_snapshot'] = ci.bom_snapshot
+                item_kwargs['unit_cost'] = ci.unit_price
+            else:
+                item_kwargs['item_type'] = 'part'
+                item_kwargs['part'] = ci.part
+                item_kwargs['unit_price'] = ci.unit_price
+            ProjectItem.objects.create(**item_kwargs)
+
+        # Clear the converted cart items
+        cart_items.delete()
+
+        return Response(
+            ProjectDetailSerializer(project, context={'request': request}).data,
+            status=201,
+        )
+
+    @action(detail=True, methods=['post'])
+    def create_purchase_orders(self, request, pk=None):
+        """Generate PurchaseOrders from the project's BOM parts, grouped by supplier."""
+        from company.models import Company, SupplierPart
+
+        project = self.get_object()
+        orders_created = []
+
+        # Collect all unique parts from all items' BOM snapshots
+        parts_needed = {}  # {part_id: {part: Part, quantity: int}}
+        for item in project.items.all():
+            if item.bom_snapshot:
+                self._collect_bom_parts(item.bom_snapshot, parts_needed, item.quantity)
+            elif item.part:
+                pid = item.part.id
+                if pid not in parts_needed:
+                    parts_needed[pid] = {'part': item.part, 'quantity': 0}
+                parts_needed[pid]['quantity'] += item.quantity
+
+        if not parts_needed:
+            return Response({'error': '项目中没有需要采购的零件'}, status=400)
+
+        # Group by supplier from SupplierPart
+        supplier_groups = {}  # {supplier_id: {supplier: Company, items: [{part, qty}]}}
+        for pid, info in parts_needed.items():
+            supplier_parts = SupplierPart.objects.filter(part=info['part'])
+            if supplier_parts.exists():
+                sp = supplier_parts.first()
+                sid = sp.supplier.id
+                if sid not in supplier_groups:
+                    supplier_groups[sid] = {
+                        'supplier': sp.supplier,
+                        'items': [],
+                    }
+                supplier_groups[sid]['items'].append({
+                    'part': info['part'],
+                    'quantity': info['quantity'],
+                    'sku': sp.SKU,
+                })
+            else:
+                # No supplier — create an unassigned group
+                if 0 not in supplier_groups:
+                    supplier_groups[0] = {'supplier': None, 'items': []}
+                supplier_groups[0]['items'].append({
+                    'part': info['part'],
+                    'quantity': info['quantity'],
+                    'sku': None,
+                })
+
+        from order.models import PurchaseOrder, PurchaseOrderLineItem
+
+        for sid, group in supplier_groups.items():
+            if not group['supplier']:
+                continue
+            po = PurchaseOrder.objects.create(
+                supplier=group['supplier'],
+                created_by=request.user,
+                description=f'Auto-generated from project: {project.project_code}',
+            )
+            for item in group['items']:
+                PurchaseOrderLineItem.objects.create(
+                    order=po,
+                    part=item['part'],
+                    quantity=item['quantity'],
+                    reference=item.get('sku', ''),
+                )
+            orders_created.append({
+                'order_id': po.id,
+                'supplier': group['supplier'].name,
+                'reference': str(po),
+                'line_items': len(group['items']),
+            })
+
+        # Handle unassigned parts
+        if 0 in supplier_groups:
+            orders_created.append({
+                'supplier': None,
+                'parts': [f"{i['part'].name} x{i['quantity']}" for i in supplier_groups[0]['items']],
+                'note': 'No supplier found for these parts',
+            })
+
+        return Response({'orders': orders_created}, status=201)
+
+    @action(detail=True, methods=['post'])
+    def create_sales_order(self, request, pk=None):
+        """Generate a SalesOrder from the project."""
+        from company.models import Company
+        from order.models import SalesOrder, SalesOrderLineItem
+
+        project = self.get_object()
+        if not project.customer:
+            return Response({'error': '项目未关联客户，无法创建销售订单'}, status=400)
+
+        so = SalesOrder.objects.create(
+            customer=project.customer,
+            created_by=request.user,
+            description=f'Auto-generated from project: {project.project_code} - {project.name}',
+        )
+        line_count = 0
+        for item in project.items.all():
+            part = None
+            if item.item_type == 'configuration' and item.product_config:
+                part = item.product_config.template_part
+            elif item.item_type == 'part':
+                part = item.part
+            if part:
+                SalesOrderLineItem.objects.create(
+                    order=so,
+                    part=part,
+                    quantity=item.quantity,
+                )
+                line_count += 1
+
+        return Response({
+            'order_id': so.id,
+            'reference': str(so),
+            'line_items': line_count,
+        }, status=201)
+
+    @action(detail=True, methods=['get'])
+    def cost_summary(self, request, pk=None):
+        """Get cost summary for a project."""
+        project = self.get_object()
+        total_cost = 0
+        total_price = 0
+        breakdown = []
+        for item in project.items.all():
+            cost = float(item.unit_cost or 0) * item.quantity
+            price = float(item.unit_price or 0) * item.quantity
+            total_cost += cost
+            total_price += price
+            breakdown.append({
+                'title': item.title,
+                'type': item.item_type,
+                'quantity': item.quantity,
+                'unit_cost': float(item.unit_cost or 0),
+                'unit_price': float(item.unit_price or 0),
+                'subtotal_cost': cost,
+                'subtotal_price': price,
+            })
+        return Response({
+            'project_id': project.id,
+            'project_code': project.project_code,
+            'total_cost': total_cost,
+            'total_price': total_price,
+            'profit': total_price - total_cost,
+            'margin_pct': round((total_price - total_cost) / total_price * 100, 2) if total_price else 0,
+            'breakdown': breakdown,
+        })
+
+    def _collect_bom_parts(self, node, parts_dict, multiplier=1):
+        """Recursively collect parts from a BOM snapshot tree."""
+        if node.get('part_id'):
+            pid = node['part_id']
+            qty = int(node.get('quantity', 1)) * multiplier
+            if pid not in parts_dict:
+                parts_dict[pid] = {'part': None, 'quantity': 0}
+            parts_dict[pid]['quantity'] += qty
+        for child in node.get('children', []):
+            self._collect_bom_parts(child, parts_dict, multiplier)

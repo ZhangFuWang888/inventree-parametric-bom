@@ -1133,3 +1133,221 @@ class CartItem(models.Model):
 
     def __str__(self):
         return self.title or f'CartItem #{self.id}'
+
+
+# ──────────────────────────────────────────────
+#  Project (项目)
+# ──────────────────────────────────────────────
+
+class ProjectStatusChoices(models.TextChoices):
+    """Project lifecycle statuses."""
+    DRAFT = 'draft', _('Draft')
+    ACTIVE = 'active', _('Active')
+    PURCHASING = 'purchasing', _('Purchasing')
+    PRODUCTION = 'production', _('Production')
+    DELIVERY = 'delivery', _('Delivery')
+    COMPLETED = 'completed', _('Completed')
+    CANCELLED = 'cancelled', _('Cancelled')
+    ARCHIVED = 'archived', _('Archived')
+
+
+class ProjectItemTypeChoices(models.TextChoices):
+    """Types of items in a project."""
+    CONFIGURATION = 'configuration', _('Product configuration')
+    PART = 'part', _('Static part')
+
+
+class Project(models.Model):
+    """A project that groups parametric configurations, static parts,
+    purchase orders, and sales orders for a real-world customer delivery.
+    """
+
+    name = models.CharField(
+        max_length=256,
+        verbose_name=_('Project name'),
+    )
+    project_code = models.CharField(
+        max_length=64,
+        unique=True,
+        blank=True,
+        default='',
+        verbose_name=_('Project code'),
+        help_text=_('Auto-generated project code (PRJ-YYYYMMDD-XXXX)'),
+    )
+    customer = models.ForeignKey(
+        'company.Company',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='parametric_projects',
+        verbose_name=_('Customer'),
+    )
+    status = models.CharField(
+        max_length=32,
+        choices=ProjectStatusChoices.choices,
+        default=ProjectStatusChoices.DRAFT,
+        verbose_name=_('Status'),
+    )
+    description = models.TextField(
+        blank=True,
+        default='',
+        verbose_name=_('Description'),
+    )
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='owned_projects',
+        verbose_name=_('Owner'),
+    )
+    members = models.ManyToManyField(
+        settings.AUTH_USER_MODEL,
+        blank=True,
+        related_name='project_memberships',
+        verbose_name=_('Members'),
+    )
+    is_public = models.BooleanField(
+        default=False,
+        verbose_name=_('Public'),
+        help_text=_('Non-members can view this project'),
+    )
+    manager = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='managed_projects',
+        verbose_name=_('Manager'),
+    )
+    deadline = models.DateField(
+        null=True,
+        blank=True,
+        verbose_name=_('Deadline'),
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='created_projects',
+        verbose_name=_('Created by'),
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    is_active = models.BooleanField(
+        default=True,
+        verbose_name=_('Active'),
+        help_text=_('Soft-delete flag: set to False to hide/archive'),
+    )
+
+    class Meta:
+        app_label = 'parametric_bom'
+        verbose_name = _('Project')
+        verbose_name_plural = _('Projects')
+        ordering = ['-created_at']
+
+    def save(self, *args, **kwargs):
+        if not self.project_code and self.pk:
+            self.project_code = self._generate_code()
+        if not self.project_code:
+            # First save: assign a temporary code, then regenerate after pk
+            pass
+        super().save(*args, **kwargs)
+        if not self.project_code:
+            self.project_code = self._generate_code()
+            super().save(update_fields=['project_code'])
+
+    def _generate_code(self):
+        from datetime import datetime
+        date_part = datetime.now().strftime('%Y%m%d')
+        count = Project.objects.filter(
+            project_code__startswith=f'PRJ-{date_part}'
+        ).count()
+        return f'PRJ-{date_part}-{count + 1:04d}'
+
+    def __str__(self):
+        return f'{self.project_code} - {self.name}'
+
+
+class ProjectItem(models.Model):
+    """A single item (configuration snapshot or static part) within a project."""
+
+    project = models.ForeignKey(
+        Project,
+        on_delete=models.CASCADE,
+        related_name='items',
+        verbose_name=_('Project'),
+    )
+    item_type = models.CharField(
+        max_length=20,
+        choices=ProjectItemTypeChoices.choices,
+        default=ProjectItemTypeChoices.CONFIGURATION,
+        verbose_name=_('Item type'),
+    )
+
+    # For parametric configuration snapshots
+    product_config = models.ForeignKey(
+        'parametric_bom.ProductConfiguration',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='project_items',
+        verbose_name=_('Product configuration'),
+    )
+
+    # For static parts
+    part = models.ForeignKey(
+        'part.Part',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='project_items',
+        verbose_name=_('Part'),
+    )
+
+    title = models.CharField(
+        max_length=256,
+        blank=True,
+        default='',
+        verbose_name=_('Title'),
+    )
+    quantity = models.PositiveIntegerField(
+        default=1,
+        verbose_name=_('Quantity'),
+    )
+    bom_snapshot = models.JSONField(
+        null=True,
+        blank=True,
+        verbose_name=_('BOM snapshot'),
+        help_text=_('Expanded BOM result cached at add-to-project time'),
+    )
+    unit_cost = models.DecimalField(
+        max_digits=19, decimal_places=4,
+        null=True, blank=True,
+        verbose_name=_('Unit cost'),
+    )
+    unit_price = models.DecimalField(
+        max_digits=19, decimal_places=4,
+        null=True, blank=True,
+        verbose_name=_('Unit price'),
+    )
+    notes = models.TextField(
+        blank=True,
+        default='',
+        verbose_name=_('Notes'),
+    )
+    sort_order = models.IntegerField(
+        default=0,
+        verbose_name=_('Sort order'),
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        app_label = 'parametric_bom'
+        verbose_name = _('Project item')
+        verbose_name_plural = _('Project items')
+        ordering = ['sort_order', 'created_at']
+
+    def __str__(self):
+        return self.title or f'ProjectItem #{self.id} ({self.get_item_type_display()})'
