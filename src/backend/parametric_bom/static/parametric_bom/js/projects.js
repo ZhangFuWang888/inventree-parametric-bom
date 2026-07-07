@@ -107,6 +107,9 @@ async function showProjectDetail(projectId) {
   const container = document.getElementById('project-detail-content');
   if (!container) { switchPage('project-detail'); await delay(50); return showProjectDetail(projectId); }
 
+  // Switch to detail page
+  switchPage('project-detail');
+
   const canEdit = p.user_role === 'admin' || p.user_role === 'owner';
 
   let html = `
@@ -323,6 +326,48 @@ function showNewProjectDialog() {
   ]);
 }
 
+// ── Edit project field ──
+function editProjectField(field) {
+  const p = window._projectData;
+  if (!p) return;
+
+  if (field === 'name') {
+    showModal('编辑项目', `
+      <div class="flex flex-col gap-3">
+        <div>
+          <label class="text-xs text-gray-500">项目名称 *</label>
+          <input class="input-field w-full" id="ep-name" value="${escHtml(p.name)}">
+        </div>
+        <div>
+          <label class="text-xs text-gray-500">描述</label>
+          <textarea class="input-field w-full" id="ep-desc" rows="3">${escHtml(p.description || '')}</textarea>
+        </div>
+        <div>
+          <label class="text-xs text-gray-500">截止日期</label>
+          <input class="input-field w-full" id="ep-deadline" type="date" value="${p.deadline || ''}">
+        </div>
+      </div>`, [
+      { text: '取消', cls: 'btn btn-sm btn-secondary', action: closeModal },
+      { text: '保存', cls: 'btn btn-sm btn-primary', action: async () => {
+        const name = document.getElementById('ep-name').value.trim();
+        if (!name) { setStatus('error', '项目名称不能为空'); return; }
+        const result = await projectApi('PATCH', `/${p.id}/`, {
+          name,
+          description: document.getElementById('ep-desc').value,
+          deadline: document.getElementById('ep-deadline').value || null,
+        });
+        if (result.ok) {
+          closeModal();
+          setStatus('success', '项目已更新');
+          showProjectDetail(p.id);
+        } else {
+          setStatus('error', result.data?.detail || '更新失败');
+        }
+      }},
+    ]);
+  }
+}
+
 // ── Delete project ──
 function confirmDeleteProject(id) {
   if (confirm('确定删除此项目？')) {
@@ -494,7 +539,9 @@ function delay(ms) {
 // ── Modal utils ──
 let _modalContainer = null;
 function showModal(title, bodyHtml, buttons) {
-  closeModal();
+  // Close any existing modal overlay directly
+  const existing = document.getElementById('hermes-modal-overlay');
+  if (existing) existing.remove();
   const overlay = document.createElement('div');
   overlay.id = 'hermes-modal-overlay';
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:9999;display:flex;align-items:center;justify-content:center';
@@ -503,7 +550,7 @@ function showModal(title, bodyHtml, buttons) {
   modal.innerHTML = `
     <div class="flex items-center justify-between mb-3">
       <span class="font-semibold text-sm">${escHtml(title)}</span>
-      <button onclick="closeModal()" style="border:none;background:none;font-size:1.2rem;cursor:pointer;color:#999">✕</button>
+      <button onclick="document.getElementById('hermes-modal-overlay')?.remove()" style="border:none;background:none;font-size:1.2rem;cursor:pointer;color:#999">✕</button>
     </div>
     <div>${bodyHtml}</div>
     ${buttons && buttons.length ? `<div class="flex justify-end gap-2 mt-4">${buttons.map(b => `<button class="${b.cls || 'btn btn-sm'}" id="modal-btn-${b.text}">${b.text}</button>`).join('')}</div>` : ''}`;
@@ -517,11 +564,16 @@ function showModal(title, bodyHtml, buttons) {
     });
   }
 }
-function closeModal() {
-  if (_modalContainer) {
-    _modalContainer.overlay.remove();
-    _modalContainer = null;
+function closeModal(id) {
+  if (id) {
+    // formula-pages.js style: close by element id
+    const el = document.getElementById(id);
+    if (el) { el.classList.remove('show'); document.body.style.overflow = ''; }
+    return;
   }
+  // projects.js style: close overlay by id
+  const overlay = document.getElementById('hermes-modal-overlay');
+  if (overlay) overlay.remove();
 }
 
 // ── Expose to window ──

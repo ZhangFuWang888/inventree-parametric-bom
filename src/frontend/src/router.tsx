@@ -98,6 +98,10 @@ export const ParametricBom = Loadable(
   lazy(() => import('./pages/Index/ParametricBomPage'))
 );
 
+export const ParametricBomProjects = Loadable(
+  lazy(() => import('./pages/Index/ParametricBomProjectsPage'))
+);
+
 export const ErrorPage = Loadable(lazy(() => import('./pages/ErrorPage')));
 
 export const Notifications = Loadable(
@@ -163,6 +167,7 @@ export const routes = (
       <Route path='notifications/*' element={<Notifications />} />,
       <Route path='scan/' element={<Scan />} />,
       <Route path='parametric-bom/' element={<ParametricBom />} />,
+      <Route path='project/' element={<ParametricBomProjects />} />,
       <Route path='settings/'>
         <Route index element={<Navigate to='admin/' />} />
         <Route path='admin/*' element={<AdminCenter />} />

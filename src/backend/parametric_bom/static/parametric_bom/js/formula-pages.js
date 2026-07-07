@@ -584,8 +584,16 @@ function openModal(id) {
   document.body.style.overflow = 'hidden';
 }
 function closeModal(id) {
-  document.getElementById(id).classList.remove('show');
-  document.body.style.overflow = '';
+  // Support both: with id (modal overlay) and without (hermes overlay)
+  const el = id ? document.getElementById(id) : null;
+  if (el) {
+    el.classList.remove('show');
+    document.body.style.overflow = '';
+    return;
+  }
+  // Fallback: try hermes-modal-overlay
+  const overlay = document.getElementById('hermes-modal-overlay');
+  if (overlay) overlay.remove();
 }
 document.querySelectorAll('.modal-overlay').forEach(m => {
   m.addEventListener('click', function(e) {

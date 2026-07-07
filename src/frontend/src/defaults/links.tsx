@@ -77,24 +77,29 @@ export function getNavTabs(user: UserStateProps): NavTab[] {
     }
   ];
 
-  // Add parametric BOM tab after 'part'
-  const partIdx = navTabs.findIndex(t => t.name === 'part');
-  navTabs.splice(partIdx + 1, 0, {
-    name: 'parametric-bom',
-    title: '参数化',
-    icon: <IconClipboardData />,
-    href: '/parametric-bom/',
-    visible: user.hasViewRole(UserRoles.parametric_bom)
-  });
+  // Add parametric BOM tab (SPA route, no external)
+  navTabs.splice(
+    navTabs.findIndex(t => t.name === 'part') + 1,
+    0,
+    {
+      name: 'parametric-bom',
+      title: '参数化',
+      icon: <IconClipboardData />,
+      visible: user.hasViewRole(UserRoles.parametric_bom)
+    }
+  );
 
-  // Add project tab after parametric BOM
-  navTabs.splice(partIdx + 2, 0, {
-    name: 'projects',
-    title: '项目',
-    icon: <IconClipboardData />,
-    href: '/parametric-bom/',
-    visible: user.hasViewRole(UserRoles.parametric_bom)
-  });
+  // Add project tab (SPA route, no external)
+  navTabs.splice(
+    navTabs.findIndex(t => t.name === 'parametric-bom') + 1,
+    0,
+    {
+      name: 'project',
+      title: '项目',
+      icon: <IconClipboardData />,
+      visible: user.hasViewRole(UserRoles.parametric_bom)
+    }
+  );
 
   return navTabs.filter((tab) => {
     return tab.visible !== false;
