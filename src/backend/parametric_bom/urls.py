@@ -25,6 +25,7 @@ from parametric_bom.api import (
     cart_export_csv,
     cart_item_detail,
     cart_list,
+    client_login,
     config_detail,
     config_set_params,
     config_snapshot,
@@ -104,4 +105,6 @@ parametric_api_urls = [
     # Cart → Order
     path('cart/export-csv/', cart_export_csv, name='cart-export-csv'),
     path('cart/create-order/', cart_create_order, name='cart-create-order'),
+    # C# WinForms 客户端
+    path('client-login/', client_login, name='client-login'),
 ] + router.urls

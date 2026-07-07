@@ -1,5 +1,6 @@
 """REST API views for Parametric BOM models."""
 
+from django.contrib.auth import authenticate
 from rest_framework import permissions, viewsets
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.exceptions import PermissionDenied
@@ -2323,3 +2324,58 @@ class ProjectViewSet(viewsets.ModelViewSet):
             parts_dict[pid]['quantity'] += qty
         for child in node.get('children', []):
             self._collect_bom_parts(child, parts_dict, multiplier)
+
+
+@api_view(['POST'])
+@permission_classes([permissions.AllowAny])
+def client_login(request):
+    """C# WinForms 客户端登录 — 用户名密码换取 API Token"""
+    username = request.data.get('username', '')
+    password = request.data.get('password', '')
+
+    if not username or not password:
+        return Response(
+            {'error': '请提供用户名和密码'},
+            status=400
+        )
+
+    user = authenticate(request, username=username, password=password)
+
+    if user is None:
+        return Response(
+            {'error': '用户名或密码错误'},
+            status=401
+        )
+
+    if not user.is_active:
+        return Response(
+            {'error': '账号已被禁用'},
+            status=403
+        )
+
+    # 创建或获取已有 Token
+    import datetime
+    from users.models import ApiToken
+
+    today = datetime.date.today()
+    token = ApiToken.objects.filter(
+        user=user,
+        name='BomQueryClient',
+        revoked=False,
+        expiry__gte=today
+    ).first()
+
+    if not token:
+        token = ApiToken.objects.create(
+            user=user,
+            name='BomQueryClient'
+        )
+
+    return Response({
+        'token': token.key,
+        'user': {
+            'id': user.pk,
+            'username': user.username,
+            'email': user.email,
+        }
+    })
