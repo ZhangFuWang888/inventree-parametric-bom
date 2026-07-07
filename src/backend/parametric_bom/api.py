@@ -2027,6 +2027,55 @@ class ProjectViewSet(viewsets.ModelViewSet):
         serializer = ProjectDetailSerializer(new_project, context={'request': request})
         return Response(serializer.data, status=201)
 
+    @action(detail=True, methods=['get', 'post'])
+    def attachments(self, request, pk=None):
+        """List or upload attachments for a project."""
+        from common.models import Attachment
+        from common.serializers import AttachmentSerializer
+
+        project = self.get_object()
+
+        if request.method == 'GET':
+            atts = Attachment.objects.filter(
+                model_type='project', model_id=project.id
+            )
+            serializer = AttachmentSerializer(
+                atts, many=True, context={'request': request}
+            )
+            return Response(serializer.data)
+
+        # POST: upload a new attachment
+        data = request.data.copy() if hasattr(request.data, 'copy') else dict(request.data)
+        data['model_type'] = 'project'
+        data['model_id'] = project.id
+        serializer = AttachmentSerializer(
+            data=data,
+            context={'request': request},
+        )
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=400)
+
+        attachment = serializer.save(
+            model_type='project',
+            model_id=project.id,
+            upload_user=request.user,
+        )
+        self._log(project, 'attachment_uploaded',
+                  f'上传附件: {attachment.basename or attachment.link or ""}')
+        return Response(serializer.data, status=201)
+
+    @action(detail=True, methods=['delete'], url_path='attachments/(?P<att_id>[^/.]+)')
+    def remove_attachment(self, request, pk=None, att_id=None):
+        """Delete an attachment from a project."""
+        from common.models import Attachment
+
+        project = self.get_object()
+        att = get_object_or_404(Attachment, id=att_id, model_type='project', model_id=project.id)
+        name = att.basename or att.link or 'attachment'
+        att.delete()
+        self._log(project, 'attachment_removed', f'删除附件: {name}')
+        return Response({'success': True}, status=200)
+
     @action(detail=True, methods=['get'])
     def logs(self, request, pk=None):
         """Get change logs for a project."""

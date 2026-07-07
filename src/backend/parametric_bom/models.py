@@ -14,6 +14,8 @@ from django.utils.translation import gettext_lazy as _
 
 import structlog
 
+import InvenTree.models
+
 logger = structlog.get_logger('inventree')
 
 
@@ -1157,7 +1159,7 @@ class ProjectItemTypeChoices(models.TextChoices):
     PART = 'part', _('Static part')
 
 
-class Project(models.Model):
+class Project(InvenTree.models.InvenTreeAttachmentMixin, models.Model):
     """A project that groups parametric configurations, static parts,
     purchase orders, and sales orders for a real-world customer delivery.
     """

@@ -145,6 +145,7 @@ async function showProjectDetail(projectId) {
     <button class="pd-tab" data-proj-tab="cost" onclick="switchProjectTab('cost')">💰 成本</button>
     <button class="pd-tab" data-proj-tab="orders" onclick="switchProjectTab('orders')">📦 订单</button>
     <button class="pd-tab" data-proj-tab="logs" onclick="switchProjectTab('logs')">📝 日志</button>
+    <button class="pd-tab" data-proj-tab="attachments" onclick="switchProjectTab('attachments')">📎 附件</button>
   </div>
 
   <div id="project-tab-items" class="proj-tab-panel">
@@ -206,6 +207,13 @@ async function showProjectDetail(projectId) {
     <div class="card" id="project-logs-content">
       <div class="empty-state p-4 text-center text-gray-400 text-sm">📝 加载变更日志...</div>
     </div>
+  </div>
+
+  <!-- Attachments tab -->
+  <div id="project-tab-attachments" class="proj-tab-panel" style="display:none">
+    <div class="card" id="project-attachments-content">
+      <div class="empty-state p-4 text-center text-gray-400 text-sm">📎 加载附件列表...</div>
+    </div>
   </div>`;
 
   container.innerHTML = html;
@@ -222,6 +230,7 @@ function switchProjectTab(tab) {
   const btn = document.querySelector(`[data-proj-tab="${tab}"]`);
   if (btn) btn.classList.add('active');
   if (tab === 'logs') loadProjectLogs(window._currentProjectId);
+  if (tab === 'attachments') loadProjectAttachments(window._currentProjectId);
 }
 
 // ── Load cost data ──
@@ -602,6 +611,7 @@ function getLogIcon(action) {
     item_added: '➕', item_removed: '➖',
     purchase_orders_created: '📥', sales_order_created: '💰',
     saved_as_template: '📌',
+    attachment_uploaded: '📎', attachment_removed: '🗑️',
   };
   return icons[action] || '📝';
 }
@@ -611,4 +621,163 @@ function formatTime(iso) {
   const d = new Date(iso);
   const pad = n => String(n).padStart(2, '0');
   return `${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+// ── Load attachments ──
+async function loadProjectAttachments(projectId) {
+  const container = document.getElementById('project-attachments-content');
+  if (!container) return;
+  const r = await projectApi('GET', `/${projectId}/attachments/`);
+  if (!r.ok) { container.innerHTML = '<div class="empty-state p-4 text-center text-red-400 text-sm">加载附件失败</div>'; return; }
+  const atts = r.data;
+  const canEdit = window._projectData?.user_role === 'admin' || window._projectData?.user_role === 'owner';
+
+  // Upload form
+  let html = '';
+
+  // Separate file attachments and links
+  const files = atts.filter(a => a.attachment);
+  const links = atts.filter(a => !a.attachment && a.link);
+
+  html += `<div class="text-xs text-gray-500 mb-2 font-medium">共 ${atts.length} 个附件</div>`;
+
+  if (canEdit) {
+    html += `
+    <div class="bg-gray-50 border border-dashed border-gray-300 rounded-lg p-3 mb-3">
+      <div class="text-xs text-gray-500 mb-2">📤 上传文件或添加链接</div>
+      <div class="flex flex-wrap gap-2 items-end">
+        <div class="flex-1 min-w-[180px]">
+          <label class="text-[10px] text-gray-400 block mb-0.5">选择文件</label>
+          <input type="file" id="att-upload-input" class="input-field w-full text-xs py-1">
+        </div>
+        <div class="flex-1 min-w-[150px]">
+          <label class="text-[10px] text-gray-400 block mb-0.5">或外部链接</label>
+          <input type="text" id="att-link-input" class="input-field w-full text-xs py-1" placeholder="https://...">
+        </div>
+        <div class="flex-1 min-w-[120px]">
+          <label class="text-[10px] text-gray-400 block mb-0.5">备注</label>
+          <input type="text" id="att-comment-input" class="input-field w-full text-xs py-1" placeholder="附件说明">
+        </div>
+        <button class="btn btn-sm btn-primary mt-1" onclick="uploadProjectAttachment(${projectId})">📤 上传</button>
+      </div>
+    </div>`;
+  }
+
+  // File attachments
+  if (files.length) {
+    html += '<div class="text-xs text-gray-400 font-medium mb-1">📄 文件</div>';
+    html += files.map(a => `
+      <div class="flex items-center justify-between py-1.5 border-b border-gray-100 last:border-0 text-xs">
+        <div class="flex items-center gap-2 min-w-0 flex-1">
+          ${a.is_image ? '🖼️' : '📄'}
+          <a href="${a.attachment}" target="_blank" class="truncate text-blue-600 hover:underline">${a.filename || '附件'}</a>
+          ${a.comment ? `<span class="text-gray-400 truncate max-w-[200px]">— ${escHtml(a.comment)}</span>` : ''}
+        </div>
+        <div class="flex items-center gap-2 shrink-0">
+          ${a.file_size ? `<span class="text-gray-400 text-[10px]">${formatFileSize(a.file_size)}</span>` : ''}
+          <span class="text-gray-400 text-[10px]">${a.upload_date || ''}</span>
+          ${canEdit ? `<button class="text-red-400 hover:text-red-600 text-xs" onclick="deleteProjectAttachment(${projectId}, ${a.pk})">✕</button>` : ''}
+        </div>
+      </div>
+    `).join('');
+  }
+
+  // Links
+  if (links.length) {
+    html += '<div class="text-xs text-gray-400 font-medium mb-1 mt-2">🔗 链接</div>';
+    html += links.map(a => `
+      <div class="flex items-center justify-between py-1.5 border-b border-gray-100 last:border-0 text-xs">
+        <div class="flex items-center gap-2 min-w-0 flex-1">
+          🔗
+          <a href="${a.link}" target="_blank" class="truncate text-blue-600 hover:underline">${a.comment || a.link}</a>
+        </div>
+        <div class="flex items-center gap-2 shrink-0">
+          ${a.upload_date ? `<span class="text-gray-400 text-[10px]">${a.upload_date}</span>` : ''}
+          ${canEdit ? `<button class="text-red-400 hover:text-red-600 text-xs" onclick="deleteProjectAttachment(${projectId}, ${a.pk})">✕</button>` : ''}
+        </div>
+      </div>
+    `).join('');
+  }
+
+  if (!atts.length) {
+    html += '<div class="empty-state p-4 text-center text-gray-400 text-sm">暂无附件，点击上方按钮上传</div>';
+  }
+
+  container.innerHTML = html;
+}
+
+// ── Upload attachment ──
+async function uploadProjectAttachment(projectId) {
+  const fileInput = document.getElementById('att-upload-input');
+  const linkInput = document.getElementById('att-link-input');
+  const commentInput = document.getElementById('att-comment-input');
+  const file = fileInput?.files?.[0];
+  const link = linkInput?.value?.trim();
+  const comment = commentInput?.value?.trim() || '';
+
+  if (!file && !link) {
+    setStatus('error', '请选择文件或输入链接');
+    return;
+  }
+
+  const formData = new FormData();
+  if (file) formData.append('attachment', file);
+  if (link) formData.append('link', link);
+  if (comment) formData.append('comment', comment);
+
+  try {
+    const res = await fetch(PROJECT_API + '/' + projectId + '/attachments/', {
+      method: 'POST',
+      headers: getHeaders(false),
+      body: formData,
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      setStatus('error', err.detail || '上传失败');
+      return;
+    }
+    setStatus('success', '附件已上传');
+    // Clear inputs
+    if (fileInput) fileInput.value = '';
+    if (linkInput) linkInput.value = '';
+    if (commentInput) commentInput.value = '';
+    loadProjectAttachments(projectId);
+  } catch (e) {
+    setStatus('error', '上传失败: ' + e.message);
+  }
+}
+
+// ── Delete attachment ──
+async function deleteProjectAttachment(projectId, attId) {
+  if (!confirm('确定删除此附件？')) return;
+  const r = await projectApi('DELETE', `/${projectId}/attachments/${attId}/`);
+  if (r.ok) {
+    setStatus('success', '附件已删除');
+    loadProjectAttachments(projectId);
+  } else {
+    setStatus('error', '删除失败');
+  }
+}
+
+// ── Helpers ──
+function formatFileSize(bytes) {
+  if (!bytes) return '';
+  if (bytes < 1024) return bytes + 'B';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + 'KB';
+  return (bytes / 1024 / 1024).toFixed(1) + 'MB';
+}
+
+function getHeaders(json) {
+  const h = {};
+  const csrf = getCookie('csrftoken');
+  if (csrf) h['X-CSRFToken'] = csrf;
+  if (json !== false) {
+    h['Content-Type'] = 'application/json';
+  }
+  return h;
+}
+
+function getCookie(name) {
+  const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
+  return match ? decodeURIComponent(match[2]) : null;
 }
