@@ -43,58 +43,93 @@ async function renderProjectList() {
   const container = document.getElementById('projects-content');
   if (!container) return;
 
-  const result = await projectApi('GET', '/?inactive=0');
-  const projects = result.ok ? (result.data.results || result.data || []) : [];
-  let role = 'none';
-  if (projects.length) role = projects[0].user_role || 'none';
+  const page = window._projectPage || 1;
+  const limit = 20;
+  const result = await projectApi('GET', `/?inactive=0&limit=${limit}&offset=${(page - 1) * limit}`);
+  const data = result.data;
+  const projects = result.ok ? (data.results || data || []) : [];
+  const total = data.count || projects.length;
+  const hasMore = page * limit < total;
 
-  let html = `
-  <div class="card mb-3">
-    <div class="card-header flex items-center justify-between">
-      <span>📋 项目管理</span>
-      <button class="btn btn-sm btn-success" onclick="showNewProjectDialog()">➕ 新建项目</button>
-    </div>
-    ${projects.length === 0 ? `
-    <div class="empty-state p-8 text-center">
-      <div class="icon text-3xl mb-2">📦</div>
-      <p class="text-gray-500 text-sm">暂无项目，点击"新建项目"或从购物车提交项目</p>
-    </div>` : `
-    <div class="overflow-x-auto">
-      <table class="w-full text-xs">
-        <thead>
-          <tr class="border-b border-gray-200 text-gray-500 uppercase tracking-wider">
-            <th class="p-2 text-left">项目编号</th>
-            <th class="p-2 text-left">名称</th>
-            <th class="p-2 text-left">客户</th>
-            <th class="p-2 text-left">状态</th>
-            <th class="p-2 text-left">负责</th>
-            <th class="p-2 text-right">条目</th>
-            <th class="p-2 text-left">截止</th>
-            <th class="p-2 text-left">操作</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${projects.map(p => `
-          <tr class="border-b border-gray-100 hover:bg-gray-50 cursor-pointer" onclick="showProjectDetail(${p.id})">
-            <td class="p-2 font-mono text-blue-600">${p.project_code}</td>
-            <td class="p-2 font-medium">${escHtml(p.name)}</td>
-            <td class="p-2 text-gray-500">${p.customer_name || '-'}</td>
-            <td class="p-2">${projectStatusBadge(p.status)}</td>
-            <td class="p-2 text-gray-500">${p.owner_name || '-'}</td>
-            <td class="p-2 text-right">${p.item_count}</td>
-            <td class="p-2 text-gray-400">${p.deadline || '-'}</td>
-            <td class="p-2">
-              <button class="text-blue-500 hover:text-blue-700" onclick="event.stopPropagation(); showProjectDetail(${p.id})">查看</button>
-              ${p.user_role === 'admin' || p.user_role === 'owner' ? `
-              <button class="text-red-500 hover:text-red-700 ml-2" onclick="event.stopPropagation(); deleteProject(${p.id})">删除</button>` : ''}
-            </td>
-          </tr>`).join('')}
-        </tbody>
-      </table>
-    </div>`}
-  </div>`;
+  if (page === 1) {
+    // First page — full render
+    let role = 'none';
+    if (projects.length) role = projects[0].user_role || 'none';
 
-  container.innerHTML = html;
+    let html = `
+    <div class="card mb-3">
+      <div class="card-header flex items-center justify-between">
+        <span>📋 项目管理 <span class="text-xs text-gray-400 font-normal">(共 ${total} 个)</span></span>
+        <button class="btn btn-sm btn-success" onclick="showNewProjectDialog()">➕ 新建项目</button>
+      </div>
+      ${projects.length === 0 ? `
+      <div class="empty-state p-8 text-center">
+        <div class="icon text-3xl mb-2">📦</div>
+        <p class="text-gray-500 text-sm">暂无项目，点击"新建项目"或从购物车提交项目</p>
+      </div>` : `
+      <div class="overflow-x-auto">
+        <table class="w-full text-xs">
+          <thead>
+            <tr class="border-b border-gray-200 text-gray-500 uppercase tracking-wider">
+              <th class="p-2 text-left">项目编号</th>
+              <th class="p-2 text-left">名称</th>
+              <th class="p-2 text-left">客户</th>
+              <th class="p-2 text-left">状态</th>
+              <th class="p-2 text-left">负责</th>
+              <th class="p-2 text-right">条目</th>
+              <th class="p-2 text-left">截止</th>
+              <th class="p-2 text-left">操作</th>
+            </tr>
+          </thead>
+          <tbody id="project-list-body">
+            ${renderProjectRows(projects)}
+          </tbody>
+        </table>
+        ${hasMore ? `<div class="text-center py-3"><button class="btn btn-sm btn-secondary" onclick="loadMoreProjects()">📄 加载更多 (${page * limit}/${total})</button></div>` : ''}
+      </div>`}
+    </div>`;
+
+    container.innerHTML = html;
+  } else {
+    // Append rows
+    const tbody = document.getElementById('project-list-body');
+    if (tbody) {
+      tbody.innerHTML += renderProjectRows(projects);
+    }
+    // Update or remove "加载更多" button
+    const moreBtn = document.querySelector('[onclick="loadMoreProjects()"]');
+    if (moreBtn) {
+      if (hasMore) {
+        moreBtn.textContent = `📄 加载更多 (${page * limit}/${total})`;
+      } else {
+        const btnContainer = moreBtn.closest('.text-center');
+        if (btnContainer) btnContainer.remove();
+      }
+    }
+  }
+}
+
+function renderProjectRows(projects) {
+  return projects.map(p => `
+  <tr class="border-b border-gray-100 hover:bg-gray-50 cursor-pointer" onclick="showProjectDetail(${p.id})">
+    <td class="p-2 font-mono text-blue-600">${p.project_code}</td>
+    <td class="p-2 font-medium">${escHtml(p.name)}</td>
+    <td class="p-2 text-gray-500">${p.customer_name || '-'}</td>
+    <td class="p-2">${projectStatusBadge(p.status)}</td>
+    <td class="p-2 text-gray-500">${p.owner_name || '-'}</td>
+    <td class="p-2 text-right">${p.item_count}</td>
+    <td class="p-2 text-gray-400">${p.deadline || '-'}</td>
+    <td class="p-2">
+      <button class="text-blue-500 hover:text-blue-700" onclick="event.stopPropagation(); showProjectDetail(${p.id})">查看</button>
+      ${p.user_role === 'owner' || p.user_permissions?.includes('delete_project') ? `
+      <button class="text-red-500 hover:text-red-700 ml-2" onclick="event.stopPropagation(); deleteProject(${p.id})">删除</button>` : ''}
+    </td>
+  </tr>`).join('');
+}
+
+function loadMoreProjects() {
+  window._projectPage = (window._projectPage || 1) + 1;
+  renderProjectList();
 }
 
 // ── Show project detail ──
@@ -110,7 +145,8 @@ async function showProjectDetail(projectId) {
   // Switch to detail page
   switchPage('project-detail');
 
-  const canEdit = p.user_role === 'admin' || p.user_role === 'owner';
+  const canEdit = p.user_role === 'owner' || p.user_permissions?.includes('edit_project');
+  const canManageMembers = p.user_role === 'owner' || p.user_permissions?.includes('manage_members');
 
   let html = `
   <div class="card mb-3">
@@ -149,6 +185,7 @@ async function showProjectDetail(projectId) {
     <button class="pd-tab" data-proj-tab="orders" onclick="switchProjectTab('orders')">📦 订单</button>
     <button class="pd-tab" data-proj-tab="logs" onclick="switchProjectTab('logs')">📝 日志</button>
     <button class="pd-tab" data-proj-tab="attachments" onclick="switchProjectTab('attachments')">📎 附件</button>
+    <button class="pd-tab" data-proj-tab="members" onclick="switchProjectTab('members')">👥 成员</button>
   </div>
 
   <div id="project-tab-items" class="proj-tab-panel">
@@ -201,8 +238,8 @@ async function showProjectDetail(projectId) {
   </div>
 
   <div id="project-tab-orders" class="proj-tab-panel" style="display:none">
-    <div class="card">
-      <div class="empty-state p-4 text-center text-gray-400 text-sm">关联订单将在此显示</div>
+    <div class="card" id="project-orders-content">
+      <div class="empty-state p-4 text-center text-gray-400 text-sm">⏳ 加载关联订单...</div>
     </div>
   </div>
 
@@ -215,7 +252,14 @@ async function showProjectDetail(projectId) {
   <!-- Attachments tab -->
   <div id="project-tab-attachments" class="proj-tab-panel" style="display:none">
     <div class="card" id="project-attachments-content">
-      <div class="empty-state p-4 text-center text-gray-400 text-sm">📎 加载附件列表...</div>
+      <div class="empty-state p-4 text-center text-gray-400 text-sm">${'📎 加载附件列表...'}</div>
+    </div>
+  </div>
+
+  <!-- Members tab -->
+  <div id="project-tab-members" class="proj-tab-panel" style="display:none">
+    <div class="card" id="project-members-content">
+      <div class="empty-state p-4 text-center text-gray-400 text-sm">${'👥 加载成员列表...'}</div>
     </div>
   </div>`;
 
@@ -234,6 +278,8 @@ function switchProjectTab(tab) {
   if (btn) btn.classList.add('active');
   if (tab === 'logs') loadProjectLogs(window._currentProjectId);
   if (tab === 'attachments') loadProjectAttachments(window._currentProjectId);
+  if (tab === 'members') loadProjectMembers(window._currentProjectId);
+  if (tab === 'orders') loadProjectOrders(window._currentProjectId);
 }
 
 // ── Load cost data ──
@@ -404,8 +450,11 @@ function showAddItemDialog(projectId) {
         <input class="input-field w-full" id="ai-qty" type="number" value="1" min="1">
       </div>
       <div id="ai-part-group" style="display:none">
-        <label class="text-xs text-gray-500">零件名称</label>
-        <input class="input-field w-full" id="ai-part" placeholder="输入零件ID">
+        <label class="text-xs text-gray-500">搜索零件</label>
+        <input class="input-field w-full" id="ai-part-search" placeholder="输入零件名称/IPN搜索..." oninput="searchPartsForItem()">
+        <div id="ai-part-results" class="mt-1 max-h-[200px] overflow-y-auto"></div>
+        <input type="hidden" id="ai-part-id" value="">
+        <div id="ai-part-selected" class="text-xs text-green-600 mt-1" style="display:none"></div>
       </div>
       <div>
         <label class="text-xs text-gray-500">单价</label>
@@ -420,6 +469,11 @@ function showAddItemDialog(projectId) {
         quantity: parseInt(document.getElementById('ai-qty').value) || 1,
         unit_price: parseFloat(document.getElementById('ai-price').value) || null,
       };
+      if (data.item_type === 'part') {
+        const partId = document.getElementById('ai-part-id').value;
+        if (!partId) { setStatus('error', '请先搜索并选择一个零件'); return; }
+        data.part = parseInt(partId);
+      }
       const result = await projectApi('POST', `/${projectId}/add_item/`, data);
       if (result.ok) {
         closeModal();
@@ -435,7 +489,7 @@ function showAddItemDialog(projectId) {
 // ── Remove item ──
 async function removeProjectItem(projectId, itemId) {
   if (!confirm('确定移除该条目？')) return;
-  const result = await projectApi('DELETE', `/${projectId}/remove_item/`.replace('remove_item', `items/${itemId}`));
+  const result = await projectApi('DELETE', `/${projectId}/items/${itemId}/`);
   if (result.ok) {
     setStatus('success', '条目已移除');
     showProjectDetail(projectId);
@@ -576,6 +630,13 @@ function closeModal(id) {
   if (overlay) overlay.remove();
 }
 
+function toggleAddMember() {
+  const section = document.getElementById('member-add-section');
+  if (section) {
+    section.style.display = section.style.display === 'none' ? '' : 'none';
+  }
+}
+
 // ── Expose to window ──
 window.showNewProjectDialog = showNewProjectDialog;
 window.showProjectDetail = showProjectDetail;
@@ -584,6 +645,15 @@ window.confirmDeleteProject = confirmDeleteProject;
 window.deleteProject = deleteProject;
 window.showAddItemDialog = showAddItemDialog;
 window.removeProjectItem = removeProjectItem;
+window.searchUsersForMembership = searchUsersForMembership;
+window.addMembership = addMembership;
+window.removeMembership = removeMembership;
+window.changeMemberRole = changeMemberRole;
+window.toggleRolePermission = toggleRolePermission;
+window.deleteRole = deleteRole;
+window.showCreateRoleDialog = showCreateRoleDialog;
+window.toggleAddMember = toggleAddMember;
+window.showPermissionEditor = showPermissionEditor;
 window.generatePurchaseOrders = generatePurchaseOrders;
 window.generateSalesOrder = generateSalesOrder;
 window.submitCartAsProject = submitCartAsProject;
@@ -593,6 +663,7 @@ window.downloadProjectCsv = downloadProjectCsv;
 window.saveAsTemplate = saveAsTemplate;
 window.createFromTemplate = createFromTemplate;
 window.loadProjectLogs = loadProjectLogs;
+window.loadMoreProjects = loadMoreProjects;
 
 // ── Download CSV ──
 async function downloadProjectCsv(id) {
@@ -629,6 +700,89 @@ async function createFromTemplate(id) {
   } else {
     setStatus('error', r.data?.error || '创建失败');
   }
+}
+
+// ── Search parts for add item dialog ──
+let _partSearchTimer = null;
+async function searchPartsForItem() {
+  clearTimeout(_partSearchTimer);
+  const input = document.getElementById('ai-part-search');
+  if (!input) return;
+  const q = input.value.trim();
+  const results = document.getElementById('ai-part-results');
+  if (!results) return;
+  if (q.length < 2) { results.innerHTML = ''; return; }
+
+  _partSearchTimer = setTimeout(async () => {
+    try {
+      const resp = await fetch('/api/part/?search=' + encodeURIComponent(q) + '&limit=15', { credentials: 'same-origin' });
+      const data = await resp.json();
+      const parts = data.results || data || [];
+      if (!parts.length) { results.innerHTML = '<div class="text-xs text-gray-400 py-1">未找到零件</div>'; return; }
+      results.innerHTML = parts.map(p =>
+        '<div class="flex items-center justify-between py-1 px-2 text-xs border border-gray-200 rounded hover:bg-gray-50 cursor-pointer" onclick="selectPartForItem(' + p.pk + ', \'' + escHtml(p.name).replace(/'/g, "\\'") + '\')">' +
+        '<span class="font-medium">' + escHtml(p.name) + '</span>' +
+        '<span class="text-gray-400">' + escHtml(p.IPN || '') + '</span>' +
+        '</div>'
+      ).join('');
+    } catch(e) { results.innerHTML = '<div class="text-xs text-red-400 py-1">搜索失败</div>'; }
+  }, 300);
+}
+
+function selectPartForItem(partId, partName) {
+  document.getElementById('ai-part-id').value = partId;
+  document.getElementById('ai-part-search').value = partName;
+  document.getElementById('ai-part-results').innerHTML = '';
+  const selected = document.getElementById('ai-part-selected');
+  if (selected) {
+    selected.style.display = '';
+    selected.textContent = '✅ 已选择: ' + partName;
+  }
+}
+
+// ── Load project orders ──
+async function loadProjectOrders(projectId) {
+  const container = document.getElementById('project-orders-content');
+  if (!container) return;
+  const r = await projectApi('GET', `/${projectId}/orders/`);
+  if (!r.ok) { container.innerHTML = '<div class="empty-state p-4 text-center text-red-400 text-sm">加载订单失败</div>'; return; }
+  const data = r.data;
+  let html = '';
+  const pos = data.purchase_orders || [];
+  const sos = data.sales_orders || [];
+
+  if (!pos.length && !sos.length) {
+    container.innerHTML = '<div class="empty-state p-4 text-center text-gray-400 text-sm">暂无关联订单，在"产品/零件"Tab中生成</div>';
+    return;
+  }
+
+  if (sos.length) {
+    html += '<div class="text-xs text-gray-500 font-medium mb-2">💰 销售订单</div>';
+    html += '<table class="w-full text-xs mb-4"><thead><tr class="border-b border-gray-200 text-gray-500">';
+    html += '<th class="p-2 text-left">单号</th><th class="p-2 text-left">客户</th><th class="p-2 text-right">明细</th><th class="p-2 text-left">创建时间</th></tr></thead><tbody>';
+    sos.forEach(so => {
+      html += `<tr class="border-b border-gray-100"><td class="p-2 font-medium">${escHtml(so.reference)}</td>`;
+      html += `<td class="p-2">${escHtml(so.customer)}</td>`;
+      html += `<td class="p-2 text-right">${so.line_items}</td>`;
+      html += `<td class="p-2 text-gray-400">${so.created ? new Date(so.created).toLocaleDateString('zh-CN') : '-'}</td></tr>`;
+    });
+    html += '</tbody></table>';
+  }
+
+  if (pos.length) {
+    html += '<div class="text-xs text-gray-500 font-medium mb-2">📥 采购订单</div>';
+    html += '<table class="w-full text-xs"><thead><tr class="border-b border-gray-200 text-gray-500">';
+    html += '<th class="p-2 text-left">单号</th><th class="p-2 text-left">供应商</th><th class="p-2 text-right">明细</th><th class="p-2 text-left">创建时间</th></tr></thead><tbody>';
+    pos.forEach(po => {
+      html += `<tr class="border-b border-gray-100"><td class="p-2 font-medium">${escHtml(po.reference)}</td>`;
+      html += `<td class="p-2">${escHtml(po.supplier)}</td>`;
+      html += `<td class="p-2 text-right">${po.line_items}</td>`;
+      html += `<td class="p-2 text-gray-400">${po.created ? new Date(po.created).toLocaleDateString('zh-CN') : '-'}</td></tr>`;
+    });
+    html += '</tbody></table>';
+  }
+
+  container.innerHTML = html;
 }
 
 // ── Load change logs ──
@@ -682,7 +836,7 @@ async function loadProjectAttachments(projectId) {
   const r = await projectApi('GET', `/${projectId}/attachments/`);
   if (!r.ok) { container.innerHTML = '<div class="empty-state p-4 text-center text-red-400 text-sm">加载附件失败</div>'; return; }
   const atts = r.data;
-  const canEdit = window._projectData?.user_role === 'admin' || window._projectData?.user_role === 'owner';
+  const canEdit = window._projectData?.user_role === 'owner' || window._projectData?.user_permissions?.includes('manage_attachments');
 
   // Upload form
   let html = '';
@@ -756,6 +910,347 @@ async function loadProjectAttachments(projectId) {
   }
 
   container.innerHTML = html;
+}
+
+// ---- Load project members (RBAC) ----
+async function loadProjectMembers(projectId) {
+  const container = document.getElementById('project-members-content');
+  if (!container) return;
+
+  const p = window._projectData;
+  const myRole = p?.user_role || 'none';
+  const myPerms = p?.user_permissions || [];
+  const canManage = myRole === 'owner' || myRole === 'admin' || myPerms.includes('manage_members');
+
+  const [rolesRes, membersRes] = await Promise.all([
+    projectApi('GET', '/' + projectId + '/roles/'),
+    projectApi('GET', '/' + projectId + '/members_list/'),
+  ]);
+
+  if (!rolesRes.ok) { container.innerHTML = '<div class="empty-state p-4 text-center text-red-400 text-sm">加载角色失败</div>'; return; }
+  if (!membersRes.ok) { container.innerHTML = '<div class="empty-state p-4 text-center text-red-400 text-sm">加载成员失败</div>'; return; }
+
+  const roles = rolesRes.data;
+  const memberships = membersRes.data;
+  const ownerName = p?.owner_name || 'Owner';
+
+  // Build a lookup: roleId -> role
+  const roleMap = {};
+  roles.forEach(r => roleMap[r.id] = r);
+
+  // Collect all people: owner + memberships
+  const allPeople = [{ id: 'owner', name: ownerName, roleId: null, roleName: 'Owner', isOwner: true }];
+  memberships.forEach(m => {
+    const r = roleMap[m.role] || { name: m.role_name || '?', permissions: [] };
+    allPeople.push({ id: m.id, userId: m.user, name: m.user_name, email: m.user_email, roleId: m.role, roleName: r.name, perms: r.permissions || [], isOwner: false });
+  });
+
+  let html = '';
+
+  // ── Stats header ──
+  const memberCount = memberships.length;
+  html += '<div class="flex items-center justify-between mb-3">';
+  html += '<span class="text-sm font-medium text-gray-700">👥 项目成员 <span class="text-xs text-gray-400 font-normal">(' + (memberCount + 1) + ' 人)</span></span>';
+  if (canManage) {
+    html += '<button class="btn btn-sm btn-success text-xs py-1 px-2" onclick="toggleAddMember()">➕ 添加成员</button>';
+  }
+  html += '</div>';
+
+  // ── Compact member list ──
+  html += '<div class="flex flex-col gap-px bg-gray-100 rounded-lg overflow-hidden">';
+
+  allPeople.forEach(person => {
+    const initial = person.name.charAt(0).toUpperCase();
+    const bgColor = person.isOwner ? 'bg-amber-50' : 'bg-white';
+    html += '<div class="flex items-center justify-between px-3 py-2.5 ' + bgColor + ' hover:bg-gray-50 transition-colors">';
+    
+    // Left: avatar + name
+    html += '<div class="flex items-center gap-2.5 min-w-0 flex-1">';
+    const avatarBg = person.isOwner ? 'bg-amber-200 text-amber-800' : 'bg-blue-100 text-blue-700';
+    html += '<span class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold shrink-0 ' + avatarBg + '">' + initial + '</span>';
+    html += '<div class="min-w-0">';
+    html += '<div class="text-xs font-medium text-gray-800 truncate">' + escHtml(person.name) + '</div>';
+    if (!person.isOwner && person.email) {
+      html += '<div class="text-[10px] text-gray-400 truncate">' + escHtml(person.email) + '</div>';
+    }
+    html += '</div></div>';
+
+    // Right: role badge + actions
+    html += '<div class="flex items-center gap-1.5 shrink-0">';
+    if (person.isOwner) {
+      html += '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-100 text-amber-700 border border-amber-200">👑 所有者</span>';
+    } else {
+      html += '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-blue-50 text-blue-600 border border-blue-100">' + escHtml(person.roleName) + '</span>';
+      if (canManage) {
+        // Tiny role switcher
+        html += '<select class="text-[10px] border border-gray-200 rounded px-1 py-0.5 bg-white cursor-pointer hover:border-blue-300 focus:border-blue-400 focus:ring-1 focus:ring-blue-200 outline-none" onchange="changeMemberRole(' + projectId + ', ' + person.id + ', this.value)">';
+        roles.forEach(r => {
+          html += '<option value="' + r.id + '"' + (r.id === person.roleId ? ' selected' : '') + '>' + escHtml(r.name) + '</option>';
+        });
+        html += '</select>';
+        html += '<button class="text-red-300 hover:text-red-500 transition-colors text-xs p-0.5" onclick="removeMembership(' + projectId + ', ' + person.id + ')" title="移除">✕</button>';
+      }
+    }
+    html += '</div></div>';
+  });
+
+  html += '</div>';
+
+  // ── Add member (collapsed by default) ──
+  if (canManage) {
+    html += '<div id="member-add-section" class="mt-3 bg-blue-50 border border-blue-100 rounded-lg p-3" style="display:none">';
+    html += '<div class="flex items-center justify-between mb-2">';
+    html += '<span class="text-xs font-medium text-blue-700">➕ 添加成员</span>';
+    html += '<button class="text-gray-400 hover:text-gray-600 text-xs" onclick="toggleAddMember()">✕</button>';
+    html += '</div>';
+    html += '<div class="flex gap-2">';
+    html += '<div class="flex-1 relative">';
+    html += '<input type="text" id="member-search-input" class="w-full text-xs border border-blue-200 rounded-lg px-2.5 py-1.5 outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-200 bg-white placeholder-gray-400" placeholder="搜索用户名..." onfocus="searchUsersForMembership(' + projectId + ')" oninput="searchUsersForMembership(' + projectId + ')" autocomplete="off">';
+    html += '<div id="member-search-results" class="absolute left-0 right-0 top-full mt-1 z-10 bg-white border border-gray-200 rounded-lg shadow-lg max-h-[240px] overflow-y-auto"></div>';
+    html += '</div>';
+    html += '<select id="member-role-select" class="text-xs border border-blue-200 rounded-lg px-2 py-1.5 outline-none focus:border-blue-400 bg-white w-[90px]">';
+    roles.forEach(r => {
+      html += '<option value="' + r.id + '">' + escHtml(r.name) + '</option>';
+    });
+    html += '</select>';
+    html += '</div>';
+    html += '</div>';
+
+    // ── Permission editor ──
+    if (myRole === 'owner' || myRole === 'admin') {
+      html += '<div class="mt-3 pt-2 border-t border-gray-100">';
+      html += '<button class="text-xs text-gray-500 hover:text-blue-600 transition-colors flex items-center gap-1.5 py-1" onclick="showPermissionEditor(' + projectId + ')">';
+      html += '⚙️ 权限设置 <span class="text-[10px] text-gray-400 font-normal">' + roles.length + ' 个角色</span>';
+      html += '</button>';
+      html += '</div>';
+    }
+  }
+
+  container.innerHTML = html;
+}
+
+// ---- Permission editor (modal with save) ----
+async function showPermissionEditor(projectId) {
+  const [rolesRes, defRes] = await Promise.all([
+    projectApi('GET', '/' + projectId + '/roles/'),
+    projectApi('GET', '/permissions_def/'),
+  ]);
+  if (!rolesRes.ok || !defRes.ok) { setStatus('error', '加载权限数据失败'); return; }
+
+  const roles = rolesRes.data;
+  const allPerms = defRes.data;
+
+  // Store initial state for change tracking
+  window._permEditorState = roles.map(r => ({ id: r.id, name: r.name, perms: [...(r.permissions || [])] }));
+
+  let bodyHtml = '<div class="space-y-2" id="perm-editor-body">';
+  roles.forEach((role, idx) => {
+    const permCount = (role.permissions || []).length;
+    bodyHtml += '<div class="border border-gray-200 rounded-lg overflow-hidden">';
+    bodyHtml += '<div class="flex items-center justify-between px-3 py-2 bg-gray-50 border-b border-gray-200">';
+    bodyHtml += '<div class="flex items-center gap-2">';
+    bodyHtml += '<span class="text-xs font-medium text-gray-700">' + escHtml(role.name) + '</span>';
+    bodyHtml += '<span class="text-[10px] text-gray-400">' + permCount + '/' + allPerms.length + '</span>';
+    bodyHtml += '</div>';
+    if (!role.is_preset) {
+      bodyHtml += '<button class="text-red-300 hover:text-red-500 text-[10px]" onclick="closeModal(); deleteRole(' + projectId + ', ' + role.id + ')">🗑️ 删除</button>';
+    }
+    bodyHtml += '</div>';
+    bodyHtml += '<div class="grid grid-cols-2 sm:grid-cols-3 gap-1 p-2.5">';
+    allPerms.forEach(p => {
+      const checked = (role.permissions || []).includes(p.code);
+      bodyHtml += '<label class="flex items-center gap-1.5 text-xs cursor-pointer px-2 py-1 rounded transition-colors ' + (checked ? 'bg-blue-50 text-blue-700' : 'text-gray-500 hover:bg-gray-50') + '">';
+      bodyHtml += '<input type="checkbox" class="accent-blue-500 w-3 h-3 perm-checkbox" data-role-idx="' + idx + '" data-code="' + p.code + '" ' + (checked ? 'checked' : '') + '>';
+      bodyHtml += escHtml(p.label);
+      bodyHtml += '</label>';
+    });
+    bodyHtml += '</div></div>';
+  });
+  bodyHtml += '<button class="btn btn-sm btn-secondary text-xs w-full mt-2 py-1.5" onclick="closeModal(); showCreateRoleDialog(' + projectId + ')">➕ 新建角色</button>';
+  bodyHtml += '</div>';
+
+  showModal('⚙️ 权限设置', bodyHtml, [
+    { text: '取消', cls: 'btn btn-sm btn-secondary', action: closeModal },
+    { text: '💾 保存', cls: 'btn btn-sm btn-primary', action: async () => {
+      // Collect changes from checkboxes
+      const checkboxes = document.querySelectorAll('.perm-checkbox');
+      const newState = JSON.parse(JSON.stringify(window._permEditorState));
+      checkboxes.forEach(cb => {
+        const idx = parseInt(cb.dataset.roleIdx);
+        const code = cb.dataset.code;
+        if (cb.checked && !newState[idx].perms.includes(code)) {
+          newState[idx].perms.push(code);
+        } else if (!cb.checked && newState[idx].perms.includes(code)) {
+          newState[idx].perms = newState[idx].perms.filter(p => p !== code);
+        }
+      });
+
+      // Save all changed roles
+      let saved = 0;
+      for (const s of newState) {
+        const old = window._permEditorState.find(o => o.id === s.id);
+        if (JSON.stringify(old.perms.sort()) !== JSON.stringify(s.perms.sort())) {
+          const r = await projectApi('PATCH', '/' + projectId + '/roles/' + s.id + '/', { permissions: s.perms });
+          if (r.ok) saved++;
+        }
+      }
+      closeModal();
+      setStatus('success', '已保存 ' + saved + ' 个角色的权限');
+      // Reload to refresh counts
+      loadProjectMembers(projectId);
+    }},
+  ]);
+}
+
+// ---- Toggle role permission ----
+async function toggleRolePermission(projectId, roleId, permCode, enabled) {
+  // First get current role permissions
+  const roleRes = await projectApi('GET', '/' + projectId + '/roles/');
+  if (!roleRes.ok) return;
+  const roles = roleRes.data;
+  const role = roles.find(r => r.id === roleId);
+  if (!role) return;
+
+  let perms = [...(role.permissions || [])];
+  if (enabled) {
+    if (!perms.includes(permCode)) perms.push(permCode);
+  } else {
+    perms = perms.filter(p => p !== permCode);
+  }
+
+  await projectApi('PATCH', '/' + projectId + '/roles/' + roleId + '/', { permissions: perms });
+  setStatus('success', '权限已更新');
+}
+
+// ---- Change member role ----
+async function changeMemberRole(projectId, memberId, roleId) {
+  const r = await projectApi('POST', '/' + projectId + '/memberships/' + memberId + '/change_role/', { role_id: parseInt(roleId) });
+  if (r.ok) {
+    setStatus('success', '角色已更改');
+    loadProjectMembers(projectId);
+  } else {
+    setStatus('error', r.data?.error || '更改失败');
+  }
+}
+
+// ---- Remove membership ----
+async function removeMembership(projectId, memberId) {
+  if (!confirm('确定移除此成员？')) return;
+  const r = await projectApi('DELETE', '/' + projectId + '/memberships/' + memberId + '/');
+  if (r.ok) {
+    setStatus('success', '成员已移除');
+    loadProjectMembers(projectId);
+  } else {
+    setStatus('error', r.data?.error || '移除失败');
+  }
+}
+
+// ---- Delete custom role ----
+async function deleteRole(projectId, roleId) {
+  if (!confirm('确定删除此角色？（已有成员的关联会解除）')) return;
+  const r = await projectApi('DELETE', '/' + projectId + '/roles/' + roleId + '/');
+  if (r.ok) {
+    setStatus('success', '角色已删除');
+    closeModal();
+    loadProjectMembers(projectId);
+  } else {
+    setStatus('error', r.data?.error || '删除失败');
+  }
+}
+
+// ---- Create role dialog ----
+function showCreateRoleDialog(projectId) {
+  showModal('新建角色', `
+    <div class="flex flex-col gap-3">
+      <div>
+        <label class="text-xs text-gray-500">角色名称</label>
+        <input class="input-field w-full" id="cr-name" placeholder="如: 审核员">
+      </div>
+    </div>`, [
+    { text: '取消', cls: 'btn btn-sm btn-secondary', action: closeModal },
+    { text: '创建', cls: 'btn btn-sm btn-success', action: async () => {
+      const name = document.getElementById('cr-name').value.trim();
+      if (!name) { setStatus('error', '请输入角色名称'); return; }
+      const r = await projectApi('POST', '/' + projectId + '/create_role/', { name, permissions: ['view_project'] });
+      if (r.ok) {
+        closeModal();
+        setStatus('success', '角色已创建，请在权限设置中配置');
+        loadProjectMembers(projectId);
+      } else {
+        setStatus('error', r.data?.name?.[0] || '创建失败');
+      }
+    }},
+  ]);
+}
+
+// ---- Search users for membership ----
+let _memberSearchTimer = null;
+async function searchUsersForMembership(projectId) {
+  clearTimeout(_memberSearchTimer);
+  const input = document.getElementById('member-search-input');
+  if (!input) return;
+  const q = input.value.trim();
+  const results = document.getElementById('member-search-results');
+  if (!results) return;
+
+  _memberSearchTimer = setTimeout(async () => {
+    try {
+      // Get existing memberships and owner to exclude
+      const [memRes, pRes] = await Promise.all([
+        projectApi('GET', '/' + projectId + '/members_list/'),
+        projectApi('GET', '/' + projectId + '/'),
+      ]);
+      const existingUserIds = new Set();
+      if (memRes.ok) memRes.data.forEach(m => existingUserIds.add(m.user));
+      if (pRes.ok) existingUserIds.add(pRes.data.owner);
+
+      let url;
+      if (q.length < 1) {
+        url = '/api/parametric-bom/projects/search_users/?q=a&limit=50';
+      } else {
+        url = '/api/parametric-bom/projects/search_users/?q=' + encodeURIComponent(q) + '&limit=50';
+      }
+      const resp = await fetch(url, { credentials: 'same-origin' });
+      const users = await resp.json();
+      const filtered = users.filter(u => !existingUserIds.has(u.id));
+
+      if (!filtered.length) {
+        results.innerHTML = '<div class="text-xs text-gray-400 py-1">' + (q.length < 1 ? '所有用户都已是成员' : '未找到用户') + '</div>';
+        return;
+      }
+      const roleSelect = document.getElementById('member-role-select');
+      const defaultRoleId = roleSelect ? roleSelect.value : '';
+
+      results.innerHTML = '<div class="flex flex-col gap-0.5 mt-1 max-h-[200px] overflow-y-auto">' +
+        filtered.map(u =>
+          '<div class="flex items-center justify-between py-1 px-2 text-xs border border-gray-200 rounded hover:bg-gray-50 cursor-pointer" onclick="addMembership(' + projectId + ', ' + u.id + ')">' +
+          '<span class="font-medium">' + escHtml(u.name) + '</span>' +
+          '<span class="text-gray-400">' + escHtml(u.username) + '</span>' +
+          '<button class="text-blue-500 text-xs">➕ 添加</button>' +
+          '</div>'
+        ).join('') +
+        '</div>';
+    } catch(e) { results.innerHTML = '<div class="text-xs text-red-400 py-1">搜索失败</div>'; }
+  }, q.length < 1 ? 0 : 300);
+}
+
+// ---- Add membership ----
+async function addMembership(projectId, userId) {
+  const roleSelect = document.getElementById('member-role-select');
+  const roleId = roleSelect ? roleSelect.value : '';
+  if (!roleId) { setStatus('error', '请选择角色'); return; }
+
+  const r = await projectApi('POST', '/' + projectId + '/add_membership/', { user_id: userId, role_id: parseInt(roleId) });
+  if (r.ok) {
+    setStatus('success', '成员已添加');
+    const input = document.getElementById('member-search-input');
+    if (input) input.value = '';
+    const results = document.getElementById('member-search-results');
+    if (results) results.innerHTML = '';
+    loadProjectMembers(projectId);
+  } else {
+    setStatus('error', r.data?.error || '添加失败');
+  }
 }
 
 // ── Upload attachment ──

@@ -1276,11 +1276,16 @@ class Project(InvenTree.models.InvenTreeAttachmentMixin, models.Model):
 
     def _generate_code(self):
         from datetime import datetime
+        from django.db.models import Max
         date_part = datetime.now().strftime('%Y%m%d')
-        count = Project.objects.filter(
+        max_code = Project.objects.filter(
             project_code__startswith=f'PRJ-{date_part}'
-        ).count()
-        return f'PRJ-{date_part}-{count + 1:04d}'
+        ).aggregate(m=Max('project_code'))['m']
+        if max_code:
+            seq = int(max_code.split('-')[-1]) + 1
+        else:
+            seq = 1
+        return f'PRJ-{date_part}-{seq:04d}'
 
     def __str__(self):
         return f'{self.project_code} - {self.name}'
@@ -1414,3 +1419,109 @@ class ProjectLog(models.Model):
 
     def __str__(self):
         return f'[{self.project.project_code}] {self.action} by {self.user or "system"}'
+
+
+# ─── 全局权限定义 ──────────────────────────────
+
+PROJECT_PERMISSIONS = [
+    ('view_project', '查看项目信息'),
+    ('edit_project', '编辑项目信息'),
+    ('manage_members', '管理成员'),
+    ('manage_items', '管理条目'),
+    ('generate_orders', '生成订单'),
+    ('view_cost', '查看成本'),
+    ('export_report', '导出报表'),
+    ('manage_attachments', '管理附件'),
+    ('view_logs', '查看日志'),
+    ('delete_project', '删除项目'),
+]
+
+PRESET_ADMIN_PERMISSIONS = [
+    'view_project', 'edit_project', 'manage_members',
+    'manage_items', 'generate_orders', 'view_cost',
+    'export_report', 'manage_attachments', 'view_logs',
+]
+
+PRESET_MEMBER_PERMISSIONS = [
+    'view_project', 'view_cost', 'export_report', 'view_logs',
+]
+
+
+def get_user_role_info(project, user):
+    """Get user's role info for a project.
+    
+    Returns dict with role name and permission list.
+    """
+    if not user or not user.is_authenticated:
+        return {'role': 'none', 'permissions': []}
+    if user.is_staff:
+        return {'role': 'admin', 'permissions': [p[0] for p in PROJECT_PERMISSIONS]}
+    if project.owner == user:
+        return {'role': 'owner', 'permissions': [p[0] for p in PROJECT_PERMISSIONS]}
+    try:
+        membership = ProjectMembership.objects.get(project=project, user=user)
+        return {'role': membership.role.name, 'permissions': membership.role.permissions}
+    except ProjectMembership.DoesNotExist:
+        return {'role': 'none', 'permissions': []}
+
+
+# ──────────────────────────────────────────────
+#  Project RBAC — 角色和成员关系
+# ──────────────────────────────────────────────
+
+class ProjectRole(models.Model):
+    """可自定义的项目角色，每个角色有一组权限。"""
+
+    project = models.ForeignKey(
+        Project, on_delete=models.CASCADE, related_name='roles',
+        verbose_name=_('Project'),
+    )
+    name = models.CharField(
+        max_length=64, verbose_name=_('Role name'),
+    )
+    permissions = models.JSONField(
+        default=list, blank=True, verbose_name=_('Permissions'),
+        help_text=_('List of permission codenames'),
+    )
+    is_preset = models.BooleanField(
+        default=False, verbose_name=_('Is preset'),
+        help_text=_('Preset roles cannot be deleted'),
+    )
+
+    class Meta:
+        app_label = 'parametric_bom'
+        verbose_name = _('Project role')
+        verbose_name_plural = _('Project roles')
+        unique_together = [('project', 'name')]
+
+    def __str__(self):
+        return f'{self.project.project_code} / {self.name}'
+
+
+class ProjectMembership(models.Model):
+    """用户与项目的关联，绑定到角色。"""
+
+    project = models.ForeignKey(
+        Project, on_delete=models.CASCADE, related_name='memberships',
+        verbose_name=_('Project'),
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+        related_name='project_memberships_rbac',
+        verbose_name=_('User'),
+    )
+    role = models.ForeignKey(
+        ProjectRole, on_delete=models.CASCADE,
+        related_name='memberships',
+        verbose_name=_('Role'),
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        app_label = 'parametric_bom'
+        verbose_name = _('Project membership')
+        verbose_name_plural = _('Project memberships')
+        unique_together = [('project', 'user')]
+
+    def __str__(self):
+        return f'{self.project.project_code} / {self.user.username} → {self.role.name}'

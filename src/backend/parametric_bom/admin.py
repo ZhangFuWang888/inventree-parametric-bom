@@ -15,6 +15,8 @@ from parametric_bom.models import (
     Project,
     ProjectItem,
     ProjectLog,
+    ProjectMembership,
+    ProjectRole,
     VariantMapping,
 )
 
@@ -132,3 +134,23 @@ class ProjectLogAdmin(admin.ModelAdmin):
     list_display = ['project', 'action', 'user', 'created_at']
     list_filter = ['action']
     search_fields = ['project__name', 'description']
+
+
+@admin.register(ProjectRole)
+class ProjectRoleAdmin(admin.ModelAdmin):
+    """Admin for ProjectRole."""
+    list_display = ['project', 'name', 'is_preset', 'permission_count']
+    list_filter = ['is_preset']
+    search_fields = ['project__name', 'name']
+
+    def permission_count(self, obj):
+        return len(obj.permissions)
+    permission_count.short_description = '权限数'
+
+
+@admin.register(ProjectMembership)
+class ProjectMembershipAdmin(admin.ModelAdmin):
+    """Admin for ProjectMembership."""
+    list_display = ['project', 'user', 'role', 'created_at']
+    search_fields = ['project__name', 'user__username']
+    list_filter = ['role__name']

@@ -1588,25 +1588,72 @@ def cart_create_order(request):
         return Response({'error': f'创建订单失败: {str(e)}'}, status=500)
 
 
-# ── Project Permission ───────────────────────
+# ── Project Permission (RBAC) ─────────────────
+
+def has_project_perm(project, user, permission):
+    """Check if a user has a specific permission on a project.
+    
+    Owner and staff have all permissions.
+    """
+    if not user.is_authenticated:
+        return False
+    if user.is_staff:
+        return True
+    if project.owner == user:
+        return True
+    # Check via ProjectMembership → ProjectRole
+    from parametric_bom.models import ProjectMembership
+    try:
+        membership = ProjectMembership.objects.get(project=project, user=user)
+        return permission in membership.role.permissions
+    except ProjectMembership.DoesNotExist:
+        return False
+
+
+def get_user_project_roles(project, user):
+    """Get all info about a user's roles on a project."""
+    if not user.is_authenticated:
+        return {'role': 'none', 'permissions': []}
+    if user.is_staff:
+        from parametric_bom.models import PROJECT_PERMISSIONS
+        return {
+            'role': 'admin',
+            'permissions': [p[0] for p in PROJECT_PERMISSIONS],
+        }
+    if project.owner == user:
+        from parametric_bom.models import PROJECT_PERMISSIONS
+        return {
+            'role': 'owner',
+            'permissions': [p[0] for p in PROJECT_PERMISSIONS],
+        }
+    from parametric_bom.models import ProjectMembership
+    try:
+        membership = ProjectMembership.objects.get(project=project, user=user)
+        return {
+            'role': membership.role.name,
+            'permissions': membership.role.permissions,
+        }
+    except ProjectMembership.DoesNotExist:
+        return {'role': 'none', 'permissions': []}
+
 
 class ProjectPermission(permissions.BasePermission):
-    """Three-tier project permission check."""
+    """RBAC-based project permission check."""
 
     def has_permission(self, request, view):
         return request.user.is_authenticated
 
     def has_object_permission(self, request, view, obj):
         user = request.user
-        if user.is_staff:
+        if user.is_staff or obj.owner == user:
             return True
-        if obj.owner == user:
-            return True
+        # For safe methods, check view_project
         if request.method in permissions.SAFE_METHODS:
-            if obj.is_public or obj.members.filter(id=user.id).exists():
+            if obj.is_public:
                 return True
-            return False
-        return False
+            return has_project_perm(obj, user, 'view_project')
+        # For write methods, check edit_project
+        return has_project_perm(obj, user, 'edit_project')
 
 
 # ── Project ViewSet ─────────────────────────
@@ -1628,9 +1675,13 @@ class ProjectViewSet(viewsets.ModelViewSet):
         qs = Project.objects.all()
         user = self.request.user
         if not user.is_staff:
+            from parametric_bom.models import ProjectMembership
+            member_project_ids = ProjectMembership.objects.filter(
+                user=user
+            ).values_list('project_id', flat=True)
             qs = qs.filter(
                 django_models.Q(owner=user)
-                | django_models.Q(members=user)
+                | django_models.Q(id__in=list(member_project_ids))
                 | django_models.Q(is_public=True)
             ).distinct()
         if not self.request.query_params.get('inactive'):
@@ -1915,6 +1966,37 @@ class ProjectViewSet(viewsets.ModelViewSet):
         })
 
     @action(detail=True, methods=['get'])
+    def orders(self, request, pk=None):
+        """Get related purchase/sales orders for a project."""
+        from order.models import PurchaseOrder, SalesOrder
+        project = self.get_object()
+        # Search by description containing project code
+        pos = PurchaseOrder.objects.filter(
+            description__icontains=project.project_code
+        ).order_by('-creation_date')[:20]
+        sos = SalesOrder.objects.filter(
+            description__icontains=project.project_code
+        ).order_by('-creation_date')[:20]
+        return Response({
+            'purchase_orders': [{
+                'id': po.id,
+                'reference': str(po),
+                'supplier': po.supplier.name if po.supplier else '',
+                'status': po.status if hasattr(po, 'status') else '',
+                'line_items': po.lines.count() if hasattr(po, 'lines') else 0,
+                'created': po.creation_date.isoformat() if hasattr(po, 'creation_date') and po.creation_date else '',
+            } for po in pos],
+            'sales_orders': [{
+                'id': so.id,
+                'reference': str(so),
+                'customer': so.customer.name if so.customer else '',
+                'status': so.status if hasattr(so, 'status') else '',
+                'line_items': so.lines.count() if hasattr(so, 'lines') else 0,
+                'created': so.creation_date.isoformat() if hasattr(so, 'creation_date') and so.creation_date else '',
+            } for so in sos],
+        })
+
+    @action(detail=True, methods=['get'])
     def export(self, request, pk=None):
         """Export project as CSV report."""
         import csv
@@ -2089,6 +2171,147 @@ class ProjectViewSet(viewsets.ModelViewSet):
             'created_at': l.created_at.isoformat(),
         } for l in logs]
         return Response(data)
+
+    # ---- RBAC: Available permissions ----
+
+    @action(detail=False, methods=['get'])
+    def permissions_def(self, request):
+        """Return all available project permissions."""
+        from parametric_bom.models import PROJECT_PERMISSIONS
+        return Response([{'code': p[0], 'label': p[1]} for p in PROJECT_PERMISSIONS])
+
+    # ---- RBAC: Roles ----
+
+    @action(detail=True, methods=['get'])
+    def roles(self, request, pk=None):
+        """List all roles for the project."""
+        project = self.get_object()
+        from parametric_bom.serializers import ProjectRoleSerializer
+        roles = project.roles.all()
+        return Response(ProjectRoleSerializer(roles, many=True).data)
+
+    @action(detail=True, methods=['post'])
+    def create_role(self, request, pk=None):
+        """Create a custom role."""
+        project = self.get_object()
+        from parametric_bom.serializers import ProjectRoleSerializer
+        serializer = ProjectRoleSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=400)
+        role = serializer.save(project=project, is_preset=False)
+        self._log(project, 'role_created', f'创建角色: {role.name}')
+        return Response(ProjectRoleSerializer(role).data, status=201)
+
+    @action(detail=True, methods=['patch'], url_path='roles/(?P<role_id>[^/.]+)')
+    def update_role(self, request, pk=None, role_id=None):
+        """Update a role's name or permissions."""
+        project = self.get_object()
+        from parametric_bom.models import ProjectRole
+        role = get_object_or_404(ProjectRole, id=role_id, project=project)
+        name = request.data.get('name', role.name)
+        permissions = request.data.get('permissions', role.permissions)
+        role.name = name
+        role.permissions = permissions
+        role.save(update_fields=['name', 'permissions'])
+        self._log(project, 'role_updated', f'更新角色: {role.name}')
+        from parametric_bom.serializers import ProjectRoleSerializer
+        return Response(ProjectRoleSerializer(role).data)
+
+    @action(detail=True, methods=['delete'], url_path='roles/(?P<role_id>[^/.]+)')
+    def delete_role(self, request, pk=None, role_id=None):
+        """Delete a custom role (not preset)."""
+        project = self.get_object()
+        from parametric_bom.models import ProjectRole
+        role = get_object_or_404(ProjectRole, id=role_id, project=project)
+        if role.is_preset:
+            return Response({'error': '预设角色不可删除'}, status=400)
+        name = role.name
+        role.delete()
+        self._log(project, 'role_deleted', f'删除角色: {name}')
+        return Response({'success': True})
+
+    # ---- RBAC: Memberships ----
+
+    @action(detail=True, methods=['get'])
+    def members_list(self, request, pk=None):
+        """List all memberships with role info."""
+        project = self.get_object()
+        from parametric_bom.serializers import ProjectMembershipSerializer
+        memberships = project.memberships.select_related('user', 'role').all()
+        return Response(ProjectMembershipSerializer(memberships, many=True).data)
+
+    @action(detail=True, methods=['post'])
+    def add_membership(self, request, pk=None):
+        """Add a user as a member with a specific role."""
+        project = self.get_object()
+        user_id = request.data.get('user_id')
+        role_id = request.data.get('role_id')
+        if not user_id or not role_id:
+            return Response({'error': '需要 user_id 和 role_id'}, status=400)
+        from django.contrib.auth import get_user_model
+        from parametric_bom.models import ProjectRole
+        User = get_user_model()
+        try:
+            user = User.objects.get(id=user_id)
+        except User.DoesNotExist:
+            return Response({'error': 'user not found'}, status=404)
+        role = get_object_or_404(ProjectRole, id=role_id, project=project)
+        from parametric_bom.models import ProjectMembership
+        membership, created = ProjectMembership.objects.get_or_create(
+            project=project, user=user, defaults={'role': role},
+        )
+        if not created:
+            membership.role = role
+            membership.save(update_fields=['role'])
+        self._log(project, 'membership_added', f'添加成员: {user.username} → {role.name}')
+        from parametric_bom.serializers import ProjectMembershipSerializer
+        return Response(ProjectMembershipSerializer(membership).data, status=201 if created else 200)
+
+    @action(detail=True, methods=['post'], url_path='memberships/(?P<member_id>[^/.]+)/change_role')
+    def change_member_role(self, request, pk=None, member_id=None):
+        """Change a member's role."""
+        project = self.get_object()
+        from parametric_bom.models import ProjectMembership, ProjectRole
+        membership = get_object_or_404(ProjectMembership, id=member_id, project=project)
+        role_id = request.data.get('role_id')
+        role = get_object_or_404(ProjectRole, id=role_id, project=project)
+        membership.role = role
+        membership.save(update_fields=['role'])
+        self._log(project, 'role_changed', f'修改 {membership.user.username} 角色为: {role.name}')
+        from parametric_bom.serializers import ProjectMembershipSerializer
+        return Response(ProjectMembershipSerializer(membership).data)
+
+    @action(detail=True, methods=['delete'], url_path='memberships/(?P<member_id>[^/.]+)')
+    def remove_membership(self, request, pk=None, member_id=None):
+        """Remove a member from the project."""
+        project = self.get_object()
+        from parametric_bom.models import ProjectMembership
+        membership = get_object_or_404(ProjectMembership, id=member_id, project=project)
+        self._log(project, 'membership_removed', f'移除成员: {membership.user.username}')
+        membership.delete()
+        return Response({'success': True})
+
+    @action(detail=False, methods=['get'])
+    def search_users(self, request):
+        """Search users by name or username."""
+        q = request.query_params.get('q', '').strip()
+        if len(q) < 1:
+            return Response([])
+        limit = int(request.query_params.get('limit', 20))
+        limit = min(limit, 100)  # cap at 100
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        users = User.objects.filter(
+            django_models.Q(username__icontains=q)
+            | django_models.Q(first_name__icontains=q)
+            | django_models.Q(last_name__icontains=q)
+            | django_models.Q(email__icontains=q)
+        )[:limit]
+        return Response([{
+            'id': u.id,
+            'username': u.username,
+            'name': u.get_full_name() or u.username,
+        } for u in users])
 
     def _collect_bom_parts(self, node, parts_dict, multiplier=1):
         """Recursively collect parts from a BOM snapshot tree."""

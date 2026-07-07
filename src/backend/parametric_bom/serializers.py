@@ -17,9 +17,13 @@ from parametric_bom.models import (
     PartParameterConfig,
     PartVariable,
     ProductConfiguration,
+    PROJECT_PERMISSIONS,
     Project,
     ProjectItem,
+    ProjectMembership,
+    ProjectRole,
     VariantMapping,
+    get_user_role_info,
 )
 
 
@@ -374,14 +378,7 @@ class ProjectItemSerializer(serializers.ModelSerializer):
         request = self.context.get('request')
         if not request or not request.user:
             return 'none'
-        project = obj.project
-        if request.user.is_staff:
-            return 'admin'
-        if project.owner == request.user:
-            return 'owner'
-        if project.members.filter(id=request.user.id).exists():
-            return 'member'
-        return 'none'
+        return get_user_role_info(obj.project, request.user).get('role', 'none')
 
     class Meta:
         model = ProjectItem
@@ -405,6 +402,7 @@ class ProjectListSerializer(serializers.ModelSerializer):
     owner_name = serializers.SerializerMethodField()
     item_count = serializers.SerializerMethodField()
     user_role = serializers.SerializerMethodField()
+    user_permissions = serializers.SerializerMethodField()
 
     def get_owner_name(self, obj):
         return obj.owner.get_full_name() or obj.owner.username if obj.owner else None
@@ -416,21 +414,20 @@ class ProjectListSerializer(serializers.ModelSerializer):
         request = self.context.get('request')
         if not request or not request.user:
             return 'none'
-        user = request.user
-        if user.is_staff:
-            return 'admin'
-        if obj.owner == user:
-            return 'owner'
-        if obj.members.filter(id=user.id).exists():
-            return 'member'
-        return 'none'
+        return get_user_role_info(obj, request.user).get('role', 'none')
+
+    def get_user_permissions(self, obj):
+        request = self.context.get('request')
+        if not request or not request.user:
+            return []
+        return get_user_role_info(obj, request.user).get('permissions', [])
 
     class Meta:
         model = Project
         fields = [
             'id', 'name', 'project_code', 'customer', 'customer_name',
             'status', 'owner', 'owner_name', 'manager', 'deadline',
-            'is_public', 'item_count', 'user_role',
+            'is_public', 'item_count', 'user_role', 'user_permissions',
             'created_at', 'updated_at', 'is_active',
         ]
         read_only_fields = ['project_code', 'created_at', 'updated_at', 'is_active']
@@ -447,6 +444,7 @@ class ProjectDetailSerializer(serializers.ModelSerializer):
     created_by_name = serializers.SerializerMethodField()
     items = ProjectItemSerializer(many=True, read_only=True)
     user_role = serializers.SerializerMethodField()
+    user_permissions = serializers.SerializerMethodField()
 
     def get_owner_name(self, obj):
         return obj.owner.get_full_name() or obj.owner.username if obj.owner else None
@@ -461,14 +459,13 @@ class ProjectDetailSerializer(serializers.ModelSerializer):
         request = self.context.get('request')
         if not request or not request.user:
             return 'none'
-        user = request.user
-        if user.is_staff:
-            return 'admin'
-        if obj.owner == user:
-            return 'owner'
-        if obj.members.filter(id=user.id).exists():
-            return 'member'
-        return 'none'
+        return get_user_role_info(obj, request.user).get('role', 'none')
+
+    def get_user_permissions(self, obj):
+        request = self.context.get('request')
+        if not request or not request.user:
+            return []
+        return get_user_role_info(obj, request.user).get('permissions', [])
 
     class Meta:
         model = Project
@@ -479,7 +476,7 @@ class ProjectDetailSerializer(serializers.ModelSerializer):
             'manager', 'manager_name', 'deadline',
             'created_by', 'created_by_name',
             'created_at', 'updated_at', 'is_active',
-            'items', 'user_role',
+            'items', 'user_role', 'user_permissions',
         ]
         read_only_fields = [
             'project_code', 'created_by', 'created_at',
@@ -497,3 +494,54 @@ class FromCartSerializer(serializers.Serializer):
         child=serializers.IntegerField(), allow_empty=False
     )
     deadline = serializers.DateField(required=False, allow_null=True)
+
+
+# ── RBAC Serializers ─────────────────────────
+
+class ProjectRoleSerializer(serializers.ModelSerializer):
+    """Serializer for ProjectRole."""
+
+    permission_labels = serializers.SerializerMethodField()
+    member_count = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ProjectRole
+        fields = [
+            'id', 'project', 'name', 'permissions', 'permission_labels',
+            'is_preset', 'member_count',
+        ]
+        read_only_fields = ['project', 'is_preset']
+
+    def get_permission_labels(self, obj):
+        from parametric_bom.models import PROJECT_PERMISSIONS
+        perm_dict = dict(PROJECT_PERMISSIONS)
+        return {p: perm_dict.get(p, p) for p in obj.permissions}
+
+    def get_member_count(self, obj):
+        return obj.memberships.count()
+
+
+class ProjectMembershipSerializer(serializers.ModelSerializer):
+    """Serializer for ProjectMembership."""
+
+    user_name = serializers.SerializerMethodField()
+    user_email = serializers.SerializerMethodField()
+    role_name = serializers.CharField(source='role.name', read_only=True)
+    permissions = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ProjectMembership
+        fields = [
+            'id', 'project', 'user', 'user_name', 'user_email',
+            'role', 'role_name', 'permissions', 'created_at',
+        ]
+        read_only_fields = ['project', 'created_at']
+
+    def get_user_name(self, obj):
+        return obj.user.get_full_name() or obj.user.username
+
+    def get_user_email(self, obj):
+        return obj.user.email
+
+    def get_permissions(self, obj):
+        return obj.role.permissions
