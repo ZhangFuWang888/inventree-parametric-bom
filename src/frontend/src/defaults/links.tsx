@@ -81,8 +81,18 @@ export function getNavTabs(user: UserStateProps): NavTab[] {
   const partIdx = navTabs.findIndex(t => t.name === 'part');
   navTabs.splice(partIdx + 1, 0, {
     name: 'parametric-bom',
-    title: '参数化BOM',
+    title: '参数化',
     icon: <IconClipboardData />,
+    href: '/parametric-bom/',
+    visible: user.hasViewRole(UserRoles.parametric_bom)
+  });
+
+  // Add project tab after parametric BOM
+  navTabs.splice(partIdx + 2, 0, {
+    name: 'projects',
+    title: '项目',
+    icon: <IconClipboardData />,
+    href: '/parametric-bom/?page=projects',
     visible: user.hasViewRole(UserRoles.parametric_bom)
   });
 
