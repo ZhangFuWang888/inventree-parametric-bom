@@ -14,6 +14,7 @@ from parametric_bom.models import (
     ProductConfiguration,
     Project,
     ProjectItem,
+    ProjectLog,
     VariantMapping,
 )
 
@@ -123,3 +124,11 @@ class ProjectItemAdmin(admin.ModelAdmin):
     list_display = ['title', 'project', 'item_type', 'quantity', 'created_at']
     list_filter = ['item_type']
     search_fields = ['title']
+
+
+@admin.register(ProjectLog)
+class ProjectLogAdmin(admin.ModelAdmin):
+    """Admin for ProjectLog."""
+    list_display = ['project', 'action', 'user', 'created_at']
+    list_filter = ['action']
+    search_fields = ['project__name', 'description']

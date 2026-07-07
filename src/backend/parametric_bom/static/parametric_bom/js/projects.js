@@ -112,15 +112,20 @@ async function showProjectDetail(projectId) {
   let html = `
   <div class="card mb-3">
     <div class="card-header flex items-center justify-between flex-wrap gap-2">
-      <div>
+      <div class="flex items-center gap-2">
+        <span>${p.is_template ? '📌' : '📋'}</span>
         <span class="text-lg font-semibold">${escHtml(p.project_code)}</span>
-        <span class="text-base text-gray-700 ml-2">${escHtml(p.name)}</span>
+        <span class="text-base text-gray-700 ml-1">${escHtml(p.name)}</span>
+        ${p.is_template ? '<span class="inline-block px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-700">模板</span>' : ''}
         ${projectStatusBadge(p.status)}
       </div>
       <div class="flex items-center gap-2">
         ${canEdit ? `
         <button class="btn btn-sm" onclick="editProjectField('name')">✏️ 编辑</button>
         <button class="btn btn-sm btn-primary" onclick="confirmDeleteProject(${p.id})">🗑️ 删除</button>` : ''}
+        ${!p.is_template ? `<button class="btn btn-sm" onclick="saveAsTemplate(${p.id})">📌 存为模板</button>` : ''}
+        ${p.is_template ? `<button class="btn btn-sm btn-success" onclick="createFromTemplate(${p.id})">📋 从模板创建</button>` : ''}
+        <button class="btn btn-sm btn-secondary" onclick="downloadProjectCsv(${p.id})">📥 导出</button>
         <button class="btn btn-sm btn-secondary" onclick="switchPage('projects')">← 返回</button>
       </div>
     </div>
@@ -139,6 +144,7 @@ async function showProjectDetail(projectId) {
     <button class="pd-tab active" data-proj-tab="items" onclick="switchProjectTab('items')">📋 产品/零件</button>
     <button class="pd-tab" data-proj-tab="cost" onclick="switchProjectTab('cost')">💰 成本</button>
     <button class="pd-tab" data-proj-tab="orders" onclick="switchProjectTab('orders')">📦 订单</button>
+    <button class="pd-tab" data-proj-tab="logs" onclick="switchProjectTab('logs')">📝 日志</button>
   </div>
 
   <div id="project-tab-items" class="proj-tab-panel">
@@ -194,6 +200,12 @@ async function showProjectDetail(projectId) {
     <div class="card">
       <div class="empty-state p-4 text-center text-gray-400 text-sm">关联订单将在此显示</div>
     </div>
+  </div>
+
+  <div id="project-tab-logs" class="proj-tab-panel" style="display:none">
+    <div class="card" id="project-logs-content">
+      <div class="empty-state p-4 text-center text-gray-400 text-sm">📝 加载变更日志...</div>
+    </div>
   </div>`;
 
   container.innerHTML = html;
@@ -209,6 +221,7 @@ function switchProjectTab(tab) {
   if (panel) panel.style.display = '';
   const btn = document.querySelector(`[data-proj-tab="${tab}"]`);
   if (btn) btn.classList.add('active');
+  if (tab === 'logs') loadProjectLogs(window._currentProjectId);
 }
 
 // ── Load cost data ──
@@ -515,3 +528,87 @@ window.generateSalesOrder = generateSalesOrder;
 window.submitCartAsProject = submitCartAsProject;
 window.showModal = showModal;
 window.closeModal = closeModal;
+window.downloadProjectCsv = downloadProjectCsv;
+window.saveAsTemplate = saveAsTemplate;
+window.createFromTemplate = createFromTemplate;
+window.loadProjectLogs = loadProjectLogs;
+
+// ── Download CSV ──
+async function downloadProjectCsv(id) {
+  const a = document.createElement('a');
+  a.href = '/api/parametric-bom/projects/' + id + '/export/';
+  a.download = 'project.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setStatus('success', '正在下载项目报告...');
+}
+
+// ── Template functions ──
+async function saveAsTemplate(id) {
+  const name = prompt('保存为模板名称：', '');
+  if (!name) return;
+  const r = await projectApi('POST', `/${id}/save_as_template/`, { template_name: name });
+  if (r.ok) {
+    setStatus('success', `模板 "${r.data.template_name}" 已保存`);
+    showProjectDetail(id);
+  } else {
+    setStatus('error', '保存模板失败');
+  }
+}
+
+async function createFromTemplate(id) {
+  const name = prompt('新项目名称：', '');
+  if (!name) return;
+  const r = await projectApi('POST', `/${id}/create_from_template/`, { name });
+  if (r.ok) {
+    setStatus('success', `项目 ${r.data.project_code} 已从模板创建`);
+    renderProjectList();
+    switchPage('projects');
+  } else {
+    setStatus('error', r.data?.error || '创建失败');
+  }
+}
+
+// ── Load change logs ──
+async function loadProjectLogs(projectId) {
+  const container = document.getElementById('project-logs-content');
+  if (!container) return;
+  const r = await projectApi('GET', `/${projectId}/logs/`);
+  if (!r.ok) { container.innerHTML = '<div class="empty-state p-4 text-center text-red-400 text-sm">加载日志失败</div>'; return; }
+  const logs = r.data;
+  if (!logs || !logs.length) {
+    container.innerHTML = '<div class="empty-state p-4 text-center text-gray-400 text-sm">暂无变更记录</div>';
+    return;
+  }
+  container.innerHTML = `
+    <div class="text-xs text-gray-500 mb-2 font-medium">变更历史（最近50条）</div>
+    <div class="space-y-1 max-h-[400px] overflow-y-auto">
+      ${logs.map(l => `
+      <div class="flex items-start gap-2 p-1.5 border-b border-gray-100 last:border-0">
+        <span class="text-gray-400 shrink-0 mt-0.5">${getLogIcon(l.action)}</span>
+        <div class="flex-1 min-w-0">
+          <span class="text-gray-700">${escHtml(l.description || l.action)}</span>
+          <span class="text-gray-400 ml-1 text-[10px]">— ${escHtml(l.user)}</span>
+        </div>
+        <span class="text-gray-400 text-[10px] shrink-0">${formatTime(l.created_at)}</span>
+      </div>`).join('')}
+    </div>`;
+}
+
+function getLogIcon(action) {
+  const icons = {
+    created: '✅', updated: '✏️', from_cart: '📦',
+    item_added: '➕', item_removed: '➖',
+    purchase_orders_created: '📥', sales_order_created: '💰',
+    saved_as_template: '📌',
+  };
+  return icons[action] || '📝';
+}
+
+function formatTime(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  const pad = n => String(n).padStart(2, '0');
+  return `${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}

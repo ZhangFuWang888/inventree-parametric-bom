@@ -1240,6 +1240,20 @@ class Project(models.Model):
         verbose_name=_('Active'),
         help_text=_('Soft-delete flag: set to False to hide/archive'),
     )
+    is_template = models.BooleanField(
+        default=False,
+        verbose_name=_('Is template'),
+        help_text=_('This project can be used as a template'),
+    )
+    template_source = models.ForeignKey(
+        'self',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='template_copies',
+        verbose_name=_('Template source'),
+        help_text=_('The template this project was created from'),
+    )
 
     class Meta:
         app_label = 'parametric_bom'
@@ -1351,3 +1365,50 @@ class ProjectItem(models.Model):
 
     def __str__(self):
         return self.title or f'ProjectItem #{self.id} ({self.get_item_type_display()})'
+
+
+# ──────────────────────────────────────────────
+#  Project Change Log
+# ──────────────────────────────────────────────
+
+class ProjectLog(models.Model):
+    """Audit trail for project changes."""
+
+    project = models.ForeignKey(
+        Project,
+        on_delete=models.CASCADE,
+        related_name='logs',
+        verbose_name=_('Project'),
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name=_('User'),
+    )
+    action = models.CharField(
+        max_length=64,
+        verbose_name=_('Action'),
+        help_text=_('e.g. created, status_changed, item_added, item_removed'),
+    )
+    description = models.TextField(
+        blank=True,
+        default='',
+        verbose_name=_('Description'),
+    )
+    details = models.JSONField(
+        null=True,
+        blank=True,
+        verbose_name=_('Details'),
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        app_label = 'parametric_bom'
+        verbose_name = _('Project log')
+        verbose_name_plural = _('Project logs')
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f'[{self.project.project_code}] {self.action} by {self.user or "system"}'

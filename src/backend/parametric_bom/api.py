@@ -27,6 +27,7 @@ from parametric_bom.models import (
     ProductConfiguration,
     Project,
     ProjectItem,
+    ProjectLog,
     ProjectStatusChoices,
     VariantMapping,
 )
@@ -1637,9 +1638,31 @@ class ProjectViewSet(viewsets.ModelViewSet):
         return qs
 
     def perform_create(self, serializer):
-        serializer.save(
+        project = serializer.save(
             created_by=self.request.user,
             owner=self.request.user,
+        )
+        self._log(project, 'created', '项目已创建')
+
+    def perform_update(self, serializer):
+        old = self.get_object()
+        project = serializer.save()
+        changes = []
+        for field in ['name', 'status', 'description', 'deadline']:
+            old_val = getattr(old, field, None)
+            new_val = getattr(project, field, None)
+            if old_val != new_val:
+                changes.append(f'{field}: {old_val} → {new_val}')
+        if changes:
+            self._log(project, 'updated', '; '.join(changes))
+
+    def _log(self, project, action, description='', details=None):
+        ProjectLog.objects.create(
+            project=project,
+            user=self.request.user if self.request else None,
+            action=action,
+            description=description,
+            details=details,
         )
 
     @action(detail=True, methods=['get'])
@@ -1654,13 +1677,13 @@ class ProjectViewSet(viewsets.ModelViewSet):
     def add_item(self, request, pk=None):
         """Add an item to a project."""
         project = self.get_object()
-        item_type = request.data.get('item_type', 'configuration')
         serializer = ProjectItemSerializer(
             data={**request.data, 'project': project.id},
             context={'request': request},
         )
         if serializer.is_valid():
-            serializer.save()
+            item = serializer.save()
+            self._log(project, 'item_added', f'添加条目: {item.title} x{item.quantity}')
             return Response(serializer.data, status=201)
         return Response(serializer.errors, status=400)
 
@@ -1669,6 +1692,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
         """Remove an item from a project."""
         project = self.get_object()
         item = get_object_or_404(ProjectItem, id=item_id, project=project)
+        self._log(project, 'item_removed', f'移除条目: {item.title}')
         item.delete()
         return Response({'success': True}, status=200)
 
@@ -1704,6 +1728,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
         )
 
         # Create ProjectItems from CartItems
+        item_count = 0
         for ci in cart_items:
             item_kwargs = {
                 'project': project,
@@ -1720,9 +1745,13 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 item_kwargs['part'] = ci.part
                 item_kwargs['unit_price'] = ci.unit_price
             ProjectItem.objects.create(**item_kwargs)
+            item_count += 1
 
         # Clear the converted cart items
         cart_items.delete()
+
+        self._log(project, 'from_cart',
+                  f'从购物车创建项目，包含 {item_count} 个条目')
 
         return Response(
             ProjectDetailSerializer(project, context={'request': request}).data,
@@ -1802,6 +1831,9 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 'line_items': len(group['items']),
             })
 
+        self._log(project, 'purchase_orders_created',
+                  f'生成 {len([o for o in orders_created if o.get("order_id")])} 个采购订单')
+
         # Handle unassigned parts
         if 0 in supplier_groups:
             orders_created.append({
@@ -1842,6 +1874,9 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 )
                 line_count += 1
 
+        self._log(project, 'sales_order_created',
+                  f'生成销售订单，包含 {line_count} 条明细')
+
         return Response({
             'order_id': so.id,
             'reference': str(so),
@@ -1878,6 +1913,133 @@ class ProjectViewSet(viewsets.ModelViewSet):
             'margin_pct': round((total_price - total_cost) / total_price * 100, 2) if total_price else 0,
             'breakdown': breakdown,
         })
+
+    @action(detail=True, methods=['get'])
+    def export(self, request, pk=None):
+        """Export project as CSV report."""
+        import csv
+        from django.http import HttpResponse
+
+        project = self.get_object()
+
+        response = HttpResponse(content_type='text/csv; charset=utf-8-sig')
+        response['Content-Disposition'] = f'attachment; filename="project_{project.project_code}.csv"'
+
+        writer = csv.writer(response)
+
+        # Header section
+        writer.writerow(['项目报告', project.project_code, project.name])
+        writer.writerow([])
+        writer.writerow(['项目编号', '项目名称', '客户', '状态', '负责人', '截止日期', '创建时间'])
+        writer.writerow([
+            project.project_code,
+            project.name,
+            project.customer.name if project.customer else '',
+            project.get_status_display(),
+            project.owner.get_full_name() or project.owner.username if project.owner else '',
+            project.deadline or '',
+            project.created_at.strftime('%Y-%m-%d %H:%M'),
+        ])
+        if project.description:
+            writer.writerow(['描述', project.description])
+        writer.writerow([])
+
+        # Items section
+        writer.writerow(['== 项目条目 =='])
+        writer.writerow(['名称', '类型', '数量', '单价', '小计', '备注'])
+        total_cost = 0
+        total_price = 0
+        for item in project.items.all():
+            cost = float(item.unit_cost or 0) * item.quantity
+            price = float(item.unit_price or 0) * item.quantity
+            total_cost += cost
+            total_price += price
+            writer.writerow([
+                item.title,
+                item.get_item_type_display(),
+                item.quantity,
+                f'{item.unit_price or 0:.2f}',
+                f'{price:.2f}',
+                item.notes or '',
+            ])
+
+        # Cost summary
+        writer.writerow([])
+        writer.writerow(['== 成本汇总 =='])
+        writer.writerow(['总成本', f'{total_cost:.2f}'])
+        writer.writerow(['总售价', f'{total_price:.2f}'])
+        writer.writerow(['利润', f'{total_price - total_cost:.2f}'])
+        if total_price:
+            margin = (total_price - total_cost) / total_price * 100
+            writer.writerow(['毛利率', f'{margin:.1f}%'])
+
+        return response
+
+    @action(detail=True, methods=['post'])
+    def save_as_template(self, request, pk=None):
+        """Mark the project as a template, optionally with a new name."""
+        project = self.get_object()
+        name = request.data.get('template_name', '')
+        if name:
+            project.name = f'[模板] {name}'
+        project.is_template = True
+        project.save(update_fields=['is_template', 'name'])
+        self._log(project, 'saved_as_template', f'保存为模板: {project.name}')
+        return Response({
+            'success': True,
+            'project_id': project.id,
+            'is_template': True,
+            'template_name': project.name,
+        })
+
+    @action(detail=True, methods=['post'])
+    def create_from_template(self, request, pk=None):
+        """Create a new project from this template, copying items."""
+        project = self.get_object()
+        if not project.is_template:
+            return Response({'error': '该项目不是模板'}, status=400)
+
+        new_name = request.data.get('name', project.name.replace('[模板] ', '').strip() + ' (副本)')
+        new_project = Project.objects.create(
+            name=new_name,
+            customer=project.customer,
+            description=project.description,
+            owner=request.user,
+            created_by=request.user,
+            template_source=project,
+        )
+
+        # Copy items
+        for item in project.items.all():
+            ProjectItem.objects.create(
+                project=new_project,
+                item_type=item.item_type,
+                product_config=None,  # Don't copy config snapshots
+                part=item.part,
+                title=item.title,
+                quantity=item.quantity,
+                unit_cost=item.unit_cost,
+                unit_price=item.unit_price,
+                notes=item.notes,
+                sort_order=item.sort_order,
+            )
+
+        serializer = ProjectDetailSerializer(new_project, context={'request': request})
+        return Response(serializer.data, status=201)
+
+    @action(detail=True, methods=['get'])
+    def logs(self, request, pk=None):
+        """Get change logs for a project."""
+        project = self.get_object()
+        logs = project.logs.all()[:50]
+        data = [{
+            'id': l.id,
+            'action': l.action,
+            'description': l.description,
+            'user': l.user.get_full_name() or l.user.username if l.user else 'system',
+            'created_at': l.created_at.isoformat(),
+        } for l in logs]
+        return Response(data)
 
     def _collect_bom_parts(self, node, parts_dict, multiplier=1):
         """Recursively collect parts from a BOM snapshot tree."""
