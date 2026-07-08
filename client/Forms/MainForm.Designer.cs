@@ -356,6 +356,9 @@ partial class MainForm
         //
         // lvParts
         //
+        this.lvParts.Anchor = System.Windows.Forms.AnchorStyles.Top
+            | System.Windows.Forms.AnchorStyles.Left
+            | System.Windows.Forms.AnchorStyles.Right;
         this.lvParts.BorderStyle = System.Windows.Forms.BorderStyle.None;
         this.lvParts.Columns.AddRange(new System.Windows.Forms.ColumnHeader[] {
             this.colPartIpn,
@@ -363,7 +366,6 @@ partial class MainForm
             this.colPartType,
             this.colPartStock,
             this.colPartDesc});
-        this.lvParts.Dock = System.Windows.Forms.DockStyle.Fill;
         this.lvParts.Font = new System.Drawing.Font("Microsoft YaHei UI", 9F);
         this.lvParts.FullRowSelect = true;
         this.lvParts.GridLines = true;
@@ -371,7 +373,7 @@ partial class MainForm
         this.lvParts.Location = new System.Drawing.Point(0, 32);
         this.lvParts.MultiSelect = false;
         this.lvParts.Name = "lvParts";
-        this.lvParts.Size = new System.Drawing.Size(995, 288);
+        this.lvParts.Size = new System.Drawing.Size(995, 248);
         this.lvParts.TabIndex = 1;
         this.lvParts.UseCompatibleStateImageBehavior = false;
         this.lvParts.View = System.Windows.Forms.View.Details;

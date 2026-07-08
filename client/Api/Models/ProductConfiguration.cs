@@ -41,7 +41,8 @@ public class ParamConfigEntry
     public string? Name { get; set; }
     public string? ParameterType { get; set; }
     public string? DefaultValue { get; set; }
-    public string? Options { get; set; }
+    public string? OptionsText { get; set; }
+    public List<string>? Options { get; set; }
 }
 
 public class ParamConfigListResponse

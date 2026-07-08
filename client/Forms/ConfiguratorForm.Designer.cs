@@ -15,266 +15,289 @@ partial class ConfiguratorForm
 
     private void InitializeComponent()
     {
-        this.components = new System.ComponentModel.Container();
-        this.topBar = new System.Windows.Forms.Panel();
-        this.lblTitle = new System.Windows.Forms.Label();
-        this.panelMain = new System.Windows.Forms.Panel();
-        this.rightSplit = new System.Windows.Forms.SplitContainer();
-        this.paramPanel = new System.Windows.Forms.Panel();
-        this.dgvParams = new System.Windows.Forms.DataGridView();
-        this.colParamName = new System.Windows.Forms.DataGridViewTextBoxColumn();
-        this.colParamValue = new System.Windows.Forms.DataGridViewTextBoxColumn();
-        this.colParamType = new System.Windows.Forms.DataGridViewTextBoxColumn();
-        this.paramHeader = new System.Windows.Forms.Label();
-        this.bomPanel = new System.Windows.Forms.Panel();
-        this.tvBomPreview = new System.Windows.Forms.TreeView();
-        this.bomPreviewHeader = new System.Windows.Forms.Label();
-        this.btnPreviewBom = new System.Windows.Forms.Button();
-        this.btnExportBom = new System.Windows.Forms.Button();
-        this.statusStrip = new System.Windows.Forms.StatusStrip();
-        this.lblStatus = new System.Windows.Forms.ToolStripStatusLabel();
-        this.topBar.SuspendLayout();
-        this.panelMain.SuspendLayout();
-        ((System.ComponentModel.ISupportInitialize)(this.rightSplit)).BeginInit();
-        this.rightSplit.Panel1.SuspendLayout();
-        this.rightSplit.Panel2.SuspendLayout();
-        this.rightSplit.SuspendLayout();
-        this.paramPanel.SuspendLayout();
-        ((System.ComponentModel.ISupportInitialize)(this.dgvParams)).BeginInit();
-        this.bomPanel.SuspendLayout();
-        this.statusStrip.SuspendLayout();
-        this.SuspendLayout();
-        //
+        topBar = new Panel();
+        lblTitle = new Label();
+        panelMain = new Panel();
+        rightSplit = new SplitContainer();
+        paramPanel = new Panel();
+        dgvParams = new DataGridView();
+        colParamName = new DataGridViewTextBoxColumn();
+        colParamValue = new DataGridViewTextBoxColumn();
+        colParamType = new DataGridViewTextBoxColumn();
+        paramHeader = new Label();
+        bomPanel = new Panel();
+        tvBomPreview = new TreeView();
+        bomPreviewHeader = new Label();
+        buttonPanel = new Panel();
+        btnPreviewBom = new Button();
+        btnExportBom = new Button();
+        statusStrip = new StatusStrip();
+        lblStatus = new ToolStripStatusLabel();
+        topBar.SuspendLayout();
+        panelMain.SuspendLayout();
+        ((System.ComponentModel.ISupportInitialize)rightSplit).BeginInit();
+        rightSplit.Panel1.SuspendLayout();
+        rightSplit.Panel2.SuspendLayout();
+        rightSplit.SuspendLayout();
+        paramPanel.SuspendLayout();
+        ((System.ComponentModel.ISupportInitialize)dgvParams).BeginInit();
+        bomPanel.SuspendLayout();
+        buttonPanel.SuspendLayout();
+        statusStrip.SuspendLayout();
+        SuspendLayout();
+        // 
         // topBar
-        //
-        this.topBar.BackColor = Color.FromArgb(30, 58, 138);
-        this.topBar.Controls.Add(this.lblTitle);
-        this.topBar.Dock = System.Windows.Forms.DockStyle.Top;
-        this.topBar.Location = new System.Drawing.Point(0, 0);
-        this.topBar.Name = "topBar";
-        this.topBar.Size = new System.Drawing.Size(900, 40);
-        this.topBar.TabIndex = 0;
-        //
+        // 
+        topBar.BackColor = Color.FromArgb(30, 58, 138);
+        topBar.Controls.Add(lblTitle);
+        topBar.Dock = DockStyle.Top;
+        topBar.Location = new Point(0, 0);
+        topBar.Margin = new Padding(2, 3, 2, 3);
+        topBar.Name = "topBar";
+        topBar.Size = new Size(700, 38);
+        topBar.TabIndex = 0;
+        // 
         // lblTitle
-        //
-        this.lblTitle.AutoSize = true;
-        this.lblTitle.Font = new System.Drawing.Font("Microsoft YaHei UI", 11F, System.Drawing.FontStyle.Bold);
-        this.lblTitle.ForeColor = Color.White;
-        this.lblTitle.Location = new System.Drawing.Point(12, 9);
-        this.lblTitle.Name = "lblTitle";
-        this.lblTitle.Size = new System.Drawing.Size(206, 24);
-        this.lblTitle.TabIndex = 0;
-        this.lblTitle.Text = "⚙ 参数化配置器";
-        //
+        // 
+        lblTitle.AutoSize = true;
+        lblTitle.Font = new Font("Microsoft YaHei UI", 11F, FontStyle.Bold);
+        lblTitle.ForeColor = Color.White;
+        lblTitle.Location = new Point(9, 8);
+        lblTitle.Margin = new Padding(2, 0, 2, 0);
+        lblTitle.Name = "lblTitle";
+        lblTitle.Size = new Size(119, 19);
+        lblTitle.TabIndex = 0;
+        lblTitle.Text = "⚙ 参数化配置器";
+        // 
         // panelMain
-        //
-        this.panelMain.Controls.Add(this.rightSplit);
-        this.panelMain.Controls.Add(this.btnPreviewBom);
-        this.panelMain.Dock = System.Windows.Forms.DockStyle.Fill;
-        this.panelMain.Location = new System.Drawing.Point(0, 40);
-        this.panelMain.Name = "panelMain";
-        this.panelMain.Size = new System.Drawing.Size(900, 734);
-        this.panelMain.TabIndex = 1;
-        //
+        // 
+        panelMain.Controls.Add(rightSplit);
+        panelMain.Controls.Add(buttonPanel);
+        panelMain.Dock = DockStyle.Fill;
+        panelMain.Location = new Point(0, 38);
+        panelMain.Margin = new Padding(2, 3, 2, 3);
+        panelMain.Name = "panelMain";
+        panelMain.Size = new Size(700, 696);
+        panelMain.TabIndex = 1;
+        // 
         // rightSplit
-        //
-        this.rightSplit.Dock = System.Windows.Forms.DockStyle.Fill;
-        this.rightSplit.FixedPanel = System.Windows.Forms.FixedPanel.Panel2;
-        this.rightSplit.Location = new System.Drawing.Point(0, 0);
-        this.rightSplit.Name = "rightSplit";
-        this.rightSplit.Orientation = System.Windows.Forms.Orientation.Horizontal;
-        //
+        // 
+        rightSplit.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+        rightSplit.FixedPanel = FixedPanel.Panel2;
+        rightSplit.Location = new Point(0, 0);
+        rightSplit.Margin = new Padding(2, 3, 2, 3);
+        rightSplit.Name = "rightSplit";
+        rightSplit.Orientation = Orientation.Horizontal;
+        // 
         // rightSplit.Panel1
-        //
-        this.rightSplit.Panel1.Controls.Add(this.paramPanel);
-        //
+        // 
+        rightSplit.Panel1.Controls.Add(paramPanel);
+        // 
         // rightSplit.Panel2
-        //
-        this.rightSplit.Panel2.Controls.Add(this.bomPanel);
-        this.rightSplit.Size = new System.Drawing.Size(900, 660);
-        this.rightSplit.SplitterDistance = 320;
-        this.rightSplit.SplitterWidth = 5;
-        this.rightSplit.TabIndex = 0;
-        //
+        // 
+        rightSplit.Panel2.Controls.Add(bomPanel);
+        rightSplit.Size = new Size(700, 586);
+        rightSplit.SplitterDistance = 273;
+        rightSplit.SplitterWidth = 5;
+        rightSplit.TabIndex = 0;
+        // 
         // paramPanel
-        //
-        this.paramPanel.Controls.Add(this.dgvParams);
-        this.paramPanel.Controls.Add(this.paramHeader);
-        this.paramPanel.Dock = System.Windows.Forms.DockStyle.Fill;
-        this.paramPanel.Location = new System.Drawing.Point(0, 0);
-        this.paramPanel.Name = "paramPanel";
-        this.paramPanel.Size = new System.Drawing.Size(900, 320);
-        this.paramPanel.TabIndex = 0;
-        //
-        // paramHeader
-        //
-        this.paramHeader.BackColor = Color.FromArgb(243, 244, 246);
-        this.paramHeader.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
-        this.paramHeader.Dock = System.Windows.Forms.DockStyle.Top;
-        this.paramHeader.Font = new System.Drawing.Font("Microsoft YaHei UI", 9.5F, System.Drawing.FontStyle.Bold);
-        this.paramHeader.ForeColor = Color.FromArgb(30, 58, 138);
-        this.paramHeader.Location = new System.Drawing.Point(0, 0);
-        this.paramHeader.Name = "paramHeader";
-        this.paramHeader.Padding = new System.Windows.Forms.Padding(10, 0, 0, 0);
-        this.paramHeader.Size = new System.Drawing.Size(900, 32);
-        this.paramHeader.TabIndex = 0;
-        this.paramHeader.Text = "📐 参数值设置";
-        this.paramHeader.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
-        //
+        // 
+        paramPanel.Controls.Add(dgvParams);
+        paramPanel.Controls.Add(paramHeader);
+        paramPanel.Dock = DockStyle.Fill;
+        paramPanel.Location = new Point(0, 0);
+        paramPanel.Margin = new Padding(2, 3, 2, 3);
+        paramPanel.Name = "paramPanel";
+        paramPanel.Size = new Size(700, 273);
+        paramPanel.TabIndex = 0;
+        // 
         // dgvParams
-        //
-        this.dgvParams.AllowUserToAddRows = false;
-        this.dgvParams.AllowUserToDeleteRows = false;
-        this.dgvParams.BackgroundColor = Color.White;
-        this.dgvParams.BorderStyle = System.Windows.Forms.BorderStyle.None;
-        this.dgvParams.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-        this.dgvParams.Columns.AddRange(new System.Windows.Forms.DataGridViewColumn[] {
-            this.colParamName,
-            this.colParamValue,
-            this.colParamType});
-        this.dgvParams.Dock = System.Windows.Forms.DockStyle.Fill;
-        this.dgvParams.Font = new System.Drawing.Font("Microsoft YaHei UI", 9F);
-        this.dgvParams.GridColor = System.Drawing.Color.FromArgb(229, 231, 235);
-        this.dgvParams.Location = new System.Drawing.Point(0, 32);
-        this.dgvParams.MultiSelect = false;
-        this.dgvParams.Name = "dgvParams";
-        this.dgvParams.RowHeadersVisible = false;
-        this.dgvParams.RowTemplate.Height = 28;
-        this.dgvParams.SelectionMode = System.Windows.Forms.DataGridViewSelectionMode.CellSelect;
-        this.dgvParams.Size = new System.Drawing.Size(900, 288);
-        this.dgvParams.TabIndex = 1;
-        //
+        // 
+        dgvParams.AllowUserToAddRows = false;
+        dgvParams.AllowUserToDeleteRows = false;
+        dgvParams.BackgroundColor = Color.White;
+        dgvParams.BorderStyle = BorderStyle.None;
+        dgvParams.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
+        dgvParams.Columns.AddRange(new DataGridViewColumn[] { colParamName, colParamValue, colParamType });
+        dgvParams.Dock = DockStyle.Fill;
+        dgvParams.Font = new Font("Microsoft YaHei UI", 9F);
+        dgvParams.GridColor = Color.FromArgb(229, 231, 235);
+        dgvParams.Location = new Point(0, 30);
+        dgvParams.Margin = new Padding(2, 3, 2, 3);
+        dgvParams.MultiSelect = false;
+        dgvParams.Name = "dgvParams";
+        dgvParams.RowHeadersVisible = false;
+        dgvParams.RowTemplate.Height = 28;
+        dgvParams.SelectionMode = DataGridViewSelectionMode.CellSelect;
+        dgvParams.Size = new Size(700, 243);
+        dgvParams.TabIndex = 1;
+        // 
         // colParamName
-        //
-        this.colParamName.HeaderText = "参数名";
-        this.colParamName.Name = "colParamName";
-        this.colParamName.ReadOnly = true;
-        this.colParamName.Width = 160;
-        //
+        // 
+        colParamName.HeaderText = "参数名";
+        colParamName.Name = "colParamName";
+        colParamName.ReadOnly = true;
+        colParamName.Width = 160;
+        // 
         // colParamValue
-        //
-        this.colParamValue.HeaderText = "值";
-        this.colParamValue.Name = "colParamValue";
-        this.colParamValue.Width = 200;
-        //
+        // 
+        colParamValue.HeaderText = "值";
+        colParamValue.Name = "colParamValue";
+        colParamValue.Width = 200;
+        // 
         // colParamType
-        //
-        this.colParamType.HeaderText = "类型";
-        this.colParamType.Name = "colParamType";
-        this.colParamType.ReadOnly = true;
-        this.colParamType.Width = 100;
-        //
+        // 
+        colParamType.HeaderText = "类型";
+        colParamType.Name = "colParamType";
+        colParamType.ReadOnly = true;
+        // 
+        // paramHeader
+        // 
+        paramHeader.BackColor = Color.FromArgb(243, 244, 246);
+        paramHeader.BorderStyle = BorderStyle.FixedSingle;
+        paramHeader.Dock = DockStyle.Top;
+        paramHeader.Font = new Font("Microsoft YaHei UI", 9.5F, FontStyle.Bold);
+        paramHeader.ForeColor = Color.FromArgb(30, 58, 138);
+        paramHeader.Location = new Point(0, 0);
+        paramHeader.Margin = new Padding(2, 0, 2, 0);
+        paramHeader.Name = "paramHeader";
+        paramHeader.Padding = new Padding(8, 0, 0, 0);
+        paramHeader.Size = new Size(700, 30);
+        paramHeader.TabIndex = 0;
+        paramHeader.Text = "📐 参数值设置";
+        paramHeader.TextAlign = ContentAlignment.MiddleLeft;
+        // 
         // bomPanel
-        //
-        this.bomPanel.Controls.Add(this.tvBomPreview);
-        this.bomPanel.Controls.Add(this.bomPreviewHeader);
-        this.bomPanel.Dock = System.Windows.Forms.DockStyle.Fill;
-        this.bomPanel.Location = new System.Drawing.Point(0, 0);
-        this.bomPanel.Name = "bomPanel";
-        this.bomPanel.Size = new System.Drawing.Size(900, 335);
-        this.bomPanel.TabIndex = 0;
-        //
-        // bomPreviewHeader
-        //
-        this.bomPreviewHeader.BackColor = Color.FromArgb(243, 244, 246);
-        this.bomPreviewHeader.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
-        this.bomPreviewHeader.Dock = System.Windows.Forms.DockStyle.Top;
-        this.bomPreviewHeader.Font = new System.Drawing.Font("Microsoft YaHei UI", 9.5F, System.Drawing.FontStyle.Bold);
-        this.bomPreviewHeader.ForeColor = Color.FromArgb(30, 58, 138);
-        this.bomPreviewHeader.Location = new System.Drawing.Point(0, 0);
-        this.bomPreviewHeader.Name = "bomPreviewHeader";
-        this.bomPreviewHeader.Padding = new System.Windows.Forms.Padding(10, 0, 0, 0);
-        this.bomPreviewHeader.Size = new System.Drawing.Size(900, 32);
-        this.bomPreviewHeader.TabIndex = 0;
-        this.bomPreviewHeader.Text = "📊 BOM 预览（评估结果）";
-        this.bomPreviewHeader.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
-        //
+        // 
+        bomPanel.Controls.Add(tvBomPreview);
+        bomPanel.Controls.Add(bomPreviewHeader);
+        bomPanel.Dock = DockStyle.Fill;
+        bomPanel.Location = new Point(0, 0);
+        bomPanel.Margin = new Padding(2, 3, 2, 3);
+        bomPanel.Name = "bomPanel";
+        bomPanel.Size = new Size(700, 308);
+        bomPanel.TabIndex = 0;
+        // 
         // tvBomPreview
-        //
-        this.tvBomPreview.BorderStyle = System.Windows.Forms.BorderStyle.None;
-        this.tvBomPreview.Dock = System.Windows.Forms.DockStyle.Fill;
-        this.tvBomPreview.Font = new System.Drawing.Font("Microsoft YaHei UI", 9F);
-        this.tvBomPreview.FullRowSelect = true;
-        this.tvBomPreview.HideSelection = false;
-        this.tvBomPreview.Location = new System.Drawing.Point(0, 32);
-        this.tvBomPreview.Name = "tvBomPreview";
-        this.tvBomPreview.ShowNodeToolTips = true;
-        this.tvBomPreview.Size = new System.Drawing.Size(900, 303);
-        this.tvBomPreview.TabIndex = 1;
-        //
+        // 
+        tvBomPreview.BorderStyle = BorderStyle.None;
+        tvBomPreview.Dock = DockStyle.Fill;
+        tvBomPreview.Font = new Font("Microsoft YaHei UI", 9F);
+        tvBomPreview.FullRowSelect = true;
+        tvBomPreview.HideSelection = false;
+        tvBomPreview.Location = new Point(0, 30);
+        tvBomPreview.Margin = new Padding(2, 3, 2, 3);
+        tvBomPreview.Name = "tvBomPreview";
+        tvBomPreview.ShowNodeToolTips = true;
+        tvBomPreview.Size = new Size(700, 278);
+        tvBomPreview.TabIndex = 1;
+        // 
+        // bomPreviewHeader
+        // 
+        bomPreviewHeader.BackColor = Color.FromArgb(243, 244, 246);
+        bomPreviewHeader.BorderStyle = BorderStyle.FixedSingle;
+        bomPreviewHeader.Dock = DockStyle.Top;
+        bomPreviewHeader.Font = new Font("Microsoft YaHei UI", 9.5F, FontStyle.Bold);
+        bomPreviewHeader.ForeColor = Color.FromArgb(30, 58, 138);
+        bomPreviewHeader.Location = new Point(0, 0);
+        bomPreviewHeader.Margin = new Padding(2, 0, 2, 0);
+        bomPreviewHeader.Name = "bomPreviewHeader";
+        bomPreviewHeader.Padding = new Padding(8, 0, 0, 0);
+        bomPreviewHeader.Size = new Size(700, 30);
+        bomPreviewHeader.TabIndex = 0;
+        bomPreviewHeader.Text = "📊 BOM 预览（评估结果）";
+        bomPreviewHeader.TextAlign = ContentAlignment.MiddleLeft;
+        // 
+        // buttonPanel
+        // 
+        buttonPanel.Controls.Add(btnPreviewBom);
+        buttonPanel.Controls.Add(btnExportBom);
+        buttonPanel.Dock = DockStyle.Bottom;
+        buttonPanel.Location = new Point(0, 647);
+        buttonPanel.Margin = new Padding(2, 3, 2, 3);
+        buttonPanel.Name = "buttonPanel";
+        buttonPanel.Size = new Size(700, 49);
+        buttonPanel.TabIndex = 1;
+        // 
         // btnPreviewBom
-        //
-        this.btnPreviewBom.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
-        this.btnPreviewBom.BackColor = Color.FromArgb(245, 158, 11);
-        this.btnPreviewBom.FlatAppearance.BorderSize = 0;
-        this.btnPreviewBom.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-        this.btnPreviewBom.Font = new System.Drawing.Font("Microsoft YaHei UI", 10F, System.Drawing.FontStyle.Bold);
-        this.btnPreviewBom.ForeColor = Color.White;
-        this.btnPreviewBom.Location = new System.Drawing.Point(618, 678);
-        this.btnPreviewBom.Name = "btnPreviewBom";
-        this.btnPreviewBom.Size = new System.Drawing.Size(120, 36);
-        this.btnPreviewBom.TabIndex = 1;
-        this.btnPreviewBom.Text = "📊 预览 BOM";
-        this.btnPreviewBom.UseVisualStyleBackColor = false;
-        //
+        // 
+        btnPreviewBom.Anchor = AnchorStyles.Right;
+        btnPreviewBom.BackColor = Color.FromArgb(245, 158, 11);
+        btnPreviewBom.FlatAppearance.BorderSize = 0;
+        btnPreviewBom.FlatStyle = FlatStyle.Flat;
+        btnPreviewBom.Font = new Font("Microsoft YaHei UI", 10F, FontStyle.Bold);
+        btnPreviewBom.ForeColor = Color.White;
+        btnPreviewBom.Location = new Point(386, 3);
+        btnPreviewBom.Margin = new Padding(2, 3, 2, 3);
+        btnPreviewBom.Name = "btnPreviewBom";
+        btnPreviewBom.Size = new Size(93, 34);
+        btnPreviewBom.TabIndex = 1;
+        btnPreviewBom.Text = "📊 预览 BOM";
+        btnPreviewBom.UseVisualStyleBackColor = false;
+        // 
         // btnExportBom
-        //
-        this.btnExportBom.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
-        this.btnExportBom.BackColor = Color.FromArgb(16, 185, 129);
-        this.btnExportBom.FlatAppearance.BorderSize = 0;
-        this.btnExportBom.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-        this.btnExportBom.Font = new System.Drawing.Font("Microsoft YaHei UI", 10F, System.Drawing.FontStyle.Bold);
-        this.btnExportBom.ForeColor = Color.White;
-        this.btnExportBom.Location = new System.Drawing.Point(744, 678);
-        this.btnExportBom.Name = "btnExportBom";
-        this.btnExportBom.Size = new System.Drawing.Size(120, 36);
-        this.btnExportBom.TabIndex = 2;
-        this.btnExportBom.Text = "📥 导出 Excel";
-        this.btnExportBom.UseVisualStyleBackColor = false;
-        //
+        // 
+        btnExportBom.Anchor = AnchorStyles.Right;
+        btnExportBom.BackColor = Color.FromArgb(16, 185, 129);
+        btnExportBom.FlatAppearance.BorderSize = 0;
+        btnExportBom.FlatStyle = FlatStyle.Flat;
+        btnExportBom.Font = new Font("Microsoft YaHei UI", 10F, FontStyle.Bold);
+        btnExportBom.ForeColor = Color.White;
+        btnExportBom.Location = new Point(573, 3);
+        btnExportBom.Margin = new Padding(2, 3, 2, 3);
+        btnExportBom.Name = "btnExportBom";
+        btnExportBom.Size = new Size(93, 34);
+        btnExportBom.TabIndex = 2;
+        btnExportBom.Text = "📥 导出 Excel";
+        btnExportBom.UseVisualStyleBackColor = false;
+        // 
         // statusStrip
-        //
-        this.statusStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] { this.lblStatus });
-        this.statusStrip.Location = new System.Drawing.Point(0, 774);
-        this.statusStrip.Name = "statusStrip";
-        this.statusStrip.Size = new System.Drawing.Size(900, 26);
-        this.statusStrip.SizingGrip = false;
-        this.statusStrip.TabIndex = 2;
-        //
+        // 
+        statusStrip.Items.AddRange(new ToolStripItem[] { lblStatus });
+        statusStrip.Location = new Point(0, 734);
+        statusStrip.Name = "statusStrip";
+        statusStrip.Padding = new Padding(1, 0, 11, 0);
+        statusStrip.Size = new Size(700, 22);
+        statusStrip.SizingGrip = false;
+        statusStrip.TabIndex = 2;
+        // 
         // lblStatus
-        //
-        this.lblStatus.Font = new System.Drawing.Font("Microsoft YaHei UI", 9F);
-        this.lblStatus.Name = "lblStatus";
-        this.lblStatus.Size = new System.Drawing.Size(68, 20);
-        this.lblStatus.Text = "就绪";
-        //
+        // 
+        lblStatus.Font = new Font("Microsoft YaHei UI", 9F);
+        lblStatus.Name = "lblStatus";
+        lblStatus.Size = new Size(32, 17);
+        lblStatus.Text = "就绪";
+        // 
         // ConfiguratorForm
-        //
-        this.AutoScaleDimensions = new System.Drawing.SizeF(9F, 18F);
-        this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-        this.ClientSize = new System.Drawing.Size(900, 800);
-        this.Controls.Add(this.panelMain);
-        this.Controls.Add(this.topBar);
-        this.Controls.Add(this.statusStrip);
-        this.Font = new System.Drawing.Font("Microsoft YaHei UI", 9F);
-        this.MinimumSize = new System.Drawing.Size(700, 500);
-        this.Name = "ConfiguratorForm";
-        this.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
-        this.Text = "参数化配置器";
-        this.topBar.ResumeLayout(false);
-        this.topBar.PerformLayout();
-        this.panelMain.ResumeLayout(false);
-        this.rightSplit.Panel1.ResumeLayout(false);
-        this.rightSplit.Panel2.ResumeLayout(false);
-        ((System.ComponentModel.ISupportInitialize)(this.rightSplit)).EndInit();
-        this.rightSplit.ResumeLayout(false);
-        this.paramPanel.ResumeLayout(false);
-        ((System.ComponentModel.ISupportInitialize)(this.dgvParams)).EndInit();
-        this.bomPanel.ResumeLayout(false);
-        this.statusStrip.ResumeLayout(false);
-        this.statusStrip.PerformLayout();
-        this.ResumeLayout(false);
-        this.PerformLayout();
+        // 
+        AutoScaleDimensions = new SizeF(7F, 17F);
+        AutoScaleMode = AutoScaleMode.Font;
+        ClientSize = new Size(700, 756);
+        Controls.Add(panelMain);
+        Controls.Add(topBar);
+        Controls.Add(statusStrip);
+        Font = new Font("Microsoft YaHei UI", 9F);
+        Margin = new Padding(2, 3, 2, 3);
+        MinimumSize = new Size(548, 474);
+        Name = "ConfiguratorForm";
+        StartPosition = FormStartPosition.CenterScreen;
+        Text = "参数化配置器";
+        topBar.ResumeLayout(false);
+        topBar.PerformLayout();
+        panelMain.ResumeLayout(false);
+        rightSplit.Panel1.ResumeLayout(false);
+        rightSplit.Panel2.ResumeLayout(false);
+        ((System.ComponentModel.ISupportInitialize)rightSplit).EndInit();
+        rightSplit.ResumeLayout(false);
+        paramPanel.ResumeLayout(false);
+        ((System.ComponentModel.ISupportInitialize)dgvParams).EndInit();
+        bomPanel.ResumeLayout(false);
+        buttonPanel.ResumeLayout(false);
+        statusStrip.ResumeLayout(false);
+        statusStrip.PerformLayout();
+        ResumeLayout(false);
+        PerformLayout();
     }
 
     #endregion
@@ -294,6 +317,7 @@ partial class ConfiguratorForm
     private System.Windows.Forms.TreeView tvBomPreview;
     private System.Windows.Forms.Button btnPreviewBom;
     private System.Windows.Forms.Button btnExportBom;
+    private System.Windows.Forms.Panel buttonPanel;
     private System.Windows.Forms.StatusStrip statusStrip;
     private System.Windows.Forms.ToolStripStatusLabel lblStatus;
 }
