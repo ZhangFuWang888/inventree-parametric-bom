@@ -15,6 +15,11 @@ public partial class MainForm : Form
     private Part? _selectedPart;
     private int? _selectedCategoryId;
 
+    // 分页状态
+    private int _currentPage = 1;
+    private int _totalCount = 0;
+    private const int PageSize = 100;
+
     public MainForm(string serverUrl, string token, Font? baseFont = null)
     {
         if (baseFont != null) Font = baseFont;
@@ -36,6 +41,8 @@ public partial class MainForm : Form
         btnRefresh.Click += (_, _) => _ = RefreshAll();
         btnLogout.Click += (_, _) => DoLogout();
         btnExport.Click += BtnExport_Click;
+        btnPrevPage.Click += (_, _) => GoToPage(_currentPage - 1);
+        btnNextPage.Click += (_, _) => GoToPage(_currentPage + 1);
         tvBom.NodeMouseDoubleClick += TvBom_NodeDoubleClick;
         tvBom.BeforeExpand += (_, e) =>
         {
@@ -43,7 +50,11 @@ public partial class MainForm : Form
                 _ = LazyLoadBomChildren(e.Node);
         };
         lvWhereUsed.DoubleClick += LvWhereUsed_DoubleClick;
-        cbFilter.SelectedIndexChanged += (_, _) => _ = RefreshPartsList();
+        cbFilter.SelectedIndexChanged += (_, _) =>
+        {
+            _currentPage = 1;
+            _ = RefreshPartsList();
+        };
 
         cbFilter.SelectedIndex = 0;
 
@@ -85,49 +96,57 @@ public partial class MainForm : Form
         _selectedCategoryId = e.Node?.Tag as int?;
         var catName = e.Node?.Text ?? "全部物料";
         partsHeader.Text = $"📦 物料列表 — {catName}";
+        _currentPage = 1;
         await RefreshPartsList();
     }
 
-    // ======================== 物料列表 ========================
+    // ======================== 物料列表（分页） ========================
 
     private async Task RefreshPartsList()
     {
         lvParts.Items.Clear();
         _selectedPart = null;
         ClearDetail();
+        UpdatePageControls(loading: true);
 
         var filter = cbFilter.SelectedItem?.ToString();
         var keyword = txtSearch.Text.Trim();
 
-        SetStatus($"加载物料...");
+        SetStatus($"加载第 {_currentPage} 页...");
 
         try
         {
-            List<Part> results;
+            PagedResult<Part> result;
 
             if (!string.IsNullOrEmpty(keyword))
             {
-                // 搜索模式：按关键词+分类+类型
-                results = await _parts.GetPartsByCategoryAsync(
+                // 搜索模式下用全部结果（搜索一般结果少，不分页）
+                var allResults = await _parts.GetPartsByCategoryAsync(
                     _selectedCategoryId, filter, keyword);
+                _totalCount = allResults.Count;
+                // 对搜索结果模拟分页
+                var paged = allResults
+                    .Skip((_currentPage - 1) * PageSize)
+                    .Take(PageSize).ToList();
+                result = new PagedResult<Part>
+                {
+                    Items = paged,
+                    TotalCount = _totalCount,
+                    PageIndex = _currentPage,
+                    PageSize = PageSize
+                };
             }
             else
             {
-                results = await _parts.GetPartsByCategoryAsync(
-                    _selectedCategoryId, filter);
+                result = await _parts.GetPartsByCategoryPagedAsync(
+                    _selectedCategoryId, _currentPage, PageSize, filter);
+                _totalCount = result.TotalCount;
             }
 
             lvParts.BeginUpdate();
-            foreach (var p in results.OrderBy(x => x.Name))
+            foreach (var p in result.Items)
             {
                 var typeText = GetPartTypeText(p);
-                var icon = typeText switch
-                {
-                    "产品" => "🏭",
-                    "部装" => "🔧",
-                    _ => "⚙"
-                };
-
                 var item = new ListViewItem(p.IPN ?? "----");
                 item.SubItems.Add(p.Name);
                 item.SubItems.Add(typeText);
@@ -138,12 +157,41 @@ public partial class MainForm : Form
             }
             lvParts.EndUpdate();
 
-            SetStatus($"共 {results.Count} 个物料");
+            if (_totalCount > 0)
+            {
+                var startIdx = (_currentPage - 1) * PageSize + 1;
+                var endIdx = Math.Min(_currentPage * PageSize, _totalCount);
+                SetStatus($"第 {startIdx}-{endIdx} 条，共 {_totalCount} 条");
+            }
+            else
+            {
+                SetStatus("无匹配物料");
+            }
+
+            UpdatePageControls(loading: false);
         }
         catch (Exception ex)
         {
             SetStatus($"加载物料失败：{ex.Message}");
+            UpdatePageControls(loading: false);
         }
+    }
+
+    private async Task GoToPage(int page)
+    {
+        if (page < 1) return;
+        _currentPage = page;
+        await RefreshPartsList();
+    }
+
+    private void UpdatePageControls(bool loading)
+    {
+        var totalPages = PageSize > 0 ? (int)Math.Ceiling((double)_totalCount / PageSize) : 0;
+        btnPrevPage.Enabled = !loading && _currentPage > 1;
+        btnNextPage.Enabled = !loading && _currentPage < totalPages;
+        lblPageInfo.Text = totalPages > 0
+            ? $"第 {_currentPage}/{totalPages} 页"
+            : "第 0/0 页";
     }
 
     private static string GetPartTypeText(Part p)
@@ -288,6 +336,8 @@ public partial class MainForm : Form
     private async void DoSearch()
     {
         var keyword = txtSearch.Text.Trim();
+        _currentPage = 1;
+
         if (string.IsNullOrEmpty(keyword))
         {
             await RefreshPartsList();
@@ -311,8 +361,7 @@ public partial class MainForm : Form
                 {
                     "产品" => await _parts.GetProductsAsync(keyword),
                     "部装" => await _parts.GetSubassembliesAsync(keyword),
-                    "零件" => (await _parts.GetPartsAsync(keyword)).ToList(),
-                    _ => await _parts.SearchPartsAsync(keyword)
+                    _ => (await _parts.GetPartsAsync(keyword)).ToList()
                 };
             }
             else
@@ -320,8 +369,13 @@ public partial class MainForm : Form
                 results = await _parts.SearchPartsAsync(keyword);
             }
 
+            _totalCount = results.Count;
+            var paged = results
+                .Skip((_currentPage - 1) * PageSize)
+                .Take(PageSize).ToList();
+
             lvParts.BeginUpdate();
-            foreach (var p in results.OrderBy(x => x.Name))
+            foreach (var p in paged)
             {
                 var typeText = GetPartTypeText(p);
                 var item = new ListViewItem(p.IPN ?? "----");
@@ -334,7 +388,10 @@ public partial class MainForm : Form
             }
             lvParts.EndUpdate();
 
-            SetStatus($"搜索完成 — {results.Count} 条结果");
+            var startIdx = (_currentPage - 1) * PageSize + 1;
+            var endIdx = Math.Min(_currentPage * PageSize, _totalCount);
+            SetStatus($"搜索完成 — 第 {startIdx}-{endIdx} 条，共 {_totalCount} 条");
+            UpdatePageControls(loading: false);
         }
         catch (Exception ex)
         {
@@ -346,6 +403,7 @@ public partial class MainForm : Form
 
     private async Task RefreshAll()
     {
+        _currentPage = 1;
         await LoadCategories();
     }
 

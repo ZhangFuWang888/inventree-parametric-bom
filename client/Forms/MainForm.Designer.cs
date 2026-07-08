@@ -32,6 +32,10 @@ partial class MainForm
         this.rightPanel = new System.Windows.Forms.Panel();
         this.rightSplit = new System.Windows.Forms.SplitContainer();
         this.panelPartsList = new System.Windows.Forms.Panel();
+        this.pagerPanel = new System.Windows.Forms.Panel();
+        this.btnPrevPage = new System.Windows.Forms.Button();
+        this.lblPageInfo = new System.Windows.Forms.Label();
+        this.btnNextPage = new System.Windows.Forms.Button();
         this.partsHeader = new System.Windows.Forms.Label();
         this.lvParts = new System.Windows.Forms.ListView();
         this.colPartIpn = new System.Windows.Forms.ColumnHeader();
@@ -271,13 +275,68 @@ partial class MainForm
         //
         // panelPartsList
         //
-        this.panelPartsList.Controls.Add(this.lvParts);
         this.panelPartsList.Controls.Add(this.partsHeader);
+        this.panelPartsList.Controls.Add(this.pagerPanel);
+        this.panelPartsList.Controls.Add(this.lvParts);
         this.panelPartsList.Dock = System.Windows.Forms.DockStyle.Fill;
         this.panelPartsList.Location = new System.Drawing.Point(0, 0);
         this.panelPartsList.Name = "panelPartsList";
         this.panelPartsList.Size = new System.Drawing.Size(995, 320);
         this.panelPartsList.TabIndex = 0;
+        //
+        // pagerPanel
+        //
+        this.pagerPanel.BackColor = Color.FromArgb(243, 244, 246);
+        this.pagerPanel.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
+        this.pagerPanel.Controls.Add(this.btnPrevPage);
+        this.pagerPanel.Controls.Add(this.lblPageInfo);
+        this.pagerPanel.Controls.Add(this.btnNextPage);
+        this.pagerPanel.Dock = System.Windows.Forms.DockStyle.Bottom;
+        this.pagerPanel.Location = new System.Drawing.Point(0, 280);
+        this.pagerPanel.Name = "pagerPanel";
+        this.pagerPanel.Size = new System.Drawing.Size(995, 40);
+        this.pagerPanel.TabIndex = 2;
+        //
+        // btnPrevPage
+        //
+        this.btnPrevPage.BackColor = Color.FromArgb(55, 65, 81);
+        this.btnPrevPage.FlatAppearance.BorderSize = 0;
+        this.btnPrevPage.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+        this.btnPrevPage.Font = new System.Drawing.Font("Microsoft YaHei UI", 9F);
+        this.btnPrevPage.ForeColor = Color.White;
+        this.btnPrevPage.Location = new System.Drawing.Point(12, 6);
+        this.btnPrevPage.Name = "btnPrevPage";
+        this.btnPrevPage.Size = new System.Drawing.Size(90, 26);
+        this.btnPrevPage.TabIndex = 0;
+        this.btnPrevPage.Text = "◀ 上一页";
+        this.btnPrevPage.UseVisualStyleBackColor = false;
+        //
+        // lblPageInfo
+        //
+        this.lblPageInfo.AutoSize = true;
+        this.lblPageInfo.Font = new System.Drawing.Font("Microsoft YaHei UI", 9F);
+        this.lblPageInfo.ForeColor = Color.FromArgb(55, 65, 81);
+        this.lblPageInfo.Location = new System.Drawing.Point(460, 10);
+        this.lblPageInfo.Name = "lblPageInfo";
+        this.lblPageInfo.Size = new System.Drawing.Size(74, 20);
+        this.lblPageInfo.TabIndex = 1;
+        this.lblPageInfo.Text = "第 0/0 页";
+        this.lblPageInfo.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+        //
+        // btnNextPage
+        //
+        this.btnNextPage.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
+        this.btnNextPage.BackColor = Color.FromArgb(55, 65, 81);
+        this.btnNextPage.FlatAppearance.BorderSize = 0;
+        this.btnNextPage.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+        this.btnNextPage.Font = new System.Drawing.Font("Microsoft YaHei UI", 9F);
+        this.btnNextPage.ForeColor = Color.White;
+        this.btnNextPage.Location = new System.Drawing.Point(892, 6);
+        this.btnNextPage.Name = "btnNextPage";
+        this.btnNextPage.Size = new System.Drawing.Size(90, 26);
+        this.btnNextPage.TabIndex = 2;
+        this.btnNextPage.Text = "下一页 ▶";
+        this.btnNextPage.UseVisualStyleBackColor = false;
         //
         // partsHeader
         //
@@ -672,6 +731,10 @@ partial class MainForm
     private System.Windows.Forms.Panel rightPanel;
     private System.Windows.Forms.SplitContainer rightSplit;
     private System.Windows.Forms.Panel panelPartsList;
+    private System.Windows.Forms.Panel pagerPanel;
+    private System.Windows.Forms.Button btnPrevPage;
+    private System.Windows.Forms.Label lblPageInfo;
+    private System.Windows.Forms.Button btnNextPage;
     private System.Windows.Forms.Label partsHeader;
     private System.Windows.Forms.ListView lvParts;
     private System.Windows.Forms.ColumnHeader colPartIpn;
