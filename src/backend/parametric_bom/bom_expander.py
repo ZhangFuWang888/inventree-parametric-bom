@@ -322,6 +322,7 @@ def _expand_single_bom_item(
     child_node: BomTreeNode = {
         'part_id': _part_pk(sub_part),
         'part_name': _part_display(sub_part),
+        'static_ipn': sub_part.IPN or '',
         'depth': depth + 1,
         'quantity': float(bom_item.quantity),
         'calculated_quantity': float(bom_item.quantity),
@@ -340,6 +341,8 @@ def _expand_single_bom_item(
     except ParametricBomItem.DoesNotExist:
         child_node['parametric'] = False
         _expand_sub_part(child_node, sub_part, params, parent_params, depth, max_depth, timeout_ms)
+        child_node['calculated_name'] = child_node.get('part_name', sub_part.name)
+        child_node['calculated_ipn'] = child_node.get('static_ipn', sub_part.IPN or '')
         # Calculate price for non-parametric items (use part base price)
         base_p = _get_part_base_price(sub_part)
         if base_p is not None:
@@ -415,6 +418,8 @@ def _expand_single_bom_item(
                 child_node['exclude_reason'] = (
                     f"Condition not met: {parametric_cfg.condition_formula}"
                 )
+                child_node['calculated_name'] = child_node.get('variant_name') or child_node.get('part_name', sub_part.name)
+                child_node['calculated_ipn'] = child_node.get('variant_ipn') or child_node.get('static_ipn', sub_part.IPN or '')
                 return child_node
         except (ParseError, ReferenceError, EvaluationError, TimeoutError) as e:
             child_node['errors'].append(f"Condition formula error: {e}")
@@ -444,6 +449,8 @@ def _expand_single_bom_item(
         _resolve_specification(
             child_node, parametric_cfg, params, parent_params, timeout_ms,
         )
+        child_node['calculated_name'] = child_node.get('part_name', sub_part.name)
+        child_node['calculated_ipn'] = child_node.get('static_ipn', sub_part.IPN or '')
         # Spec items don't recurse into sub-parts — the spec IS the part
         return child_node
 
@@ -465,6 +472,17 @@ def _expand_single_bom_item(
 
     # ── 5) Price calculation ──────────────────────────────────────────
     _calc_item_price(child_node, parametric_cfg, actual_sub_part, params, parent_params, timeout_ms)
+
+    # ── 6) Set calculated name/IPN (use formula result if available) ──
+    child_node['calculated_name'] = (
+        child_node.get('variant_name')
+        or child_node.get('actual_part_name')
+        or child_node.get('part_name', sub_part.name)
+    )
+    child_node['calculated_ipn'] = (
+        child_node.get('variant_ipn')
+        or child_node.get('static_ipn', sub_part.IPN or '')
+    )
 
     return child_node
 

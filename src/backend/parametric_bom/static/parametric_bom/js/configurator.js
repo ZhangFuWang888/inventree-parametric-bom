@@ -1259,6 +1259,10 @@ function renderBOMTree(data, containerId) {
       ${data.total_qty != null ? `<span class="text-xs text-gray-400">×${data.total_qty}</span>` : ''}
     </div>`;
   }
+  // Table header
+  html += `<div class="bom-table-header">
+    <span>类型</span><span>数量</span><span>物料名称</span><span>产品型号</span><span>价格</span>
+  </div>`;
   if (Array.isArray(tree)) {
     tree.forEach(item => renderTreeItem(item, 0, (h) => { html += h; }));
   } else if (typeof tree === 'object') {
@@ -1273,61 +1277,41 @@ function renderTreeItem(item, depth, push) {
   const mode = item.mode || 'standard';
   const isParametric = item.parametric || mode !== 'standard' || item.qty_formula || item.condition_formula;
   const depthClass = `tree-depth-${Math.min(depth, 9)}`;
-  let badgeClass = isExcluded ? 'badge-red' : (hasError ? 'badge-yellow' : (isParametric ? 'badge-blue' : 'badge-gray'));
-  let badgeText = isExcluded ? '已排除' : (hasError ? '错误' : (isParametric ? '参数化' : '静态'));
+  const badgeClass = isExcluded ? 'badge-red' : (hasError ? 'badge-yellow' : (isParametric ? 'badge-blue' : 'badge-gray'));
+  const badgeText = isExcluded ? '已排除' : (hasError ? '错误' : (isParametric ? '参数化' : '静态'));
   const qty = item.calculated_quantity != null ? item.calculated_quantity : (item.quantity != null ? item.quantity : '');
-  const partName = item.actual_part_name || item.selected_candidate_part_name || item.variant_part_name || item.part_name || item.sub_part_name || item.name || '未知部件';
-  let extraHtml = '';
-
-  // Mode-specific display
-  const modeLabels = {standard:'标准', qty_formula:'数量公式', conditional:'条件包含', candidate:'🎯候选', variant:'🧬动态', specification:'📝规格', structure:'结构'};
-  if (mode !== 'standard') {
-    extraHtml += `<span class="text-[10px] px-1 py-0.5 rounded bg-gray-100 text-gray-600 ml-1">${modeLabels[mode]||mode}</span>`;
-  }
-
-  // Candidate mode: show selection
-  if (mode === 'candidate' && item.candidates_considered) {
-    const matched = item.candidates_considered.filter(c => c.matched).map(c => c.part_name);
-    extraHtml += `<span class="text-xs text-emerald-600 ml-1">候选: ${item.selected_candidate_part_name || '无匹配'}</span>`;
-  }
-
-  // Variant mode: show generated variant
-  if (mode === 'variant') {
-    if (item.variant_part_name) {
-      extraHtml += `<span class="text-xs text-indigo-600 ml-1">→ ${item.variant_part_name}${item.variant_generated ? ' 🆕' : ''}</span>`;
-    } else if (item.variant_computed_name) {
-      extraHtml += `<span class="text-xs text-indigo-400 ml-1">→ ${item.variant_computed_name}</span>`;
-    }
-  }
-
-  // Specification mode: show fields
-  if (mode === 'specification' && item.spec_fields_evaluated) {
-    const specs = item.spec_fields_evaluated.map(f => `${f.name}=${f.value}${f.unit||''}`).join(', ');
-    extraHtml += `<span class="text-xs text-amber-600 ml-1">${specs}</span>`;
-    if (item.unit_cost != null) {
-      extraHtml += `<span class="text-xs text-gray-500 ml-1">¥${item.unit_cost}</span>`;
-    }
-  }
-
-
-
-  // Errors
-  if (item.errors && item.errors.length > 0) {
-    extraHtml += `<span class="text-red-500 text-[10px] ml-1" title="${item.errors.join('; ')}">⚠️</span>`;
-  }
-
+  const calculatedName = item.calculated_name || '未知部件';
+  const calculatedIpn = item.calculated_ipn || '';
   const partId = item.actual_part_id || item.part_id;
 
-  push(`<div class="tree-item ${depthClass}">
-    <span class="qty-badge ${badgeClass}">${badgeText}</span>
-    <span class="qty-badge bg-gray-100 text-gray-700" style="min-width:auto">×${qty}</span>
-    <span class="part-name${partId ? ' clickable-part' : ''}"${partId ? ` onclick="openPartDetail(${partId})" title="点击查看零件详情"` : ''}>${depth > 0 ? '└ ' : ''}${partName}</span>
-    ${extraHtml}
-    ${item.qty_formula ? `<span class="formula-text">数量:${item.qty_formula}</span>` : ''}
-    ${item.condition_formula ? `<span class="formula-text">条件:${item.condition_formula}</span>` : ''}
-    ${item.unit_price != null ? `<span class="text-[10px] text-emerald-600 ml-1">¥${Number(item.unit_price).toFixed(2)}/个</span>` : ''}
-    ${item.total_price != null ? `<span class="text-[10px] text-emerald-700 font-medium ml-1">=¥${Number(item.total_price).toFixed(2)}</span>` : ''}
-    ${isExcluded ? `<span class="excluded-label">已排除</span>` : ''}
+  // Tooltip for extra info
+  const tooltipParts = [];
+  if (mode !== 'standard') {
+    const modeLabels = {standard:'标准', qty_formula:'数量公式', conditional:'条件包含', candidate:'候选', variant:'变体', specification:'规格', structure:'结构'};
+    tooltipParts.push(`模式:${modeLabels[mode]||mode}`);
+  }
+  if (item.qty_formula) tooltipParts.push(`数量公式:${item.qty_formula}`);
+  if (item.condition_formula) tooltipParts.push(`条件:${item.condition_formula}`);
+  if (item.errors && item.errors.length) tooltipParts.push(`错误:${item.errors.join(';')}`);
+  if (item.exclude_reason) tooltipParts.push(item.exclude_reason);
+  const tooltip = tooltipParts.join(' | ');
+
+  // Price text
+  let priceText = '';
+  if (item.unit_price != null && item.total_price != null) {
+    priceText = `¥${Number(item.unit_price).toFixed(2)}`;
+  } else if (item.unit_price != null) {
+    priceText = `¥${Number(item.unit_price).toFixed(2)}/个`;
+  } else if (item.total_price != null) {
+    priceText = `=¥${Number(item.total_price).toFixed(2)}`;
+  }
+
+  push(`<div class="tree-item ${depthClass}"${tooltip ? ` title="${tooltip}"` : ''}>
+    <span class="col-badge"><span class="qty-badge ${badgeClass}">${badgeText}</span></span>
+    <span class="col-qty"><span class="qty-badge bg-gray-100 text-gray-700">×${qty}</span></span>
+    <span class="col-name${partId ? ' clickable-part' : ''}"${partId ? ` onclick="openPartDetail(${partId})"` : ''}>${depth > 0 ? '└ ' : ''}${calculatedName}</span>
+    <span class="col-ipn${calculatedIpn ? '' : ' text-gray-300'}">${calculatedIpn || '—'}</span>
+    <span class="col-price${priceText ? ' text-emerald-700 font-medium' : ' text-gray-300'}">${priceText || '—'}</span>
   </div>`);
   if (item.children && Array.isArray(item.children)) {
     item.children.forEach(child => renderTreeItem(child, depth + 1, push));
