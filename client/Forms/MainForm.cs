@@ -11,6 +11,7 @@ public partial class MainForm : Form
     private readonly PartService _parts;
     private readonly BomService _bom;
     private readonly CategoryService _categories;
+    private readonly ParametricService _parametric;
 
     private Part? _selectedPart;
     private int? _selectedCategoryId;
@@ -32,6 +33,7 @@ public partial class MainForm : Form
         _parts = new PartService(_client);
         _bom = new BomService(_client);
         _categories = new CategoryService(_client);
+        _parametric = new ParametricService(_client);
 
         // 绑定事件
         tvCategories.AfterSelect += TvCategories_AfterSelect;
@@ -84,6 +86,9 @@ public partial class MainForm : Form
                 tvCategories.SelectedNode = tvCategories.Nodes[0];
 
             SetStatus($"已加载 {allCats.Count} 个分类");
+
+            // 异步加载参数化物料标记
+            _ = _parametric.GetParametricPartIdsAsync();
         }
         catch (Exception ex)
         {
@@ -147,6 +152,10 @@ public partial class MainForm : Form
             foreach (var p in result.Items)
             {
                 var typeText = GetPartTypeText(p);
+                var isParametric = _parametric.IsParametric(p.Pk);
+                if (isParametric)
+                    typeText = $"⚡{typeText}";
+
                 var item = new ListViewItem(p.IPN ?? "----");
                 item.SubItems.Add(p.Name);
                 item.SubItems.Add(typeText);
@@ -378,6 +387,8 @@ public partial class MainForm : Form
             foreach (var p in paged)
             {
                 var typeText = GetPartTypeText(p);
+                if (_parametric.IsParametric(p.Pk))
+                    typeText = $"⚡{typeText}";
                 var item = new ListViewItem(p.IPN ?? "----");
                 item.SubItems.Add(p.Name);
                 item.SubItems.Add(typeText);
