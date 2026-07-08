@@ -90,7 +90,7 @@ class ParametricBomItemSerializer(serializers.ModelSerializer):
             'enable_specification', 'enable_structure',
             'has_formula', 'active_modes',
             'qty_formula', 'condition_formula',
-            'reference_formula', 'price_formula', 'param_mapping',
+            'reference_formula', 'price_formula', 'name_formula', 'param_mapping',
             'formular_hash', 'has_formula', 'active_modes',
         ]
 
