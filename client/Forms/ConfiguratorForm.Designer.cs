@@ -30,6 +30,7 @@ partial class ConfiguratorForm
         this.tvBomPreview = new System.Windows.Forms.TreeView();
         this.bomPreviewHeader = new System.Windows.Forms.Label();
         this.btnPreviewBom = new System.Windows.Forms.Button();
+        this.btnExportBom = new System.Windows.Forms.Button();
         this.statusStrip = new System.Windows.Forms.StatusStrip();
         this.lblStatus = new System.Windows.Forms.ToolStripStatusLabel();
         this.topBar.SuspendLayout();
@@ -209,12 +210,27 @@ partial class ConfiguratorForm
         this.btnPreviewBom.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
         this.btnPreviewBom.Font = new System.Drawing.Font("Microsoft YaHei UI", 10F, System.Drawing.FontStyle.Bold);
         this.btnPreviewBom.ForeColor = Color.White;
-        this.btnPreviewBom.Location = new System.Drawing.Point(756, 678);
+        this.btnPreviewBom.Location = new System.Drawing.Point(618, 678);
         this.btnPreviewBom.Name = "btnPreviewBom";
         this.btnPreviewBom.Size = new System.Drawing.Size(120, 36);
         this.btnPreviewBom.TabIndex = 1;
         this.btnPreviewBom.Text = "📊 预览 BOM";
         this.btnPreviewBom.UseVisualStyleBackColor = false;
+        //
+        // btnExportBom
+        //
+        this.btnExportBom.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
+        this.btnExportBom.BackColor = Color.FromArgb(16, 185, 129);
+        this.btnExportBom.FlatAppearance.BorderSize = 0;
+        this.btnExportBom.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+        this.btnExportBom.Font = new System.Drawing.Font("Microsoft YaHei UI", 10F, System.Drawing.FontStyle.Bold);
+        this.btnExportBom.ForeColor = Color.White;
+        this.btnExportBom.Location = new System.Drawing.Point(744, 678);
+        this.btnExportBom.Name = "btnExportBom";
+        this.btnExportBom.Size = new System.Drawing.Size(120, 36);
+        this.btnExportBom.TabIndex = 2;
+        this.btnExportBom.Text = "📥 导出 Excel";
+        this.btnExportBom.UseVisualStyleBackColor = false;
         //
         // statusStrip
         //
@@ -277,6 +293,7 @@ partial class ConfiguratorForm
     private System.Windows.Forms.Label bomPreviewHeader;
     private System.Windows.Forms.TreeView tvBomPreview;
     private System.Windows.Forms.Button btnPreviewBom;
+    private System.Windows.Forms.Button btnExportBom;
     private System.Windows.Forms.StatusStrip statusStrip;
     private System.Windows.Forms.ToolStripStatusLabel lblStatus;
 }

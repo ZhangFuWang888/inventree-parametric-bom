@@ -25,6 +25,7 @@ public partial class ConfiguratorForm : Form
         paramHeader.Text = $"📐 参数值设置 — {part.Name}";
 
         btnPreviewBom.Click += (_, _) => _ = PreviewBomAsync();
+        btnExportBom.Click += (_, _) => ExportBomAsync();
 
         _ = LoadParamsAsync();
     }
@@ -105,6 +106,87 @@ public partial class ConfiguratorForm : Form
             tn.Nodes.Add(BuildEvalNode(child));
 
         return tn;
+    }
+
+    // ── 导出 BOM 到 Excel ─────────────────
+
+    private void ExportBomAsync()
+    {
+        if (tvBomPreview.Nodes.Count == 0)
+        {
+            SetStatus("没有可导出的 BOM 数据，请先预览 BOM");
+            return;
+        }
+
+        var sfd = new SaveFileDialog
+        {
+            Filter = "Excel 文件|*.xlsx",
+            FileName = $"BOM_{_part.IPN ?? _part.Name}.xlsx"
+        };
+        if (sfd.ShowDialog() != DialogResult.OK) return;
+
+        SetStatus("导出中...");
+        try
+        {
+            var rows = new List<(string Level, string Name, string Desc, decimal Qty, string Excluded)>();
+            foreach (TreeNode node in tvBomPreview.Nodes)
+                FlattenTree(node, 0, rows);
+
+            using var workbook = new ClosedXML.Excel.XLWorkbook();
+            var ws = workbook.Worksheets.Add("BOM");
+            ws.Cell(1, 1).Value = "层级";
+            ws.Cell(1, 2).Value = "名称";
+            ws.Cell(1, 3).Value = "描述";
+            ws.Cell(1, 4).Value = "数量";
+            ws.Cell(1, 5).Value = "状态";
+
+            for (int i = 0; i < rows.Count; i++)
+            {
+                var r = rows[i];
+                int row = i + 2;
+                ws.Cell(row, 1).Value = r.Level;
+                ws.Cell(row, 2).Value = r.Name;
+                ws.Cell(row, 3).Value = r.Desc;
+                ws.Cell(row, 4).Value = (double)r.Qty;
+                ws.Cell(row, 5).Value = r.Excluded;
+            }
+
+            ws.Columns().AdjustToContents();
+            workbook.SaveAs(sfd.FileName);
+
+            SetStatus($"已导出: {sfd.FileName}");
+            MessageBox.Show($"BOM 已导出到:\n{sfd.FileName}", "导出成功",
+                MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+        catch (Exception ex)
+        {
+            SetStatus($"导出失败：{ex.Message}");
+        }
+    }
+
+    private static void FlattenTree(TreeNode node, int depth,
+        List<(string Level, string Name, string Desc, decimal Qty, string Excluded)> rows)
+    {
+        var indent = new string(' ', depth * 2);
+
+        // 从节点文本提取名称和数量
+        var text = node.Text;
+        var excluded = text.Contains("🚫") ? "已排除" : "正常";
+        // 尝试提取数量：格式 "名称 ×数量" 或 "名称"
+        decimal qty = 1;
+        var xIdx = text.LastIndexOf(" ×");
+        var name = text;
+        if (xIdx > 0)
+        {
+            name = text[..xIdx];
+            var qtyStr = text[(xIdx + 2)..];
+            decimal.TryParse(qtyStr, out qty);
+        }
+
+        rows.Add((indent, name, node.ToolTipText ?? "", qty, excluded));
+
+        foreach (TreeNode child in node.Nodes)
+            FlattenTree(child, depth + 1, rows);
     }
 
     // ── 通用 ─────────────────
