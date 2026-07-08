@@ -89,6 +89,46 @@ public class InvenTreeClient
         return new List<TItem>();
     }
 
+    /// <summary>GET 全部分页物料 — 自动跟随 next 链接遍历所有页</summary>
+    public async Task<List<TItem>> GetAllPagesAsync<TItem, TWrapped>(string endpoint)
+        where TWrapped : class
+    {
+        var allItems = new List<TItem>();
+        var nextUrl = endpoint;
+
+        while (!string.IsNullOrEmpty(nextUrl))
+        {
+            var response = await _http.GetAsync(nextUrl);
+            response.EnsureSuccessStatusCode();
+            var json = await response.Content.ReadAsStringAsync();
+            var token = JToken.Parse(json);
+
+            List<TItem>? pageItems = null;
+
+            if (token is JArray arr)
+            {
+                pageItems = arr.ToObject<List<TItem>>(JsonSerializer.Create(JsonSettings));
+                nextUrl = null; // 数组格式不支持分页
+            }
+            else
+            {
+                var wrapped = token.ToObject<TWrapped>(
+                    JsonSerializer.Create(JsonSettings));
+                var resultsProp = wrapped?.GetType().GetProperty("Results");
+                if (resultsProp?.GetValue(wrapped) is IEnumerable<TItem> list)
+                    pageItems = list.ToList();
+
+                var nextProp = wrapped?.GetType().GetProperty("Next");
+                nextUrl = nextProp?.GetValue(wrapped) as string;
+            }
+
+            if (pageItems != null)
+                allItems.AddRange(pageItems);
+        }
+
+        return allItems;
+    }
+
     /// <summary>POST 请求（JSON body）</summary>
     public async Task<T> PostAsync<T>(string endpoint, object? body = null)
     {

@@ -266,6 +266,8 @@ public partial class MainForm : Form
                 lv.Tag = item;
                 lvWhereUsed.Items.Add(lv);
             }
+            if (items.Count > 0)
+                SetStatus($"找到 {items.Count} 个上级父件（切换到「反向查询」Tab 查看）");
         }
         catch { /* where-used may not work for all */ }
     }

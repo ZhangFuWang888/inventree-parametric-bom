@@ -1,4 +1,5 @@
-using BomQueryClient.Api.Models;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 namespace BomQueryClient.Api.Services;
 
@@ -18,7 +19,7 @@ public class CategoryService
     public async Task<List<PartCategory>> GetAllAsync()
     {
         return await _client.GetListAsync<PartCategory, PartCategoryListResponse>(
-            "/api/part-category/?limit=200");
+            "/api/part/category/?limit=200");
     }
 
     /// <summary>将扁平分类列表构建为父子树并返回根节点</summary>
@@ -49,13 +50,13 @@ public class CategoryService
     private static TreeNode BuildCategoryNode(PartCategory cat,
         Dictionary<int, PartCategory> allCats)
     {
-        var icon = "📂";
-        var node = new TreeNode($"{icon} {cat.Name}")
+        var partCount = cat.PartCount > 0 ? $" ({cat.PartCount})" : "";
+        var node = new TreeNode($"📂 {cat.Name}{partCount}")
         {
             Tag = cat.Pk,
             ToolTipText = !string.IsNullOrEmpty(cat.Description)
-                ? cat.Description
-                : cat.PathString ?? ""
+                ? $"{cat.Description}\n物料数: {cat.PartCount}"
+                : $"物料数: {cat.PartCount}"
         };
 
         // 递归添加子分类
@@ -68,4 +69,27 @@ public class CategoryService
 
         return node;
     }
+}
+
+/// <summary>
+/// InvenTree 物料分类
+/// </summary>
+public class PartCategory
+{
+    public int Pk { get; set; }
+    public string Name { get; set; } = "";
+    public string? Description { get; set; }
+    public int? Parent { get; set; }
+    public int Level { get; set; }
+    public string? PathString { get; set; }
+    public int PartCount { get; set; }
+    public int Subcategories { get; set; }
+}
+
+public class PartCategoryListResponse
+{
+    public int Count { get; set; }
+    public string? Next { get; set; }
+    public string? Previous { get; set; }
+    public List<PartCategory> Results { get; set; } = new();
 }

@@ -46,11 +46,11 @@ public class PartService
         return await _client.GetListAsync<Part, PartListResponse>($"/api/part/{query}");
     }
 
-    /// <summary>获取指定分类下的物料（支持类型过滤）</summary>
+    /// <summary>获取指定分类下的物料（支持类型过滤）— 自动分页获取全部</summary>
     public async Task<List<Part>> GetPartsByCategoryAsync(int? categoryId,
         string? typeFilter = null, string? search = null)
     {
-        var query = "?limit=200";
+        var query = "?limit=1000";
         if (categoryId.HasValue)
             query += $"&category={categoryId.Value}";
         if (!string.IsNullOrEmpty(typeFilter))
@@ -66,14 +66,14 @@ public class PartService
         if (!string.IsNullOrEmpty(search))
             query += $"&search={Uri.EscapeDataString(search)}";
 
-        return await _client.GetListAsync<Part, PartListResponse>($"/api/part/{query}");
+        return await _client.GetAllPagesAsync<Part, PartListResponse>($"/api/part/{query}");
     }
 
-    /// <summary>根据关键词搜索物料</summary>
+    /// <summary>根据关键词搜索物料 — 自动分页获取全部</summary>
     public async Task<List<Part>> SearchPartsAsync(string keyword)
     {
-        var query = $"?search={Uri.EscapeDataString(keyword)}&limit=50";
-        return await _client.GetListAsync<Part, PartListResponse>($"/api/part/{query}");
+        var query = $"?search={Uri.EscapeDataString(keyword)}&limit=1000";
+        return await _client.GetAllPagesAsync<Part, PartListResponse>($"/api/part/{query}");
     }
 
     /// <summary>获取单个物料详情</summary>
