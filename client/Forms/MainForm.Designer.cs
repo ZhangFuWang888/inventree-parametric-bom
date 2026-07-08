@@ -128,12 +128,13 @@ partial class MainForm
         //
         // btnSearch
         //
+        this.btnSearch.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
         this.btnSearch.BackColor = Color.FromArgb(59, 130, 246);
         this.btnSearch.FlatAppearance.BorderSize = 0;
         this.btnSearch.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
         this.btnSearch.Font = new System.Drawing.Font("Microsoft YaHei UI", 9F);
         this.btnSearch.ForeColor = Color.White;
-        this.btnSearch.Location = new System.Drawing.Point(728, 7);
+        this.btnSearch.Location = new System.Drawing.Point(836, 7);
         this.btnSearch.Name = "btnSearch";
         this.btnSearch.Size = new System.Drawing.Size(65, 26);
         this.btnSearch.TabIndex = 2;
@@ -146,7 +147,7 @@ partial class MainForm
         this.cbFilter.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
         this.cbFilter.Font = new System.Drawing.Font("Microsoft YaHei UI", 9F);
         this.cbFilter.Items.AddRange(new object[] { "全部", "产品", "部装", "零件" });
-        this.cbFilter.Location = new System.Drawing.Point(800, 8);
+        this.cbFilter.Location = new System.Drawing.Point(728, 8);
         this.cbFilter.Name = "cbFilter";
         this.cbFilter.Size = new System.Drawing.Size(100, 26);
         this.cbFilter.TabIndex = 3;
