@@ -54,7 +54,16 @@ public class ParametricService
     public async Task<ParamStatusResponse> CheckParamStatusAsync(int partId)
     {
         return await _client.GetAsync<ParamStatusResponse>(
-            $"/api/parametric-bom/check-param-status/{partId}/");
+            $"/api/parametric-bom/check-param-status/?part_id={partId}");
+    }
+
+    /// <summary>按型号(IPN)+名称查询参数化状态</summary>
+    public async Task<ParamStatusResponse> CheckParamStatusByInfoAsync(string ipn, string? name = null)
+    {
+        var query = $"/api/parametric-bom/check-param-status/?ipn={Uri.EscapeDataString(ipn)}";
+        if (!string.IsNullOrEmpty(name))
+            query += $"&name={Uri.EscapeDataString(name)}";
+        return await _client.GetAsync<ParamStatusResponse>(query);
     }
 }
 
@@ -76,6 +85,8 @@ internal class PartConfigListResponse
 public class ParamStatusResponse
 {
     public int PartId { get; set; }
+    public string Ipn { get; set; } = "";
+    public string Name { get; set; } = "";
     public bool IsParametric { get; set; }
     public int ParamCount { get; set; }
 }

@@ -108,5 +108,5 @@ parametric_api_urls = [
     path('cart/create-order/', cart_create_order, name='cart-create-order'),
     # C# WinForms 客户端
     path('client-login/', client_login, name='client-login'),
-    path('check-param-status/<int:part_id>/', check_param_status, name='check-param-status'),
+    path('check-param-status/', check_param_status, name='check-param-status'),
 ] + router.urls

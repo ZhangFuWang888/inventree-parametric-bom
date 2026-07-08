@@ -2385,21 +2385,47 @@ def client_login(request):
 
 @api_view(['GET'])
 @permission_classes([permissions.IsAuthenticated])
-def check_param_status(request, part_id):
-    """检查指定物料是否为参数化产品（有 PartParameterConfig 则为参数化）。"""
+def check_param_status(request):
+    """检查物料是否为参数化产品（有 PartParameterConfig 则为参数化）。
+
+    查询方式（二选一）：
+      ?part_id=1          — 按物料 ID 查
+      ?ipn=M3x10&name=螺钉 — 按型号(IPN)+名称查（名称可选，缩小范围）
+    """
     from parametric_bom.models import PartParameterConfig as PPC
     from part.models import Part
 
-    # 先确认物料存在
-    if not Part.objects.filter(pk=part_id).exists():
-        return Response(
-            {'error': f'物料 {part_id} 不存在'},
-            status=404
-        )
+    part_id = request.query_params.get('part_id')
+    ipn = request.query_params.get('ipn')
+    name = request.query_params.get('name')
 
-    count = PPC.objects.filter(part_id=part_id).count()
+    # ── 定位物料 ──────────────────────────────
+    if part_id:
+        try:
+            part_id = int(part_id)
+        except (ValueError, TypeError):
+            return Response({'error': 'part_id 必须是整数'}, status=400)
+        try:
+            part = Part.objects.get(pk=part_id)
+        except Part.DoesNotExist:
+            return Response({'error': f'物料 {part_id} 不存在'}, status=404)
+    elif ipn:
+        qs = Part.objects.filter(IPN=ipn)
+        if name:
+            qs = qs.filter(name__icontains=name)
+        if qs.count() == 0:
+            return Response({'error': f'未找到型号为「{ipn}」的物料'}, status=404)
+        if qs.count() > 1:
+            return Response({'error': f'型号「{ipn}」匹配到 {qs.count()} 个物料，请缩小名称范围'}, status=400)
+        part = qs.first()
+    else:
+        return Response({'error': '请提供 part_id 或 ipn（型号）'}, status=400)
+
+    count = PPC.objects.filter(part_id=part.pk).count()
     return Response({
-        'part_id': part_id,
+        'part_id': part.pk,
+        'ipn': part.IPN or '',
+        'name': part.name,
         'is_parametric': count > 0,
         'param_count': count,
     })
