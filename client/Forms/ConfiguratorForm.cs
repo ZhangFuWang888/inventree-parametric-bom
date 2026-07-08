@@ -41,10 +41,39 @@ public partial class ConfiguratorForm : Form
             dgvParams.Rows.Clear();
             foreach (var param in _partParams)
             {
-                dgvParams.Rows.Add(
+                var rowIdx = dgvParams.Rows.Add(
                     param.Name,
                     param.DefaultValue ?? "",
                     GetParamTypeDisplay(param.ParameterType));
+
+                // 按参数类型设置单元格控件
+                var valueCell = dgvParams.Rows[rowIdx].Cells[1];
+
+                if (param.ParameterType == "option" && !string.IsNullOrEmpty(param.Options))
+                {
+                    var comboCell = new DataGridViewComboBoxCell();
+                    foreach (var opt in param.Options.Split(',').Select(o => o.Trim()))
+                        comboCell.Items.Add(opt);
+                    comboCell.Value = param.DefaultValue ?? "";
+                    dgvParams.Rows[rowIdx].Cells[1] = comboCell;
+                }
+                else if (param.ParameterType == "boolean")
+                {
+                    var checkCell = new DataGridViewCheckBoxCell();
+                    checkCell.Value = param.DefaultValue?.Trim().ToLower() == "true"
+                        || param.DefaultValue == "1";
+                    checkCell.Style.NullValue = false;
+                    dgvParams.Rows[rowIdx].Cells[1] = checkCell;
+                }
+                else if (param.ParameterType == "multi_option" && !string.IsNullOrEmpty(param.Options))
+                {
+                    var comboCell = new DataGridViewComboBoxCell();
+                    foreach (var opt in param.Options.Split(',').Select(o => o.Trim()))
+                        comboCell.Items.Add(opt);
+                    comboCell.Value = param.DefaultValue?.Split(',').FirstOrDefault()?.Trim() ?? "";
+                    dgvParams.Rows[rowIdx].Cells[1] = comboCell;
+                }
+                // number / text / long_text 保持默认文本框
             }
             SetStatus($"共 {_partParams.Count} 个参数，编辑后点击「预览 BOM」");
         }
@@ -62,9 +91,24 @@ public partial class ConfiguratorForm : Form
         foreach (DataGridViewRow row in dgvParams.Rows)
         {
             var name = row.Cells[0].Value?.ToString();
-            var val = row.Cells[1].Value?.ToString() ?? "";
+            var cell = row.Cells[1];
+
+            string? val = null;
+            if (cell is DataGridViewCheckBoxCell checkCell)
+            {
+                val = checkCell.Value is bool b && b ? "true" : "false";
+            }
+            else if (cell is DataGridViewComboBoxCell)
+            {
+                val = cell.Value?.ToString() ?? "";
+            }
+            else
+            {
+                val = cell.Value?.ToString() ?? "";
+            }
+
             if (!string.IsNullOrEmpty(name))
-                paramValues[name] = val;
+                paramValues[name] = val ?? "";
         }
 
         SetStatus("评估 BOM...");
@@ -91,7 +135,8 @@ public partial class ConfiguratorForm : Form
     private static TreeNode BuildEvalNode(BomEvalNode node)
     {
         var qty = node.CalculatedQuantity > 0 ? node.CalculatedQuantity : node.Quantity;
-        var prefix = qty != 1 ? $" ×{qty}" : "";
+        var formulaMark = node.CalculatedQuantity > 0 && node.CalculatedQuantity != node.Quantity ? " ⚡" : "";
+        var prefix = qty != 1 ? $" ×{qty}{formulaMark}" : formulaMark;
         var excl = node.Excluded ? " [🚫 已排除]" : "";
 
         var text = $"{node.PartName}{prefix}{excl}";
@@ -99,7 +144,9 @@ public partial class ConfiguratorForm : Form
         {
             ToolTipText = node.Excluded
                 ? $"已排除: {node.ExcludeReason}"
-                : $"数量: {qty}"
+                : node.CalculatedQuantity != node.Quantity
+                    ? $"BOM数量: {node.Quantity}\n公式计算: {node.CalculatedQuantity}"
+                    : $"数量: {qty}"
         };
 
         foreach (var child in node.Children)
