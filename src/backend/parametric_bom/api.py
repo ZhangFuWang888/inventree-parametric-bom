@@ -2388,6 +2388,15 @@ def client_login(request):
 def check_param_status(request, part_id):
     """检查指定物料是否为参数化产品（有 PartParameterConfig 则为参数化）。"""
     from parametric_bom.models import PartParameterConfig as PPC
+    from part.models import Part
+
+    # 先确认物料存在
+    if not Part.objects.filter(pk=part_id).exists():
+        return Response(
+            {'error': f'物料 {part_id} 不存在'},
+            status=404
+        )
+
     count = PPC.objects.filter(part_id=part_id).count()
     return Response({
         'part_id': part_id,
