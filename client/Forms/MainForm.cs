@@ -10,8 +10,10 @@ public partial class MainForm : Form
     private readonly InvenTreeClient _client;
     private readonly PartService _parts;
     private readonly BomService _bom;
+    private readonly CategoryService _categories;
 
     private Part? _selectedPart;
+    private int? _selectedCategoryId;
 
     public MainForm(string serverUrl, string token, Font? baseFont = null)
     {
@@ -24,12 +26,14 @@ public partial class MainForm : Form
         _client.SetToken(token);
         _parts = new PartService(_client);
         _bom = new BomService(_client);
+        _categories = new CategoryService(_client);
 
         // 绑定事件
-        tvProducts.AfterSelect += TvProducts_AfterSelect;
+        tvCategories.AfterSelect += TvCategories_AfterSelect;
+        lvParts.SelectedIndexChanged += LvParts_SelectedIndexChanged;
         txtSearch.KeyDown += (_, e) => { if (e.KeyCode == Keys.Enter) DoSearch(); };
         btnSearch.Click += (_, _) => DoSearch();
-        btnRefresh.Click += (_, _) => _ = LoadProducts();
+        btnRefresh.Click += (_, _) => _ = RefreshAll();
         btnLogout.Click += (_, _) => DoLogout();
         btnExport.Click += BtnExport_Click;
         tvBom.NodeMouseDoubleClick += TvBom_NodeDoubleClick;
@@ -39,55 +43,127 @@ public partial class MainForm : Form
                 _ = LazyLoadBomChildren(e.Node);
         };
         lvWhereUsed.DoubleClick += LvWhereUsed_DoubleClick;
+        cbFilter.SelectedIndexChanged += (_, _) => _ = RefreshPartsList();
 
         cbFilter.SelectedIndex = 0;
 
         // 加载数据
-        _ = LoadProducts();
+        _ = LoadCategories();
     }
 
-    // ======================== 数据加载 ========================
+    // ======================== 分类树 ========================
 
-    private async Task LoadProducts()
+    private async Task LoadCategories()
     {
-        tvProducts.Nodes.Clear();
-        SetStatus("加载产品列表...");
+        tvCategories.Nodes.Clear();
+        SetStatus("加载物料分类...");
 
         try
         {
-            var products = await _parts.GetProductsAsync();
+            var allCats = await _categories.GetAllAsync();
+            var roots = CategoryService.BuildTree(allCats);
 
-            tvProducts.BeginUpdate();
-            foreach (var p in products.OrderBy(x => x.Name))
-            {
-                var node = new TreeNode(p.Name)
-                {
-                    Tag = p,
-                    ToolTipText = !string.IsNullOrEmpty(p.Description)
-                        ? $"{p.Description}\nIPN: {p.IPN ?? "-"}"
-                        : $"IPN: {p.IPN ?? "-"}"
-                };
-                tvProducts.Nodes.Add(node);
-            }
-            tvProducts.EndUpdate();
-            SetStatus($"共 {products.Count} 个产品");
+            tvCategories.BeginUpdate();
+            foreach (var node in roots)
+                tvCategories.Nodes.Add(node);
+            tvCategories.EndUpdate();
+
+            // 默认选中"全部物料"
+            if (tvCategories.Nodes.Count > 0)
+                tvCategories.SelectedNode = tvCategories.Nodes[0];
+
+            SetStatus($"已加载 {allCats.Count} 个分类");
         }
         catch (Exception ex)
         {
-            SetStatus($"加载失败：{ex.Message}");
-            MessageBox.Show($"无法加载产品列表：{ex.Message}", "错误",
-                MessageBoxButtons.OK, MessageBoxIcon.Error);
+            SetStatus($"加载分类失败：{ex.Message}");
         }
     }
 
-    private async void TvProducts_AfterSelect(object? sender, TreeViewEventArgs e)
+    private async void TvCategories_AfterSelect(object? sender, TreeViewEventArgs e)
     {
-        if (e.Node?.Tag is Part part)
+        _selectedCategoryId = e.Node?.Tag as int?;
+        var catName = e.Node?.Text ?? "全部物料";
+        partsHeader.Text = $"📦 物料列表 — {catName}";
+        await RefreshPartsList();
+    }
+
+    // ======================== 物料列表 ========================
+
+    private async Task RefreshPartsList()
+    {
+        lvParts.Items.Clear();
+        _selectedPart = null;
+        ClearDetail();
+
+        var filter = cbFilter.SelectedItem?.ToString();
+        var keyword = txtSearch.Text.Trim();
+
+        SetStatus($"加载物料...");
+
+        try
+        {
+            List<Part> results;
+
+            if (!string.IsNullOrEmpty(keyword))
+            {
+                // 搜索模式：按关键词+分类+类型
+                results = await _parts.GetPartsByCategoryAsync(
+                    _selectedCategoryId, filter, keyword);
+            }
+            else
+            {
+                results = await _parts.GetPartsByCategoryAsync(
+                    _selectedCategoryId, filter);
+            }
+
+            lvParts.BeginUpdate();
+            foreach (var p in results.OrderBy(x => x.Name))
+            {
+                var typeText = GetPartTypeText(p);
+                var icon = typeText switch
+                {
+                    "产品" => "🏭",
+                    "部装" => "🔧",
+                    _ => "⚙"
+                };
+
+                var item = new ListViewItem(p.IPN ?? "----");
+                item.SubItems.Add(p.Name);
+                item.SubItems.Add(typeText);
+                item.SubItems.Add((p.TotalInStock ?? 0).ToString("N0"));
+                item.SubItems.Add(p.Description ?? "");
+                item.Tag = p;
+                lvParts.Items.Add(item);
+            }
+            lvParts.EndUpdate();
+
+            SetStatus($"共 {results.Count} 个物料");
+        }
+        catch (Exception ex)
+        {
+            SetStatus($"加载物料失败：{ex.Message}");
+        }
+    }
+
+    private static string GetPartTypeText(Part p)
+    {
+        if (p.IsTemplate) return "产品";
+        if (p.Assembly) return "部装";
+        return "零件";
+    }
+
+    // ======================== 选中物料 → 加载详情+BOM ========================
+
+    private async void LvParts_SelectedIndexChanged(object? sender, EventArgs e)
+    {
+        if (lvParts.SelectedItems.Count == 0) return;
+        if (lvParts.SelectedItems[0].Tag is Part part)
         {
             _selectedPart = part;
             ShowPartDetail(part);
-            _ = LoadBomTree(part.Pk);
-            _ = LoadWhereUsed(part.Pk);
+            await LoadBomTree(part.Pk);
+            await LoadWhereUsed(part.Pk);
         }
     }
 
@@ -95,9 +171,21 @@ public partial class MainForm : Form
     {
         lblPartName.Text = part.Name;
         lblPartIpn.Text = part.IPN ?? "-";
-        lblPartType.Text = part.IsTemplate ? "产品" : part.Assembly ? "部装" : "零件";
+        lblPartType.Text = GetPartTypeText(part);
         lblPartStock.Text = (part.TotalInStock ?? 0).ToString("N0");
     }
+
+    private void ClearDetail()
+    {
+        lblPartName.Text = "-";
+        lblPartIpn.Text = "-";
+        lblPartType.Text = "-";
+        lblPartStock.Text = "-";
+        tvBom.Nodes.Clear();
+        lvWhereUsed.Items.Clear();
+    }
+
+    // ======================== BOM 树 ========================
 
     private async Task LoadBomTree(int partId)
     {
@@ -130,7 +218,7 @@ public partial class MainForm : Form
             ToolTipText = $"数量: {node.Quantity}\n" +
                           $"编码: {node.Part.IPN ?? "-"}\n" +
                           $"描述: {node.Part.Description ?? "-"}\n" +
-                          $"类型: {(node.Part.Assembly ? "组装件" : "零件")}"
+                          $"类型: {GetPartTypeText(node.Part)}"
         };
 
         foreach (var child in node.Children)
@@ -155,10 +243,17 @@ public partial class MainForm : Form
         }
     }
 
+    private async void TvBom_NodeDoubleClick(object? sender, TreeNodeMouseClickEventArgs e)
+    {
+        if (e.Node?.Tag is Part part && part.Assembly)
+            await LazyLoadBomChildren(e.Node);
+    }
+
+    // ======================== Where Used ========================
+
     private async Task LoadWhereUsed(int partId)
     {
         lvWhereUsed.Items.Clear();
-
         try
         {
             var items = await _bom.WhereUsedAsync(partId);
@@ -175,12 +270,6 @@ public partial class MainForm : Form
         catch { /* where-used may not work for all */ }
     }
 
-    private async void TvBom_NodeDoubleClick(object? sender, TreeNodeMouseClickEventArgs e)
-    {
-        if (e.Node?.Tag is Part part && part.Assembly)
-            await LazyLoadBomChildren(e.Node);
-    }
-
     private async void LvWhereUsed_DoubleClick(object? sender, EventArgs e)
     {
         if (lvWhereUsed.SelectedItems.Count > 0 &&
@@ -192,37 +281,57 @@ public partial class MainForm : Form
         }
     }
 
+    // ======================== 搜索 ========================
+
     private async void DoSearch()
     {
         var keyword = txtSearch.Text.Trim();
-        if (string.IsNullOrEmpty(keyword)) return;
+        if (string.IsNullOrEmpty(keyword))
+        {
+            await RefreshPartsList();
+            return;
+        }
 
-        tvProducts.Nodes.Clear();
         SetStatus($"搜索: {keyword}...");
+        lvParts.Items.Clear();
+        _selectedPart = null;
+        ClearDetail();
+        partsHeader.Text = $"🔍 搜索结果 — \"{keyword}\"";
 
         try
         {
+            var filter = cbFilter.SelectedItem?.ToString();
             List<Part> results;
-            switch (cbFilter.SelectedIndex)
+
+            if (!string.IsNullOrEmpty(filter) && filter != "全部")
             {
-                case 1: results = await _parts.GetProductsAsync(keyword); break;
-                case 2: results = await _parts.GetSubassembliesAsync(keyword); break;
-                case 3: results = (await _parts.GetPartsAsync())
-                        .Where(p => !p.Assembly).ToList(); break;
-                default: results = await _parts.SearchPartsAsync(keyword); break;
+                results = filter switch
+                {
+                    "产品" => await _parts.GetProductsAsync(keyword),
+                    "部装" => await _parts.GetSubassembliesAsync(keyword),
+                    "零件" => (await _parts.GetPartsAsync(keyword)).ToList(),
+                    _ => await _parts.SearchPartsAsync(keyword)
+                };
+            }
+            else
+            {
+                results = await _parts.SearchPartsAsync(keyword);
             }
 
-            tvProducts.BeginUpdate();
+            lvParts.BeginUpdate();
             foreach (var p in results.OrderBy(x => x.Name))
             {
-                var node = new TreeNode(p.Name)
-                {
-                    Tag = p,
-                    ToolTipText = $"[{p.IPN ?? "----"}] {p.Description ?? ""}"
-                };
-                tvProducts.Nodes.Add(node);
+                var typeText = GetPartTypeText(p);
+                var item = new ListViewItem(p.IPN ?? "----");
+                item.SubItems.Add(p.Name);
+                item.SubItems.Add(typeText);
+                item.SubItems.Add((p.TotalInStock ?? 0).ToString("N0"));
+                item.SubItems.Add(p.Description ?? "");
+                item.Tag = p;
+                lvParts.Items.Add(item);
             }
-            tvProducts.EndUpdate();
+            lvParts.EndUpdate();
+
             SetStatus($"搜索完成 — {results.Count} 条结果");
         }
         catch (Exception ex)
@@ -230,6 +339,15 @@ public partial class MainForm : Form
             SetStatus($"搜索失败：{ex.Message}");
         }
     }
+
+    // ======================== 刷新 ========================
+
+    private async Task RefreshAll()
+    {
+        await LoadCategories();
+    }
+
+    // ======================== 导出 ========================
 
     private async void BtnExport_Click(object? sender, EventArgs e)
     {
@@ -265,7 +383,7 @@ public partial class MainForm : Form
         var indent = new string(' ', depth * 2);
         list.Add((indent, node.Part.IPN ?? "", node.Part.Name,
             node.Part.Description ?? "", node.Quantity,
-            node.Part.Assembly ? (node.Part.IsTemplate ? "产品" : "部装") : "零件"));
+            GetPartTypeText(node.Part)));
 
         foreach (var child in node.Children)
             list.AddRange(FlattenBom(child, depth + 1));
@@ -300,6 +418,8 @@ public partial class MainForm : Form
         workbook.SaveAs(path);
     }
 
+    // ======================== 通用 ========================
+
     private void DoLogout()
     {
         Settings.Default.ApiToken = "";
@@ -309,7 +429,7 @@ public partial class MainForm : Form
         if (login.ShowDialog() == DialogResult.OK)
         {
             _client.SetToken(login.Token!);
-            _ = LoadProducts();
+            _ = RefreshAll();
         }
         else
             Close();

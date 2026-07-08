@@ -27,18 +27,28 @@ partial class MainForm
         this.lblLogo = new System.Windows.Forms.Label();
         this.mainSplit = new System.Windows.Forms.SplitContainer();
         this.leftPanel = new System.Windows.Forms.Panel();
+        this.tvCategories = new System.Windows.Forms.TreeView();
         this.leftHeader = new System.Windows.Forms.Label();
-        this.tvProducts = new System.Windows.Forms.TreeView();
         this.rightPanel = new System.Windows.Forms.Panel();
+        this.rightSplit = new System.Windows.Forms.SplitContainer();
+        this.panelPartsList = new System.Windows.Forms.Panel();
+        this.partsHeader = new System.Windows.Forms.Label();
+        this.lvParts = new System.Windows.Forms.ListView();
+        this.colPartIpn = new System.Windows.Forms.ColumnHeader();
+        this.colPartName = new System.Windows.Forms.ColumnHeader();
+        this.colPartType = new System.Windows.Forms.ColumnHeader();
+        this.colPartStock = new System.Windows.Forms.ColumnHeader();
+        this.colPartDesc = new System.Windows.Forms.ColumnHeader();
+        this.panelBomDetail = new System.Windows.Forms.Panel();
         this.rightTabs = new System.Windows.Forms.TabControl();
         this.tabBom = new System.Windows.Forms.TabPage();
         this.tvBom = new System.Windows.Forms.TreeView();
         this.tabUsed = new System.Windows.Forms.TabPage();
         this.lvWhereUsed = new System.Windows.Forms.ListView();
-        this.colIpn = new System.Windows.Forms.ColumnHeader();
-        this.colName = new System.Windows.Forms.ColumnHeader();
-        this.colDesc = new System.Windows.Forms.ColumnHeader();
-        this.colQty = new System.Windows.Forms.ColumnHeader();
+        this.colWIpn = new System.Windows.Forms.ColumnHeader();
+        this.colWName = new System.Windows.Forms.ColumnHeader();
+        this.colWDesc = new System.Windows.Forms.ColumnHeader();
+        this.colWQty = new System.Windows.Forms.ColumnHeader();
         this.detailPanel = new System.Windows.Forms.Panel();
         this.detailRight = new System.Windows.Forms.Panel();
         this.btnExport = new System.Windows.Forms.Button();
@@ -60,6 +70,12 @@ partial class MainForm
         this.mainSplit.SuspendLayout();
         this.leftPanel.SuspendLayout();
         this.rightPanel.SuspendLayout();
+        ((System.ComponentModel.ISupportInitialize)(this.rightSplit)).BeginInit();
+        this.rightSplit.Panel1.SuspendLayout();
+        this.rightSplit.Panel2.SuspendLayout();
+        this.rightSplit.SuspendLayout();
+        this.panelPartsList.SuspendLayout();
+        this.panelBomDetail.SuspendLayout();
         this.rightTabs.SuspendLayout();
         this.tabBom.SuspendLayout();
         this.tabUsed.SuspendLayout();
@@ -71,6 +87,7 @@ partial class MainForm
         //
         // topBar
         //
+        this.topBar.BackColor = Color.FromArgb(30, 58, 138);
         this.topBar.Controls.Add(this.btnLogout);
         this.topBar.Controls.Add(this.btnRefresh);
         this.topBar.Controls.Add(this.cbFilter);
@@ -80,222 +97,383 @@ partial class MainForm
         this.topBar.Dock = System.Windows.Forms.DockStyle.Top;
         this.topBar.Location = new System.Drawing.Point(0, 0);
         this.topBar.Name = "topBar";
-        this.topBar.Size = new System.Drawing.Size(1280, 36);
+        this.topBar.Size = new System.Drawing.Size(1280, 40);
         this.topBar.TabIndex = 0;
         //
         // lblLogo
         //
         this.lblLogo.AutoSize = true;
-        this.lblLogo.Font = new System.Drawing.Font("Microsoft YaHei UI", 10F, System.Drawing.FontStyle.Bold);
-        this.lblLogo.Location = new System.Drawing.Point(8, 8);
+        this.lblLogo.Font = new System.Drawing.Font("Microsoft YaHei UI", 11F, System.Drawing.FontStyle.Bold);
+        this.lblLogo.ForeColor = Color.White;
+        this.lblLogo.Location = new System.Drawing.Point(12, 9);
         this.lblLogo.Name = "lblLogo";
-        this.lblLogo.Size = new System.Drawing.Size(154, 22);
+        this.lblLogo.Size = new System.Drawing.Size(174, 24);
         this.lblLogo.TabIndex = 0;
-        this.lblLogo.Text = "设备 BOM 查询系统";
+        this.lblLogo.Text = "📋 设备 BOM 查询系统";
         //
         // txtSearch
         //
         this.txtSearch.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left)
         | System.Windows.Forms.AnchorStyles.Right)));
-        this.txtSearch.Location = new System.Drawing.Point(280, 6);
+        this.txtSearch.Font = new System.Drawing.Font("Microsoft YaHei UI", 9F);
+        this.txtSearch.Location = new System.Drawing.Point(300, 8);
         this.txtSearch.Name = "txtSearch";
-        this.txtSearch.PlaceholderText = "搜索物料编码 / 名称";
-        this.txtSearch.Size = new System.Drawing.Size(560, 25);
+        this.txtSearch.PlaceholderText = "搜索物料编码 / 名称...";
+        this.txtSearch.Size = new System.Drawing.Size(420, 25);
         this.txtSearch.TabIndex = 1;
         //
         // btnSearch
         //
-        this.btnSearch.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-        this.btnSearch.Location = new System.Drawing.Point(848, 5);
+        this.btnSearch.BackColor = Color.FromArgb(59, 130, 246);
+        this.btnSearch.FlatAppearance.BorderSize = 0;
+        this.btnSearch.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+        this.btnSearch.Font = new System.Drawing.Font("Microsoft YaHei UI", 9F);
+        this.btnSearch.ForeColor = Color.White;
+        this.btnSearch.Location = new System.Drawing.Point(728, 7);
         this.btnSearch.Name = "btnSearch";
-        this.btnSearch.Size = new System.Drawing.Size(75, 26);
+        this.btnSearch.Size = new System.Drawing.Size(65, 26);
         this.btnSearch.TabIndex = 2;
         this.btnSearch.Text = "搜索";
-        this.btnSearch.UseVisualStyleBackColor = true;
+        this.btnSearch.UseVisualStyleBackColor = false;
         //
         // cbFilter
         //
         this.cbFilter.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
         this.cbFilter.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+        this.cbFilter.Font = new System.Drawing.Font("Microsoft YaHei UI", 9F);
         this.cbFilter.Items.AddRange(new object[] { "全部", "产品", "部装", "零件" });
-        this.cbFilter.Location = new System.Drawing.Point(932, 6);
+        this.cbFilter.Location = new System.Drawing.Point(800, 8);
         this.cbFilter.Name = "cbFilter";
-        this.cbFilter.Size = new System.Drawing.Size(120, 26);
+        this.cbFilter.Size = new System.Drawing.Size(100, 26);
         this.cbFilter.TabIndex = 3;
         //
         // btnRefresh
         //
         this.btnRefresh.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-        this.btnRefresh.Location = new System.Drawing.Point(1062, 5);
+        this.btnRefresh.BackColor = Color.FromArgb(55, 65, 81);
+        this.btnRefresh.FlatAppearance.BorderSize = 0;
+        this.btnRefresh.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+        this.btnRefresh.Font = new System.Drawing.Font("Microsoft YaHei UI", 9F);
+        this.btnRefresh.ForeColor = Color.White;
+        this.btnRefresh.Location = new System.Drawing.Point(1040, 7);
         this.btnRefresh.Name = "btnRefresh";
-        this.btnRefresh.Size = new System.Drawing.Size(75, 26);
+        this.btnRefresh.Size = new System.Drawing.Size(65, 26);
         this.btnRefresh.TabIndex = 4;
         this.btnRefresh.Text = "刷新";
-        this.btnRefresh.UseVisualStyleBackColor = true;
+        this.btnRefresh.UseVisualStyleBackColor = false;
         //
         // btnLogout
         //
         this.btnLogout.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-        this.btnLogout.Location = new System.Drawing.Point(1197, 5);
+        this.btnLogout.BackColor = Color.FromArgb(220, 38, 38);
+        this.btnLogout.FlatAppearance.BorderSize = 0;
+        this.btnLogout.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+        this.btnLogout.Font = new System.Drawing.Font("Microsoft YaHei UI", 9F);
+        this.btnLogout.ForeColor = Color.White;
+        this.btnLogout.Location = new System.Drawing.Point(1112, 7);
         this.btnLogout.Name = "btnLogout";
         this.btnLogout.Size = new System.Drawing.Size(75, 26);
         this.btnLogout.TabIndex = 5;
         this.btnLogout.Text = "退出登录";
-        this.btnLogout.UseVisualStyleBackColor = true;
+        this.btnLogout.UseVisualStyleBackColor = false;
         //
         // mainSplit
         //
         this.mainSplit.Dock = System.Windows.Forms.DockStyle.Fill;
         this.mainSplit.FixedPanel = System.Windows.Forms.FixedPanel.Panel1;
-        this.mainSplit.Location = new System.Drawing.Point(0, 36);
+        this.mainSplit.Location = new System.Drawing.Point(0, 40);
         this.mainSplit.Name = "mainSplit";
         //
         // mainSplit.Panel1
         //
         this.mainSplit.Panel1.Controls.Add(this.leftPanel);
-        this.mainSplit.Panel1MinSize = 240;
+        this.mainSplit.Panel1MinSize = 200;
         //
         // mainSplit.Panel2
         //
         this.mainSplit.Panel2.Controls.Add(this.rightPanel);
-        this.mainSplit.Size = new System.Drawing.Size(1280, 738);
-        this.mainSplit.SplitterDistance = 320;
+        this.mainSplit.Size = new System.Drawing.Size(1280, 734);
+        this.mainSplit.SplitterDistance = 280;
         this.mainSplit.SplitterWidth = 5;
         this.mainSplit.TabIndex = 1;
         //
         // leftPanel
         //
-        this.leftPanel.Controls.Add(this.tvProducts);
+        this.leftPanel.BackColor = Color.FromArgb(249, 250, 251);
+        this.leftPanel.Controls.Add(this.tvCategories);
         this.leftPanel.Controls.Add(this.leftHeader);
         this.leftPanel.Dock = System.Windows.Forms.DockStyle.Fill;
         this.leftPanel.Location = new System.Drawing.Point(0, 0);
         this.leftPanel.Name = "leftPanel";
-        this.leftPanel.Size = new System.Drawing.Size(320, 738);
+        this.leftPanel.Size = new System.Drawing.Size(280, 734);
         this.leftPanel.TabIndex = 0;
         //
         // leftHeader
         //
+        this.leftHeader.BackColor = Color.FromArgb(243, 244, 246);
+        this.leftHeader.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
         this.leftHeader.Dock = System.Windows.Forms.DockStyle.Top;
-        this.leftHeader.Font = new System.Drawing.Font("Microsoft YaHei UI", 9F, System.Drawing.FontStyle.Bold);
+        this.leftHeader.Font = new System.Drawing.Font("Microsoft YaHei UI", 9.5F, System.Drawing.FontStyle.Bold);
+        this.leftHeader.ForeColor = Color.FromArgb(30, 58, 138);
         this.leftHeader.Location = new System.Drawing.Point(0, 0);
         this.leftHeader.Name = "leftHeader";
-        this.leftHeader.Size = new System.Drawing.Size(320, 28);
+        this.leftHeader.Padding = new System.Windows.Forms.Padding(10, 0, 0, 0);
+        this.leftHeader.Size = new System.Drawing.Size(280, 32);
         this.leftHeader.TabIndex = 0;
-        this.leftHeader.Text = "  产品列表";
+        this.leftHeader.Text = "📂 物料分类";
         this.leftHeader.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
         //
-        // tvProducts
+        // tvCategories
         //
-        this.tvProducts.Dock = System.Windows.Forms.DockStyle.Fill;
-        this.tvProducts.FullRowSelect = true;
-        this.tvProducts.HideSelection = false;
-        this.tvProducts.Location = new System.Drawing.Point(0, 28);
-        this.tvProducts.Name = "tvProducts";
-        this.tvProducts.ShowNodeToolTips = true;
-        this.tvProducts.Size = new System.Drawing.Size(320, 710);
-        this.tvProducts.TabIndex = 1;
+        this.tvCategories.BorderStyle = System.Windows.Forms.BorderStyle.None;
+        this.tvCategories.Dock = System.Windows.Forms.DockStyle.Fill;
+        this.tvCategories.Font = new System.Drawing.Font("Microsoft YaHei UI", 9F);
+        this.tvCategories.FullRowSelect = true;
+        this.tvCategories.HideSelection = false;
+        this.tvCategories.Indent = 18;
+        this.tvCategories.ItemHeight = 24;
+        this.tvCategories.Location = new System.Drawing.Point(0, 32);
+        this.tvCategories.Name = "tvCategories";
+        this.tvCategories.PathSeparator = " / ";
+        this.tvCategories.ShowLines = true;
+        this.tvCategories.ShowNodeToolTips = true;
+        this.tvCategories.Size = new System.Drawing.Size(280, 702);
+        this.tvCategories.TabIndex = 1;
         //
         // rightPanel
         //
-        this.rightPanel.Controls.Add(this.rightTabs);
-        this.rightPanel.Controls.Add(this.detailPanel);
+        this.rightPanel.Controls.Add(this.rightSplit);
         this.rightPanel.Dock = System.Windows.Forms.DockStyle.Fill;
         this.rightPanel.Location = new System.Drawing.Point(0, 0);
         this.rightPanel.Name = "rightPanel";
-        this.rightPanel.Size = new System.Drawing.Size(955, 738);
+        this.rightPanel.Size = new System.Drawing.Size(995, 734);
         this.rightPanel.TabIndex = 0;
+        //
+        // rightSplit
+        //
+        this.rightSplit.Dock = System.Windows.Forms.DockStyle.Fill;
+        this.rightSplit.FixedPanel = System.Windows.Forms.FixedPanel.Panel2;
+        this.rightSplit.Location = new System.Drawing.Point(0, 0);
+        this.rightSplit.Name = "rightSplit";
+        this.rightSplit.Orientation = System.Windows.Forms.Orientation.Horizontal;
+        //
+        // rightSplit.Panel1
+        //
+        this.rightSplit.Panel1.Controls.Add(this.panelPartsList);
+        //
+        // rightSplit.Panel2
+        //
+        this.rightSplit.Panel2.Controls.Add(this.panelBomDetail);
+        this.rightSplit.Size = new System.Drawing.Size(995, 734);
+        this.rightSplit.SplitterDistance = 320;
+        this.rightSplit.SplitterWidth = 5;
+        this.rightSplit.TabIndex = 0;
+        //
+        // panelPartsList
+        //
+        this.panelPartsList.Controls.Add(this.lvParts);
+        this.panelPartsList.Controls.Add(this.partsHeader);
+        this.panelPartsList.Dock = System.Windows.Forms.DockStyle.Fill;
+        this.panelPartsList.Location = new System.Drawing.Point(0, 0);
+        this.panelPartsList.Name = "panelPartsList";
+        this.panelPartsList.Size = new System.Drawing.Size(995, 320);
+        this.panelPartsList.TabIndex = 0;
+        //
+        // partsHeader
+        //
+        this.partsHeader.BackColor = Color.FromArgb(243, 244, 246);
+        this.partsHeader.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
+        this.partsHeader.Dock = System.Windows.Forms.DockStyle.Top;
+        this.partsHeader.Font = new System.Drawing.Font("Microsoft YaHei UI", 9.5F, System.Drawing.FontStyle.Bold);
+        this.partsHeader.ForeColor = Color.FromArgb(30, 58, 138);
+        this.partsHeader.Location = new System.Drawing.Point(0, 0);
+        this.partsHeader.Name = "partsHeader";
+        this.partsHeader.Padding = new System.Windows.Forms.Padding(10, 0, 0, 0);
+        this.partsHeader.Size = new System.Drawing.Size(995, 32);
+        this.partsHeader.TabIndex = 0;
+        this.partsHeader.Text = "📦 物料列表 — 请选择分类";
+        this.partsHeader.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+        //
+        // lvParts
+        //
+        this.lvParts.BorderStyle = System.Windows.Forms.BorderStyle.None;
+        this.lvParts.Columns.AddRange(new System.Windows.Forms.ColumnHeader[] {
+            this.colPartIpn,
+            this.colPartName,
+            this.colPartType,
+            this.colPartStock,
+            this.colPartDesc});
+        this.lvParts.Dock = System.Windows.Forms.DockStyle.Fill;
+        this.lvParts.Font = new System.Drawing.Font("Microsoft YaHei UI", 9F);
+        this.lvParts.FullRowSelect = true;
+        this.lvParts.GridLines = true;
+        this.lvParts.HideSelection = false;
+        this.lvParts.Location = new System.Drawing.Point(0, 32);
+        this.lvParts.MultiSelect = false;
+        this.lvParts.Name = "lvParts";
+        this.lvParts.Size = new System.Drawing.Size(995, 288);
+        this.lvParts.TabIndex = 1;
+        this.lvParts.UseCompatibleStateImageBehavior = false;
+        this.lvParts.View = System.Windows.Forms.View.Details;
+        //
+        // colPartIpn
+        //
+        this.colPartIpn.Text = "物料编码";
+        this.colPartIpn.Width = 120;
+        //
+        // colPartName
+        //
+        this.colPartName.Text = "名称";
+        this.colPartName.Width = 180;
+        //
+        // colPartType
+        //
+        this.colPartType.Text = "类型";
+        this.colPartType.Width = 70;
+        //
+        // colPartStock
+        //
+        this.colPartStock.Text = "库存";
+        this.colPartStock.TextAlign = System.Windows.Forms.HorizontalAlignment.Right;
+        this.colPartStock.Width = 80;
+        //
+        // colPartDesc
+        //
+        this.colPartDesc.Text = "描述";
+        this.colPartDesc.Width = 300;
+        //
+        // panelBomDetail
+        //
+        this.panelBomDetail.Controls.Add(this.rightTabs);
+        this.panelBomDetail.Controls.Add(this.detailPanel);
+        this.panelBomDetail.Dock = System.Windows.Forms.DockStyle.Fill;
+        this.panelBomDetail.Location = new System.Drawing.Point(0, 0);
+        this.panelBomDetail.Name = "panelBomDetail";
+        this.panelBomDetail.Size = new System.Drawing.Size(995, 409);
+        this.panelBomDetail.TabIndex = 0;
         //
         // rightTabs
         //
         this.rightTabs.Controls.Add(this.tabBom);
         this.rightTabs.Controls.Add(this.tabUsed);
         this.rightTabs.Dock = System.Windows.Forms.DockStyle.Fill;
+        this.rightTabs.Font = new System.Drawing.Font("Microsoft YaHei UI", 9F);
         this.rightTabs.Location = new System.Drawing.Point(0, 0);
         this.rightTabs.Name = "rightTabs";
         this.rightTabs.SelectedIndex = 0;
-        this.rightTabs.Size = new System.Drawing.Size(955, 632);
+        this.rightTabs.Size = new System.Drawing.Size(995, 300);
         this.rightTabs.TabIndex = 0;
         //
         // tabBom
         //
         this.tabBom.Controls.Add(this.tvBom);
-        this.tabBom.Location = new System.Drawing.Point(4, 25);
+        this.tabBom.Location = new System.Drawing.Point(4, 26);
         this.tabBom.Name = "tabBom";
         this.tabBom.Padding = new System.Windows.Forms.Padding(3);
-        this.tabBom.Size = new System.Drawing.Size(947, 603);
+        this.tabBom.Size = new System.Drawing.Size(987, 270);
         this.tabBom.TabIndex = 0;
-        this.tabBom.Text = "BOM 结构";
+        this.tabBom.Text = "📐 BOM 结构";
         this.tabBom.UseVisualStyleBackColor = true;
         //
         // tvBom
         //
+        this.tvBom.BorderStyle = System.Windows.Forms.BorderStyle.None;
         this.tvBom.Dock = System.Windows.Forms.DockStyle.Fill;
+        this.tvBom.Font = new System.Drawing.Font("Microsoft YaHei UI", 9F);
         this.tvBom.FullRowSelect = true;
         this.tvBom.HideSelection = false;
         this.tvBom.Location = new System.Drawing.Point(3, 3);
         this.tvBom.Name = "tvBom";
         this.tvBom.ShowNodeToolTips = true;
-        this.tvBom.Size = new System.Drawing.Size(941, 597);
+        this.tvBom.Size = new System.Drawing.Size(981, 264);
         this.tvBom.TabIndex = 0;
         //
         // tabUsed
         //
         this.tabUsed.Controls.Add(this.lvWhereUsed);
-        this.tabUsed.Location = new System.Drawing.Point(4, 25);
+        this.tabUsed.Location = new System.Drawing.Point(4, 26);
         this.tabUsed.Name = "tabUsed";
         this.tabUsed.Padding = new System.Windows.Forms.Padding(3);
-        this.tabUsed.Size = new System.Drawing.Size(947, 603);
+        this.tabUsed.Size = new System.Drawing.Size(987, 270);
         this.tabUsed.TabIndex = 1;
-        this.tabUsed.Text = "反向查询 (Where Used)";
+        this.tabUsed.Text = "🔍 反向查询";
         this.tabUsed.UseVisualStyleBackColor = true;
         //
         // lvWhereUsed
         //
+        this.lvWhereUsed.BorderStyle = System.Windows.Forms.BorderStyle.None;
         this.lvWhereUsed.Columns.AddRange(new System.Windows.Forms.ColumnHeader[] {
-            this.colIpn,
-            this.colName,
-            this.colDesc,
-            this.colQty});
+            this.colWIpn,
+            this.colWName,
+            this.colWDesc,
+            this.colWQty});
         this.lvWhereUsed.Dock = System.Windows.Forms.DockStyle.Fill;
+        this.lvWhereUsed.Font = new System.Drawing.Font("Microsoft YaHei UI", 9F);
         this.lvWhereUsed.FullRowSelect = true;
         this.lvWhereUsed.GridLines = true;
+        this.lvWhereUsed.HideSelection = false;
         this.lvWhereUsed.Location = new System.Drawing.Point(3, 3);
         this.lvWhereUsed.Name = "lvWhereUsed";
-        this.lvWhereUsed.Size = new System.Drawing.Size(941, 597);
+        this.lvWhereUsed.Size = new System.Drawing.Size(981, 264);
         this.lvWhereUsed.TabIndex = 0;
         this.lvWhereUsed.UseCompatibleStateImageBehavior = false;
         this.lvWhereUsed.View = System.Windows.Forms.View.Details;
         //
-        // colIpn
+        // colWIpn
         //
-        this.colIpn.Text = "物料编码";
-        this.colIpn.Width = 110;
+        this.colWIpn.Text = "物料编码";
+        this.colWIpn.Width = 110;
         //
-        // colName
+        // colWName
         //
-        this.colName.Text = "名称";
-        this.colName.Width = 180;
+        this.colWName.Text = "名称";
+        this.colWName.Width = 180;
         //
-        // colDesc
+        // colWDesc
         //
-        this.colDesc.Text = "描述";
-        this.colDesc.Width = 280;
+        this.colWDesc.Text = "描述";
+        this.colWDesc.Width = 280;
         //
-        // colQty
+        // colWQty
         //
-        this.colQty.Text = "数量";
-        this.colQty.TextAlign = System.Windows.Forms.HorizontalAlignment.Right;
-        this.colQty.Width = 70;
+        this.colWQty.Text = "数量";
+        this.colWQty.TextAlign = System.Windows.Forms.HorizontalAlignment.Right;
+        this.colWQty.Width = 70;
         //
         // detailPanel
         //
+        this.detailPanel.BackColor = Color.FromArgb(249, 250, 251);
+        this.detailPanel.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
         this.detailPanel.Controls.Add(this.detailRight);
         this.detailPanel.Controls.Add(this.tblDetail);
         this.detailPanel.Dock = System.Windows.Forms.DockStyle.Bottom;
-        this.detailPanel.Location = new System.Drawing.Point(0, 632);
+        this.detailPanel.Location = new System.Drawing.Point(0, 300);
         this.detailPanel.Name = "detailPanel";
-        this.detailPanel.Size = new System.Drawing.Size(955, 106);
+        this.detailPanel.Size = new System.Drawing.Size(995, 109);
         this.detailPanel.TabIndex = 1;
+        //
+        // detailRight
+        //
+        this.detailRight.Controls.Add(this.btnExport);
+        this.detailRight.Dock = System.Windows.Forms.DockStyle.Right;
+        this.detailRight.Location = new System.Drawing.Point(860, 0);
+        this.detailRight.Name = "detailRight";
+        this.detailRight.Size = new System.Drawing.Size(133, 107);
+        this.detailRight.TabIndex = 1;
+        //
+        // btnExport
+        //
+        this.btnExport.BackColor = Color.FromArgb(16, 185, 129);
+        this.btnExport.FlatAppearance.BorderSize = 0;
+        this.btnExport.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+        this.btnExport.Font = new System.Drawing.Font("Microsoft YaHei UI", 9F);
+        this.btnExport.ForeColor = Color.White;
+        this.btnExport.Location = new System.Drawing.Point(18, 38);
+        this.btnExport.Name = "btnExport";
+        this.btnExport.Size = new System.Drawing.Size(100, 30);
+        this.btnExport.TabIndex = 0;
+        this.btnExport.Text = "📥 导出 Excel";
+        this.btnExport.UseVisualStyleBackColor = false;
         //
         // tblDetail
         //
@@ -318,8 +496,9 @@ partial class MainForm
         this.tblDetail.RowCount = 2;
         this.tblDetail.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 50F));
         this.tblDetail.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 50F));
-        this.tblDetail.Size = new System.Drawing.Size(835, 106);
+        this.tblDetail.Size = new System.Drawing.Size(860, 107);
         this.tblDetail.TabIndex = 0;
+        this.tblDetail.Padding = new System.Windows.Forms.Padding(10, 5, 10, 5);
         //
         // lblCapName
         //
@@ -327,9 +506,9 @@ partial class MainForm
         this.lblCapName.Dock = System.Windows.Forms.DockStyle.Fill;
         this.lblCapName.Font = new System.Drawing.Font("Microsoft YaHei UI", 9F, System.Drawing.FontStyle.Bold);
         this.lblCapName.ForeColor = System.Drawing.SystemColors.GrayText;
-        this.lblCapName.Location = new System.Drawing.Point(3, 0);
+        this.lblCapName.Location = new System.Drawing.Point(13, 5);
         this.lblCapName.Name = "lblCapName";
-        this.lblCapName.Size = new System.Drawing.Size(54, 53);
+        this.lblCapName.Size = new System.Drawing.Size(54, 48);
         this.lblCapName.TabIndex = 0;
         this.lblCapName.Text = "名称";
         this.lblCapName.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
@@ -338,9 +517,10 @@ partial class MainForm
         //
         this.lblPartName.AutoEllipsis = true;
         this.lblPartName.Dock = System.Windows.Forms.DockStyle.Fill;
-        this.lblPartName.Location = new System.Drawing.Point(63, 0);
+        this.lblPartName.Font = new System.Drawing.Font("Microsoft YaHei UI", 9F, System.Drawing.FontStyle.Bold);
+        this.lblPartName.Location = new System.Drawing.Point(73, 5);
         this.lblPartName.Name = "lblPartName";
-        this.lblPartName.Size = new System.Drawing.Size(277, 53);
+        this.lblPartName.Size = new System.Drawing.Size(288, 48);
         this.lblPartName.TabIndex = 1;
         this.lblPartName.Text = "-";
         this.lblPartName.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
@@ -351,20 +531,21 @@ partial class MainForm
         this.lblCapIpn.Dock = System.Windows.Forms.DockStyle.Fill;
         this.lblCapIpn.Font = new System.Drawing.Font("Microsoft YaHei UI", 9F, System.Drawing.FontStyle.Bold);
         this.lblCapIpn.ForeColor = System.Drawing.SystemColors.GrayText;
-        this.lblCapIpn.Location = new System.Drawing.Point(346, 0);
+        this.lblCapIpn.Location = new System.Drawing.Point(367, 5);
         this.lblCapIpn.Name = "lblCapIpn";
-        this.lblCapIpn.Size = new System.Drawing.Size(54, 53);
+        this.lblCapIpn.Size = new System.Drawing.Size(54, 48);
         this.lblCapIpn.TabIndex = 2;
-        this.lblCapIpn.Text = "物料编码";
+        this.lblCapIpn.Text = "编码";
         this.lblCapIpn.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
         //
         // lblPartIpn
         //
         this.lblPartIpn.AutoEllipsis = true;
         this.lblPartIpn.Dock = System.Windows.Forms.DockStyle.Fill;
-        this.lblPartIpn.Location = new System.Drawing.Point(406, 0);
+        this.lblPartIpn.Font = new System.Drawing.Font("Microsoft YaHei UI", 9F);
+        this.lblPartIpn.Location = new System.Drawing.Point(427, 5);
         this.lblPartIpn.Name = "lblPartIpn";
-        this.lblPartIpn.Size = new System.Drawing.Size(276, 53);
+        this.lblPartIpn.Size = new System.Drawing.Size(420, 48);
         this.lblPartIpn.TabIndex = 3;
         this.lblPartIpn.Text = "-";
         this.lblPartIpn.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
@@ -375,9 +556,9 @@ partial class MainForm
         this.lblCapType.Dock = System.Windows.Forms.DockStyle.Fill;
         this.lblCapType.Font = new System.Drawing.Font("Microsoft YaHei UI", 9F, System.Drawing.FontStyle.Bold);
         this.lblCapType.ForeColor = System.Drawing.SystemColors.GrayText;
-        this.lblCapType.Location = new System.Drawing.Point(3, 53);
+        this.lblCapType.Location = new System.Drawing.Point(13, 53);
         this.lblCapType.Name = "lblCapType";
-        this.lblCapType.Size = new System.Drawing.Size(54, 53);
+        this.lblCapType.Size = new System.Drawing.Size(54, 49);
         this.lblCapType.TabIndex = 4;
         this.lblCapType.Text = "类型";
         this.lblCapType.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
@@ -386,9 +567,10 @@ partial class MainForm
         //
         this.lblPartType.AutoEllipsis = true;
         this.lblPartType.Dock = System.Windows.Forms.DockStyle.Fill;
-        this.lblPartType.Location = new System.Drawing.Point(63, 53);
+        this.lblPartType.Font = new System.Drawing.Font("Microsoft YaHei UI", 9F);
+        this.lblPartType.Location = new System.Drawing.Point(73, 53);
         this.lblPartType.Name = "lblPartType";
-        this.lblPartType.Size = new System.Drawing.Size(277, 53);
+        this.lblPartType.Size = new System.Drawing.Size(288, 49);
         this.lblPartType.TabIndex = 5;
         this.lblPartType.Text = "-";
         this.lblPartType.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
@@ -399,9 +581,9 @@ partial class MainForm
         this.lblCapStock.Dock = System.Windows.Forms.DockStyle.Fill;
         this.lblCapStock.Font = new System.Drawing.Font("Microsoft YaHei UI", 9F, System.Drawing.FontStyle.Bold);
         this.lblCapStock.ForeColor = System.Drawing.SystemColors.GrayText;
-        this.lblCapStock.Location = new System.Drawing.Point(346, 53);
+        this.lblCapStock.Location = new System.Drawing.Point(367, 53);
         this.lblCapStock.Name = "lblCapStock";
-        this.lblCapStock.Size = new System.Drawing.Size(54, 53);
+        this.lblCapStock.Size = new System.Drawing.Size(54, 49);
         this.lblCapStock.TabIndex = 6;
         this.lblCapStock.Text = "库存";
         this.lblCapStock.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
@@ -410,30 +592,13 @@ partial class MainForm
         //
         this.lblPartStock.AutoEllipsis = true;
         this.lblPartStock.Dock = System.Windows.Forms.DockStyle.Fill;
-        this.lblPartStock.Location = new System.Drawing.Point(406, 53);
+        this.lblPartStock.Font = new System.Drawing.Font("Microsoft YaHei UI", 9F);
+        this.lblPartStock.Location = new System.Drawing.Point(427, 53);
         this.lblPartStock.Name = "lblPartStock";
-        this.lblPartStock.Size = new System.Drawing.Size(276, 53);
+        this.lblPartStock.Size = new System.Drawing.Size(420, 49);
         this.lblPartStock.TabIndex = 7;
         this.lblPartStock.Text = "-";
         this.lblPartStock.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
-        //
-        // detailRight
-        //
-        this.detailRight.Controls.Add(this.btnExport);
-        this.detailRight.Dock = System.Windows.Forms.DockStyle.Right;
-        this.detailRight.Location = new System.Drawing.Point(835, 0);
-        this.detailRight.Name = "detailRight";
-        this.detailRight.Size = new System.Drawing.Size(120, 106);
-        this.detailRight.TabIndex = 1;
-        //
-        // btnExport
-        //
-        this.btnExport.Location = new System.Drawing.Point(15, 38);
-        this.btnExport.Name = "btnExport";
-        this.btnExport.Size = new System.Drawing.Size(95, 30);
-        this.btnExport.TabIndex = 0;
-        this.btnExport.Text = "导出 Excel";
-        this.btnExport.UseVisualStyleBackColor = true;
         //
         // statusStrip
         //
@@ -446,6 +611,7 @@ partial class MainForm
         //
         // lblStatus
         //
+        this.lblStatus.Font = new System.Drawing.Font("Microsoft YaHei UI", 9F);
         this.lblStatus.Name = "lblStatus";
         this.lblStatus.Size = new System.Drawing.Size(32, 21);
         this.lblStatus.Text = "就绪";
@@ -471,6 +637,12 @@ partial class MainForm
         this.mainSplit.ResumeLayout(false);
         this.leftPanel.ResumeLayout(false);
         this.rightPanel.ResumeLayout(false);
+        this.rightSplit.Panel1.ResumeLayout(false);
+        this.rightSplit.Panel2.ResumeLayout(false);
+        ((System.ComponentModel.ISupportInitialize)(this.rightSplit)).EndInit();
+        this.rightSplit.ResumeLayout(false);
+        this.panelPartsList.ResumeLayout(false);
+        this.panelBomDetail.ResumeLayout(false);
         this.rightTabs.ResumeLayout(false);
         this.tabBom.ResumeLayout(false);
         this.tabUsed.ResumeLayout(false);
@@ -496,17 +668,27 @@ partial class MainForm
     private System.Windows.Forms.SplitContainer mainSplit;
     private System.Windows.Forms.Panel leftPanel;
     private System.Windows.Forms.Label leftHeader;
-    private System.Windows.Forms.TreeView tvProducts;
+    private System.Windows.Forms.TreeView tvCategories;
     private System.Windows.Forms.Panel rightPanel;
+    private System.Windows.Forms.SplitContainer rightSplit;
+    private System.Windows.Forms.Panel panelPartsList;
+    private System.Windows.Forms.Label partsHeader;
+    private System.Windows.Forms.ListView lvParts;
+    private System.Windows.Forms.ColumnHeader colPartIpn;
+    private System.Windows.Forms.ColumnHeader colPartName;
+    private System.Windows.Forms.ColumnHeader colPartType;
+    private System.Windows.Forms.ColumnHeader colPartStock;
+    private System.Windows.Forms.ColumnHeader colPartDesc;
+    private System.Windows.Forms.Panel panelBomDetail;
     private System.Windows.Forms.TabControl rightTabs;
     private System.Windows.Forms.TabPage tabBom;
     private System.Windows.Forms.TreeView tvBom;
     private System.Windows.Forms.TabPage tabUsed;
     private System.Windows.Forms.ListView lvWhereUsed;
-    private System.Windows.Forms.ColumnHeader colIpn;
-    private System.Windows.Forms.ColumnHeader colName;
-    private System.Windows.Forms.ColumnHeader colDesc;
-    private System.Windows.Forms.ColumnHeader colQty;
+    private System.Windows.Forms.ColumnHeader colWIpn;
+    private System.Windows.Forms.ColumnHeader colWName;
+    private System.Windows.Forms.ColumnHeader colWDesc;
+    private System.Windows.Forms.ColumnHeader colWQty;
     private System.Windows.Forms.Panel detailPanel;
     private System.Windows.Forms.TableLayoutPanel tblDetail;
     private System.Windows.Forms.Label lblCapName;

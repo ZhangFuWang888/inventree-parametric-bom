@@ -46,6 +46,29 @@ public class PartService
         return await _client.GetListAsync<Part, PartListResponse>($"/api/part/{query}");
     }
 
+    /// <summary>获取指定分类下的物料（支持类型过滤）</summary>
+    public async Task<List<Part>> GetPartsByCategoryAsync(int? categoryId,
+        string? typeFilter = null, string? search = null)
+    {
+        var query = "?limit=200";
+        if (categoryId.HasValue)
+            query += $"&category={categoryId.Value}";
+        if (!string.IsNullOrEmpty(typeFilter))
+        {
+            query += typeFilter switch
+            {
+                "产品" => "&assembly=true&is_template=true",
+                "部装" => "&assembly=true&is_template=false",
+                "零件" => "&assembly=false",
+                _ => ""
+            };
+        }
+        if (!string.IsNullOrEmpty(search))
+            query += $"&search={Uri.EscapeDataString(search)}";
+
+        return await _client.GetListAsync<Part, PartListResponse>($"/api/part/{query}");
+    }
+
     /// <summary>根据关键词搜索物料</summary>
     public async Task<List<Part>> SearchPartsAsync(string keyword)
     {
