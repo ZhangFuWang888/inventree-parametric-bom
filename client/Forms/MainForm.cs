@@ -38,11 +38,11 @@ public partial class MainForm : Form
         // 绑定事件
         tvCategories.AfterSelect += TvCategories_AfterSelect;
         lvParts.SelectedIndexChanged += LvParts_SelectedIndexChanged;
+        lvParts.DoubleClick += LvParts_DoubleClick;
         txtSearch.KeyDown += (_, e) => { if (e.KeyCode == Keys.Enter) DoSearch(); };
         btnSearch.Click += (_, _) => DoSearch();
         btnRefresh.Click += (_, _) => _ = RefreshAll();
         btnLogout.Click += (_, _) => DoLogout();
-        btnConfigurator.Click += (_, _) => OpenConfigurator();
         btnExport.Click += BtnExport_Click;
         btnPrevPage.Click += (_, _) => GoToPage(_currentPage - 1);
         btnNextPage.Click += (_, _) => GoToPage(_currentPage + 1);
@@ -507,12 +507,31 @@ public partial class MainForm : Form
             Close();
     }
 
-    private void OpenConfigurator()
+    private void OpenConfiguratorForPart(Part part)
     {
-        using var cfg = new ConfiguratorForm(_client, Font);
+        // 检查是否参数化物料
+        if (!_parametric.IsParametric(part.Pk))
+        {
+            SetStatus($"「{part.Name}」不是参数化物料，请在网页端配置参数");
+            return;
+        }
+
+        using var cfg = new ConfiguratorForm(_client, part, Font);
         cfg.ShowDialog(this);
-        // 返回后刷新参数化标记（可能配置器改了数据）
+        // 返回后刷新参数化标记
         _ = _parametric.GetParametricPartIdsAsync();
+    }
+
+    private void LvParts_DoubleClick(object? sender, EventArgs e)
+    {
+        if (lvParts.SelectedItems.Count == 0) return;
+        if (lvParts.SelectedItems[0].Tag is Part part)
+        {
+            if (_parametric.IsParametric(part.Pk))
+                OpenConfiguratorForPart(part);
+            else
+                SetStatus($"「{part.Name}」不是参数化物料，请先在网页端配置参数");
+        }
     }
 
     private void SetStatus(string text)

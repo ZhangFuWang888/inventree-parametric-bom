@@ -15,8 +15,13 @@ public partial class ConfiguratorForm : Form
     private List<ParamConfigEntry> _partParams = new();
 
     private int? _selectedConfigId;
+    private int? _preselectPartId;
 
     public ConfiguratorForm(InvenTreeClient client, Font? baseFont = null)
+        : this(client, null, baseFont) { }
+
+    public ConfiguratorForm(InvenTreeClient client, Part? preselectedPart,
+        Font? baseFont = null)
     {
         if (baseFont != null) Font = baseFont;
         InitializeComponent();
@@ -25,6 +30,7 @@ public partial class ConfiguratorForm : Form
         _client = client;
         _cfgSvc = new ConfiguratorService(client);
         _partSvc = new PartService(client);
+        _preselectPartId = preselectedPart?.Pk;
 
         // 事件绑定
         cboProduct.SelectedIndexChanged += (_, _) => _ = OnProductChanged();
@@ -69,7 +75,21 @@ public partial class ConfiguratorForm : Form
             cboProduct.EndUpdate();
 
             if (_parametricParts.Count > 0)
-                cboProduct.SelectedIndex = 0;
+            {
+                // 如果有预选产品，自动选中
+                if (_preselectPartId.HasValue)
+                {
+                    var idx = _parametricParts.FindIndex(p => p.Pk == _preselectPartId.Value);
+                    if (idx >= 0)
+                        cboProduct.SelectedIndex = idx;
+                    else
+                        cboProduct.SelectedIndex = 0;
+                }
+                else
+                {
+                    cboProduct.SelectedIndex = 0;
+                }
+            }
 
             SetStatus($"共 {_parametricParts.Count} 个参数化产品");
         }
