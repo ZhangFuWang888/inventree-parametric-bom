@@ -93,6 +93,7 @@ partial class MainForm
         //
         this.topBar.BackColor = Color.FromArgb(30, 58, 138);
         this.topBar.Controls.Add(this.btnLogout);
+        this.topBar.Controls.Add(this.btnConfigurator);
         this.topBar.Controls.Add(this.btnRefresh);
         this.topBar.Controls.Add(this.cbFilter);
         this.topBar.Controls.Add(this.btnSearch);
@@ -151,6 +152,21 @@ partial class MainForm
         this.cbFilter.Name = "cbFilter";
         this.cbFilter.Size = new System.Drawing.Size(100, 26);
         this.cbFilter.TabIndex = 3;
+        //
+        // btnConfigurator
+        //
+        this.btnConfigurator.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
+        this.btnConfigurator.BackColor = Color.FromArgb(139, 92, 246);
+        this.btnConfigurator.FlatAppearance.BorderSize = 0;
+        this.btnConfigurator.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+        this.btnConfigurator.Font = new System.Drawing.Font("Microsoft YaHei UI", 9F);
+        this.btnConfigurator.ForeColor = Color.White;
+        this.btnConfigurator.Location = new System.Drawing.Point(960, 7);
+        this.btnConfigurator.Name = "btnConfigurator";
+        this.btnConfigurator.Size = new System.Drawing.Size(75, 26);
+        this.btnConfigurator.TabIndex = 6;
+        this.btnConfigurator.Text = "⚙ 配置器";
+        this.btnConfigurator.UseVisualStyleBackColor = false;
         //
         // btnRefresh
         //
@@ -725,6 +741,7 @@ partial class MainForm
     private System.Windows.Forms.ComboBox cbFilter;
     private System.Windows.Forms.Button btnRefresh;
     private System.Windows.Forms.Button btnLogout;
+    private System.Windows.Forms.Button btnConfigurator;
     private System.Windows.Forms.SplitContainer mainSplit;
     private System.Windows.Forms.Panel leftPanel;
     private System.Windows.Forms.Label leftHeader;

@@ -42,6 +42,7 @@ public partial class MainForm : Form
         btnSearch.Click += (_, _) => DoSearch();
         btnRefresh.Click += (_, _) => _ = RefreshAll();
         btnLogout.Click += (_, _) => DoLogout();
+        btnConfigurator.Click += (_, _) => OpenConfigurator();
         btnExport.Click += BtnExport_Click;
         btnPrevPage.Click += (_, _) => GoToPage(_currentPage - 1);
         btnNextPage.Click += (_, _) => GoToPage(_currentPage + 1);
@@ -504,6 +505,14 @@ public partial class MainForm : Form
         }
         else
             Close();
+    }
+
+    private void OpenConfigurator()
+    {
+        using var cfg = new ConfiguratorForm(_client, Font);
+        cfg.ShowDialog(this);
+        // 返回后刷新参数化标记（可能配置器改了数据）
+        _ = _parametric.GetParametricPartIdsAsync();
     }
 
     private void SetStatus(string text)
