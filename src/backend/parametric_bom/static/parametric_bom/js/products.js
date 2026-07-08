@@ -336,6 +336,19 @@ async function loadProductDetail(partId) {
     document.getElementById('pd-product-ipn').textContent = part.IPN || part.ipn || '';
     document.getElementById('pd-product-desc').textContent = part.description || '';
   }
+  // Try to load computed product name from attribute formulas
+  if (partId) {
+    const attrRes = await apiCall('GET', `attributes/?part=${partId}`).catch(() => ({}));
+    const attrs = attrRes.data ? (Array.isArray(attrRes.data) ? attrRes.data : (attrRes.data.results || [])) : [];
+    const nameAttr = attrs.find(a => a.attribute_name === 'product_name');
+    if (nameAttr && nameAttr.formula) {
+      // Show a hint that the name is formula-driven
+      const nameEl = document.getElementById('pd-product-name');
+      if (nameEl && !nameEl.dataset.formula) {
+        nameEl.dataset.formula = nameAttr.formula;
+      }
+    }
+  }
   // Load first tab
   switchProductTab('params');
 }
