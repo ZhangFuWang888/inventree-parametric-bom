@@ -24,6 +24,7 @@ partial class ConfiguratorForm
         colParamName = new DataGridViewTextBoxColumn();
         colParamValue = new DataGridViewTextBoxColumn();
         colParamType = new DataGridViewTextBoxColumn();
+        colParamDesc = new DataGridViewTextBoxColumn();
         paramHeader = new Label();
         bomPanel = new Panel();
         tvBomPreview = new TreeView();
@@ -119,7 +120,7 @@ partial class ConfiguratorForm
         dgvParams.BackgroundColor = Color.White;
         dgvParams.BorderStyle = BorderStyle.None;
         dgvParams.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-        dgvParams.Columns.AddRange(new DataGridViewColumn[] { colParamName, colParamValue, colParamType });
+        dgvParams.Columns.AddRange(new DataGridViewColumn[] { colParamName, colParamValue, colParamType, colParamDesc });
         dgvParams.Dock = DockStyle.Fill;
         dgvParams.Font = new Font("Microsoft YaHei UI", 9F);
         dgvParams.GridColor = Color.FromArgb(229, 231, 235);
@@ -151,6 +152,13 @@ partial class ConfiguratorForm
         colParamType.HeaderText = "类型";
         colParamType.Name = "colParamType";
         colParamType.ReadOnly = true;
+        // 
+        // colParamDesc
+        // 
+        colParamDesc.HeaderText = "描述";
+        colParamDesc.Name = "colParamDesc";
+        colParamDesc.ReadOnly = true;
+        colParamDesc.Width = 180;
         // 
         // paramHeader
         // 
@@ -312,6 +320,7 @@ partial class ConfiguratorForm
     private System.Windows.Forms.DataGridViewTextBoxColumn colParamName;
     private System.Windows.Forms.DataGridViewTextBoxColumn colParamValue;
     private System.Windows.Forms.DataGridViewTextBoxColumn colParamType;
+    private System.Windows.Forms.DataGridViewTextBoxColumn colParamDesc;
     private System.Windows.Forms.Panel bomPanel;
     private System.Windows.Forms.Label bomPreviewHeader;
     private System.Windows.Forms.TreeView tvBomPreview;

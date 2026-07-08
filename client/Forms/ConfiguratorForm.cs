@@ -44,17 +44,18 @@ public partial class ConfiguratorForm : Form
                 var rowIdx = dgvParams.Rows.Add(
                     param.Name,
                     param.DefaultValue ?? "",
-                    GetParamTypeDisplay(param.ParameterType));
+                    GetParamTypeDisplay(param.ParameterType),
+                    param.UiHint ?? "");
 
                 // 按参数类型设置单元格控件
                 var valueCell = dgvParams.Rows[rowIdx].Cells[1];
 
-                if (param.ParameterType == "option" && !string.IsNullOrEmpty(param.Options))
+                if (param.ParameterType == "option" && param.Options != null && param.Options.Count > 0)
                 {
                     var comboCell = new DataGridViewComboBoxCell();
-                    foreach (var opt in param.Options.Split(',').Select(o => o.Trim()))
+                    foreach (var opt in param.Options)
                         comboCell.Items.Add(opt);
-                    comboCell.Value = param.DefaultValue ?? "";
+                    comboCell.Value = param.DefaultValue ?? param.Options[0];
                     dgvParams.Rows[rowIdx].Cells[1] = comboCell;
                 }
                 else if (param.ParameterType == "boolean")
@@ -65,12 +66,12 @@ public partial class ConfiguratorForm : Form
                     checkCell.Style.NullValue = false;
                     dgvParams.Rows[rowIdx].Cells[1] = checkCell;
                 }
-                else if (param.ParameterType == "multi_option" && !string.IsNullOrEmpty(param.Options))
+                else if (param.ParameterType == "multi_option" && param.Options != null && param.Options.Count > 0)
                 {
                     var comboCell = new DataGridViewComboBoxCell();
-                    foreach (var opt in param.Options.Split(',').Select(o => o.Trim()))
+                    foreach (var opt in param.Options)
                         comboCell.Items.Add(opt);
-                    comboCell.Value = param.DefaultValue?.Split(',').FirstOrDefault()?.Trim() ?? "";
+                    comboCell.Value = param.DefaultValue?.Split(',').FirstOrDefault()?.Trim() ?? param.Options[0];
                     dgvParams.Rows[rowIdx].Cells[1] = comboCell;
                 }
                 // number / text / long_text 保持默认文本框
