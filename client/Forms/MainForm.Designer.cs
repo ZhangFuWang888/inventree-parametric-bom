@@ -122,7 +122,7 @@ partial class MainForm
         this.txtSearch.Font = new System.Drawing.Font("Microsoft YaHei UI", 9F);
         this.txtSearch.Location = new System.Drawing.Point(300, 8);
         this.txtSearch.Name = "txtSearch";
-        this.txtSearch.PlaceholderText = "搜索物料编码 / 名称...";
+        this.txtSearch.PlaceholderText = "搜索型号 / 名称...";
         this.txtSearch.Size = new System.Drawing.Size(420, 25);
         this.txtSearch.TabIndex = 1;
         //
@@ -380,7 +380,7 @@ partial class MainForm
         //
         // colPartIpn
         //
-        this.colPartIpn.Text = "物料编码";
+        this.colPartIpn.Text = "型号";
         this.colPartIpn.Width = 120;
         //
         // colPartName
@@ -483,7 +483,7 @@ partial class MainForm
         //
         // colWIpn
         //
-        this.colWIpn.Text = "物料编码";
+        this.colWIpn.Text = "型号";
         this.colWIpn.Width = 110;
         //
         // colWName

@@ -468,7 +468,7 @@ public partial class MainForm : Form
         using var workbook = new ClosedXML.Excel.XLWorkbook();
         var ws = workbook.Worksheets.Add("BOM");
         ws.Cell(1, 1).Value = "层级";
-        ws.Cell(1, 2).Value = "物料编码";
+        ws.Cell(1, 2).Value = "型号";
         ws.Cell(1, 3).Value = "名称";
         ws.Cell(1, 4).Value = "描述";
         ws.Cell(1, 5).Value = "数量";
