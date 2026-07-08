@@ -1205,120 +1205,35 @@ async function loadConfiguratorParams(partId) {
 // ===== CONFIGURATOR: BOM Expand & Cost =====
 async function expandConfigBOM() {
   if (!configuratorPartId) { setStatus('error', '请先选择产品'); return; }
-  
+
   const btn = document.getElementById('cfg-to-step2');
-  btn.disabled = true;
-  btn.innerHTML = '<span class="spinner mr-1"></span>计算中...';
-  
-  const params = {};
-  Object.entries(currentParams).forEach(([k,v]) => { if (!v.isComputed) params[k] = v.value; });
-  
-  const res = await apiCall('POST', 'evaluate/', {part_id: configuratorPartId, parameters: params});
-  
-  btn.disabled = false;
-  btn.innerHTML = '展开BOM →';
-  
-  if (res.error) {
-    document.getElementById('cfg-bom-results').innerHTML = `<div class="text-red-500 text-sm p-4 bg-red-50 rounded-lg">❌ BOM展开失败: ${JSON.stringify(res.data).substring(0,200)}</div>`;
-    return;
-  }
-  
-  currentBOMResult = res.data;
-  
-  // Update product name if attribute formulas computed a product_name
-  if (res.data && res.data.attributes && res.data.attributes.product_name) {
+  if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner mr-1"></span>计算中...'; }
+
+  // 更新产品名称（如果属性公式计算了 product_name）
+  const res = await apiCall('POST', 'evaluate/', {
+    part_id: configuratorPartId,
+    parameters: Object.fromEntries(
+      Object.entries(currentParams).filter(([k,v]) => !v.isComputed).map(([k,v]) => [k, v.value])
+    ),
+  });
+  if (!res.error && res.data && res.data.attributes && res.data.attributes.product_name) {
     var computedName = res.data.attributes.product_name.value;
     if (computedName) {
       var nameEl = document.getElementById('pd-product-name');
       if (nameEl) nameEl.textContent = computedName;
     }
   }
-  
-  renderBOMTree(res.data, 'cfg-bom-results');
+
+  // 委托实际的BOM展开给 bom-functions.js 的 cfgExpandBOM
+  await cfgExpandBOM();
+
+  if (btn) { btn.disabled = false; btn.innerHTML = '展开BOM →'; }
   document.getElementById('cfg-cost-card').style.display = 'block';
-  await estimateConfigCost(false);
   goConfigStep(2);
-  document.getElementById('cfg-to-step3').disabled = false;
-  // Show cart button
+  var step3btn = document.getElementById('cfg-to-step3');
+  if (step3btn) step3btn.disabled = false;
   var cartBtn = document.getElementById('cfg-cart-btn');
   if (cartBtn) cartBtn.style.display = '';
-}
-
-function renderBOMTree(data, containerId) {
-  const container = document.getElementById(containerId);
-  if (!data || (!data.bom_tree && !data.items && !Array.isArray(data))) {
-    container.innerHTML = '<div class="empty-state"><div class="icon">📭</div><p>无BOM数据</p></div>';
-    return;
-  }
-  const tree = data.bom_tree || data.items || data;
-  let html = '';
-  if (data.part_name) {
-    html += `<div class="flex items-center gap-2 pb-2 mb-2 border-b border-gray-100">
-      <span class="text-lg">📦</span>
-      <span class="font-semibold text-sm text-gray-800">${data.part_name}</span>
-      ${data.total_qty != null ? `<span class="text-xs text-gray-400">×${data.total_qty}</span>` : ''}
-    </div>`;
-  }
-  // Table header
-  html += `<div class="bom-table-header">
-    <span>类型</span><span>数量</span><span>物料名称</span><span>产品型号</span><span>价格</span>
-  </div>`;
-  if (Array.isArray(tree)) {
-    tree.forEach(item => renderTreeItem(item, 0, (h) => { html += h; }));
-  } else if (typeof tree === 'object') {
-    renderTreeItem(tree, 0, (h) => { html += h; });
-  }
-  container.innerHTML = html || '<div class="empty-state"><div class="icon">📭</div><p>无BOM数据</p></div>';
-}
-
-function renderTreeItem(item, depth, push) {
-  const isExcluded = item.excluded || item.condition_met === false;
-  const hasError = item.error || (item.errors && item.errors.length > 0);
-  const mode = item.mode || 'standard';
-  const isParametric = item.parametric || mode !== 'standard' || item.qty_formula || item.condition_formula;
-  const depthClass = `tree-depth-${Math.min(depth, 9)}`;
-  const badgeClass = isExcluded ? 'badge-red' : (hasError ? 'badge-yellow' : (isParametric ? 'badge-blue' : 'badge-gray'));
-  const badgeText = isExcluded ? '已排除' : (hasError ? '错误' : (isParametric ? '参数化' : '静态'));
-  const qty = item.calculated_quantity != null ? item.calculated_quantity : (item.quantity != null ? item.quantity : '');
-  const calculatedName = item.calculated_name || '未知部件';
-  const calculatedIpn = item.calculated_ipn || '';
-  const partId = item.actual_part_id || item.part_id;
-
-  // Tooltip for extra info
-  const tooltipParts = [];
-  if (mode !== 'standard') {
-    const modeLabels = {standard:'标准', qty_formula:'数量公式', conditional:'条件包含', candidate:'候选', variant:'变体', specification:'规格', structure:'结构'};
-    tooltipParts.push(`模式:${modeLabels[mode]||mode}`);
-  }
-  if (item.qty_formula) tooltipParts.push(`数量公式:${item.qty_formula}`);
-  if (item.condition_formula) tooltipParts.push(`条件:${item.condition_formula}`);
-  if (item.errors && item.errors.length) tooltipParts.push(`错误:${item.errors.join(';')}`);
-  if (item.exclude_reason) tooltipParts.push(item.exclude_reason);
-  const tooltip = tooltipParts.join(' | ');
-
-  // Price text
-  let priceText = '';
-  if (item.unit_price != null && item.total_price != null) {
-    priceText = `¥${Number(item.unit_price).toFixed(2)}`;
-  } else if (item.unit_price != null) {
-    priceText = `¥${Number(item.unit_price).toFixed(2)}/个`;
-  } else if (item.total_price != null) {
-    priceText = `=¥${Number(item.total_price).toFixed(2)}`;
-  }
-
-  push(`<div class="tree-item ${depthClass}"${tooltip ? ` title="${tooltip}"` : ''}>
-    <span class="col-badge"><span class="qty-badge ${badgeClass}">${badgeText}</span></span>
-    <span class="col-qty"><span class="qty-badge bg-gray-100 text-gray-700">×${qty}</span></span>
-    <span class="col-name${partId ? ' clickable-part' : ''}"${partId ? ` onclick="openPartDetail(${partId})"` : ''}>${depth > 0 ? '└ ' : ''}${calculatedName}</span>
-    <span class="col-ipn${calculatedIpn ? '' : ' text-gray-300'}">${calculatedIpn || '—'}</span>
-    <span class="col-price${priceText ? ' text-emerald-700 font-medium' : ' text-gray-300'}">${priceText || '—'}</span>
-  </div>`);
-  if (item.children && Array.isArray(item.children)) {
-    item.children.forEach(child => renderTreeItem(child, depth + 1, push));
-  }
-  if (item.sub_items && Array.isArray(item.sub_items)) {
-    item.sub_items.forEach(child => renderTreeItem(child, depth + 1, push));
-  }
 }
 
 async function estimateConfigCost(withMarkup) {
