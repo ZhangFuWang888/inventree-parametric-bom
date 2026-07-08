@@ -867,7 +867,7 @@ function renderCfgBOM() {
   let html = '';
   // Table header
   html += `<div class="bom-table-header">
-    <span>类型</span><span>数量</span><span>物料名称</span><span>产品型号</span><span>价格</span>
+    <span>类型</span><span>物料名称</span><span>产品型号</span><span>数量</span><span>单价</span><span>总价</span>
   </div>`;
   // Helper to render tree
   function renderTree(items, depth) {
@@ -897,21 +897,23 @@ function renderCfgBOM() {
       if (item.exclude_reason) tooltipParts.push(item.exclude_reason);
       const tooltip = tooltipParts.join(' | ');
 
-      let priceText = '';
-      if (item.unit_price != null && item.total_price != null) {
-        priceText = `¥${Number(item.unit_price).toFixed(2)}`;
-      } else if (item.unit_price != null) {
-        priceText = `¥${Number(item.unit_price).toFixed(2)}/个`;
-      } else if (item.total_price != null) {
-        priceText = `=¥${Number(item.total_price).toFixed(2)}`;
+      // Price text
+      let unitPriceText = '';
+      let totalPriceText = '';
+      if (item.unit_price != null) {
+        unitPriceText = `¥${Number(item.unit_price).toFixed(2)}`;
+      }
+      if (item.total_price != null) {
+        totalPriceText = `¥${Number(item.total_price).toFixed(2)}`;
       }
 
       h += `<div class="tree-item ${depthClass}"${tooltip ? ` title="${tooltip}"` : ''}>
         <span class="col-badge"><span class="qty-badge ${badgeClass}">${badgeText}</span></span>
-        <span class="col-qty"><span class="qty-badge bg-gray-100 text-gray-700">×${qty}</span></span>
         <span class="col-name${partId ? ' clickable-part' : ''}"${partId ? ` onclick="openPartDetail(${partId})"` : ''}>${depth > 0 ? '└ ' : ''}${name}</span>
         <span class="col-ipn${ipn ? '' : ' text-gray-300'}">${ipn || '—'}</span>
-        <span class="col-price${priceText ? ' text-emerald-700 font-medium' : ' text-gray-300'}">${priceText || '—'}</span>
+        <span class="col-qty"><span class="qty-badge bg-gray-100 text-gray-700">×${qty}</span></span>
+        <span class="col-unit-price${unitPriceText ? ' text-emerald-600' : ' text-gray-300'}">${unitPriceText || '—'}</span>
+        <span class="col-total-price${totalPriceText ? ' text-emerald-700 font-medium' : ' text-gray-300'}">${totalPriceText || '—'}</span>
       </div>`;
       if (item.children && item.children.length) {
         h += renderTree(item.children, depth + 1);

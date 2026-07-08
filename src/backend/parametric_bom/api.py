@@ -1026,12 +1026,13 @@ def _build_bom_xlsx(result):
             seq += 1
             pid = child.get('actual_part_id') or child.get('part_id')
             pname = (
-                child.get('variant_name')
+                child.get('calculated_name')
+                or child.get('variant_name')
                 or child.get('actual_part_name')
                 or child.get('part_name')
                 or ''
             )
-            ipn = child.get('variant_ipn', '') or ''
+            ipn = child.get('calculated_ipn') or child.get('variant_ipn', '') or ''
             qty = child.get('calculated_quantity', 1) * parent_qty
             ref = str(child.get('reference', '') or child.get('reference_formula', '') or '')
             units = ''

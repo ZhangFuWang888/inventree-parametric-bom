@@ -287,6 +287,9 @@ def expand_bom_level(
         if child_node is not None:
             node['children'].append(child_node)
 
+    node['calculated_name'] = _part_display(part)
+    node['calculated_ipn'] = part.IPN or ''
+
     return node
 
 
