@@ -10,6 +10,8 @@ internal sealed class Settings
 
     public string? ServerUrl { get; set; }
     public string? ApiToken { get; set; }
+    public bool RememberMe { get; set; }
+    public string? SavedUsername { get; set; }
 
     private static Settings? _default;
 
@@ -33,6 +35,9 @@ internal sealed class Settings
             lines.Add($"ServerUrl={ServerUrl}");
         if (!string.IsNullOrEmpty(ApiToken))
             lines.Add($"ApiToken={ApiToken}");
+        lines.Add($"RememberMe={RememberMe}");
+        if (!string.IsNullOrEmpty(SavedUsername))
+            lines.Add($"Username={SavedUsername}");
         File.WriteAllLines(ConfigPath, lines);
     }
 
@@ -48,6 +53,11 @@ internal sealed class Settings
             {
                 case "ServerUrl": ServerUrl = parts[1]; break;
                 case "ApiToken": ApiToken = parts[1]; break;
+                case "RememberMe":
+                    bool.TryParse(parts[1], out var rm);
+                    RememberMe = rm;
+                    break;
+                case "Username": SavedUsername = parts[1]; break;
             }
         }
     }

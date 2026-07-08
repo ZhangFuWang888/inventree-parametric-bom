@@ -1,6 +1,7 @@
 using System.Net.Http.Headers;
 using System.Text;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using Newtonsoft.Json.Serialization;
 
 namespace BomQueryClient.Api;
@@ -64,6 +65,28 @@ public class InvenTreeClient
         var json = await response.Content.ReadAsStringAsync();
         return JsonConvert.DeserializeObject<T>(json, JsonSettings)
                ?? throw new Exception($"反序列化失败: {endpoint}");
+    }
+
+    /// <summary>GET 物料列表，自动兼容数组与 {results:[...]} 两种返回格式</summary>
+    public async Task<List<TItem>> GetListAsync<TItem, TWrapped>(string endpoint)
+        where TWrapped : class
+    {
+        var response = await _http.GetAsync(endpoint);
+        response.EnsureSuccessStatusCode();
+        var json = await response.Content.ReadAsStringAsync();
+
+        var token = JToken.Parse(json);
+        if (token is JArray arr)
+        {
+            return arr.ToObject<List<TItem>>(JsonSerializer.Create(JsonSettings))
+                   ?? new List<TItem>();
+        }
+
+        var wrapped = token.ToObject<TWrapped>(JsonSerializer.Create(JsonSettings));
+        var resultsProp = wrapped?.GetType().GetProperty("Results");
+        if (resultsProp?.GetValue(wrapped) is IEnumerable<TItem> list)
+            return list.ToList();
+        return new List<TItem>();
     }
 
     /// <summary>POST 请求（JSON body）</summary>

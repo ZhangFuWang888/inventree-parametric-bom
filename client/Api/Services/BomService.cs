@@ -19,9 +19,8 @@ public class BomService
     /// </summary>
     public async Task<List<BomItem>> GetDirectBomAsync(int partId)
     {
-        var response = await _client.GetAsync<BomListResponse>(
+        return await _client.GetListAsync<BomItem, BomListResponse>(
             $"/api/bom/?part={partId}&sub_part_detail=true");
-        return response.Results;
     }
 
     /// <summary>
@@ -72,8 +71,7 @@ public class BomService
     /// </summary>
     public async Task<List<BomItem>> WhereUsedAsync(int partId)
     {
-        var response = await _client.GetAsync<BomListResponse>(
+        return await _client.GetListAsync<BomItem, BomListResponse>(
             $"/api/bom/?sub_part={partId}&part_detail=true");
-        return response.Results;
     }
 }

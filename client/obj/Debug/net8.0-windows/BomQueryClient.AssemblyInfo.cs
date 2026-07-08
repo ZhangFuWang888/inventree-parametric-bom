@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("BomQueryClient")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+1154b6d364e9087e07aef537925c62965b62e16a")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+ea2812f4c84c09dbf0814b74a128fc26d545b68e")]
 [assembly: System.Reflection.AssemblyProductAttribute("BomQueryClient")]
 [assembly: System.Reflection.AssemblyTitleAttribute("BomQueryClient")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

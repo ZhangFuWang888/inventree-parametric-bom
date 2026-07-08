@@ -23,8 +23,7 @@ public class PartService
         if (category.HasValue)
             query += $"&category={category.Value}";
 
-        var response = await _client.GetAsync<PartListResponse>($"/api/part/{query}");
-        return response.Results;
+        return await _client.GetListAsync<Part, PartListResponse>($"/api/part/{query}");
     }
 
     /// <summary>获取所有部装（assembly=true, is_template=false）</summary>
@@ -34,8 +33,7 @@ public class PartService
         if (!string.IsNullOrEmpty(search))
             query += $"&search={Uri.EscapeDataString(search)}";
 
-        var response = await _client.GetAsync<PartListResponse>($"/api/part/{query}");
-        return response.Results;
+        return await _client.GetListAsync<Part, PartListResponse>($"/api/part/{query}");
     }
 
     /// <summary>获取所有零件（assembly=false）</summary>
@@ -45,16 +43,14 @@ public class PartService
         if (!string.IsNullOrEmpty(search))
             query += $"&search={Uri.EscapeDataString(search)}";
 
-        var response = await _client.GetAsync<PartListResponse>($"/api/part/{query}");
-        return response.Results;
+        return await _client.GetListAsync<Part, PartListResponse>($"/api/part/{query}");
     }
 
     /// <summary>根据关键词搜索物料</summary>
     public async Task<List<Part>> SearchPartsAsync(string keyword)
     {
         var query = $"?search={Uri.EscapeDataString(keyword)}&limit=50";
-        var response = await _client.GetAsync<PartListResponse>($"/api/part/{query}");
-        return response.Results;
+        return await _client.GetListAsync<Part, PartListResponse>($"/api/part/{query}");
     }
 
     /// <summary>获取单个物料详情</summary>
