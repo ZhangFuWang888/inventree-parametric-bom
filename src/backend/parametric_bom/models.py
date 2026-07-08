@@ -316,16 +316,6 @@ class ParametricBomItem(models.Model):
             'Example: 子件单价 * CEIL(param.长度 / 1000)'
         ),
     )
-    name_formula = models.CharField(
-        max_length=512,
-        blank=True,
-        default='',
-        verbose_name=_('Name formula'),
-        help_text=_(
-            'Formula for the display name of this BOM item. '
-            'Example: CONCAT(\"支柱-\", param.高度, \"mm\")'
-        ),
-    )
     param_mapping = models.JSONField(
         default=dict,
         blank=True,
@@ -367,13 +357,13 @@ class ParametricBomItem(models.Model):
         ])
         if not enabled:
             return False
-        return bool(self.qty_formula or self.condition_formula or self.price_formula or self.name_formula)
+        return bool(self.qty_formula or self.condition_formula or self.price_formula)
 
     def save(self, *args, **kwargs):
         """Auto-compute formula hash on save."""
         import hashlib
 
-        raw = f'{self.qty_formula}|{self.condition_formula}|{self.price_formula}|{self.name_formula}'
+        raw = f'{self.qty_formula}|{self.condition_formula}|{self.price_formula}'
         self.formular_hash = hashlib.sha256(raw.encode()).hexdigest()[:64]
         super().save(*args, **kwargs)
 

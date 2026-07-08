@@ -895,7 +895,6 @@ function renderBOMTable(items, pcfgMap, vmByPbi) {
   }
 
   const formulaCols = [
-    {key:'name_formula', icon:'🏷️', label:'名称公式'},
     {key:'qty_formula', icon:'📐', label:'数量/公式', isQty:true},
     {key:'condition_formula', icon:'⚡', label:'条件公式'},
     {key:'reference_formula', icon:'📝', label:'备注公式'},
@@ -942,17 +941,7 @@ function renderBOMTable(items, pcfgMap, vmByPbi) {
         + tplIpn
         + '</div></td>';
     } else {
-      const nfVal = hasCfg ? (cfg.name_formula || '') : '';
-      if (nfVal) {
-        var escNfVal = nfVal.replace(/'/g,"\\'").replace(/"/g,'&quot;');
-        nameCell = '<td><div class="pbs-formula-cell" ondblclick="openCellEditor(' + item.pk + ",'name_formula','" + escNfVal + "',false,0)\" title=\"双击编辑名称公式\">"
-          + '<span class="fmla-text" title="' + escNfVal + '">' + escHtml(nfVal) + '</span>'
-          + '<span class="fmla-hint">双击编辑</span>'
-          + '<div class="text-[9px] text-gray-400 mt-0.5">→ ' + escHtml(subPartName) + '</div>'
-          + '</div></td>';
-      } else {
-        nameCell = '<td><span class="pbs-name clickable-part" onclick="openPartDetail(' + item.sub_part + ')" title="点击查看零件详情">' + subPartName + '</span></td>';
-      }
+      nameCell = '<td><span class="pbs-name clickable-part" onclick="openPartDetail(' + item.sub_part + ')" title="点击查看零件详情">' + subPartName + '</span></td>';
       ipnCell = '<td class="pbs-ipn">' + (subPartRef || '<span class="text-gray-300">—</span>') + '</td>';
     }
     let rowHtml = '<tr' + rowBgClass + '>' + nameCell + ipnCell;
