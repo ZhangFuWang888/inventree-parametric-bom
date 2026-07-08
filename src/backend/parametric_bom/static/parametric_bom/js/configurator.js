@@ -1224,6 +1224,16 @@ async function expandConfigBOM() {
   }
   
   currentBOMResult = res.data;
+  
+  // Update product name if attribute formulas computed a product_name
+  if (res.data && res.data.attributes && res.data.attributes.product_name) {
+    var computedName = res.data.attributes.product_name.value;
+    if (computedName) {
+      var nameEl = document.getElementById('pd-product-name');
+      if (nameEl) nameEl.textContent = computedName;
+    }
+  }
+  
   renderBOMTree(res.data, 'cfg-bom-results');
   document.getElementById('cfg-cost-card').style.display = 'block';
   await estimateConfigCost(false);
