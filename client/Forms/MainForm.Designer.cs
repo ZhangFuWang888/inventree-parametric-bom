@@ -21,6 +21,7 @@ partial class MainForm
         this.topBar = new System.Windows.Forms.Panel();
         this.btnLogout = new System.Windows.Forms.Button();
         this.btnRefresh = new System.Windows.Forms.Button();
+        this.btnConfigurator = new System.Windows.Forms.Button();
         this.cbFilter = new System.Windows.Forms.ComboBox();
         this.btnSearch = new System.Windows.Forms.Button();
         this.txtSearch = new System.Windows.Forms.TextBox();
