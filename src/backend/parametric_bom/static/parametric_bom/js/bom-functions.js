@@ -863,31 +863,55 @@ function renderCfgBOM() {
     container.innerHTML = '<div class="cfg-empty"><div class="cfg-empty-icon">📋</div>BOM展开为空</div>';
     return;
   }
-  
+
   let html = '';
+  // Table header
+  html += `<div class="bom-table-header">
+    <span>类型</span><span>数量</span><span>物料名称</span><span>产品型号</span><span>价格</span>
+  </div>`;
   // Helper to render tree
   function renderTree(items, depth) {
     if (!items || !items.length) return '';
     let h = '';
     items.forEach(item => {
-      const isVariant = item.mode === 'variant';
-      const hasDynamicName = isVariant && !!item.variant_name;
-      const icon = isVariant ? '🧬' : '📦';
-      const name = hasDynamicName ? item.variant_name : (item.part_name || item.name || '未知');
+      const isExcluded = item.excluded || item.condition_met === false;
+      const hasError = item.error || (item.errors && item.errors.length > 0);
+      const isParametric = item.parametric || (item.mode && item.mode !== 'standard') || item.qty_formula || item.condition_formula;
+      const badgeClass = isExcluded ? 'badge-red' : (hasError ? 'badge-yellow' : (isParametric ? 'badge-blue' : 'badge-gray'));
+      const badgeText = isExcluded ? '已排除' : (hasError ? '错误' : (isParametric ? '参数化' : '静态'));
       const qty = item.calculated_quantity != null ? item.calculated_quantity : (item.quantity != null ? item.quantity : (item.required_quantity || 1));
-      const code = hasDynamicName ? (item.variant_ipn || item.ipn || item.part_ipn || '') : (item.ipn || item.part_ipn || '');
+      const name = item.calculated_name || item.variant_name || item.part_name || item.name || '未知';
+      const ipn = item.calculated_ipn || item.variant_ipn || item.ipn || item.part_ipn || '';
       const partId = item.actual_part_id || item.part_id;
-      
-      const variantClass = isVariant ? ' variant-item' : '';
-      const codeInfo = code ? `<span class="cfg-bi-code">(${code})</span>` : '';
-      const templateInfo = isVariant && item.template_part_name ? `<span class="cfg-bi-template">← ${item.template_part_name}</span>` : '';
-      
-      h += `<div class="cfg-bom-item cfg-bom-depth-${Math.min(depth,3)}${variantClass}">
-        <span class="cfg-bi-icon${isVariant ? ' variant-icon' : ''}">${icon}</span>
-        <span class="cfg-bi-name${partId ? ' clickable-part' : ''}${isVariant ? ' variant-name' : ''}"${partId ? ` onclick="openPartDetail(${partId})" title="点击查看零件详情"` : ''}>${name}${codeInfo}</span>
-        ${templateInfo}
-        <span class="cfg-bi-qty">×${qty}</span>
-        ${item.unit_price != null ? `<span class="cfg-bi-price">¥${Number(item.unit_price).toFixed(2)}</span>` : ''}
+      const depthClass = `tree-depth-${Math.min(depth, 9)}`;
+
+      // Tooltip for extra info
+      const tooltipParts = [];
+      if (item.mode && item.mode !== 'standard') {
+        const modeLabels = {standard:'标准', qty_formula:'数量公式', conditional:'条件包含', candidate:'候选', variant:'变体', specification:'规格', structure:'结构'};
+        tooltipParts.push(`模式:${modeLabels[item.mode]||item.mode}`);
+      }
+      if (item.qty_formula) tooltipParts.push(`数量公式:${item.qty_formula}`);
+      if (item.condition_formula) tooltipParts.push(`条件:${item.condition_formula}`);
+      if (item.errors && item.errors.length) tooltipParts.push(`错误:${item.errors.join(';')}`);
+      if (item.exclude_reason) tooltipParts.push(item.exclude_reason);
+      const tooltip = tooltipParts.join(' | ');
+
+      let priceText = '';
+      if (item.unit_price != null && item.total_price != null) {
+        priceText = `¥${Number(item.unit_price).toFixed(2)}`;
+      } else if (item.unit_price != null) {
+        priceText = `¥${Number(item.unit_price).toFixed(2)}/个`;
+      } else if (item.total_price != null) {
+        priceText = `=¥${Number(item.total_price).toFixed(2)}`;
+      }
+
+      h += `<div class="tree-item ${depthClass}"${tooltip ? ` title="${tooltip}"` : ''}>
+        <span class="col-badge"><span class="qty-badge ${badgeClass}">${badgeText}</span></span>
+        <span class="col-qty"><span class="qty-badge bg-gray-100 text-gray-700">×${qty}</span></span>
+        <span class="col-name${partId ? ' clickable-part' : ''}"${partId ? ` onclick="openPartDetail(${partId})"` : ''}>${depth > 0 ? '└ ' : ''}${name}</span>
+        <span class="col-ipn${ipn ? '' : ' text-gray-300'}">${ipn || '—'}</span>
+        <span class="col-price${priceText ? ' text-emerald-700 font-medium' : ' text-gray-300'}">${priceText || '—'}</span>
       </div>`;
       if (item.children && item.children.length) {
         h += renderTree(item.children, depth + 1);
@@ -895,8 +919,8 @@ function renderCfgBOM() {
     });
     return h;
   }
-  html = renderTree(cfgBOMItems, 0);
-  
+  html += renderTree(cfgBOMItems, 0);
+
   // Add total at bottom if prices exist
   var totalPrice = 0;
   var hasPrice = false;
@@ -909,7 +933,7 @@ function renderCfgBOM() {
   if (hasPrice) {
     html += '<div class="cfg-bom-total"><span>合计</span><span class="cfg-bom-total-price">¥' + totalPrice.toFixed(2) + '</span></div>';
   }
-  
+
   container.innerHTML = html;
 }
 
