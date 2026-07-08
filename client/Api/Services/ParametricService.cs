@@ -49,6 +49,13 @@ public class ParametricService
     {
         return _parametricPartIds?.Contains(partId) ?? false;
     }
+
+    /// <summary>在线检查单个物料是否为参数化（走 check-param-status 接口）</summary>
+    public async Task<ParamStatusResponse> CheckParamStatusAsync(int partId)
+    {
+        return await _client.GetAsync<ParamStatusResponse>(
+            $"/api/parametric-bom/check-param-status/{partId}/");
+    }
 }
 
 // ── 内部 DTO ──────────────────────────────
@@ -63,4 +70,12 @@ internal class PartConfigListResponse
 {
     public int Count { get; set; }
     public List<PartConfigEntry> Results { get; set; } = new();
+}
+
+/// <summary>check-param-status 接口返回</summary>
+public class ParamStatusResponse
+{
+    public int PartId { get; set; }
+    public bool IsParametric { get; set; }
+    public int ParamCount { get; set; }
 }

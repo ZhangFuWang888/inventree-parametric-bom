@@ -2379,3 +2379,18 @@ def client_login(request):
             'email': user.email,
         }
     })
+
+
+# ── C# 客户端通用接口 ──────────────────────────
+
+@api_view(['GET'])
+@permission_classes([permissions.IsAuthenticated])
+def check_param_status(request, part_id):
+    """检查指定物料是否为参数化产品（有 PartParameterConfig 则为参数化）。"""
+    from parametric_bom.models import PartParameterConfig as PPC
+    count = PPC.objects.filter(part_id=part_id).count()
+    return Response({
+        'part_id': part_id,
+        'is_parametric': count > 0,
+        'param_count': count,
+    })

@@ -220,8 +220,50 @@ public partial class MainForm : Form
         {
             _selectedPart = part;
             ShowPartDetail(part);
-            await LoadBomTree(part.Pk);
-            await LoadWhereUsed(part.Pk);
+
+            // 先判断是参数化还是静态物料
+            try
+            {
+                var status = await _parametric.CheckParamStatusAsync(part.Pk);
+                if (status.IsParametric)
+                {
+                    // 参数化物料 → 不加载BOM，提示双击配置
+                    tvBom.Nodes.Clear();
+                    var hint = new TreeNode("⚡ 参数化产品，双击打开参数配置器生成 BOM")
+                    {
+                        ForeColor = Color.DarkOrange
+                    };
+                    tvBom.Nodes.Add(hint);
+                    lvWhereUsed.Items.Clear();
+                    SetStatus($"⚡ 参数化产品（{status.ParamCount} 个参数），双击配置后生成 BOM");
+                }
+                else
+                {
+                    // 静态物料 → 直接加载 BOM
+                    await LoadBomTree(part.Pk);
+                    await LoadWhereUsed(part.Pk);
+                }
+            }
+            catch
+            {
+                // 接口不可用时降级为批量判断
+                if (_parametric.IsParametric(part.Pk))
+                {
+                    tvBom.Nodes.Clear();
+                    var hint = new TreeNode("⚡ 参数化产品，双击打开参数配置器生成 BOM")
+                    {
+                        ForeColor = Color.DarkOrange
+                    };
+                    tvBom.Nodes.Add(hint);
+                    lvWhereUsed.Items.Clear();
+                    SetStatus("⚡ 参数化产品，双击配置后生成 BOM");
+                }
+                else
+                {
+                    await LoadBomTree(part.Pk);
+                    await LoadWhereUsed(part.Pk);
+                }
+            }
         }
     }
 
