@@ -990,6 +990,10 @@ def _build_bom_xlsx(result):
 
     # Collect all unique part IDs for DB lookup
     part_ids = set()
+    # 加入根产品ID
+    root_pid = bom_tree.get('actual_part_id') or bom_tree.get('part_id')
+    if root_pid:
+        part_ids.add(int(root_pid))
     def _collect_pids(node):
         for child in node.get('children', []):
             if child.get('excluded'):
@@ -1000,12 +1004,20 @@ def _build_bom_xlsx(result):
             _collect_pids(child)
     _collect_pids(bom_tree)
 
-    # Bulk fetch Parts for IPN + units
+    # Bulk fetch Parts for IPN + units + category
     from part.models import Part
     part_map = {}
+    part_category_map = {}  # part_id → root category name
     if part_ids:
-        for p in Part.objects.filter(pk__in=part_ids).only('pk', 'IPN', 'units', 'name'):
+        for p in Part.objects.filter(pk__in=part_ids).select_related('category').only('pk', 'IPN', 'units', 'name', 'category'):
             part_map[p.pk] = p
+            # 获取顶层（根）分类名称作为"设备（大类）"
+            if p.category:
+                ancestors = p.category.get_ancestors(include_self=True)
+                root_cat = ancestors.first()
+                part_category_map[p.pk] = root_cat.name if root_cat else ''
+            else:
+                part_category_map[p.pk] = ''
 
     # Try to get material from PartParameterConfig (if a "材料" parameter exists)
     from parametric_bom.models import PartParameterConfig
@@ -1051,7 +1063,7 @@ def _build_bom_xlsx(result):
 
             vals = [
                 seq,
-                '',  # 设备（大类）
+                part_category_map.get(pid, ''),  # 设备（大类）— 顶层物料分类
                 '',  # 部装
                 ipn,  # 规格型号
                 pname,  # 品名
