@@ -28,29 +28,13 @@ partial class ConfiguratorForm
         paramHeader = new Label();
         bomPanel = new Panel();
         dgvBomPreview = new DataGridView();
-        colBomCol1 = new DataGridViewTextBoxColumn();
-        colBomCol2 = new DataGridViewTextBoxColumn();
-        colBomCol3 = new DataGridViewTextBoxColumn();
-        colBomCol4 = new DataGridViewTextBoxColumn();
-        colBomCol5 = new DataGridViewTextBoxColumn();
-        colBomCol6 = new DataGridViewTextBoxColumn();
-        colBomCol7 = new DataGridViewTextBoxColumn();
-        colBomCol8 = new DataGridViewTextBoxColumn();
-        colBomCol9 = new DataGridViewTextBoxColumn();
-        colBomCol10 = new DataGridViewTextBoxColumn();
-        colBomCol11 = new DataGridViewTextBoxColumn();
-        colBomCol12 = new DataGridViewTextBoxColumn();
-        colBomCol13 = new DataGridViewTextBoxColumn();
-        colBomCol14 = new DataGridViewTextBoxColumn();
-        colBomCol15 = new DataGridViewTextBoxColumn();
-        colBomCol16 = new DataGridViewTextBoxColumn();
-        colBomCol17 = new DataGridViewTextBoxColumn();
-        colBomCol18 = new DataGridViewTextBoxColumn();
-        colBomCol19 = new DataGridViewTextBoxColumn();
-        colBomCol20 = new DataGridViewTextBoxColumn();
-        colBomCol21 = new DataGridViewTextBoxColumn();
-        colBomCol22 = new DataGridViewTextBoxColumn();
-        colBomCol23 = new DataGridViewTextBoxColumn();
+        colBomLevel = new DataGridViewTextBoxColumn();
+        colBomType = new DataGridViewTextBoxColumn();
+        colBomName = new DataGridViewTextBoxColumn();
+        colBomIpn = new DataGridViewTextBoxColumn();
+        colBomQty = new DataGridViewTextBoxColumn();
+        colBomUnitPrice = new DataGridViewTextBoxColumn();
+        colBomTotalPrice = new DataGridViewTextBoxColumn();
         bomPreviewHeader = new Label();
         buttonPanel = new Panel();
         btnPreviewBom = new Button();
@@ -217,7 +201,7 @@ partial class ConfiguratorForm
         dgvBomPreview.BackgroundColor = Color.White;
         dgvBomPreview.BorderStyle = BorderStyle.None;
         dgvBomPreview.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-        dgvBomPreview.Columns.AddRange(new DataGridViewColumn[] { colBomCol1, colBomCol2, colBomCol3, colBomCol4, colBomCol5, colBomCol6, colBomCol7, colBomCol8, colBomCol9, colBomCol10, colBomCol11, colBomCol12, colBomCol13, colBomCol14, colBomCol15, colBomCol16, colBomCol17, colBomCol18, colBomCol19, colBomCol20, colBomCol21, colBomCol22, colBomCol23 });
+        dgvBomPreview.Columns.AddRange(new DataGridViewColumn[] { colBomLevel, colBomType, colBomName, colBomIpn, colBomQty, colBomUnitPrice, colBomTotalPrice });
         dgvBomPreview.Dock = DockStyle.Fill;
         dgvBomPreview.Font = new Font("Microsoft YaHei UI", 9F);
         dgvBomPreview.GridColor = Color.FromArgb(229, 231, 235);
@@ -231,169 +215,61 @@ partial class ConfiguratorForm
         dgvBomPreview.Size = new Size(700, 278);
         dgvBomPreview.TabIndex = 1;
         // 
-        // colBomCol1
+        // colBomLevel
         // 
-        colBomCol1.HeaderText = "序号";
-        colBomCol1.Name = "colBomCol1";
-        colBomCol1.ReadOnly = true;
-        colBomCol1.Width = 36;
-        colBomCol1.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+        colBomLevel.HeaderText = "层级";
+        colBomLevel.Name = "colBomLevel";
+        colBomLevel.ReadOnly = true;
+        colBomLevel.Width = 36;
+        colBomLevel.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
         // 
-        // colBomCol2
+        // colBomType
         // 
-        colBomCol2.HeaderText = "设备（大类）";
-        colBomCol2.Name = "colBomCol2";
-        colBomCol2.ReadOnly = true;
-        colBomCol2.Width = 70;
+        colBomType.HeaderText = "类型";
+        colBomType.Name = "colBomType";
+        colBomType.ReadOnly = true;
+        colBomType.Width = 64;
+        colBomType.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
         // 
-        // colBomCol3
+        // colBomName
         // 
-        colBomCol3.HeaderText = "部装";
-        colBomCol3.Name = "colBomCol3";
-        colBomCol3.ReadOnly = true;
-        colBomCol3.Width = 70;
+        colBomName.HeaderText = "物料名称";
+        colBomName.Name = "colBomName";
+        colBomName.ReadOnly = true;
+        colBomName.Width = 200;
         // 
-        // colBomCol4
+        // colBomIpn
         // 
-        colBomCol4.HeaderText = "规格型号";
-        colBomCol4.Name = "colBomCol4";
-        colBomCol4.ReadOnly = true;
-        colBomCol4.Width = 90;
+        colBomIpn.HeaderText = "产品型号";
+        colBomIpn.Name = "colBomIpn";
+        colBomIpn.ReadOnly = true;
+        colBomIpn.Width = 120;
         // 
-        // colBomCol5
+        // colBomQty
         // 
-        colBomCol5.HeaderText = "品名";
-        colBomCol5.Name = "colBomCol5";
-        colBomCol5.ReadOnly = true;
-        colBomCol5.Width = 130;
+        colBomQty.HeaderText = "数量";
+        colBomQty.Name = "colBomQty";
+        colBomQty.ReadOnly = true;
+        colBomQty.Width = 60;
+        colBomQty.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
         // 
-        // colBomCol6
+        // colBomUnitPrice
         // 
-        colBomCol6.HeaderText = "品牌";
-        colBomCol6.Name = "colBomCol6";
-        colBomCol6.ReadOnly = true;
-        colBomCol6.Width = 50;
+        colBomUnitPrice.DefaultCellStyle.Format = "¥#,##0.00";
+        colBomUnitPrice.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
+        colBomUnitPrice.HeaderText = "单价";
+        colBomUnitPrice.Name = "colBomUnitPrice";
+        colBomUnitPrice.ReadOnly = true;
+        colBomUnitPrice.Width = 90;
         // 
-        // colBomCol7
+        // colBomTotalPrice
         // 
-        colBomCol7.HeaderText = "单位";
-        colBomCol7.Name = "colBomCol7";
-        colBomCol7.ReadOnly = true;
-        colBomCol7.Width = 40;
-        // 
-        // colBomCol8
-        // 
-        colBomCol8.HeaderText = "应需数量";
-        colBomCol8.Name = "colBomCol8";
-        colBomCol8.ReadOnly = true;
-        colBomCol8.Width = 60;
-        colBomCol8.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
-        // 
-        // colBomCol9
-        // 
-        colBomCol9.HeaderText = "预期到货";
-        colBomCol9.Name = "colBomCol9";
-        colBomCol9.ReadOnly = true;
-        colBomCol9.Width = 60;
-        // 
-        // colBomCol10
-        // 
-        colBomCol10.HeaderText = "类别";
-        colBomCol10.Name = "colBomCol10";
-        colBomCol10.ReadOnly = true;
-        colBomCol10.Width = 40;
-        // 
-        // colBomCol11
-        // 
-        colBomCol11.HeaderText = "材质（牌号）";
-        colBomCol11.Name = "colBomCol11";
-        colBomCol11.ReadOnly = true;
-        colBomCol11.Width = 70;
-        // 
-        // colBomCol12
-        // 
-        colBomCol12.HeaderText = "表面处理方式";
-        colBomCol12.Name = "colBomCol12";
-        colBomCol12.ReadOnly = true;
-        colBomCol12.Width = 70;
-        // 
-        // colBomCol13
-        // 
-        colBomCol13.HeaderText = "处理颜色";
-        colBomCol13.Name = "colBomCol13";
-        colBomCol13.ReadOnly = true;
-        colBomCol13.Width = 60;
-        // 
-        // colBomCol14
-        // 
-        colBomCol14.HeaderText = "重量";
-        colBomCol14.Name = "colBomCol14";
-        colBomCol14.ReadOnly = true;
-        colBomCol14.Width = 50;
-        // 
-        // colBomCol15
-        // 
-        colBomCol15.HeaderText = "备注";
-        colBomCol15.Name = "colBomCol15";
-        colBomCol15.ReadOnly = true;
-        colBomCol15.Width = 100;
-        // 
-        // colBomCol16
-        // 
-        colBomCol16.HeaderText = "采购员";
-        colBomCol16.Name = "colBomCol16";
-        colBomCol16.ReadOnly = true;
-        colBomCol16.Width = 50;
-        // 
-        // colBomCol17
-        // 
-        colBomCol17.HeaderText = "入库去向";
-        colBomCol17.Name = "colBomCol17";
-        colBomCol17.ReadOnly = true;
-        colBomCol17.Width = 60;
-        // 
-        // colBomCol18
-        // 
-        colBomCol18.HeaderText = "制购类别";
-        colBomCol18.Name = "colBomCol18";
-        colBomCol18.ReadOnly = true;
-        colBomCol18.Width = 60;
-        // 
-        // colBomCol19
-        // 
-        colBomCol19.HeaderText = "申请理由";
-        colBomCol19.Name = "colBomCol19";
-        colBomCol19.ReadOnly = true;
-        colBomCol19.Width = 80;
-        // 
-        // colBomCol20
-        // 
-        colBomCol20.HeaderText = "附图";
-        colBomCol20.Name = "colBomCol20";
-        colBomCol20.ReadOnly = true;
-        colBomCol20.Width = 40;
-        // 
-        // colBomCol21
-        // 
-        colBomCol21.HeaderText = "总数量";
-        colBomCol21.Name = "colBomCol21";
-        colBomCol21.ReadOnly = true;
-        colBomCol21.Width = 50;
-        colBomCol21.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
-        // 
-        // colBomCol22
-        // 
-        colBomCol22.HeaderText = "问题环节";
-        colBomCol22.Name = "colBomCol22";
-        colBomCol22.ReadOnly = true;
-        colBomCol22.Width = 60;
-        // 
-        // colBomCol23
-        // 
-        colBomCol23.HeaderText = "技改原因分类";
-        colBomCol23.Name = "colBomCol23";
-        colBomCol23.ReadOnly = true;
-        colBomCol23.Width = 80;
+        colBomTotalPrice.DefaultCellStyle.Format = "¥#,##0.00";
+        colBomTotalPrice.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
+        colBomTotalPrice.HeaderText = "总价";
+        colBomTotalPrice.Name = "colBomTotalPrice";
+        colBomTotalPrice.ReadOnly = true;
+        colBomTotalPrice.Width = 90;
         // 
         // bomPreviewHeader
         // 
@@ -518,29 +394,13 @@ partial class ConfiguratorForm
     private System.Windows.Forms.Panel bomPanel;
     private System.Windows.Forms.Label bomPreviewHeader;
     private System.Windows.Forms.DataGridView dgvBomPreview;
-    private System.Windows.Forms.DataGridViewTextBoxColumn colBomCol1;
-    private System.Windows.Forms.DataGridViewTextBoxColumn colBomCol2;
-    private System.Windows.Forms.DataGridViewTextBoxColumn colBomCol3;
-    private System.Windows.Forms.DataGridViewTextBoxColumn colBomCol4;
-    private System.Windows.Forms.DataGridViewTextBoxColumn colBomCol5;
-    private System.Windows.Forms.DataGridViewTextBoxColumn colBomCol6;
-    private System.Windows.Forms.DataGridViewTextBoxColumn colBomCol7;
-    private System.Windows.Forms.DataGridViewTextBoxColumn colBomCol8;
-    private System.Windows.Forms.DataGridViewTextBoxColumn colBomCol9;
-    private System.Windows.Forms.DataGridViewTextBoxColumn colBomCol10;
-    private System.Windows.Forms.DataGridViewTextBoxColumn colBomCol11;
-    private System.Windows.Forms.DataGridViewTextBoxColumn colBomCol12;
-    private System.Windows.Forms.DataGridViewTextBoxColumn colBomCol13;
-    private System.Windows.Forms.DataGridViewTextBoxColumn colBomCol14;
-    private System.Windows.Forms.DataGridViewTextBoxColumn colBomCol15;
-    private System.Windows.Forms.DataGridViewTextBoxColumn colBomCol16;
-    private System.Windows.Forms.DataGridViewTextBoxColumn colBomCol17;
-    private System.Windows.Forms.DataGridViewTextBoxColumn colBomCol18;
-    private System.Windows.Forms.DataGridViewTextBoxColumn colBomCol19;
-    private System.Windows.Forms.DataGridViewTextBoxColumn colBomCol20;
-    private System.Windows.Forms.DataGridViewTextBoxColumn colBomCol21;
-    private System.Windows.Forms.DataGridViewTextBoxColumn colBomCol22;
-    private System.Windows.Forms.DataGridViewTextBoxColumn colBomCol23;
+    private System.Windows.Forms.DataGridViewTextBoxColumn colBomLevel;
+    private System.Windows.Forms.DataGridViewTextBoxColumn colBomType;
+    private System.Windows.Forms.DataGridViewTextBoxColumn colBomName;
+    private System.Windows.Forms.DataGridViewTextBoxColumn colBomIpn;
+    private System.Windows.Forms.DataGridViewTextBoxColumn colBomQty;
+    private System.Windows.Forms.DataGridViewTextBoxColumn colBomUnitPrice;
+    private System.Windows.Forms.DataGridViewTextBoxColumn colBomTotalPrice;
     private System.Windows.Forms.Button btnPreviewBom;
     private System.Windows.Forms.Button btnExportBom;
     private System.Windows.Forms.Panel buttonPanel;

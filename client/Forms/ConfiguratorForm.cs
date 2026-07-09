@@ -159,35 +159,28 @@ public partial class ConfiguratorForm : Form
                 var flatRows = new List<BomFlatRow>();
                 FlattenTree(result.BomTree, 0, flatRows);
 
-                int seq = 0;
                 foreach (var fr in flatRows)
                 {
-                    seq++;
+                    // 层级标识
+                    var levelStr = fr.Depth == 0 ? "─" : $"L{fr.Depth}";
+                    // 名称缩进，子项加 └ 前缀
+                    var indent = new string(' ', fr.Depth * 2);
+                    var nameDisplay = fr.Depth > 0 ? indent + "└ " + fr.Name : fr.Name;
+                    // 数量始终显示 ×N
+                    var qtyDisplay = $"×{fr.Quantity}";
+                    // 价格：无值时显示 —
+                    object unitPriceDisplay = fr.UnitPrice.HasValue ? (object)fr.UnitPrice.Value : "—";
+                    object totalPriceDisplay = fr.TotalPrice.HasValue ? (object)fr.TotalPrice.Value : "—";
+
                     var tag = string.IsNullOrEmpty(fr.Tooltip) ? (fr.Excluded ? "excluded" : "normal") : fr.Tooltip;
                     var rowIdx = dgvBomPreview.Rows.Add(
-                seq,       // 序号
-                "",        // 设备（大类）
-                "",        // 部装
-                string.IsNullOrEmpty(fr.Ipn) ? "—" : fr.Ipn,  // 规格型号
-                fr.Name,   // 品名
-                "",        // 品牌
-                "",        // 单位
-                $"×{fr.Quantity}",  // 应需数量
-                "",        // 预期到货
-                "",        // 类别
-                "",        // 材质（牌号）
-                "",        // 表面处理方式
-                "",        // 处理颜色
-                "",        // 重量
-                fr.Tooltip, // 备注
-                "",        // 采购员
-                "",        // 入库去向
-                "",        // 制购类别
-                "",        // 申请理由
-                "",        // 附图
-                $"×{fr.Quantity}",  // 总数量
-                "",        // 问题环节
-                "");       // 技改原因分类
+                        levelStr,
+                        fr.Badge,
+                        nameDisplay,
+                        string.IsNullOrEmpty(fr.Ipn) ? "—" : fr.Ipn,
+                        qtyDisplay,
+                        unitPriceDisplay,
+                        totalPriceDisplay);
                     dgvBomPreview.Rows[rowIdx].Tag = tag;
 
                     // 排除行灰色
@@ -199,23 +192,21 @@ public partial class ConfiguratorForm : Form
 
                 // 合计行
                 decimal totalCost = flatRows.Sum(r => r.TotalPrice ?? 0);
-                var totalIdx = dgvBomPreview.Rows.Add(
-                    "", "", "", "", "合计",
-                    "", "", "", "", "",
-                    "", "", "", "", "",
-                    "", "", "", "", "",
-                    "", "", "");
+                var totalIdx = dgvBomPreview.Rows.Add("", "", "合计", "", "", "", totalCost);
                 dgvBomPreview.Rows[totalIdx].Tag = "total";
-                // 合计行加粗背景色
-                dgvBomPreview.Rows[totalIdx].DefaultCellStyle.Font = new Font(dgvBomPreview.Font, FontStyle.Bold);
-                dgvBomPreview.Rows[totalIdx].DefaultCellStyle.BackColor = Color.FromArgb(243, 244, 246);
-                dgvBomPreview.Rows[totalIdx].Cells[4].Style.Font = new Font(dgvBomPreview.Font, FontStyle.Bold);
+                foreach (DataGridViewCell c in dgvBomPreview.Rows[totalIdx].Cells)
+                {
+                    c.Style.Font = new Font(dgvBomPreview.Font, FontStyle.Bold);
+                    c.Style.BackColor = Color.FromArgb(243, 244, 246);
+                }
+                // 合计列对齐
+                dgvBomPreview.Rows[totalIdx].Cells[6].Style.Alignment = DataGridViewContentAlignment.MiddleRight;
+                dgvBomPreview.Rows[totalIdx].Cells[6].Style.Format = "¥#,##0.00";
 
                 dgvBomPreview.ClearSelection();
-                SetStatus($"BOM 评估完成 — {flatRows?.Count ?? 0} 行");
             }
 
-          
+            SetStatus($"BOM 评估完成 — {flatRows?.Count ?? 0} 行");
         }
         catch (Exception ex)
         {
