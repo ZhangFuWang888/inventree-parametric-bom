@@ -313,9 +313,9 @@ function openCellEditor(itemPk, field, currentVal, isQty, mappingId) {
     input.value = currentVal || '';
     input.placeholder = '输入纯数字=改静态数量，输入公式=动态计算';
   } else {
-    const labels = {qty_formula:'数量/公式', condition_formula:'条件公式', reference_formula:'备注公式', price_formula:'价格公式'};
-    const placeholders = {qty_formula:'CEIL(长度/500)*2', condition_formula:'param.速度 > 15', reference_formula:"CONCAT('定制-',长度,'mm')", price_formula:"子件单价 * CEIL(param.长度 / 1000)"};
-    const iconMap = {qty_formula:'📐', condition_formula:'⚡', reference_formula:'📝', price_formula:'💰'};
+    const labels = {name_formula:'🏷️ 名称公式', qty_formula:'📐 数量/公式', condition_formula:'⚡ 条件公式', reference_formula:'📝 备注公式', price_formula:'💰 价格公式'};
+    const placeholders = {name_formula:"CONCAT('支柱-',param.高度,'mm')", qty_formula:'CEIL(长度/500)*2', condition_formula:'param.速度 > 15', reference_formula:"CONCAT('定制-',长度,'mm')", price_formula:"子件单价 * CEIL(param.长度 / 1000)"};
+    const iconMap = {name_formula:'🏷️', qty_formula:'📐', condition_formula:'⚡', reference_formula:'📝', price_formula:'💰'};
     title.textContent = (iconMap[field] || '✏️') + ' ' + (labels[field] || '编辑');
     input.value = currentVal || '';
     input.placeholder = placeholders[field] || '输入公式...';
@@ -423,7 +423,7 @@ async function saveCellFormula() {
   const data = {};
   data[st.field] = formula;
   if (exCfg) {
-    ['qty_formula','condition_formula','reference_formula','price_formula'].forEach(function(f) {
+    ['name_formula','qty_formula','condition_formula','reference_formula','price_formula'].forEach(function(f) {
       if (f !== st.field && exCfg[f]) data[f] = exCfg[f];
     });
   } else {

@@ -470,6 +470,18 @@ def _expand_single_bom_item(
     child_node['actual_part_id'] = _part_pk(actual_sub_part)
     child_node['actual_part_name'] = _part_display(actual_sub_part)
 
+    # ── 3a) Name formula — compute dynamic display name ──────────
+    if parametric_cfg.name_formula:
+        try:
+            name_result = eval_formula(
+                parametric_cfg.name_formula,
+                context=_ctx(params, parent_params),
+                timeout_ms=timeout_ms,
+            )
+            child_node['part_name'] = str(name_result)
+        except (ParseError, ReferenceError, EvaluationError, TimeoutError) as e:
+            child_node['errors'].append(f"Name formula error: {e}")
+
     # ── 4) Recurse into sub-part's BOM ────────────────────────────
     _expand_sub_part(child_node, actual_sub_part, params, parent_params, depth, max_depth, timeout_ms)
 

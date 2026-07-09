@@ -28,3 +28,4 @@ C:\tb\inventree-parametric-bom\client\obj\Debug\net8.0-windows\ref\BomQueryClien
 C:\tb\inventree-parametric-bom\client\obj\Debug\net8.0-windows\BomQueryClient.Forms.LoginForm.resources
 C:\tb\inventree-parametric-bom\client\obj\Debug\net8.0-windows\BomQueryClient.Forms.MainForm.resources
 C:\tb\inventree-parametric-bom\client\obj\Debug\net8.0-windows\BomQueryClient.csproj.GenerateResource.cache
+C:\tb\inventree-parametric-bom\client\obj\Debug\net8.0-windows\BomQueryClient.Forms.ConfiguratorForm.resources

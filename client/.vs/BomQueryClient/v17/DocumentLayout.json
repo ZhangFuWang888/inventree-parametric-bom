@@ -3,20 +3,36 @@
   "WorkspaceRootPath": "C:\\tb\\inventree-parametric-bom\\client\\",
   "Documents": [
     {
-      "AbsoluteMoniker": "D:0:0:{7E8050E8-893F-F37E-C914-369642B3AE9C}|BomQueryClient.csproj|c:\\tb\\inventree-parametric-bom\\client\\forms\\mainform.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{7E8050E8-893F-F37E-C914-369642B3AE9C}|BomQueryClient.csproj|solutionrelative:forms\\mainform.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+      "AbsoluteMoniker": "D:0:0:{7E8050E8-893F-F37E-C914-369642B3AE9C}|BomQueryClient.csproj|c:\\tb\\inventree-parametric-bom\\client\\forms\\configuratorform.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}|Form",
+      "RelativeMoniker": "D:0:0:{7E8050E8-893F-F37E-C914-369642B3AE9C}|BomQueryClient.csproj|solutionrelative:forms\\configuratorform.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}|Form"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7E8050E8-893F-F37E-C914-369642B3AE9C}|BomQueryClient.csproj|c:\\tb\\inventree-parametric-bom\\client\\forms\\mainform.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}|Form",
+      "RelativeMoniker": "D:0:0:{7E8050E8-893F-F37E-C914-369642B3AE9C}|BomQueryClient.csproj|solutionrelative:forms\\mainform.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}|Form"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7E8050E8-893F-F37E-C914-369642B3AE9C}|BomQueryClient.csproj|c:\\tb\\inventree-parametric-bom\\client\\forms\\configuratorform.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{7E8050E8-893F-F37E-C914-369642B3AE9C}|BomQueryClient.csproj|solutionrelative:forms\\configuratorform.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7E8050E8-893F-F37E-C914-369642B3AE9C}|BomQueryClient.csproj|c:\\tb\\inventree-parametric-bom\\client\\api\\models\\loginresponse.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{7E8050E8-893F-F37E-C914-369642B3AE9C}|BomQueryClient.csproj|solutionrelative:api\\models\\loginresponse.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7E8050E8-893F-F37E-C914-369642B3AE9C}|BomQueryClient.csproj|c:\\tb\\inventree-parametric-bom\\client\\api\\models\\part.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{7E8050E8-893F-F37E-C914-369642B3AE9C}|BomQueryClient.csproj|solutionrelative:api\\models\\part.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7E8050E8-893F-F37E-C914-369642B3AE9C}|BomQueryClient.csproj|c:\\tb\\inventree-parametric-bom\\client\\api\\models\\bomitem.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{7E8050E8-893F-F37E-C914-369642B3AE9C}|BomQueryClient.csproj|solutionrelative:api\\models\\bomitem.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
       "AbsoluteMoniker": "D:0:0:{7E8050E8-893F-F37E-C914-369642B3AE9C}|BomQueryClient.csproj|c:\\tb\\inventree-parametric-bom\\client\\forms\\loginform.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
       "RelativeMoniker": "D:0:0:{7E8050E8-893F-F37E-C914-369642B3AE9C}|BomQueryClient.csproj|solutionrelative:forms\\loginform.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{7E8050E8-893F-F37E-C914-369642B3AE9C}|BomQueryClient.csproj|c:\\tb\\inventree-parametric-bom\\client\\forms\\loginform.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}|Form",
+      "AbsoluteMoniker": "D:0:0:{7E8050E8-893F-F37E-C914-369642B3AE9C}|BomQueryClient.csproj|C:\\tb\\inventree-parametric-bom\\client\\forms\\loginform.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}|Form",
       "RelativeMoniker": "D:0:0:{7E8050E8-893F-F37E-C914-369642B3AE9C}|BomQueryClient.csproj|solutionrelative:forms\\loginform.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}|Form"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{7E8050E8-893F-F37E-C914-369642B3AE9C}|BomQueryClient.csproj|c:\\tb\\inventree-parametric-bom\\client\\forms\\mainform.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}|Form",
-      "RelativeMoniker": "D:0:0:{7E8050E8-893F-F37E-C914-369642B3AE9C}|BomQueryClient.csproj|solutionrelative:forms\\mainform.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}|Form"
     }
   ],
   "DocumentGroupContainers": [
@@ -47,19 +63,80 @@
             {
               "$type": "Document",
               "DocumentIndex": 0,
-              "Title": "MainForm.cs",
-              "DocumentMoniker": "C:\\tb\\inventree-parametric-bom\\client\\Forms\\MainForm.cs",
-              "RelativeDocumentMoniker": "Forms\\MainForm.cs",
-              "ToolTip": "C:\\tb\\inventree-parametric-bom\\client\\Forms\\MainForm.cs",
-              "RelativeToolTip": "Forms\\MainForm.cs",
-              "ViewState": "AgIAAGkAAAAAAAAAAAArwHQAAAAJAAAAAAAAAA==",
+              "Title": "ConfiguratorForm.cs [\u8BBE\u8BA1]",
+              "DocumentMoniker": "C:\\tb\\inventree-parametric-bom\\client\\Forms\\ConfiguratorForm.cs",
+              "RelativeDocumentMoniker": "Forms\\ConfiguratorForm.cs",
+              "ToolTip": "C:\\tb\\inventree-parametric-bom\\client\\Forms\\ConfiguratorForm.cs [\u8BBE\u8BA1]",
+              "RelativeToolTip": "Forms\\ConfiguratorForm.cs [\u8BBE\u8BA1]",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-07-08T01:54:15.587Z",
-              "EditorCaption": ""
+              "WhenOpened": "2026-07-08T06:41:04.043Z",
+              "EditorCaption": " [\u8BBE\u8BA1]"
             },
             {
               "$type": "Document",
               "DocumentIndex": 1,
+              "Title": "MainForm.cs [\u8BBE\u8BA1]",
+              "DocumentMoniker": "C:\\tb\\inventree-parametric-bom\\client\\Forms\\MainForm.cs",
+              "RelativeDocumentMoniker": "Forms\\MainForm.cs",
+              "ToolTip": "C:\\tb\\inventree-parametric-bom\\client\\Forms\\MainForm.cs [\u8BBE\u8BA1]",
+              "RelativeToolTip": "Forms\\MainForm.cs [\u8BBE\u8BA1]",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-07-08T05:42:47.438Z",
+              "EditorCaption": " [\u8BBE\u8BA1]"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
+              "Title": "ConfiguratorForm.cs",
+              "DocumentMoniker": "C:\\tb\\inventree-parametric-bom\\client\\Forms\\ConfiguratorForm.cs",
+              "RelativeDocumentMoniker": "Forms\\ConfiguratorForm.cs",
+              "ToolTip": "C:\\tb\\inventree-parametric-bom\\client\\Forms\\ConfiguratorForm.cs",
+              "RelativeToolTip": "Forms\\ConfiguratorForm.cs",
+              "ViewState": "AgIAACUAAAAAAAAAAAAAADcAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-07-08T05:34:40.294Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 4,
+              "Title": "Part.cs",
+              "DocumentMoniker": "C:\\tb\\inventree-parametric-bom\\client\\Api\\Models\\Part.cs",
+              "RelativeDocumentMoniker": "Api\\Models\\Part.cs",
+              "ToolTip": "C:\\tb\\inventree-parametric-bom\\client\\Api\\Models\\Part.cs",
+              "RelativeToolTip": "Api\\Models\\Part.cs",
+              "ViewState": "AgIAABkAAAAAAAAAAAAmwCEAAAAlAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-07-08T03:16:46.669Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 3,
+              "Title": "LoginResponse.cs",
+              "DocumentMoniker": "C:\\tb\\inventree-parametric-bom\\client\\Api\\Models\\LoginResponse.cs",
+              "RelativeDocumentMoniker": "Api\\Models\\LoginResponse.cs",
+              "ToolTip": "C:\\tb\\inventree-parametric-bom\\client\\Api\\Models\\LoginResponse.cs",
+              "RelativeToolTip": "Api\\Models\\LoginResponse.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAQAAAAOAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-07-08T03:16:44.344Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 5,
+              "Title": "BomItem.cs",
+              "DocumentMoniker": "C:\\tb\\inventree-parametric-bom\\client\\Api\\Models\\BomItem.cs",
+              "RelativeDocumentMoniker": "Api\\Models\\BomItem.cs",
+              "ToolTip": "C:\\tb\\inventree-parametric-bom\\client\\Api\\Models\\BomItem.cs",
+              "RelativeToolTip": "Api\\Models\\BomItem.cs",
+              "ViewState": "AgIAADEAAAAAAAAAAAAxwAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-07-08T03:16:38.072Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 6,
               "Title": "LoginForm.cs",
               "DocumentMoniker": "C:\\tb\\inventree-parametric-bom\\client\\Forms\\LoginForm.cs",
               "RelativeDocumentMoniker": "Forms\\LoginForm.cs",
@@ -72,27 +149,14 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 2,
+              "DocumentIndex": 7,
               "Title": "LoginForm.cs [\u8BBE\u8BA1]",
               "DocumentMoniker": "C:\\tb\\inventree-parametric-bom\\client\\Forms\\LoginForm.cs",
               "RelativeDocumentMoniker": "Forms\\LoginForm.cs",
               "ToolTip": "C:\\tb\\inventree-parametric-bom\\client\\Forms\\LoginForm.cs [\u8BBE\u8BA1]",
               "RelativeToolTip": "Forms\\LoginForm.cs [\u8BBE\u8BA1]",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-07-08T01:53:33.7Z",
-              "EditorCaption": " [\u8BBE\u8BA1]"
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 3,
-              "Title": "MainForm.cs [\u8BBE\u8BA1]",
-              "DocumentMoniker": "C:\\tb\\inventree-parametric-bom\\client\\Forms\\MainForm.cs",
-              "RelativeDocumentMoniker": "Forms\\MainForm.cs",
-              "ToolTip": "C:\\tb\\inventree-parametric-bom\\client\\Forms\\MainForm.cs [\u8BBE\u8BA1]",
-              "RelativeToolTip": "Forms\\MainForm.cs [\u8BBE\u8BA1]",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-07-08T01:53:28.085Z",
-              "EditorCaption": " [\u8BBE\u8BA1]"
+              "WhenOpened": "2026-07-08T01:53:33.7Z"
             }
           ]
         }
