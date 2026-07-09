@@ -1011,11 +1011,9 @@ def _build_bom_xlsx(result):
     if part_ids:
         for p in Part.objects.filter(pk__in=part_ids).select_related('category').only('pk', 'IPN', 'units', 'name', 'category'):
             part_map[p.pk] = p
-            # 获取顶层（根）分类名称作为"设备（大类）"
+            # 获取物料的直接分类作为"设备（大类）"
             if p.category:
-                ancestors = p.category.get_ancestors(include_self=True)
-                root_cat = ancestors.first()
-                part_category_map[p.pk] = root_cat.name if root_cat else ''
+                part_category_map[p.pk] = p.category.name
             else:
                 part_category_map[p.pk] = ''
 
