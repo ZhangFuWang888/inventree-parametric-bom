@@ -826,6 +826,7 @@ async function addIndependentParam(type, insertBeforeId) {
     part: parseInt(partId),
     name: paramName,
     parameter_type: type,
+    default_value: type === 'number' ? '0' : (type === 'boolean' ? 'false' : ''),
     is_driving: true,
     is_computed: false,
     display_order: displayOrder,

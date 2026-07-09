@@ -161,15 +161,26 @@ public partial class ConfiguratorForm : Form
 
                 foreach (var fr in flatRows)
                 {
-                    var nameDisplay = new string(' ', fr.Depth * 3) + fr.Name;
+                    // 层级标识
+                    var levelStr = fr.Depth == 0 ? "─" : $"L{fr.Depth}";
+                    // 名称缩进，子项加 └ 前缀
+                    var indent = new string(' ', fr.Depth * 2);
+                    var nameDisplay = fr.Depth > 0 ? indent + "└ " + fr.Name : fr.Name;
+                    // 数量始终显示 ×N
+                    var qtyDisplay = $"×{fr.Quantity}";
+                    // 价格：无值时显示 —
+                    object unitPriceDisplay = fr.UnitPrice.HasValue ? (object)fr.UnitPrice.Value : "—";
+                    object totalPriceDisplay = fr.TotalPrice.HasValue ? (object)fr.TotalPrice.Value : "—";
+
                     var tag = string.IsNullOrEmpty(fr.Tooltip) ? (fr.Excluded ? "excluded" : "normal") : fr.Tooltip;
                     var rowIdx = dgvBomPreview.Rows.Add(
+                        levelStr,
                         fr.Badge,
                         nameDisplay,
                         string.IsNullOrEmpty(fr.Ipn) ? "—" : fr.Ipn,
-                        fr.Quantity != 1 ? $"×{fr.Quantity}" : "",
-                        fr.UnitPrice.HasValue ? fr.UnitPrice.Value : (object)"",
-                        fr.TotalPrice.HasValue ? fr.TotalPrice.Value : (object)"");
+                        qtyDisplay,
+                        unitPriceDisplay,
+                        totalPriceDisplay);
                     dgvBomPreview.Rows[rowIdx].Tag = tag;
 
                     // 排除行灰色
@@ -181,16 +192,16 @@ public partial class ConfiguratorForm : Form
 
                 // 合计行
                 decimal totalCost = flatRows.Sum(r => r.TotalPrice ?? 0);
-                var totalIdx = dgvBomPreview.Rows.Add("", "合计", "", "", "", totalCost);
+                var totalIdx = dgvBomPreview.Rows.Add("", "", "合计", "", "", "", totalCost);
                 dgvBomPreview.Rows[totalIdx].Tag = "total";
                 foreach (DataGridViewCell c in dgvBomPreview.Rows[totalIdx].Cells)
                 {
                     c.Style.Font = new Font(dgvBomPreview.Font, FontStyle.Bold);
                     c.Style.BackColor = Color.FromArgb(243, 244, 246);
                 }
-                // 合计列水平对齐
-                dgvBomPreview.Rows[totalIdx].Cells[5].Style.Alignment = DataGridViewContentAlignment.MiddleRight;
-                dgvBomPreview.Rows[totalIdx].Cells[5].Style.Format = "¥0.00";
+                // 合计列对齐
+                dgvBomPreview.Rows[totalIdx].Cells[6].Style.Alignment = DataGridViewContentAlignment.MiddleRight;
+                dgvBomPreview.Rows[totalIdx].Cells[6].Style.Format = "¥#,##0.00";
 
                 dgvBomPreview.ClearSelection();
             }

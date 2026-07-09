@@ -27,7 +27,14 @@ partial class ConfiguratorForm
         colParamDesc = new DataGridViewTextBoxColumn();
         paramHeader = new Label();
         bomPanel = new Panel();
-        tvBomPreview = new TreeView();
+        dgvBomPreview = new DataGridView();
+        colBomLevel = new DataGridViewTextBoxColumn();
+        colBomType = new DataGridViewTextBoxColumn();
+        colBomName = new DataGridViewTextBoxColumn();
+        colBomIpn = new DataGridViewTextBoxColumn();
+        colBomQty = new DataGridViewTextBoxColumn();
+        colBomUnitPrice = new DataGridViewTextBoxColumn();
+        colBomTotalPrice = new DataGridViewTextBoxColumn();
         bomPreviewHeader = new Label();
         buttonPanel = new Panel();
         btnPreviewBom = new Button();
@@ -194,7 +201,7 @@ partial class ConfiguratorForm
         dgvBomPreview.BackgroundColor = Color.White;
         dgvBomPreview.BorderStyle = BorderStyle.None;
         dgvBomPreview.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-        dgvBomPreview.Columns.AddRange(new DataGridViewColumn[] { colBomType, colBomName, colBomIpn, colBomQty, colBomUnitPrice, colBomTotalPrice });
+        dgvBomPreview.Columns.AddRange(new DataGridViewColumn[] { colBomLevel, colBomType, colBomName, colBomIpn, colBomQty, colBomUnitPrice, colBomTotalPrice });
         dgvBomPreview.Dock = DockStyle.Fill;
         dgvBomPreview.Font = new Font("Microsoft YaHei UI", 9F);
         dgvBomPreview.GridColor = Color.FromArgb(229, 231, 235);
@@ -208,51 +215,61 @@ partial class ConfiguratorForm
         dgvBomPreview.Size = new Size(700, 278);
         dgvBomPreview.TabIndex = 1;
         // 
+        // colBomLevel
+        // 
+        colBomLevel.HeaderText = "层级";
+        colBomLevel.Name = "colBomLevel";
+        colBomLevel.ReadOnly = true;
+        colBomLevel.Width = 36;
+        colBomLevel.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+        // 
         // colBomType
         // 
         colBomType.HeaderText = "类型";
         colBomType.Name = "colBomType";
         colBomType.ReadOnly = true;
-        colBomType.Width = 56;
+        colBomType.Width = 64;
+        colBomType.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
         // 
         // colBomName
         // 
         colBomName.HeaderText = "物料名称";
         colBomName.Name = "colBomName";
         colBomName.ReadOnly = true;
-        colBomName.Width = 220;
+        colBomName.Width = 200;
         // 
         // colBomIpn
         // 
         colBomIpn.HeaderText = "产品型号";
         colBomIpn.Name = "colBomIpn";
         colBomIpn.ReadOnly = true;
-        colBomIpn.Width = 130;
+        colBomIpn.Width = 120;
         // 
         // colBomQty
         // 
         colBomQty.HeaderText = "数量";
         colBomQty.Name = "colBomQty";
         colBomQty.ReadOnly = true;
-        colBomQty.Width = 56;
+        colBomQty.Width = 60;
+        colBomQty.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
         // 
         // colBomUnitPrice
         // 
-        colBomUnitPrice.DefaultCellStyle.Format = "¥0.00";
+        colBomUnitPrice.DefaultCellStyle.Format = "¥#,##0.00";
         colBomUnitPrice.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
         colBomUnitPrice.HeaderText = "单价";
         colBomUnitPrice.Name = "colBomUnitPrice";
         colBomUnitPrice.ReadOnly = true;
-        colBomUnitPrice.Width = 80;
+        colBomUnitPrice.Width = 90;
         // 
         // colBomTotalPrice
         // 
-        colBomTotalPrice.DefaultCellStyle.Format = "¥0.00";
+        colBomTotalPrice.DefaultCellStyle.Format = "¥#,##0.00";
         colBomTotalPrice.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
         colBomTotalPrice.HeaderText = "总价";
         colBomTotalPrice.Name = "colBomTotalPrice";
         colBomTotalPrice.ReadOnly = true;
-        colBomTotalPrice.Width = 80;
+        colBomTotalPrice.Width = 90;
         // 
         // bomPreviewHeader
         // 
@@ -377,6 +394,7 @@ partial class ConfiguratorForm
     private System.Windows.Forms.Panel bomPanel;
     private System.Windows.Forms.Label bomPreviewHeader;
     private System.Windows.Forms.DataGridView dgvBomPreview;
+    private System.Windows.Forms.DataGridViewTextBoxColumn colBomLevel;
     private System.Windows.Forms.DataGridViewTextBoxColumn colBomType;
     private System.Windows.Forms.DataGridViewTextBoxColumn colBomName;
     private System.Windows.Forms.DataGridViewTextBoxColumn colBomIpn;

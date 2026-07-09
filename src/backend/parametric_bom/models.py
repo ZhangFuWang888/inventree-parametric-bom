@@ -285,6 +285,16 @@ class ParametricBomItem(models.Model):
             'Example: CEIL(param.长度 / 500) * 2'
         ),
     )
+    name_formula = models.CharField(
+        max_length=512,
+        blank=True,
+        default='',
+        verbose_name=_('Name formula'),
+        help_text=_(
+            'Formula for dynamic BOM item name. '
+            'Example: CONCAT(\"装配体-\", param.型号)'
+        ),
+    )
     condition_formula = models.CharField(
         max_length=512,
         blank=True,
@@ -363,7 +373,7 @@ class ParametricBomItem(models.Model):
         """Auto-compute formula hash on save."""
         import hashlib
 
-        raw = f'{self.qty_formula}|{self.condition_formula}|{self.price_formula}'
+        raw = f'{self.name_formula}|{self.qty_formula}|{self.condition_formula}|{self.price_formula}'
         self.formular_hash = hashlib.sha256(raw.encode()).hexdigest()[:64]
         super().save(*args, **kwargs)
 
