@@ -971,8 +971,14 @@ def _build_bom_xlsx(result):
         bottom=Side(style='thin', color='D1D5DB'),
     )
 
-    headers = ['序号', '图号/代号', '名称', '数量', '单位', '备注']
-    col_widths = [8, 18, 28, 10, 8, 24]
+    headers = [
+        '序号', '设备（大类）', '部装', '规格型号', '品名',
+        '品牌', '单位', '应需数量', '预期到货', '类别',
+        '材质（牌号）', '表面处理方式', '处理颜色', '重量', '备注',
+        '采购员', '入库去向', '制购类别', '申请理由', '附图',
+        '总数量', '问题环节', '技改原因分类',
+    ]
+    col_widths = [6, 14, 14, 16, 22, 8, 6, 10, 12, 8, 14, 14, 10, 8, 18, 8, 10, 10, 14, 8, 8, 10, 14]
 
     for col, (h, w) in enumerate(zip(headers, col_widths), 1):
         cell = ws.cell(row=1, column=col, value=h)
@@ -1043,7 +1049,31 @@ def _build_bom_xlsx(result):
                 ipn = p.IPN or ''
                 units = p.units or ''
 
-            vals = [seq, ipn, pname, qty, units, ref]
+            vals = [
+                seq,
+                '',  # 设备（大类）
+                '',  # 部装
+                ipn,  # 规格型号
+                pname,  # 品名
+                '',  # 品牌
+                units,  # 单位
+                qty,  # 应需数量
+                '',  # 预期到货
+                '',  # 类别
+                '',  # 材质（牌号）
+                '',  # 表面处理方式
+                '',  # 处理颜色
+                '',  # 重量
+                ref,  # 备注
+                '',  # 采购员
+                '',  # 入库去向
+                '',  # 制购类别
+                '',  # 申请理由
+                '',  # 附图
+                qty,  # 总数量
+                '',  # 问题环节
+                '',  # 技改原因分类
+            ]
             for col, v in enumerate(vals, 1):
                 cell = ws.cell(row=row_num, column=col, value=v)
                 cell.font = style_cell_font

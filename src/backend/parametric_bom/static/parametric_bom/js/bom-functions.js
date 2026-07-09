@@ -865,15 +865,17 @@ function renderCfgBOM() {
   }
 
   let html = '';
-  // Table header
-  html += `<div class="bom-table-header">
-    <span>类型</span><span>物料名称</span><span>产品型号</span><span>数量</span><span>单价</span><span>总价</span>
+  // Table header — 23列
+  html += `<div class="bom-table-header" style="grid-template-columns:36px 80px 100px 100px 140px 60px 50px 60px 80px 60px 80px 80px 80px 60px 100px 60px 80px 80px 100px 60px 60px 80px 100px;">
+    <span>序号</span><span>设备<br>(大类)</span><span>部装</span><span>规格型号</span><span>品名</span><span>品牌</span><span>单位</span><span>应需<br>数量</span><span>预期到货</span><span>类别</span><span>材质<br>(牌号)</span><span>表面<br>处理方式</span><span>处理<br>颜色</span><span>重量</span><span>备注</span><span>采购员</span><span>入库<br>去向</span><span>制购<br>类别</span><span>申请理由</span><span>附图</span><span>总数<br>量</span><span>问题<br>环节</span><span>技改<br>原因分类</span>
   </div>`;
   // Helper to render tree
-  function renderTree(items, depth) {
-    if (!items || !items.length) return '';
+  function renderTree(items, depth, parentName) {
+    if (!items || !items.length) return { html: '', seq: 0 };
     let h = '';
+    let seq = 0;
     items.forEach(item => {
+      seq++;
       const isExcluded = item.excluded || item.condition_met === false;
       const hasError = item.error || (item.errors && item.errors.length > 0);
       const isParametric = item.parametric || (item.mode && item.mode !== 'standard') || item.qty_formula || item.condition_formula;
@@ -897,44 +899,49 @@ function renderCfgBOM() {
       if (item.exclude_reason) tooltipParts.push(item.exclude_reason);
       const tooltip = tooltipParts.join(' | ');
 
-      // Price text
-      let unitPriceText = '';
-      let totalPriceText = '';
-      if (item.unit_price != null) {
-        unitPriceText = `¥${Number(item.unit_price).toFixed(2)}`;
-      }
-      if (item.total_price != null) {
-        totalPriceText = `¥${Number(item.total_price).toFixed(2)}`;
-      }
+      // 列数据
+      var eqName = parentName || '—';
+      var subName = depth > 0 ? (parentName || '—') : '—';
+      var remark = item.exclude_reason || '';
 
-      h += `<div class="tree-item ${depthClass}"${tooltip ? ` title="${tooltip}"` : ''}>
-        <span class="col-badge"><span class="qty-badge ${badgeClass}">${badgeText}</span></span>
-        <span class="col-name${partId ? ' clickable-part' : ''}"${partId ? ` onclick="openPartDetail(${partId})"` : ''}>${depth > 0 ? '└ ' : ''}${name}</span>
-        <span class="col-ipn${ipn ? '' : ' text-gray-300'}">${ipn || '—'}</span>
-        <span class="col-qty"><span class="qty-badge bg-gray-100 text-gray-700">×${qty}</span></span>
-        <span class="col-unit-price${unitPriceText ? ' text-emerald-600' : ' text-gray-300'}">${unitPriceText || '—'}</span>
-        <span class="col-total-price${totalPriceText ? ' text-emerald-700 font-medium' : ' text-gray-300'}">${totalPriceText || '—'}</span>
+      h += `<div class="tree-item ${depthClass}"${tooltip ? ` title="${tooltip}"` : ''} style="grid-template-columns:36px 80px 100px 100px 140px 60px 50px 60px 80px 60px 80px 80px 80px 60px 100px 60px 80px 80px 100px 60px 60px 80px 100px;font-size:11px;">
+        <span>${seq}</span>
+        <span>${depth === 0 ? name : (eqName)}</span>
+        <span>${depth > 0 ? name : '—'}</span>
+        <span>${ipn || '—'}</span>
+        <span class="${partId ? 'clickable-part' : ''}"${partId ? ` onclick="openPartDetail(${partId})"` : ''}>${depth > 0 ? '└ ' : ''}${name}</span>
+        <span>—</span>
+        <span>—</span>
+        <span><span class="qty-badge bg-gray-100 text-gray-700" style="font-size:10px;">×${qty}</span></span>
+        <span>—</span>
+        <span>${badgeText}</span>
+        <span>—</span>
+        <span>—</span>
+        <span>—</span>
+        <span>—</span>
+        <span title="${tooltip}">${remark || '—'}</span>
+        <span>—</span>
+        <span>—</span>
+        <span>—</span>
+        <span>—</span>
+        <span>—</span>
+        <span>×${qty}</span>
+        <span>—</span>
+        <span>—</span>
       </div>`;
       if (item.children && item.children.length) {
-        h += renderTree(item.children, depth + 1);
+        var childResult = renderTree(item.children, depth + 1, name);
+        h += childResult.html;
+        seq += childResult.seq;
       }
     });
-    return h;
+    return { html: h, seq: seq };
   }
-  html += renderTree(cfgBOMItems, 0);
+  var result = renderTree(cfgBOMItems, 0, '');
+  html += result.html;
 
-  // Add total at bottom if prices exist
-  var totalPrice = 0;
-  var hasPrice = false;
-  (function sumPrices(items) {
-    items.forEach(function(it) {
-      if (it.total_price != null) { totalPrice += Number(it.total_price); hasPrice = true; }
-      if (it.children && it.children.length) sumPrices(it.children);
-    });
-  })(cfgBOMItems);
-  if (hasPrice) {
-    html += '<div class="cfg-bom-total"><span>合计</span><span class="cfg-bom-total-price">¥' + totalPrice.toFixed(2) + '</span></div>';
-  }
+  // Total row (only font styling, no price since we don't have price in new format)
+  html += '<div class="cfg-bom-total" style="grid-template-columns:36px 80px 100px 100px 140px 60px 50px 60px 80px 60px 80px 80px 80px 60px 100px 60px 80px 80px 100px 60px 60px 80px 100px;display:grid;"><span></span><span></span><span></span><span></span><span style="font-weight:700;">合计</span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span style="font-weight:600;"></span><span></span><span></span></div>';
 
   container.innerHTML = html;
 }

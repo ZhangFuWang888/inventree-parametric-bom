@@ -159,28 +159,35 @@ public partial class ConfiguratorForm : Form
                 var flatRows = new List<BomFlatRow>();
                 FlattenTree(result.BomTree, 0, flatRows);
 
+                int seq = 0;
                 foreach (var fr in flatRows)
                 {
-                    // 层级标识
-                    var levelStr = fr.Depth == 0 ? "─" : $"L{fr.Depth}";
-                    // 名称缩进，子项加 └ 前缀
-                    var indent = new string(' ', fr.Depth * 2);
-                    var nameDisplay = fr.Depth > 0 ? indent + "└ " + fr.Name : fr.Name;
-                    // 数量始终显示 ×N
-                    var qtyDisplay = $"×{fr.Quantity}";
-                    // 价格：无值时显示 —
-                    object unitPriceDisplay = fr.UnitPrice.HasValue ? (object)fr.UnitPrice.Value : "—";
-                    object totalPriceDisplay = fr.TotalPrice.HasValue ? (object)fr.TotalPrice.Value : "—";
-
+                    seq++;
                     var tag = string.IsNullOrEmpty(fr.Tooltip) ? (fr.Excluded ? "excluded" : "normal") : fr.Tooltip;
                     var rowIdx = dgvBomPreview.Rows.Add(
-                        levelStr,
-                        fr.Badge,
-                        nameDisplay,
-                        string.IsNullOrEmpty(fr.Ipn) ? "—" : fr.Ipn,
-                        qtyDisplay,
-                        unitPriceDisplay,
-                        totalPriceDisplay);
+                seq,       // 序号
+                "",        // 设备（大类）
+                "",        // 部装
+                string.IsNullOrEmpty(fr.Ipn) ? "—" : fr.Ipn,  // 规格型号
+                fr.Name,   // 品名
+                "",        // 品牌
+                "",        // 单位
+                $"×{fr.Quantity}",  // 应需数量
+                "",        // 预期到货
+                "",        // 类别
+                "",        // 材质（牌号）
+                "",        // 表面处理方式
+                "",        // 处理颜色
+                "",        // 重量
+                fr.Tooltip, // 备注
+                "",        // 采购员
+                "",        // 入库去向
+                "",        // 制购类别
+                "",        // 申请理由
+                "",        // 附图
+                $"×{fr.Quantity}",  // 总数量
+                "",        // 问题环节
+                "");       // 技改原因分类
                     dgvBomPreview.Rows[rowIdx].Tag = tag;
 
                     // 排除行灰色
@@ -192,16 +199,17 @@ public partial class ConfiguratorForm : Form
 
                 // 合计行
                 decimal totalCost = flatRows.Sum(r => r.TotalPrice ?? 0);
-                var totalIdx = dgvBomPreview.Rows.Add("", "", "合计", "", "", "", totalCost);
+                var totalIdx = dgvBomPreview.Rows.Add(
+                    "", "", "", "", "合计",
+                    "", "", "", "", "",
+                    "", "", "", "", "",
+                    "", "", "", "", "",
+                    "", "", "");
                 dgvBomPreview.Rows[totalIdx].Tag = "total";
-                foreach (DataGridViewCell c in dgvBomPreview.Rows[totalIdx].Cells)
-                {
-                    c.Style.Font = new Font(dgvBomPreview.Font, FontStyle.Bold);
-                    c.Style.BackColor = Color.FromArgb(243, 244, 246);
-                }
-                // 合计列对齐
-                dgvBomPreview.Rows[totalIdx].Cells[6].Style.Alignment = DataGridViewContentAlignment.MiddleRight;
-                dgvBomPreview.Rows[totalIdx].Cells[6].Style.Format = "¥#,##0.00";
+                // 合计行加粗背景色
+                dgvBomPreview.Rows[totalIdx].DefaultCellStyle.Font = new Font(dgvBomPreview.Font, FontStyle.Bold);
+                dgvBomPreview.Rows[totalIdx].DefaultCellStyle.BackColor = Color.FromArgb(243, 244, 246);
+                dgvBomPreview.Rows[totalIdx].Cells[4].Style.Font = new Font(dgvBomPreview.Font, FontStyle.Bold);
 
                 dgvBomPreview.ClearSelection();
             }
@@ -277,34 +285,49 @@ public partial class ConfiguratorForm : Form
 
             using var workbook = new ClosedXML.Excel.XLWorkbook();
             var ws = workbook.Worksheets.Add("BOM");
-            ws.Cell(1, 1).Value = "类型";
-            ws.Cell(1, 2).Value = "物料名称";
-            ws.Cell(1, 3).Value = "产品型号";
-            ws.Cell(1, 4).Value = "数量";
-            ws.Cell(1, 5).Value = "单价";
-            ws.Cell(1, 6).Value = "总价";
-            ws.Cell(1, 7).Value = "说明";
+            var headers = new[] {
+                "序号", "设备（大类）", "部装", "规格型号", "品名",
+                "品牌", "单位", "应需数量", "预期到货", "类别",
+                "材质（牌号）", "表面处理方式", "处理颜色", "重量", "备注",
+                "采购员", "入库去向", "制购类别", "申请理由", "附图",
+                "总数量", "问题环节", "技改原因分类",
+            };
+            for (int c = 0; c < headers.Length; c++)
+                ws.Cell(1, c + 1).Value = headers[c];
 
             for (int i = 0; i < flatRows.Count; i++)
             {
                 var r = flatRows[i];
                 int row = i + 2;
-                ws.Cell(row, 1).Value = r.Badge;
-                ws.Cell(row, 2).Value = new string(' ', r.Depth * 2) + r.Name;
-                ws.Cell(row, 3).Value = r.Ipn;
-                ws.Cell(row, 4).Value = (double)r.Quantity;
-                if (r.UnitPrice.HasValue)
-                    ws.Cell(row, 5).Value = (double)r.UnitPrice.Value;
-                if (r.TotalPrice.HasValue)
-                    ws.Cell(row, 6).Value = (double)r.TotalPrice.Value;
-                ws.Cell(row, 7).Value = r.Tooltip;
+                int seq = i + 1;
+                ws.Cell(row, 1).Value = seq;       // 序号
+                ws.Cell(row, 2).Value = "";         // 设备（大类）
+                ws.Cell(row, 3).Value = "";         // 部装
+                ws.Cell(row, 4).Value = r.Ipn;      // 规格型号
+                ws.Cell(row, 5).Value = r.Name;     // 品名
+                ws.Cell(row, 6).Value = "";         // 品牌
+                ws.Cell(row, 7).Value = "";         // 单位
+                ws.Cell(row, 8).Value = (double)r.Quantity;  // 应需数量
+                ws.Cell(row, 9).Value = "";         // 预期到货
+                ws.Cell(row, 10).Value = "";        // 类别
+                ws.Cell(row, 11).Value = "";        // 材质（牌号）
+                ws.Cell(row, 12).Value = "";        // 表面处理方式
+                ws.Cell(row, 13).Value = "";        // 处理颜色
+                ws.Cell(row, 14).Value = "";        // 重量
+                ws.Cell(row, 15).Value = r.Tooltip; // 备注
+                ws.Cell(row, 16).Value = "";        // 采购员
+                ws.Cell(row, 17).Value = "";        // 入库去向
+                ws.Cell(row, 18).Value = "";        // 制购类别
+                ws.Cell(row, 19).Value = "";        // 申请理由
+                ws.Cell(row, 20).Value = "";        // 附图
+                ws.Cell(row, 21).Value = (double)r.Quantity;  // 总数量
+                ws.Cell(row, 22).Value = "";        // 问题环节
+                ws.Cell(row, 23).Value = "";        // 技改原因分类
             }
 
             // 合计行
             int totalRow = flatRows.Count + 2;
-            ws.Cell(totalRow, 2).Value = "合计";
-            ws.Cell(totalRow, 5).FormulaA1 = $"=SUM(E2:E{totalRow - 1})";
-            ws.Cell(totalRow, 6).FormulaA1 = $"=SUM(F2:F{totalRow - 1})";
+            ws.Cell(totalRow, 5).Value = "合计";
             ws.Row(totalRow).Style.Font.Bold = true;
 
             ws.Columns().AdjustToContents();
