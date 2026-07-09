@@ -10,6 +10,7 @@ public partial class ConfiguratorForm : Form
     private readonly ConfiguratorService _cfgSvc;
     private readonly Part _part;
     private List<ParamConfigEntry> _partParams = new();
+    private BomEvalNode? _bomRoot;
 
     public ConfiguratorForm(InvenTreeClient client, Part part, Font? baseFont = null)
     {
@@ -23,6 +24,39 @@ public partial class ConfiguratorForm : Form
 
         lblTitle.Text = $"⚙ {part.Name}";
         paramHeader.Text = $"📐 参数值设置 — {part.Name}";
+
+        // Cell formatting for value column
+        dgvParams.CellFormatting += (s, e) =>
+        {
+            if (e.ColumnIndex == 1 && e.Value is bool b)
+                e.Value = b ? "是" : "否";
+        };
+
+        // 合计行单元格样式
+        dgvBomPreview.CellFormatting += (s, e) =>
+        {
+            if (e.RowIndex >= 0 && dgvBomPreview.Rows[e.RowIndex].Tag is string tag && tag == "total")
+            {
+                e.CellStyle.Font = new Font(dgvBomPreview.Font, FontStyle.Bold);
+                e.CellStyle.BackColor = Color.FromArgb(243, 244, 246);
+            }
+            // 排除行灰色
+            if (e.RowIndex >= 0 && dgvBomPreview.Rows[e.RowIndex].Tag is string tag2 && tag2 == "excluded")
+            {
+                e.CellStyle.ForeColor = Color.FromArgb(156, 163, 175);
+            }
+        };
+
+        // 双击单元格可看 tooltip（有额外信息时）
+        dgvBomPreview.CellMouseEnter += (s, e) =>
+        {
+            if (e.RowIndex >= 0 && e.ColumnIndex >= 0)
+            {
+                var row = dgvBomPreview.Rows[e.RowIndex];
+                if (row.Tag is string tag && tag != "total" && tag != "excluded" && tag != "normal" && tag.Length > 0)
+                    dgvBomPreview.Rows[e.RowIndex].Cells[e.ColumnIndex].ToolTipText = tag;
+            }
+        };
 
         btnPreviewBom.Click += (_, _) => _ = PreviewBomAsync();
         btnExportBom.Click += (_, _) => ExportBomAsync();
@@ -84,7 +118,7 @@ public partial class ConfiguratorForm : Form
         }
     }
 
-    // ── 预览 BOM ─────────────────
+    // ── BOM 预览（表格）────────────
 
     private async Task PreviewBomAsync()
     {
@@ -116,16 +150,52 @@ public partial class ConfiguratorForm : Form
         try
         {
             var result = await _cfgSvc.EvaluateBomAsync(_part.Pk, paramValues);
-            tvBomPreview.BeginUpdate();
-            tvBomPreview.Nodes.Clear();
+            _bomRoot = result.BomTree;
+
+            dgvBomPreview.Rows.Clear();
+
             if (result.BomTree != null)
             {
-                var root = BuildEvalNode(result.BomTree);
-                tvBomPreview.Nodes.Add(root);
-                root.Expand();
+                var flatRows = new List<BomFlatRow>();
+                FlattenTree(result.BomTree, 0, flatRows);
+
+                foreach (var fr in flatRows)
+                {
+                    var nameDisplay = new string(' ', fr.Depth * 3) + fr.Name;
+                    var tag = string.IsNullOrEmpty(fr.Tooltip) ? (fr.Excluded ? "excluded" : "normal") : fr.Tooltip;
+                    var rowIdx = dgvBomPreview.Rows.Add(
+                        fr.Badge,
+                        nameDisplay,
+                        string.IsNullOrEmpty(fr.Ipn) ? "—" : fr.Ipn,
+                        fr.Quantity != 1 ? $"×{fr.Quantity}" : "",
+                        fr.UnitPrice.HasValue ? fr.UnitPrice.Value : (object)"",
+                        fr.TotalPrice.HasValue ? fr.TotalPrice.Value : (object)"");
+                    dgvBomPreview.Rows[rowIdx].Tag = tag;
+
+                    // 排除行灰色
+                    if (fr.Excluded)
+                    {
+                        dgvBomPreview.Rows[rowIdx].DefaultCellStyle.ForeColor = Color.FromArgb(156, 163, 175);
+                    }
+                }
+
+                // 合计行
+                decimal totalCost = flatRows.Sum(r => r.TotalPrice ?? 0);
+                var totalIdx = dgvBomPreview.Rows.Add("", "合计", "", "", "", totalCost);
+                dgvBomPreview.Rows[totalIdx].Tag = "total";
+                foreach (DataGridViewCell c in dgvBomPreview.Rows[totalIdx].Cells)
+                {
+                    c.Style.Font = new Font(dgvBomPreview.Font, FontStyle.Bold);
+                    c.Style.BackColor = Color.FromArgb(243, 244, 246);
+                }
+                // 合计列水平对齐
+                dgvBomPreview.Rows[totalIdx].Cells[5].Style.Alignment = DataGridViewContentAlignment.MiddleRight;
+                dgvBomPreview.Rows[totalIdx].Cells[5].Style.Format = "¥0.00";
+
+                dgvBomPreview.ClearSelection();
             }
-            tvBomPreview.EndUpdate();
-            SetStatus("BOM 评估完成");
+
+            SetStatus($"BOM 评估完成 — {flatRows?.Count ?? 0} 行");
         }
         catch (Exception ex)
         {
@@ -133,39 +203,49 @@ public partial class ConfiguratorForm : Form
         }
     }
 
-    private static TreeNode BuildEvalNode(BomEvalNode node)
+    private static void FlattenTree(BomEvalNode node, int depth, List<BomFlatRow> rows)
     {
-        var qty = node.CalculatedQuantity > 0 ? node.CalculatedQuantity : node.Quantity;
-        var formulaMark = node.CalculatedQuantity > 0 && node.CalculatedQuantity != node.Quantity ? " ⚡" : "";
-        var prefix = qty != 1 ? $" ×{qty}{formulaMark}" : formulaMark;
-        var excl = node.Excluded ? " [🚫 已排除]" : "";
+        // 类型标签
+        var badge = node.Excluded ? "已排除" : "参数化";
+        if (!node.Excluded && node.UnitPrice == null && node.TotalPrice == null)
+            badge = "静态";
+        if (node.Excluded && !string.IsNullOrEmpty(node.ExcludeReason))
+            badge = "已排除";
 
-        // 使用公式计算值(calculated_name/calculated_ipn)，回退到静态值
+        // 构建 tooltip
+        var tooltipParts = new List<string>();
+        if (node.CalculatedQuantity != node.Quantity && node.Quantity > 0)
+            tooltipParts.Add($"BOM数量: {node.Quantity} → 公式计算: {node.CalculatedQuantity}");
+        if (node.Excluded && !string.IsNullOrEmpty(node.ExcludeReason))
+            tooltipParts.Add(node.ExcludeReason);
+
         var displayName = node.CalculatedName ?? node.PartName ?? "未知";
         var displayIpn = node.CalculatedIpn ?? node.PartIpn ?? "";
-        var ipnPart = string.IsNullOrEmpty(displayIpn) ? "" : $" ({displayIpn})";
 
-        var text = $"{displayName}{ipnPart}{prefix}{excl}";
-        var tn = new TreeNode(text)
+        var qty = node.CalculatedQuantity > 0 ? node.CalculatedQuantity : node.Quantity;
+
+        rows.Add(new BomFlatRow
         {
-            ToolTipText = node.Excluded
-                ? $"已排除: {node.ExcludeReason}"
-                : node.CalculatedQuantity != node.Quantity
-                    ? $"BOM数量: {node.Quantity}\n公式计算: {node.CalculatedQuantity}"
-                    : $"数量: {qty}"
-        };
+            Depth = depth,
+            Badge = badge,
+            Name = displayName,
+            Ipn = displayIpn,
+            Quantity = qty,
+            UnitPrice = node.UnitPrice,
+            TotalPrice = node.TotalPrice,
+            Excluded = node.Excluded,
+            Tooltip = string.Join(" | ", tooltipParts),
+        });
 
         foreach (var child in node.Children)
-            tn.Nodes.Add(BuildEvalNode(child));
-
-        return tn;
+            FlattenTree(child, depth + 1, rows);
     }
 
     // ── 导出 BOM 到 Excel ─────────────────
 
     private void ExportBomAsync()
     {
-        if (tvBomPreview.Nodes.Count == 0)
+        if (_bomRoot == null || dgvBomPreview.Rows.Count == 0)
         {
             SetStatus("没有可导出的 BOM 数据，请先预览 BOM");
             return;
@@ -181,30 +261,40 @@ public partial class ConfiguratorForm : Form
         SetStatus("导出中...");
         try
         {
-            var rows = new List<(string Level, string Name, string Ipn, string Desc, decimal Qty, string Excluded)>();
-            foreach (TreeNode node in tvBomPreview.Nodes)
-                FlattenTree(node, 0, rows);
+            var flatRows = new List<BomFlatRow>();
+            FlattenTree(_bomRoot, 0, flatRows);
 
             using var workbook = new ClosedXML.Excel.XLWorkbook();
             var ws = workbook.Worksheets.Add("BOM");
-            ws.Cell(1, 1).Value = "层级";
-            ws.Cell(1, 2).Value = "名称";
+            ws.Cell(1, 1).Value = "类型";
+            ws.Cell(1, 2).Value = "物料名称";
             ws.Cell(1, 3).Value = "产品型号";
-            ws.Cell(1, 4).Value = "描述";
-            ws.Cell(1, 5).Value = "数量";
-            ws.Cell(1, 6).Value = "状态";
+            ws.Cell(1, 4).Value = "数量";
+            ws.Cell(1, 5).Value = "单价";
+            ws.Cell(1, 6).Value = "总价";
+            ws.Cell(1, 7).Value = "说明";
 
-            for (int i = 0; i < rows.Count; i++)
+            for (int i = 0; i < flatRows.Count; i++)
             {
-                var r = rows[i];
+                var r = flatRows[i];
                 int row = i + 2;
-                ws.Cell(row, 1).Value = r.Level;
-                ws.Cell(row, 2).Value = r.Name;
+                ws.Cell(row, 1).Value = r.Badge;
+                ws.Cell(row, 2).Value = new string(' ', r.Depth * 2) + r.Name;
                 ws.Cell(row, 3).Value = r.Ipn;
-                ws.Cell(row, 4).Value = r.Desc;
-                ws.Cell(row, 5).Value = (double)r.Qty;
-                ws.Cell(row, 6).Value = r.Excluded;
+                ws.Cell(row, 4).Value = (double)r.Quantity;
+                if (r.UnitPrice.HasValue)
+                    ws.Cell(row, 5).Value = (double)r.UnitPrice.Value;
+                if (r.TotalPrice.HasValue)
+                    ws.Cell(row, 6).Value = (double)r.TotalPrice.Value;
+                ws.Cell(row, 7).Value = r.Tooltip;
             }
+
+            // 合计行
+            int totalRow = flatRows.Count + 2;
+            ws.Cell(totalRow, 2).Value = "合计";
+            ws.Cell(totalRow, 5).FormulaA1 = $"=SUM(E2:E{totalRow - 1})";
+            ws.Cell(totalRow, 6).FormulaA1 = $"=SUM(F2:F{totalRow - 1})";
+            ws.Row(totalRow).Style.Font.Bold = true;
 
             ws.Columns().AdjustToContents();
             workbook.SaveAs(sfd.FileName);
@@ -217,43 +307,6 @@ public partial class ConfiguratorForm : Form
         {
             SetStatus($"导出失败：{ex.Message}");
         }
-    }
-
-    private static void FlattenTree(TreeNode node, int depth,
-        List<(string Level, string Name, string Ipn, string Desc, decimal Qty, string Excluded)> rows)
-    {
-        var indent = new string(' ', depth * 2);
-
-        // 从节点文本提取名称、型号和数量
-        var text = node.Text;
-        var excluded = text.Contains("🚫") ? "已排除" : "正常";
-        // 尝试提取数量：格式 "名称 (型号) ×数量" 或 "名称 (型号)"
-        decimal qty = 1;
-        var xIdx = text.LastIndexOf(" ×");
-        var nameAndIpn = text;
-        if (xIdx > 0)
-        {
-            nameAndIpn = text[..xIdx];
-            var qtyStr = text[(xIdx + 2)..];
-            decimal.TryParse(qtyStr, out qty);
-        }
-        // 分离名称和型号
-        var ipn = "";
-        var name = nameAndIpn;
-        if (nameAndIpn.EndsWith(")"))
-        {
-            var parenIdx = nameAndIpn.LastIndexOf(" (");
-            if (parenIdx > 0)
-            {
-                name = nameAndIpn[..parenIdx];
-                ipn = nameAndIpn[(parenIdx + 2)..^1];
-            }
-        }
-
-        rows.Add((indent, name, ipn, node.ToolTipText ?? "", qty, excluded));
-
-        foreach (TreeNode child in node.Nodes)
-            FlattenTree(child, depth + 1, rows);
     }
 
     // ── 通用 ─────────────────
@@ -278,4 +331,18 @@ public partial class ConfiguratorForm : Form
         if (lblStatus != null)
             lblStatus.Text = text;
     }
+}
+
+/// <summary>BOM 扁平行（用于表格显示+导出）</summary>
+public class BomFlatRow
+{
+    public int Depth { get; set; }
+    public string Badge { get; set; } = "";
+    public string Name { get; set; } = "";
+    public string Ipn { get; set; } = "";
+    public decimal Quantity { get; set; }
+    public decimal? UnitPrice { get; set; }
+    public decimal? TotalPrice { get; set; }
+    public bool Excluded { get; set; }
+    public string Tooltip { get; set; } = "";
 }

@@ -81,6 +81,8 @@ public class BomEvalNode
     public decimal CalculatedQuantity { get; set; }
     public bool Excluded { get; set; }
     public string? ExcludeReason { get; set; }
+    public decimal? UnitPrice { get; set; }
+    public decimal? TotalPrice { get; set; }
     public List<BomEvalNode> Children { get; set; } = new();
 }
 
