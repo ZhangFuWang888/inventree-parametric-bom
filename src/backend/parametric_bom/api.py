@@ -1052,11 +1052,13 @@ def _build_bom_xlsx(result):
             ref = str(child.get('reference', '') or child.get('reference_formula', '') or '')
             units = ''
 
-            # Look up Part for IPN and units if not variant
-            if not ipn and pid and pid in part_map:
+            # Look up Part for IPN + units
+            if pid and pid in part_map:
                 p = part_map[pid]
-                ipn = p.IPN or ''
-                units = p.units or ''
+                if not ipn:
+                    ipn = p.IPN or ''
+                if not units:
+                    units = p.units or ''
 
             vals = [
                 seq,
