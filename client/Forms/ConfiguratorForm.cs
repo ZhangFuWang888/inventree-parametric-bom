@@ -204,9 +204,10 @@ public partial class ConfiguratorForm : Form
                 dgvBomPreview.Rows[totalIdx].Cells[6].Style.Format = "¥#,##0.00";
 
                 dgvBomPreview.ClearSelection();
+                SetStatus($"BOM 评估完成 — {flatRows?.Count ?? 0} 行");
             }
 
-            SetStatus($"BOM 评估完成 — {flatRows?.Count ?? 0} 行");
+          
         }
         catch (Exception ex)
         {
