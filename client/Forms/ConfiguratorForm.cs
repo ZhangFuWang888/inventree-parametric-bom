@@ -212,9 +212,10 @@ public partial class ConfiguratorForm : Form
                 dgvBomPreview.Rows[totalIdx].Cells[4].Style.Font = new Font(dgvBomPreview.Font, FontStyle.Bold);
 
                 dgvBomPreview.ClearSelection();
+                SetStatus($"BOM 评估完成 — {flatRows?.Count ?? 0} 行");
             }
 
-            SetStatus($"BOM 评估完成 — {flatRows?.Count ?? 0} 行");
+          
         }
         catch (Exception ex)
         {
