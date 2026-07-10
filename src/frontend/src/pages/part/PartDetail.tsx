@@ -384,6 +384,39 @@ export default function PartDetail() {
         external: true,
         copy: true,
         hidden: !part.link
+      },
+      // 零件属性
+      {
+        type: 'string',
+        name: 'param_材质',
+        label: '材质（牌号）',
+        icon: 'part',
+        copy: true,
+        hidden: false
+      },
+      {
+        type: 'string',
+        name: 'param_表面处理',
+        label: '表面处理方式',
+        icon: 'info',
+        copy: true,
+        hidden: false
+      },
+      {
+        type: 'string',
+        name: 'param_颜色',
+        label: '处理颜色',
+        icon: 'info',
+        copy: true,
+        hidden: false
+      },
+      {
+        type: 'string',
+        name: 'param_重量',
+        label: '重量(kg)',
+        icon: 'info',
+        copy: true,
+        hidden: false
       }
     ];
 

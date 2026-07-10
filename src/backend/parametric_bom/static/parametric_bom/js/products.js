@@ -378,8 +378,8 @@ function syncSliderRange(el, field) {
     s.max = v;
     if (parseFloat(s.value) > v) { s.value = v; }
   }
-  var vs = el.closest('.pc-value').querySelector('.pc-slider-val');
-  if (vs) vs.textContent = s.value;
+  var num = el.closest('.pc-value').querySelector('input[type=number]');
+  if (num) { num.min = s.min; num.max = s.max; num.value = s.value; }
   var card = el.closest('[data-config-id]');
   var cid = card ? parseInt(card.dataset.configId) : null;
   if (cid != null) {
@@ -526,9 +526,12 @@ function renderParamCard(cfg, idx) {
     inputHtml = `<div class="pc-value">
       <div class="pc-slider-row">
         <input type="range" min="${min}" max="${max}" step="${step}" value="${val}"
-          oninput="document.getElementById('pc-slider-val-${cfgId}').textContent=this.value; markDirty(${cfgId},{default_value:String(this.value)})"
-          onchange="markDirty(${cfgId},{default_value:String(this.value)})">
-        <span class="pc-slider-val" id="pc-slider-val-${cfgId}">${val}</span>
+          oninput="syncPcSliderNum(${cfgId}, this.value)"
+          id="pc-range-${cfgId}">
+        <input type="number" min="${min}" max="${max}" step="${step}" value="${val}"
+          oninput="syncPcNumSlider(${cfgId}, this.value)"
+          id="pc-num-${cfgId}"
+          style="width:80px;padding:0.125rem 0.25rem;font-size:0.65rem;text-align:center">
       </div>
       <div class="pc-range-inline">
         <span>范围</span>
@@ -540,7 +543,7 @@ function renderParamCard(cfg, idx) {
         <span class="ml-1">步长</span>
         <input type="number" value="${cfg.step_value != null ? cfg.step_value : ''}" step="0.01" placeholder="自动"
           style="width:60px;padding:0.125rem 0.25rem;font-size:0.65rem"
-          onchange="var s=parseFloat(this.value);if(s>0){var pc=this.closest('.pc-value');var slider=pc?pc.querySelector('input[type=range]'):null;var cur=slider?parseFloat(slider.value):0;var m=slider?parseFloat(slider.min):0;var snap=m+Math.round((cur-m)/s)*s;if(slider){slider.step=s;slider.value=snap;}if(pc){var valSpan=pc.querySelector('.pc-slider-val');if(valSpan)valSpan.textContent=snap;}markDirty(${cfgId},{step_value:s,default_value:String(snap)});}else{markDirty(${cfgId},{step_value:this.value||null});}showDirtyButtons()">
+          onchange="var s=parseFloat(this.value);var cfgId=${cfgId};if(s>0){var pc=this.closest('.pc-value');var slider=pc?pc.querySelector('input[type=range]'):null;var cur=slider?parseFloat(slider.value):0;var m=slider?parseFloat(slider.min):0;var snap=m+Math.round((cur-m)/s)*s;if(slider){slider.step=s;slider.value=snap;}var num=document.getElementById('pc-num-'+cfgId);if(num){num.step=s;num.value=snap;}markDirty(cfgId,{step_value:s,default_value:String(snap)});}else{markDirty(cfgId,{step_value:this.value||null});}showDirtyButtons()">
       </div>
     </div>`;
     
@@ -981,6 +984,19 @@ function renderBOMTable(items, pcfgMap, vmByPbi) {
     rowHtml += '<td class="text-center"><button class="text-blue-400 hover:text-blue-600 text-xs p-1 rounded hover:bg-blue-50" onclick="cartAddStaticPart(' + item.sub_part + ",'" + escName + "','" + escIpn + "')" + '" title="加入购物车">🛒</button></td></tr>';
     html += rowHtml;
   }
-  html += '</tbody></table>';
+    html += '</tbody></table>';
   container.innerHTML = html;
+}
+
+// ── Param Card: sync slider → number input ──
+function syncPcSliderNum(cfgId, val) {
+  const num = document.getElementById(`pc-num-${cfgId}`);
+  if (num) num.value = val;
+  markDirty(cfgId, {default_value: String(val)});
+}
+// ── Param Card: sync number input → slider ──
+function syncPcNumSlider(cfgId, val) {
+  const range = document.getElementById(`pc-range-${cfgId}`);
+  if (range) range.value = val;
+  markDirty(cfgId, {default_value: String(val)});
 }

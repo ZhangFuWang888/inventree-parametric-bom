@@ -53,6 +53,12 @@ public partial class MainForm : Form
                 _ = LazyLoadBomChildren(e.Node);
         };
         lvWhereUsed.DoubleClick += LvWhereUsed_DoubleClick;
+        // 反向查询右键菜单
+        var ctxWhereUsed = new ContextMenuStrip();
+        ctxWhereUsed.Items.Add("📂 打开BOM", null, (_, _) => _ = LvWhereUsed_OpenBom());
+        ctxWhereUsed.Items.Add("📋 显示详情", null, (_, _) => _ = LvWhereUsed_ShowDetail());
+        ctxWhereUsed.Items.Add("⚡ 打开配置器", null, (_, _) => _ = LvWhereUsed_OpenConfigurator());
+        lvWhereUsed.ContextMenuStrip = ctxWhereUsed;
         cbFilter.SelectedIndexChanged += (_, _) =>
         {
             _currentPage = 1;
@@ -273,6 +279,24 @@ public partial class MainForm : Form
         lblPartIpn.Text = part.IPN ?? "-";
         lblPartType.Text = GetPartTypeText(part);
         lblPartStock.Text = (part.TotalInStock ?? 0).ToString("N0");
+        _selectedPart = part;
+    }
+
+    /// <summary>通过ID查找物料并加载详情和BOM</summary>
+    private async Task SelectPartById(int partId)
+    {
+        try
+        {
+            var part = await _parts.GetPartAsync(partId);
+            ShowPartDetail(part);
+            await LoadBomTree(partId);
+            await LoadWhereUsed(partId);
+            rightTabs.SelectedIndex = 0; // 切换到BOM tab
+        }
+        catch (Exception ex)
+        {
+            SetStatus($"❌ 加载零件失败: {ex.Message}");
+        }
     }
 
     private void ClearDetail()
@@ -380,6 +404,48 @@ public partial class MainForm : Form
         {
             await LoadBomTree(item.SubPart.Value);
             rightTabs.SelectedIndex = 0;
+        }
+    }
+
+    // ── 反向查询：右键菜单 ──
+    private async Task LvWhereUsed_OpenBom()
+    {
+        if (lvWhereUsed.SelectedItems.Count > 0 &&
+            lvWhereUsed.SelectedItems[0].Tag is BomItem item &&
+            item.SubPart.HasValue)
+        {
+            await LoadBomTree(item.SubPart.Value);
+            rightTabs.SelectedIndex = 0;
+        }
+    }
+
+    private async Task LvWhereUsed_ShowDetail()
+    {
+        if (lvWhereUsed.SelectedItems.Count > 0 &&
+            lvWhereUsed.SelectedItems[0].Tag is BomItem item &&
+            item.SubPart.HasValue)
+        {
+            await SelectPartById(item.SubPart.Value);
+        }
+    }
+
+    private async Task LvWhereUsed_OpenConfigurator()
+    {
+        if (lvWhereUsed.SelectedItems.Count > 0 &&
+            lvWhereUsed.SelectedItems[0].Tag is BomItem item &&
+            item.SubPart.HasValue)
+        {
+            var pid = item.SubPart.Value;
+            try
+            {
+                var part = await _parts.GetPartAsync(pid);
+                var configForm = new ConfiguratorForm(_client, part);
+                configForm.ShowDialog(this);
+            }
+            catch (Exception ex)
+            {
+                SetStatus($"❌ 无法打开配置器: {ex.Message}");
+            }
         }
     }
 

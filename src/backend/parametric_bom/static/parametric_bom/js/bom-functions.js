@@ -742,7 +742,9 @@ function renderCfgParamControl(cfg, name, type, val) {
     controlHtml = `<div class="cfg-pg-slider">
       <input type="range" min="${effMin}" max="${effMax}" step="${step}" value="${v}" data-cfg-id="${cid}"
         oninput="cfgSliderInput(this, ${cid})" onchange="${changeFn}">
-      <span class="cfg-pg-val" id="cfg-val-${cid}">${v}</span>
+      <input type="number" min="${effMin}" max="${effMax}" step="${step}" value="${v}"
+        oninput="cfgNumInput(this, ${cid})"
+        class="cfg-pg-num" id="cfg-num-${cid}">
     </div>
     <div class="cfg-pg-hint"><span>${min}</span><span>${max}</span></div>`;
     
@@ -792,8 +794,15 @@ function renderCfgParamControl(cfg, name, type, val) {
 }
 
 function cfgSliderInput(input, cid) {
-  const valSpan = document.getElementById(`cfg-val-${cid}`);
-  if (valSpan) valSpan.textContent = input.value;
+  const num = document.getElementById(`cfg-num-${cid}`);
+  if (num) num.value = input.value;
+}
+function cfgNumInput(input, cid) {
+  const slider = document.querySelector(`input[type="range"][data-cfg-id="${cid}"]`);
+  if (slider) slider.value = input.value;
+  // Debounce: trigger param change after typing stops
+  clearTimeout(window.__cfgNumTimer);
+  window.__cfgNumTimer = setTimeout(() => cfgOnParamChange(cid, input), 300);
 }
 
 function cfgOnParamChange(cid, el) {
@@ -911,7 +920,9 @@ function renderCfgBOM() {
         <span class="col-badge"><span class="qty-badge ${badgeClass}">${badgeText}</span></span>
         <span class="col-name${partId ? ' clickable-part' : ''}"${partId ? ` onclick="openPartDetail(${partId})"` : ''}>${depth > 0 ? '└ ' : ''}${name}</span>
         <span class="col-ipn${ipn ? '' : ' text-gray-300'}">${ipn || '—'}</span>
-        <span class="col-qty"><span class="qty-badge bg-gray-100 text-gray-700">×${qty}</span></span>
+        <span class="col-qty"><input type="number" class="cfg-qty-input" value="${qty}" min="0" step="1"
+          onchange="updateCfgBomQty(this, ${partId || 'null'}, ${depth})"
+          oninput="updateCfgTotalPrice(this)"></span>
         <span class="col-unit-price${unitPriceText ? ' text-emerald-600' : ' text-gray-300'}">${unitPriceText || '—'}</span>
         <span class="col-total-price${totalPriceText ? ' text-emerald-700 font-medium' : ' text-gray-300'}">${totalPriceText || '—'}</span>
       </div>`;
@@ -1075,5 +1086,42 @@ function cfgResetParams() {
   });
   renderCfgParams();
   cfgExpandBOM();
-  document.getElementById('cfg-status-dot').textContent = '● 就绪';
+}
+
+// ── Configurator BOM: update item quantity ──
+function updateCfgBomQty(input, partId, depth) {
+  const qty = parseFloat(input.value) || 0;
+  // Find and update item in cfgBOMItems
+  function updateQty(items, pid) {
+    if (!items) return;
+    for (const item of items) {
+      const itemPid = item.actual_part_id || item.part_id;
+      if (pid && itemPid === pid) {
+        item.calculated_quantity = qty;
+        item.user_quantity = qty; // mark as user-overridden
+        return true;
+      }
+      if (item.children && updateQty(item.children, pid)) return true;
+    }
+    return false;
+  }
+  // Update total price display for this row
+  const row = input.closest('.tree-item');
+  if (row) {
+    const unitPriceEl = row.querySelector('.col-unit-price');
+    const totalPriceEl = row.querySelector('.col-total-price');
+    if (unitPriceEl && totalPriceEl) {
+      const unitText = unitPriceEl.textContent.replace('¥', '').trim();
+      const unitPrice = parseFloat(unitText);
+      if (!isNaN(unitPrice)) {
+        const total = qty * unitPrice;
+        totalPriceEl.textContent = `¥${total.toFixed(2)}`;
+      }
+    }
+  }
+}
+
+// ── Configurator BOM: update total price on input ──
+function updateCfgTotalPrice(input) {
+  updateCfgBomQty(input, null, 0);
 }

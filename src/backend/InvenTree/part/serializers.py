@@ -660,6 +660,10 @@ class PartSerializer(
             'initial_supplier',
             'copy_category_parameters',
             'tags',
+            'param_材质',
+            'param_表面处理',
+            'param_颜色',
+            'param_重量',
         ]
         read_only_fields = ['barcode_hash', 'creation_date', 'creation_user']
 
@@ -799,6 +803,30 @@ class PartSerializer(
             ]
 
         return part.pk in self.starred_parts
+
+    def _get_parameter(self, part, template_name):
+        """Helper: get a part parameter value by template name."""
+        try:
+            from common.models import Parameter, ParameterTemplate
+            from django.contrib.contenttypes.models import ContentType
+            ct = ContentType.objects.get_for_model(part.__class__)
+            tpl = ParameterTemplate.objects.get(name=template_name)
+            param = Parameter.objects.filter(model_type=ct, model_id=part.pk, template=tpl).first()
+            return param.data if param else ''
+        except Exception:
+            return ''
+
+    def get_param_材质(self, part) -> str:
+        return self._get_parameter(part, '材质（牌号）')
+
+    def get_param_表面处理(self, part) -> str:
+        return self._get_parameter(part, '表面处理方式')
+
+    def get_param_颜色(self, part) -> str:
+        return self._get_parameter(part, '处理颜色')
+
+    def get_param_重量(self, part) -> str:
+        return self._get_parameter(part, '重量')
 
     # Extra detail for the category
     category_detail = OptionalField(
@@ -977,6 +1005,11 @@ class PartSerializer(
     parameters = common.filters.enable_parameters_filter()
 
     tags = common.filters.enable_tags_filter()
+
+    param_材质 = serializers.SerializerMethodField(read_only=True)
+    param_表面处理 = serializers.SerializerMethodField(read_only=True)
+    param_颜色 = serializers.SerializerMethodField(read_only=True)
+    param_重量 = serializers.SerializerMethodField(read_only=True)
 
     price_breaks = OptionalField(
         serializer_class=PartSalePriceSerializer,

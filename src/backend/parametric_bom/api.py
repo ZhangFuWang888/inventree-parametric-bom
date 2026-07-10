@@ -1030,6 +1030,29 @@ def _build_bom_xlsx(result):
     except Exception:
         pass
 
+    # Bulk fetch part parameters for 材质 / 表面处理 / 颜色 / 重量
+    from common.models import Parameter
+    from django.contrib.contenttypes.models import ContentType
+    from part.models import Part as PartModel
+    ct_part_exp = ContentType.objects.get_for_model(PartModel)
+    param_names = ['材质（牌号）', '表面处理方式', '处理颜色', '重量']
+    param_templates_map = {}
+    for pn in param_names:
+        try:
+            tpl = ParameterTemplate.objects.get(name=pn)
+            param_templates_map[pn] = tpl
+        except ParameterTemplate.DoesNotExist:
+            pass
+    param_data = {}  # {part_id: {param_name: value}}
+    if param_templates_map and part_ids:
+        for par in Parameter.objects.filter(
+            model_type=ct_part_exp,
+            model_id__in=part_ids,
+            template__in=list(param_templates_map.values()),
+        ).select_related('template'):
+            pid = par.model_id
+            param_data.setdefault(pid, {})[par.template.name] = par.data
+
     row_num = 2
     seq = 0
 
@@ -1060,6 +1083,17 @@ def _build_bom_xlsx(result):
                 if not units:
                     units = p.units or ''
 
+            # Look up part parameters (材质, 表面处理, 颜色, 重量)
+            p_material = ''
+            p_finish = ''
+            p_color = ''
+            p_weight = ''
+            if pid and pid in param_data:
+                p_material = param_data[pid].get('材质（牌号）', '')
+                p_finish = param_data[pid].get('表面处理方式', '')
+                p_color = param_data[pid].get('处理颜色', '')
+                p_weight = param_data[pid].get('重量', '')
+
             vals = [
                 seq,
                 root_category_name,  # 设备（大类）— 配置产品的直接分类
@@ -1071,10 +1105,10 @@ def _build_bom_xlsx(result):
                 qty,  # 应需数量
                 '',  # 预期到货
                 '',  # 类别
-                '',  # 材质（牌号）
-                '',  # 表面处理方式
-                '',  # 处理颜色
-                '',  # 重量
+                p_material,  # 材质（牌号）
+                p_finish,  # 表面处理方式
+                p_color,  # 处理颜色
+                p_weight,  # 重量
                 ref,  # 备注
                 '',  # 采购员
                 '',  # 入库去向
@@ -1089,11 +1123,9 @@ def _build_bom_xlsx(result):
                 cell = ws.cell(row=row_num, column=col, value=v)
                 cell.font = style_cell_font
                 cell.border = style_border
-                if col in (1, 5):
-                    cell.alignment = style_center
-                elif col == 4:
-                    cell.number_format = '#,##0.00'
-                    cell.alignment = style_number
+                if col in (8, 21):
+                    cell.number_format = '#,##0'
+                cell.alignment = style_center
 
             row_num += 1
             flatten(child, qty)
