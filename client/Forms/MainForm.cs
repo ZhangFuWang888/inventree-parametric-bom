@@ -52,13 +52,7 @@ public partial class MainForm : Form
             if (e.Node.Nodes.Count > 0 && e.Node.Nodes[0].Text == "加载中...")
                 _ = LazyLoadBomChildren(e.Node);
         };
-        lvWhereUsed.DoubleClick += LvWhereUsed_DoubleClick;
-        // 反向查询右键菜单
-        var ctxWhereUsed = new ContextMenuStrip();
-        ctxWhereUsed.Items.Add("📂 打开BOM", null, (_, _) => _ = LvWhereUsed_OpenBom());
-        ctxWhereUsed.Items.Add("📋 显示详情", null, (_, _) => _ = LvWhereUsed_ShowDetail());
-        ctxWhereUsed.Items.Add("⚡ 打开配置器", null, (_, _) => _ = LvWhereUsed_OpenConfigurator());
-        lvWhereUsed.ContextMenuStrip = ctxWhereUsed;
+
         cbFilter.SelectedIndexChanged += (_, _) =>
         {
             _currentPage = 1;
@@ -240,14 +234,12 @@ public partial class MainForm : Form
                         ForeColor = Color.DarkOrange
                     };
                     tvBom.Nodes.Add(hint);
-                    lvWhereUsed.Items.Clear();
                     SetStatus($"⚡ 参数化产品（{status.ParamCount} 个参数），双击配置后生成 BOM");
                 }
                 else
                 {
                     // 静态物料 → 直接加载 BOM
                     await LoadBomTree(part.Pk);
-                    await LoadWhereUsed(part.Pk);
                 }
             }
             catch
@@ -261,13 +253,11 @@ public partial class MainForm : Form
                         ForeColor = Color.DarkOrange
                     };
                     tvBom.Nodes.Add(hint);
-                    lvWhereUsed.Items.Clear();
                     SetStatus("⚡ 参数化产品，双击配置后生成 BOM");
                 }
                 else
                 {
                     await LoadBomTree(part.Pk);
-                    await LoadWhereUsed(part.Pk);
                 }
             }
         }
@@ -290,7 +280,6 @@ public partial class MainForm : Form
             var part = await _parts.GetPartAsync(partId);
             ShowPartDetail(part);
             await LoadBomTree(partId);
-            await LoadWhereUsed(partId);
             rightTabs.SelectedIndex = 0; // 切换到BOM tab
         }
         catch (Exception ex)
@@ -306,7 +295,6 @@ public partial class MainForm : Form
         lblPartType.Text = "-";
         lblPartStock.Text = "-";
         tvBom.Nodes.Clear();
-        lvWhereUsed.Items.Clear();
     }
 
     // ======================== BOM 树 ========================
@@ -372,84 +360,6 @@ public partial class MainForm : Form
         if (e.Node?.Tag is Part part && part.Assembly)
             await LazyLoadBomChildren(e.Node);
     }
-
-    // ======================== Where Used ========================
-
-    private async Task LoadWhereUsed(int partId)
-    {
-        lvWhereUsed.Items.Clear();
-        try
-        {
-            var items = await _bom.WhereUsedAsync(partId);
-            foreach (var item in items)
-            {
-                var lv = new ListViewItem(item.SubPartDetail?.IPN ?? "");
-                lv.SubItems.Add(item.SubPartDetail?.Name ?? "");
-                lv.SubItems.Add(item.SubPartDetail?.Description ?? "");
-                lv.SubItems.Add(item.Quantity.ToString("0.##"));
-                lv.Tag = item;
-                lvWhereUsed.Items.Add(lv);
-            }
-            if (items.Count > 0)
-                SetStatus($"找到 {items.Count} 个上级父件（切换到「反向查询」Tab 查看）");
-        }
-        catch { /* where-used may not work for all */ }
-    }
-
-    private async void LvWhereUsed_DoubleClick(object? sender, EventArgs e)
-    {
-        if (lvWhereUsed.SelectedItems.Count > 0 &&
-            lvWhereUsed.SelectedItems[0].Tag is BomItem item &&
-            item.SubPart.HasValue)
-        {
-            await LoadBomTree(item.SubPart.Value);
-            rightTabs.SelectedIndex = 0;
-        }
-    }
-
-    // ── 反向查询：右键菜单 ──
-    private async Task LvWhereUsed_OpenBom()
-    {
-        if (lvWhereUsed.SelectedItems.Count > 0 &&
-            lvWhereUsed.SelectedItems[0].Tag is BomItem item &&
-            item.SubPart.HasValue)
-        {
-            await LoadBomTree(item.SubPart.Value);
-            rightTabs.SelectedIndex = 0;
-        }
-    }
-
-    private async Task LvWhereUsed_ShowDetail()
-    {
-        if (lvWhereUsed.SelectedItems.Count > 0 &&
-            lvWhereUsed.SelectedItems[0].Tag is BomItem item &&
-            item.SubPart.HasValue)
-        {
-            await SelectPartById(item.SubPart.Value);
-        }
-    }
-
-    private async Task LvWhereUsed_OpenConfigurator()
-    {
-        if (lvWhereUsed.SelectedItems.Count > 0 &&
-            lvWhereUsed.SelectedItems[0].Tag is BomItem item &&
-            item.SubPart.HasValue)
-        {
-            var pid = item.SubPart.Value;
-            try
-            {
-                var part = await _parts.GetPartAsync(pid);
-                var configForm = new ConfiguratorForm(_client, part);
-                configForm.ShowDialog(this);
-            }
-            catch (Exception ex)
-            {
-                SetStatus($"❌ 无法打开配置器: {ex.Message}");
-            }
-        }
-    }
-
-    // ======================== 搜索 ========================
 
     private async void DoSearch()
     {

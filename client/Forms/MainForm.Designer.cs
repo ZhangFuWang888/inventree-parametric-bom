@@ -47,12 +47,6 @@ partial class MainForm
         this.rightTabs = new System.Windows.Forms.TabControl();
         this.tabBom = new System.Windows.Forms.TabPage();
         this.tvBom = new System.Windows.Forms.TreeView();
-        this.tabUsed = new System.Windows.Forms.TabPage();
-        this.lvWhereUsed = new System.Windows.Forms.ListView();
-        this.colWIpn = new System.Windows.Forms.ColumnHeader();
-        this.colWName = new System.Windows.Forms.ColumnHeader();
-        this.colWDesc = new System.Windows.Forms.ColumnHeader();
-        this.colWQty = new System.Windows.Forms.ColumnHeader();
         this.detailPanel = new System.Windows.Forms.Panel();
         this.detailRight = new System.Windows.Forms.Panel();
         this.btnExport = new System.Windows.Forms.Button();
@@ -82,7 +76,6 @@ partial class MainForm
         this.panelBomDetail.SuspendLayout();
         this.rightTabs.SuspendLayout();
         this.tabBom.SuspendLayout();
-        this.tabUsed.SuspendLayout();
         this.detailPanel.SuspendLayout();
         this.detailRight.SuspendLayout();
         this.tblDetail.SuspendLayout();
@@ -417,7 +410,6 @@ partial class MainForm
         // rightTabs
         //
         this.rightTabs.Controls.Add(this.tabBom);
-        this.rightTabs.Controls.Add(this.tabUsed);
         this.rightTabs.Dock = System.Windows.Forms.DockStyle.Fill;
         this.rightTabs.Font = new System.Drawing.Font("Microsoft YaHei UI", 9F);
         this.rightTabs.Location = new System.Drawing.Point(0, 0);
@@ -449,58 +441,6 @@ partial class MainForm
         this.tvBom.ShowNodeToolTips = true;
         this.tvBom.Size = new System.Drawing.Size(981, 264);
         this.tvBom.TabIndex = 0;
-        //
-        // tabUsed
-        //
-        this.tabUsed.Controls.Add(this.lvWhereUsed);
-        this.tabUsed.Location = new System.Drawing.Point(4, 26);
-        this.tabUsed.Name = "tabUsed";
-        this.tabUsed.Padding = new System.Windows.Forms.Padding(3);
-        this.tabUsed.Size = new System.Drawing.Size(987, 270);
-        this.tabUsed.TabIndex = 1;
-        this.tabUsed.Text = "🔍 反向查询";
-        this.tabUsed.UseVisualStyleBackColor = true;
-        //
-        // lvWhereUsed
-        //
-        this.lvWhereUsed.BorderStyle = System.Windows.Forms.BorderStyle.None;
-        this.lvWhereUsed.Columns.AddRange(new System.Windows.Forms.ColumnHeader[] {
-            this.colWIpn,
-            this.colWName,
-            this.colWDesc,
-            this.colWQty});
-        this.lvWhereUsed.Dock = System.Windows.Forms.DockStyle.Fill;
-        this.lvWhereUsed.Font = new System.Drawing.Font("Microsoft YaHei UI", 9F);
-        this.lvWhereUsed.FullRowSelect = true;
-        this.lvWhereUsed.GridLines = true;
-        this.lvWhereUsed.HideSelection = false;
-        this.lvWhereUsed.Location = new System.Drawing.Point(3, 3);
-        this.lvWhereUsed.Name = "lvWhereUsed";
-        this.lvWhereUsed.Size = new System.Drawing.Size(981, 264);
-        this.lvWhereUsed.TabIndex = 0;
-        this.lvWhereUsed.UseCompatibleStateImageBehavior = false;
-        this.lvWhereUsed.View = System.Windows.Forms.View.Details;
-        //
-        // colWIpn
-        //
-        this.colWIpn.Text = "型号";
-        this.colWIpn.Width = 110;
-        //
-        // colWName
-        //
-        this.colWName.Text = "名称";
-        this.colWName.Width = 180;
-        //
-        // colWDesc
-        //
-        this.colWDesc.Text = "描述";
-        this.colWDesc.Width = 280;
-        //
-        // colWQty
-        //
-        this.colWQty.Text = "数量";
-        this.colWQty.TextAlign = System.Windows.Forms.HorizontalAlignment.Right;
-        this.colWQty.Width = 70;
         //
         // detailPanel
         //
@@ -707,7 +647,6 @@ partial class MainForm
         this.panelBomDetail.ResumeLayout(false);
         this.rightTabs.ResumeLayout(false);
         this.tabBom.ResumeLayout(false);
-        this.tabUsed.ResumeLayout(false);
         this.detailPanel.ResumeLayout(false);
         this.detailRight.ResumeLayout(false);
         this.tblDetail.ResumeLayout(false);
@@ -749,12 +688,6 @@ partial class MainForm
     private System.Windows.Forms.TabControl rightTabs;
     private System.Windows.Forms.TabPage tabBom;
     private System.Windows.Forms.TreeView tvBom;
-    private System.Windows.Forms.TabPage tabUsed;
-    private System.Windows.Forms.ListView lvWhereUsed;
-    private System.Windows.Forms.ColumnHeader colWIpn;
-    private System.Windows.Forms.ColumnHeader colWName;
-    private System.Windows.Forms.ColumnHeader colWDesc;
-    private System.Windows.Forms.ColumnHeader colWQty;
     private System.Windows.Forms.Panel detailPanel;
     private System.Windows.Forms.TableLayoutPanel tblDetail;
     private System.Windows.Forms.Label lblCapName;
