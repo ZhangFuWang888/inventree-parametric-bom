@@ -1210,22 +1210,7 @@ async function expandConfigBOM() {
   const btn = document.getElementById('cfg-to-step2');
   if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner mr-1"></span>计算中...'; }
 
-  // 更新产品名称（如果属性公式计算了 product_name）
-  const res = await apiCall('POST', 'evaluate/', {
-    part_id: configuratorPartId,
-    parameters: Object.fromEntries(
-      Object.entries(currentParams).filter(([k,v]) => !v.isComputed).map(([k,v]) => [k, v.value])
-    ),
-  });
-  if (!res.error && res.data && res.data.attributes && res.data.attributes.product_name) {
-    var computedName = res.data.attributes.product_name.value;
-    if (computedName) {
-      var nameEl = document.getElementById('pd-product-name');
-      if (nameEl) nameEl.textContent = computedName;
-    }
-  }
-
-  // 委托实际的BOM展开给 bom-functions.js 的 cfgExpandBOM
+  // 展开BOM（同时会更新产品名称）
   await cfgExpandBOM();
 
   if (btn) { btn.disabled = false; btn.innerHTML = '展开BOM →'; }

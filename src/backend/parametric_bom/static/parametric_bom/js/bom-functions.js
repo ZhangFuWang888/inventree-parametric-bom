@@ -852,6 +852,16 @@ async function cfgExpandBOM() {
   try {
     const res = await apiCall('POST', 'evaluate/', {part_id: parseInt(pid), parameters: ctx});
     if (res.error) { container.innerHTML = '<div class="cfg-empty" style="color:#dc2626">❌ BOM展开失败</div>'; return; }
+
+    // 更新产品名称（如果属性公式计算了 product_name）
+    if (res.data.attributes && res.data.attributes.product_name) {
+      var computedName = res.data.attributes.product_name.value;
+      if (computedName) {
+        var nameEl = document.getElementById('pd-product-name');
+        if (nameEl) nameEl.textContent = computedName;
+      }
+    }
+
     const bomTree = res.data.bom_tree || [];
     cfgBOMItems = Array.isArray(bomTree) ? bomTree : (bomTree.children || []);
     renderCfgBOM();
