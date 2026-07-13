@@ -428,6 +428,26 @@ def annotate_sub_categories() -> QuerySet:
     )
 
 
+def annotate_part_count() -> QuerySet:
+    """Annotate with the number of parts directly in this category."""
+    from part.models import Part
+
+    subquery = Part.objects.filter(
+        category=OuterRef('pk'),
+    )
+
+    return Coalesce(
+        Subquery(
+            subquery
+            .annotate(total=Func(F('pk'), function='COUNT', output_field=IntegerField()))
+            .values('total')
+            .order_by()
+        ),
+        0,
+        output_field=IntegerField(),
+    )
+
+
 def annotate_bom_item_can_build(queryset: QuerySet, reference: str = '') -> QuerySet:
     """Annotate the 'can_build' quantity for each BomItem in a queryset.
 

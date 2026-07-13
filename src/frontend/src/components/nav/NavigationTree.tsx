@@ -109,6 +109,11 @@ export default function NavigationTree({
           <Group gap='xs'>
             <ApiIcon name={query.data[ii].icon} />
             {query.data[ii].name}
+            {query.data[ii].part_count > 0 && (
+              <span style={{ color: '#94a3b8', fontSize: 12, marginLeft: 4 }}>
+                ({query.data[ii].part_count})
+              </span>
+            )}
           </Group>
         ),
         value: query.data[ii].pk.toString(),
