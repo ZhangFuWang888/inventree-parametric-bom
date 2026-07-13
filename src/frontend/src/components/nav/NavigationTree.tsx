@@ -45,7 +45,8 @@ export default function NavigationTree({
   onClose,
   selectedId,
   modelType,
-  endpoint
+  endpoint,
+  inline
 }: Readonly<{
   title: string;
   opened: boolean;
@@ -53,6 +54,7 @@ export default function NavigationTree({
   selectedId?: number | null;
   modelType: ModelType;
   endpoint: ApiEndpoints;
+  inline?: boolean;
 }>) {
   const api = useApi();
   const navigate = useNavigate();
@@ -60,8 +62,8 @@ export default function NavigationTree({
 
   // Data query to fetch the tree data from server
   const query = useQuery({
-    enabled: opened,
-    queryKey: [modelType, opened],
+    enabled: opened || inline,
+    queryKey: [modelType, 'nav_tree'],
     queryFn: async () =>
       api
         .get(apiUrl(endpoint), {
@@ -182,6 +184,24 @@ export default function NavigationTree({
     [treeState]
   );
 
+  const treeContent = (
+    <Stack gap='xs'>
+      <Divider />
+      <LoadingOverlay visible={query.isFetching || query.isLoading} />
+      {query.isError ? (
+        <Alert color='red' title={t`Error`} icon={<IconExclamationCircle />}>
+          {t`Error loading navigation tree.`}
+        </Alert>
+      ) : (
+        <Tree data={data} tree={treeState} renderNode={renderNode} />
+      )}
+    </Stack>
+  );
+
+  if (inline) {
+    return treeContent;
+  }
+
   return (
     <Drawer
       opened={opened}
@@ -204,17 +224,7 @@ export default function NavigationTree({
         </Group>
       }
     >
-      <Stack gap='xs'>
-        <Divider />
-        <LoadingOverlay visible={query.isFetching || query.isLoading} />
-        {query.isError ? (
-          <Alert color='red' title={t`Error`} icon={<IconExclamationCircle />}>
-            {t`Error loading navigation tree.`}
-          </Alert>
-        ) : (
-          <Tree data={data} tree={treeState} renderNode={renderNode} />
-        )}
-      </Stack>
+      {treeContent}
     </Drawer>
   );
 }

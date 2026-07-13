@@ -1,8 +1,10 @@
 import { t } from '@lingui/core/macro';
-import { Group, LoadingOverlay, Skeleton, Stack } from '@mantine/core';
+import { ActionIcon, Group, LoadingOverlay, Skeleton, Stack, Tooltip } from '@mantine/core';
 import {
   IconCategory,
+  IconHierarchy2,
   IconInfoCircle,
+  IconLayoutList,
   IconListCheck,
   IconPackages,
   IconSitemap
@@ -62,6 +64,7 @@ export default function CategoryDetail() {
   const settings = useUserSettingsState();
 
   const [treeOpen, setTreeOpen] = useState(false);
+  const [viewMode, setViewMode] = useState<'list' | 'tree'>('list');
 
   const {
     instance: category,
@@ -267,7 +270,30 @@ export default function CategoryDetail() {
         name: 'subcategories',
         label: id ? '子类别' : '物料类别',
         icon: <IconSitemap />,
-        content: <PartCategoryTable parentId={id} />
+        controls: (
+          <Tooltip label={viewMode === 'list' ? '切换树形视图' : '切换列表视图'}>
+            <ActionIcon
+              variant='light'
+              size='sm'
+              onClick={() => setViewMode(viewMode === 'list' ? 'tree' : 'list')}
+            >
+              {viewMode === 'list' ? <IconHierarchy2 size={16} /> : <IconLayoutList size={16} />}
+            </ActionIcon>
+          </Tooltip>
+        ),
+        content: viewMode === 'list' ? (
+          <PartCategoryTable parentId={id} />
+        ) : (
+          <NavigationTree
+            title='物料类别'
+            modelType={ModelType.partcategory}
+            endpoint={ApiEndpoints.category_tree}
+            opened={true}
+            onClose={() => {}}
+            selectedId={category?.pk}
+            inline
+          />
+        )
       },
       {
         name: 'products',

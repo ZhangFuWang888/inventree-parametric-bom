@@ -299,6 +299,17 @@ class PartVariableViewSet(viewsets.ModelViewSet):
 @permission_classes([permissions.IsAuthenticated])
 def bom_evaluate(request):
     """Evaluate a parametric BOM — expand BOM tree with formula computation."""
+    import json, os
+    from django.conf import settings
+
+    # ═══ 临时调试日志 ═══
+    _log_path = '/tmp/bom_evaluate_debug.log'
+    _ts = __import__('datetime').datetime.now().isoformat()
+    with open(_log_path, 'a') as _f:
+        _f.write(f"\n=== [{_ts}] REQUEST ===\n")
+        _f.write(f"raw body: {request.body.decode('utf-8', errors='replace')}\n")
+        _f.write(f"parsed data: {json.dumps(dict(request.data), ensure_ascii=False)}\n")
+
     from parametric_bom.bom_expander import evaluate_configuration, evaluate_part
     from parametric_bom.models import ProductConfiguration
 
@@ -311,12 +322,19 @@ def bom_evaluate(request):
         if config_id:
             config = ProductConfiguration.objects.get(pk=config_id)
             result = evaluate_configuration(config, timeout_ms, max_depth)
+            with open(_log_path, 'a') as _f:
+                _f.write(f"RESPONSE parameters: {json.dumps(result.get('parameters',{}), ensure_ascii=False)}\n")
+                _f.write(f"RESPONSE H: {result.get('parameters',{}).get('H','N/A')}\n")
             return Response(result)
         elif part_id:
             from part.models import Part
             part = Part.objects.get(pk=part_id)
-            user_params = request.data.get('parameters', {})
+            user_params = request.data.get('parameters', {}) or request.data.get('params', {})
             result = evaluate_part(part, user_params, timeout_ms, max_depth)
+            with open(_log_path, 'a') as _f:
+                _f.write(f"user_params: {json.dumps(user_params, ensure_ascii=False)}\n")
+                _f.write(f"RESPONSE parameters: {json.dumps(result.get('parameters',{}), ensure_ascii=False)}\n")
+                _f.write(f"RESPONSE H: {result.get('parameters',{}).get('H','N/A')}\n")
             return Response(result)
         else:
             return Response(
@@ -389,7 +407,7 @@ def estimate_cost(request):
         elif part_id:
             from part.models import Part
             part = Part.objects.get(pk=part_id)
-            user_params = request.data.get('parameters', {})
+            user_params = request.data.get('parameters', {}) or request.data.get('params', {})
             result = estimate_part_cost(
                 part, user_params,
                 markup_pct=markup_pct, pricing_preference=pricing_preference,
@@ -476,7 +494,7 @@ def rules_evaluate(request):
         elif part_id:
             from part.models import Part
             part = Part.objects.get(pk=part_id)
-            user_params = request.data.get('parameters', {})
+            user_params = request.data.get('parameters', {}) or request.data.get('params', {})
             result = evaluate_rules(part, user_params, timeout_ms)
             return Response(result)
         else:
@@ -850,7 +868,7 @@ def inherit_params(request):
         elif part_id:
             from part.models import Part
             part = Part.objects.get(pk=part_id)
-            user_params = request.data.get('parameters', {})
+            user_params = request.data.get('parameters', {}) or request.data.get('params', {})
             result = inherit_params_for_part(part, user_params)
             return Response(result)
         else:
