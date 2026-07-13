@@ -28,6 +28,7 @@ import InvenTree.serializers
 import part.filters as part_filters
 import part.helpers as part_helpers
 import stock.models
+from parametric_bom.models import ParametricBomItem
 import users.models
 from data_exporter.mixins import DataExportSerializerMixin
 from importer.registry import register_importer
@@ -184,7 +185,7 @@ class CategoryTree(InvenTree.serializers.InvenTreeModelSerializer):
         """Metaclass defining serializer fields."""
 
         model = PartCategory
-        fields = ['pk', 'name', 'parent', 'icon', 'structural', 'subcategories', 'part_count']
+        fields = ['pk', 'name', 'parent', 'icon', 'structural', 'description', 'subcategories', 'part_count']
 
     subcategories = serializers.IntegerField(label=_('Subcategories'), read_only=True)
     part_count = serializers.IntegerField(label=_('Parts'), read_only=True)
@@ -664,6 +665,7 @@ class PartSerializer(
             'initial_supplier',
             'copy_category_parameters',
             'tags',
+            'has_parametric_bom',
             'param_材质',
             'param_表面处理',
             'param_颜色',
@@ -831,6 +833,9 @@ class PartSerializer(
 
     def get_param_重量(self, part) -> str:
         return self._get_parameter(part, '重量')
+
+    def get_has_parametric_bom(self, part) -> bool:
+        return ParametricBomItem.objects.filter(bom_item__part=part).exists()
 
     # Extra detail for the category
     category_detail = OptionalField(
@@ -1014,6 +1019,7 @@ class PartSerializer(
     param_表面处理 = serializers.SerializerMethodField(read_only=True)
     param_颜色 = serializers.SerializerMethodField(read_only=True)
     param_重量 = serializers.SerializerMethodField(read_only=True)
+    has_parametric_bom = serializers.SerializerMethodField(read_only=True)
 
     price_breaks = OptionalField(
         serializer_class=PartSalePriceSerializer,

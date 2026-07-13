@@ -2,14 +2,16 @@ import { t } from '@lingui/core/macro';
 import { ActionIcon, Group, LoadingOverlay, Skeleton, Stack, Tooltip } from '@mantine/core';
 import {
   IconCategory,
+  IconEdit,
   IconHierarchy2,
   IconInfoCircle,
   IconLayoutList,
   IconListCheck,
   IconPackages,
+  IconPlus,
   IconSitemap
 } from '@tabler/icons-react';
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import { ApiEndpoints } from '@lib/enums/ApiEndpoints';
@@ -36,6 +38,7 @@ import { PageDetail } from '../../components/nav/PageDetail';
 import { PanelGroup } from '../../components/panels/PanelGroup';
 import { partCategoryFields } from '../../forms/PartForms';
 import {
+  useCreateApiFormModal,
   useDeleteApiFormModal,
   useEditApiFormModal
 } from '../../hooks/UseForm';
@@ -223,6 +226,49 @@ export default function CategoryDetail() {
     }
   });
 
+  // Tree view: edit category state
+  const [treeEditPk, setTreeEditPk] = useState<number | undefined>(undefined);
+  const [treeAddParent, setTreeAddParent] = useState<number | null | undefined>(undefined);
+
+  const treeCreateCategory = useCreateApiFormModal({
+    url: ApiEndpoints.category_list,
+    title: '新建物料类别',
+    fields: partCategoryFields({ create: true }),
+    focus: 'name',
+    initialData: {
+      parent: treeAddParent ?? undefined
+    },
+    follow: true,
+    modelType: ModelType.partcategory,
+    keepOpenOption: true
+  });
+
+  const treeEditCategory = useEditApiFormModal({
+    url: ApiEndpoints.category_list,
+    pk: treeEditPk,
+    title: '编辑物料类别',
+    fields: partCategoryFields({}),
+    onFormSuccess: (record: any) => {
+      refreshInstance();
+    }
+  });
+
+  const handleTreeEdit = useCallback(
+    (pk: number) => {
+      setTreeEditPk(pk);
+      treeEditCategory.open();
+    },
+    [treeEditCategory]
+  );
+
+  const handleTreeAddChild = useCallback(
+    (parentPk: number | null) => {
+      setTreeAddParent(parentPk);
+      treeCreateCategory.open();
+    },
+    [treeCreateCategory]
+  );
+
   const categoryActions = useMemo(() => {
     return [
       <AdminButton
@@ -292,6 +338,8 @@ export default function CategoryDetail() {
             onClose={() => {}}
             selectedId={category?.pk}
             inline
+            onEdit={handleTreeEdit}
+            onAddChild={handleTreeAddChild}
           />
         )
       },
@@ -366,6 +414,8 @@ export default function CategoryDetail() {
     <>
       {editCategory.modal}
       {deleteCategory.modal}
+      {treeCreateCategory.modal}
+      {treeEditCategory.modal}
       <InstanceDetail
         query={instanceQuery}
         requiredRole={UserRoles.part_category}

@@ -2,6 +2,7 @@ import { t } from '@lingui/core/macro';
 import {
   ActionIcon,
   Alert,
+  Button,
   Center,
   Grid,
   Group,
@@ -9,10 +10,12 @@ import {
   Paper,
   Skeleton,
   Stack,
-  Text
+  Text,
+  Tooltip
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import {
+  IconBolt,
   IconBookmarks,
   IconBuilding,
   IconChecklist,
@@ -27,6 +30,7 @@ import {
   IconLockOpen,
   IconPackages,
   IconSearch,
+  IconSettings,
   IconShoppingCart,
   IconStack2,
   IconTestPipe,
@@ -1245,6 +1249,56 @@ export default function PartDetail() {
             editEnabled={user.hasChangeRole(UserRoles.part)}
             actions={partActions}
           />
+          {part.assembly && (
+            <Paper
+              p='md'
+              withBorder
+              style={{
+                background: part.has_parametric_bom
+                  ? 'linear-gradient(135deg, #1a73e8 0%, #0d47a1 100%)'
+                  : '#f0f4f8',
+                borderRadius: 8
+              }}
+            >
+              <Group justify='space-between' align='center'>
+                <Group gap='sm'>
+                  {part.has_parametric_bom ? (
+                    <IconBolt size={24} color='white' />
+                  ) : (
+                    <IconSettings size={24} color='#64748b' />
+                  )}
+                  <div>
+                    <Text
+                      c={part.has_parametric_bom ? 'white' : 'dark'}
+                      fw={600}
+                      size='md'
+                    >
+                      参数化配置{part.has_parametric_bom ? '（已启用）' : ''}
+                    </Text>
+                    <Text
+                      c={part.has_parametric_bom ? 'white' : 'dimmed'}
+                      size='xs'
+                      opacity={0.8}
+                    >
+                      {part.has_parametric_bom
+                        ? '已配置参数公式，点击进入配置界面'
+                        : '通过参数公式动态生成BOM、选择零件、生成变体'}
+                    </Text>
+                  </div>
+                </Group>
+                <Button
+                  variant={part.has_parametric_bom ? 'white' : 'light'}
+                  color='blue'
+                  size='md'
+                  onClick={() => {
+                    window.open(`/parametric-bom/product/${part.pk}/`, '_blank');
+                  }}
+                >
+                  进入配置
+                </Button>
+              </Group>
+            </Paper>
+          )}
           <PanelGroup
             pageKey='part'
             panels={partPanels}

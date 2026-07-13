@@ -12,15 +12,19 @@ import type { ApiFormFieldSet } from '@lib/types/Forms';
 import type { TableColumn } from '@lib/types/Tables';
 import type { InvenTreeTableProps } from '@lib/types/Tables';
 import { t } from '@lingui/core/macro';
-import { Group, Text } from '@mantine/core';
+import { ActionIcon, Group, Text, Tooltip } from '@mantine/core';
 import {
+  IconBolt,
+  IconExclamationCircle,
   IconFileUpload,
+  IconLock,
   IconPackageImport,
   IconPlus,
   IconShoppingCart
 } from '@tabler/icons-react';
 import { type ReactNode, useCallback, useMemo, useState } from 'react';
 import { ActionDropdown } from '../../components/items/ActionDropdown';
+import { Thumbnail } from '../../components/images/Thumbnail';
 import ImportPartWizard from '../../components/wizards/ImportPartWizard';
 import OrderPartsWizard from '../../components/wizards/OrderPartsWizard';
 import { formatDecimal, formatPriceRange } from '../../defaults/formatters';
@@ -42,8 +46,7 @@ import {
   DefaultLocationColumn,
   DescriptionColumn,
   IPNColumn,
-  LinkColumn,
-  PartColumn
+  LinkColumn
 } from '../ColumnRenderers';
 import { InvenTreeTable } from '../InvenTreeTable';
 import { TableHoverCard } from '../TableHoverCard';
@@ -54,11 +57,53 @@ import { PartTableFilters } from './PartTableFilters';
  */
 function partTableColumns(): TableColumn[] {
   return [
-    PartColumn({
-      part: '',
+    {
       accessor: 'name',
-      filter: ['active', 'locked', 'starred']
-    }),
+      title: '物料',
+      sortable: true,
+      switchable: false,
+      minWidth: '175px',
+      filter: ['active', 'locked', 'starred'],
+      render: (record: any) => {
+        const part = record?.part_detail ?? record;
+        return (
+          <Group justify='space-between' wrap='nowrap'>
+            <Thumbnail
+              src={part?.thumbnail ?? part?.image}
+              text={part?.full_name ?? part?.name}
+              hover
+            />
+            <Group justify='flex-end' wrap='nowrap' gap={4}>
+              {record.has_parametric_bom && (
+                <Tooltip label='参数化配置（已启用）'>
+                  <ActionIcon
+                    variant='subtle'
+                    color='blue'
+                    size='sm'
+                    onClick={(e: React.MouseEvent) => {
+                      e.stopPropagation();
+                      window.open(`/parametric-bom/product/${record.pk}/`, '_blank');
+                    }}
+                  >
+                    <IconBolt size={14} />
+                  </ActionIcon>
+                </Tooltip>
+              )}
+              {part?.active == false && (
+                <Tooltip label='物料未启用'>
+                  <IconExclamationCircle color='red' size={16} />
+                </Tooltip>
+              )}
+              {part?.locked && (
+                <Tooltip label='物料已锁定'>
+                  <IconLock size={16} />
+                </Tooltip>
+              )}
+            </Group>
+          </Group>
+        );
+      }
+    },
     IPNColumn({
       accessor: 'IPN'
     }),
