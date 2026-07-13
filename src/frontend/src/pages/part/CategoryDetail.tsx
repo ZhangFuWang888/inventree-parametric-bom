@@ -336,7 +336,7 @@ export default function CategoryDetail() {
         content: <PartCategoryTemplateTable categoryId={category?.pk} />
       }
     ],
-    [category, id]
+    [category, id, viewMode]
   );
 
   const breadcrumbs = useMemo(
