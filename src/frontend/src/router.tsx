@@ -94,10 +94,6 @@ export const TransferOrderDetail = Loadable(
 
 export const Scan = Loadable(lazy(() => import('./pages/Index/Scan')));
 
-export const ParametricBom = Loadable(
-  lazy(() => import('./pages/Index/ParametricBomPage'))
-);
-
 export const ParametricBomProjects = Loadable(
   lazy(() => import('./pages/Index/ParametricBomProjectsPage'))
 );
@@ -166,8 +162,7 @@ export const routes = (
       <Route path='home/' element={<Home />} />,
       <Route path='notifications/*' element={<Notifications />} />,
       <Route path='scan/' element={<Scan />} />,
-      <Route path='parametric-bom/' element={<ParametricBom />} />,
-      <Route path='project/' element={<ParametricBomProjects />} />,
+      <Route path='project/' element={<ParametricBomProjects />} />
       <Route path='settings/'>
         <Route index element={<Navigate to='admin/' />} />
         <Route path='admin/*' element={<AdminCenter />} />
