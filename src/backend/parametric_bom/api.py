@@ -307,7 +307,6 @@ def bom_evaluate(request):
     _ts = __import__('datetime').datetime.now().isoformat()
     with open(_log_path, 'a') as _f:
         _f.write(f"\n=== [{_ts}] REQUEST ===\n")
-        _f.write(f"raw body: {request.body.decode('utf-8', errors='replace')}\n")
         _f.write(f"parsed data: {json.dumps(dict(request.data), ensure_ascii=False)}\n")
 
     from parametric_bom.bom_expander import evaluate_configuration, evaluate_part
@@ -353,6 +352,10 @@ def bom_evaluate(request):
         )
     except Exception as exc:
         logger.exception('BOM evaluation failed')
+        import traceback
+        with open('/tmp/bom_evaluate_debug.log', 'a') as _f:
+            _f.write(f"EXCEPTION: {exc}\n")
+            _f.write(traceback.format_exc() + "\n")
         return Response(
             {'error': f'Evaluation failed: {exc}'},
             status=500,

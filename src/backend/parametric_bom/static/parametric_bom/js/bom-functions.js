@@ -851,7 +851,11 @@ async function cfgExpandBOM() {
   const ctx = cfgGetParamContext();
   try {
     const res = await apiCall('POST', 'evaluate/', {part_id: parseInt(pid), parameters: ctx});
-    if (res.error) { container.innerHTML = '<div class="cfg-empty" style="color:#dc2626">❌ BOM展开失败</div>'; return; }
+    if (res.error) {
+      var _em = res.data ? (res.data.error || res.data.detail || JSON.stringify(res.data).substring(0,150)) : 'HTTP ' + res.status;
+      container.innerHTML = '<div class="cfg-empty" style="color:#dc2626">❌ BOM展开失败: ' + _em + '</div>';
+      return;
+    }
 
     // 更新产品名称（如果属性公式计算了 product_name）
     if (res.data.attributes && res.data.attributes.product_name) {

@@ -1,5 +1,6 @@
 """API endpoints for the importer app."""
 
+from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from django.urls import include, path
 
@@ -8,6 +9,9 @@ from rest_framework import serializers
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 from rest_framework.views import APIView
+
+import openpyxl
+from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 
 import importer.models
 import importer.registry
@@ -187,7 +191,155 @@ class DataImportRowDetail(DataImporterPermissionMixin, RetrieveUpdateDestroyAPI)
     serializer_class = importer.serializers.DataImportRowSerializer
 
 
+# Template field definitions for each model type
+IMPORT_TEMPLATES = {
+    'part': {
+        'label': '物料导入模板',
+        'fields': [
+            ('name', '物料名称', '必填'),
+            ('description', '描述', ''),
+            ('IPN', '内部编号', ''),
+            ('category', '分类ID或路径', '例如 5 或 CatA/CatB'),
+            ('keywords', '关键词', '逗号分隔'),
+            ('units', '单位', '个/件/m/kg'),
+            ('active', '启用', 'True/False'),
+            ('assembly', '是装配件', 'True/False'),
+            ('component', '是组件', 'True/False'),
+            ('purchaseable', '可采购', 'True/False'),
+            ('salable', '可销售', 'True/False'),
+            ('trackable', '可跟踪', 'True/False'),
+            ('virtual', '虚拟件', 'True/False'),
+            ('is_template', '是模板', 'True/False'),
+            ('variant_of', '父模板ID', ''),
+            ('revision', '版本号', ''),
+            ('link', '链接', ''),
+            ('minimum_stock', '最低库存', '数字'),
+            ('maximum_stock', '最高库存', '数字'),
+            ('default_expiry', '默认有效期(天)', '数字'),
+        ],
+    },
+    'partcategory': {
+        'label': '物料分类导入模板',
+        'fields': [
+            ('name', '分类名称', '必填'),
+            ('description', '描述', ''),
+            ('parent', '父分类ID', ''),
+            ('icon', '图标', ''),
+            ('structural', '结构分类', 'True/False'),
+        ],
+    },
+    'stockitem': {
+        'label': '库存导入模板',
+        'fields': [
+            ('part', '物料ID', '必填'),
+            ('location', '库位ID', ''),
+            ('quantity', '数量', '必填'),
+            ('serial', '序列号', ''),
+            ('batch', '批次号', ''),
+            ('status', '状态', ''),
+            ('notes', '备注', ''),
+        ],
+    },
+}
+
+
+class DataImportTemplateView(APIView):
+    """API endpoint to download an import template file (XLSX)."""
+
+    permission_classes = [InvenTree.permissions.IsAuthenticatedOrReadScope]
+
+    @extend_schema(
+        parameters=[
+            serializers.Serializer('model', serializers.CharField()),
+        ],
+        responses={200: None},
+    )
+    def get(self, request):
+        model_type = request.query_params.get('model', 'part').lower()
+
+        if model_type not in IMPORT_TEMPLATES:
+            return Response(
+                {'error': f'Unsupported model type: {model_type}'},
+                status=400,
+            )
+
+        template = IMPORT_TEMPLATES[model_type]
+
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = template['label']
+
+        # Header style
+        header_font = Font(name='微软雅黑', bold=True, color='FFFFFF', size=11)
+        header_fill = PatternFill(start_color='4472C4', end_color='4472C4', fill_type='solid')
+        header_align = Alignment(horizontal='center', vertical='center')
+        thin_border = Border(
+            left=Side(style='thin'),
+            right=Side(style='thin'),
+            top=Side(style='thin'),
+            bottom=Side(style='thin'),
+        )
+
+        # Write header row
+        headers = ['字段名', '字段说明', '填写说明']
+        for col_idx, header in enumerate(headers, 1):
+            cell = ws.cell(row=1, column=col_idx, value=header)
+            cell.font = header_font
+            cell.fill = header_fill
+            cell.alignment = header_align
+            cell.border = thin_border
+
+        # Write field rows
+        data_font = Font(name='微软雅黑', size=10)
+        data_align = Alignment(vertical='center')
+        hint_font = Font(name='微软雅黑', size=10, color='888888')
+
+        for row_idx, (field_name, desc, hint) in enumerate(template['fields'], 2):
+            # Field name
+            cell1 = ws.cell(row=row_idx, column=1, value=field_name)
+            cell1.font = Font(name='微软雅黑', size=10, bold=True)
+            cell1.alignment = data_align
+            cell1.border = thin_border
+
+            # Field description
+            cell2 = ws.cell(row=row_idx, column=2, value=desc)
+            cell2.font = data_font
+            cell2.alignment = data_align
+            cell2.border = thin_border
+
+            # Hint
+            cell3 = ws.cell(row=row_idx, column=3, value=hint)
+            cell3.font = hint_font
+            cell3.alignment = data_align
+            cell3.border = thin_border
+
+        # Add a data example row
+        example_row = len(template['fields']) + 3
+        ws.cell(row=example_row, column=1, value='').font = data_font
+        ws.cell(row=example_row, column=2, value='↓ 从第2行开始填入数据，删除说明行 ↓').font = Font(
+            name='微软雅黑', size=10, color='999999', italic=True,
+        )
+
+        # Column widths
+        ws.column_dimensions['A'].width = 22
+        ws.column_dimensions['B'].width = 20
+        ws.column_dimensions['C'].width = 30
+
+        # Freeze header row
+        ws.freeze_panes = 'A2'
+
+        # Save to response
+        response = HttpResponse(
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        )
+        filename = f'{model_type}_import_template.xlsx'
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        wb.save(response)
+        return response
+
+
 importer_api_urls = [
+    path('template/', DataImportTemplateView.as_view(), name='api-importer-template'),
     path('models/', DataImporterModelList.as_view(), name='api-importer-model-list'),
     path(
         'session/',

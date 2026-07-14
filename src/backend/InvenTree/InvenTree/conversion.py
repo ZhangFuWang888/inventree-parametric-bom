@@ -124,6 +124,10 @@ def reload_unit_registry():
     reg.define('hundred = 100')
     reg.define('thousand = 1000')
 
+    # Chinese unit aliases (used in production data)
+    reg.define('个 = piece')
+    reg.define('件 = piece')
+
     # Allow for custom units to be defined in the database
     # Calculate a hash of all custom units
     hash_md5 = md5()
