@@ -1021,15 +1021,16 @@ function renderBOMTable(items, pcfgMap, vmByPbi, candByPbi) {
     {key:'name_formula', icon:'🏷️', label:'名称公式'},
     {key:'qty_formula', icon:'📐', label:'数量/公式', isQty:true},
     {key:'condition_formula', icon:'⚡', label:'条件公式'},
+    {key:'candidate_parts', icon:'🎯', label:'候选零件', isCandidate:true},
     {key:'reference_formula', icon:'📝', label:'备注公式'},
     {key:'price_formula', icon:'💰', label:'价格公式'},
   ];
 
-  let colHeaders = '<th style="width:15%">物料名称</th><th style="width:12%">产品型号</th>';
+  let colHeaders = '<th style="width:13%">物料名称</th><th style="width:10%">产品型号</th>';
   formulaCols.forEach(function(c) {
-    colHeaders += '<th style="width:13%"><span class="col-icon">' + c.icon + '</span>' + c.label + '</th>';
+    colHeaders += '<th style="width:12%"><span class="col-icon">' + c.icon + '</span>' + c.label + '</th>';
   });
-  colHeaders += '<th style="width:4%"></th><th style="width:2.5rem"></th>';
+  colHeaders += '<th style="width:2rem"></th><th style="width:2rem"></th>';
 
   let html = '<table class="pd-bom-spreadsheet"><thead><tr>' + colHeaders + '</tr></thead><tbody>';
 
@@ -1090,45 +1091,60 @@ function renderBOMTable(items, pcfgMap, vmByPbi, candByPbi) {
         } else {
           display = '<span class="pbs-qty">\u00d7' + staticQty + '</span>';
         }
-      } else if (c.key === 'condition_formula' && hasCfg && cfg.enable_candidate) {
-        var pbiId = cfg.id;
-        var cands = (candByPbi && candByPbi[pbiId]) || [];
-        if (cands.length > 0) {
-          display = '<span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 text-[10px] font-medium border border-amber-200 cursor-pointer" onclick="showCandidateModal(' + pbiId + ')" title="\u70b9\u51fb\u67e5\u770b\u5168\u90e8\u5019\u9009\u96f6\u4ef6">\ud83c\udfaf \u5019\u9009 ' + cands.length + '\u4e2a</span>';
-          display += '<div class="text-[9px] text-gray-400 mt-0.5 leading-relaxed">';
-          var showCands = cands.slice(0, 3);
-          for (var k = 0; k < showCands.length; k++) {
-            display += '<div><span class="font-medium text-gray-500">' + escHtml(showCands[k].part_name) + '</span> <span class="text-amber-500">\u2192</span> <span class="text-gray-400">' + (showCands[k].condition_formula || '\u2014') + '</span></div>';
+      } else if (c.key === 'condition_formula') {
+        // Pure condition formula display — no candidate mixing
+        display = val ? '<span class="fmla-text" title="' + val.replace(/\"/g,'&quot;') + '">' + val + '</span>' : '<span class="fmla-empty">—</span>';
+      } else if (c.isCandidate) {
+        // 🎯 Candidate parts column
+        if (hasCfg && cfg.enable_candidate) {
+          var pbiId = cfg.id;
+          var cands = (candByPbi && candByPbi[pbiId]) || [];
+          var refPartName = subPartName;
+          var refPartId = item.sub_part;
+          display = '<div class="flex flex-col gap-0.5">';
+          if (cands.length > 0) {
+            display += '<span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 text-[10px] font-medium border border-amber-200">候选 ' + cands.length + '个</span>';
+            display += '<div class="text-[9px] text-gray-400 mt-0.5 leading-relaxed">';
+            var showCands = cands.slice(0, 2);
+            for (var k = 0; k < showCands.length; k++) {
+              display += '<div><span class="font-medium text-gray-500">' + escHtml(showCands[k].part_name) + '</span></div>';
+            }
+            if (cands.length > 2) {
+              display += '<div class="text-amber-500 mt-0.5">⋯ 还有 ' + (cands.length - 2) + ' 个</div>';
+            }
+            display += '</div>';
+          } else {
+            display += '<span class="text-amber-500 text-[10px]">候选 (无数据)</span>';
           }
-          if (cands.length > 3) {
-            display += '<div class="text-amber-500 mt-0.5">\u22ef \u8fd8\u6709 ' + (cands.length - 3) + ' \u4e2a</div>';
-          }
+          display += '<div class="text-[9px] text-blue-400">📎 参考: <span class="cursor-pointer hover:text-blue-600 underline decoration-dotted" onclick="event.stopPropagation();openPartDetail(' + refPartId + ')">' + escHtml(refPartName) + '</span></div>';
           display += '</div>';
         } else {
-          display = '<span class="text-amber-500 text-[10px]">\ud83c\udfaf \u5019\u9009 (\u65e0\u6570\u636e)</span>';
+          display = '<span class="text-gray-300">—</span>';
         }
       } else {
         display = val ? '<span class="fmla-text" title="' + val.replace(/"/g,'&quot;') + '">' + val + '</span>' : '<span class="fmla-empty">\u2014</span>';
       }
-      const hint = val ? '双击编辑' : (hasCfg && cfg.enable_candidate && c.key === 'condition_formula' ? '点击查看候选' : '双击添加公式');
+      const hint = c.isCandidate
+        ? (hasCfg && cfg.enable_candidate ? '点击查看候选零件' : '—')
+        : (val ? '双击编辑' : '双击添加公式');
       const escVal = val.replace(/'/g,"\\'").replace(/"/g,'&quot;');
-      var cellAttrs = hasCfg && cfg.enable_candidate && c.key === 'condition_formula'
-        ? ' class="pbs-formula-cell" onclick="showCandidateModal(' + cfg.id + ')"'
+      var cellAttrs = c.isCandidate
+        ? (hasCfg && cfg.enable_candidate ? ' class="pbs-candidate-cell cursor-pointer" onclick="showCandidateModal(' + cfg.id + ')"' : ' class="pbs-candidate-cell"')
         : ' class="pbs-formula-cell" ondblclick="openCellEditor(' + item.pk + ",'" + c.key + "','" + escVal + "'," + (c.isQty ? 'true' : 'false') + ',' + (c.isQty ? staticQty : '0') + ')"';
       rowHtml += '<td><div' + cellAttrs + ' title="' + hint + '">' + display + '<span class="fmla-hint">' + hint + '</span></div></td>';
     }
 
     const escName = subPartName.replace(/'/g,"\\'");
     const escIpn = (subPartRef || '').replace(/'/g,"\\'");
-    rowHtml += '<td class="text-center"><button class="text-red-400 hover:text-red-600 text-xs p-1 rounded hover:bg-red-50" onclick="resetBomConfig(' + item.pk + ",'" + escName + "')" + '" title="从BOM移除">✕</button></td>';
-    rowHtml += '<td class="text-center"><button class="text-gray-400 hover:text-blue-600 text-xs p-1 rounded hover:bg-blue-50" onclick="copyBomItem(' + item.pk + ')" title="复制BOM项">📄</button></td></tr>';
+    rowHtml += '<td class="text-center"><button class="text-gray-400 hover:text-blue-600 text-xs p-1 rounded hover:bg-blue-50" onclick="copyBomItem(' + item.pk + ')" title="复制BOM项">📄</button></td>';
+    rowHtml += '<td class="text-center"><button class="text-red-400 hover:text-red-600 text-xs p-1 rounded hover:bg-red-50" onclick="resetBomConfig(' + item.pk + ",'" + escName + "')" + '" title="从BOM移除">✕</button></td></tr>';
     html += rowHtml;
   }
     html += '</tbody></table>';
   container.innerHTML = html;
 }
 
-// ── Copy BOM Item (async, full chain) ──
+// ── Copy BOM Item — full deep copy (all fields + param config + candidates + variant mapping) ──
 async function copyBomItem(bomItemPk) {
   var items = window.__bomItems || [];
   var item = null;
@@ -1140,7 +1156,7 @@ async function copyBomItem(bomItemPk) {
 
   setStatus('loading', '复制中...');
 
-  // Step 1: Create new BomItem via InvenTree core API
+  // ── Step 1: Create new BomItem (copy ALL writable fields) ──
   var bomResp;
   try {
     bomResp = await fetch('/api/bom/', {
@@ -1152,27 +1168,38 @@ async function copyBomItem(bomItemPk) {
         sub_part: item.sub_part,
         quantity: item.quantity || 1,
         reference: (item.reference || '') + ' (副本)',
+        optional: !!item.optional,
+        consumable: !!item.consumable,
+        allow_variants: !!item.allow_variants,
+        inherited: !!item.inherited,
+        note: item.note || '',
+        setup_quantity: item.setup_quantity || 0,
+        attrition: item.attrition || 0,
+        rounding_multiple: item.rounding_multiple || null,
+        raw_amount: item.raw_amount || '1',
       })
     });
   } catch(e) {
     setStatus('error', '网络错误: ' + e.message);
     return;
   }
-  
+
   var bomData;
   try { bomData = await bomResp.json(); } catch(e) { bomData = {}; }
-  
+
   if (!bomResp.ok) {
     var errMsg = bomData.error || bomData.detail || JSON.stringify(bomData).substring(0,120);
     setStatus('error', 'BOM项创建失败: ' + errMsg);
     return;
   }
-  
+
   var newBomItemId = bomData.pk || bomData.id;
   if (!newBomItemId) { setStatus('error', 'BOM项创建失败: 未返回ID'); return; }
 
-  // Step 2: Copy parametric config
+  // ── Step 2: Copy ParametricBomItem (if exists) ──
   var pcfg = window.__bomPcfgMap ? window.__bomPcfgMap[bomItemPk] : null;
+  var needRefresh = true;
+
   if (pcfg) {
     var cfgResp = await apiCall('POST', 'bom-item-config/', {
       bom_item: newBomItemId,
@@ -1189,20 +1216,25 @@ async function copyBomItem(bomItemPk) {
       price_formula: pcfg.price_formula || '',
       param_mapping: pcfg.param_mapping || {},
     });
-    
+
     if (cfgResp && cfgResp.error) {
-      setStatus('warning', 'BOM已复制，参数配置复制失败');
-      loadBomFormulaConfigs(configuratorPartId);
-      return;
-    }
-    
-    // Step 3: Copy candidates
-    if (pcfg.enable_candidate) {
-      var newPbiId = cfgResp ? (cfgResp.id || 0) : 0;
-      if (newPbiId) {
+      setStatus('warning', 'BOM已复制，参数配置复制失败，请手动修复');
+    } else {
+      // cfgResp = {error: false, data: {id: ...}}
+      var newPbiData = cfgResp && cfgResp.data;
+      var newPbiId = newPbiData ? (newPbiData.id || 0) : 0;
+
+      // ── Step 3: Copy candidate parts (if enabled) ──
+      if (pcfg.enable_candidate && newPbiId) {
         var oldPbiId = pcfg.id;
         var sourceCands = (window.__bomCandByPbi && window.__bomCandByPbi[oldPbiId]) || [];
-        
+        // Also try fetching fresh from backend in case client cache is stale
+        if (!sourceCands.length) {
+          var freshCandRes = await apiCall('GET', 'candidate-parts/?parametric_bom_item=' + oldPbiId);
+          if (!freshCandRes.error) {
+            sourceCands = Array.isArray(freshCandRes.data) ? freshCandRes.data : (freshCandRes.data.results || []);
+          }
+        }
         if (sourceCands.length > 0) {
           var candPromises = sourceCands.map(function(cand) {
             return apiCall('POST', 'candidate-parts/', {
@@ -1213,21 +1245,38 @@ async function copyBomItem(bomItemPk) {
               priority: cand.priority || 100,
             });
           });
-          
           await Promise.all(candPromises);
-          setStatus('success', '已复制（含候选零件）');
-          loadBomFormulaConfigs(configuratorPartId);
-          return;
         }
       }
+
+      // ── Step 4: Copy variant mapping (if enabled) ──
+      if (pcfg.enable_variant && newPbiId) {
+        var oldPbiId = pcfg.id;
+        var sourceVm = window.__bomVmByPbi ? window.__bomVmByPbi[oldPbiId] : null;
+        if (sourceVm) {
+          await apiCall('POST', 'variant-mappings/', {
+            parametric_bom_item: newPbiId,
+            template_part: sourceVm.template_part,
+            variant_part: sourceVm.variant_part || null,
+          });
+        }
+      }
+
+      setStatus('success', '已复制（含全部参数配置）');
     }
-    
-    setStatus('success', '已复制');
-    loadBomFormulaConfigs(configuratorPartId);
-    
   } else {
     setStatus('success', '已复制');
-    loadBomFormulaConfigs(configuratorPartId);
+  }
+
+  // ── Always refresh list (detect current page) ──
+  if (needRefresh) {
+    const pdBomList = document.getElementById('pd-bom-list');
+    const formulaList = document.getElementById('bom-formula-list');
+    if (pdBomList) {
+      loadPdBOMM();
+    } else if (formulaList) {
+      loadBomFormulaConfigs(configuratorPartId);
+    }
   }
 }
 
@@ -1249,8 +1298,27 @@ function showCandidateModal(pbiId) {
   var cands = _loadCandidateCache(pbiId);
   if (!cands.length) { setStatus('error', '没有候选零件数据'); return; }
 
+  // Find reference part for this PBI
+  var refName = '';
+  var refId = 0;
+  var pcfgMap = window.__bomPcfgMap || {};
+  var items = window.__bomItems || [];
+  for (var bomPk in pcfgMap) {
+    if (pcfgMap[bomPk].id === pbiId) {
+      for (var i = 0; i < items.length; i++) {
+        if (items[i].pk == bomPk) {
+          var sd = items[i].sub_part_detail || {};
+          refName = sd.name || '#' + items[i].sub_part;
+          refId = items[i].sub_part;
+          break;
+        }
+      }
+      break;
+    }
+  }
+
   var overlay = _getCandidateOverlay();
-  var html = _candidateModalHtml(pbiId, cands);
+  var html = _candidateModalHtml(pbiId, cands, refName, refId);
   overlay.innerHTML = html;
   overlay.classList.add('show');
 }
@@ -1271,7 +1339,7 @@ function _getCandidateOverlay() {
   return el;
 }
 
-function _candidateModalHtml(pbiId, cands) {
+function _candidateModalHtml(pbiId, cands, refName, refId) {
   var html = '<div class="modal-box" style="max-width:800px">';
   html += '<div class="flex items-center justify-between mb-3">';
   html += '<div><span class="font-semibold text-sm text-slate-800">🎯 候选零件列表</span>';
@@ -1280,6 +1348,9 @@ function _candidateModalHtml(pbiId, cands) {
   html += '<button class="btn btn-sm btn-primary text-[10px]" onclick="addCandidate(' + pbiId + ')">➕ 添加候选</button>';
   html += '<button onclick="closeCandidateModal()" class="text-gray-400 hover:text-gray-600 text-lg leading-none">&times;</button>';
   html += '</div></div>';
+  if (refName) {
+    html += '<div class="text-xs text-blue-500 mb-2">📎 参考零件: <span class="cursor-pointer hover:text-blue-700 underline decoration-dotted" onclick="openPartDetail(' + refId + ')">' + escHtml(refName) + '</span>（无匹配条件时使用此零件）</div>';
+  }
   html += '<div class="text-xs text-gray-400 mb-2">按 priority 升序检查，第一个匹配条件生效</div>';
   html += '<table class="w-full text-xs border-collapse"><thead><tr class="bg-slate-50">';
   html += '<th class="p-2 text-left font-semibold text-gray-600 border-b w-8">#</th>';

@@ -440,40 +440,44 @@ async function saveCellFormula() {
   }
 }
 
-function resetBomConfig(bomItemId, name) {
-  // 1) Delete VariantMapping if exists (dynamic item)
-  apiCall('GET', 'variant-mappings/?parametric_bom_item__bom_item=' + bomItemId).then(function(vmRes) {
-    if (!vmRes.error) {
-      var vms = Array.isArray(vmRes.data) ? vmRes.data : (vmRes.data.results || []);
-      if (vms.length) {
-        apiCall('DELETE', 'variant-mappings/' + vms[0].id + '/');
-      }
+async function resetBomConfig(bomItemId, name) {
+  if (!confirm(`确认从BOM中移除「${name}」？`)) return;
+  setStatus('loading', '移除中...');
+
+  // 1) Delete VariantMapping first
+  var vmRes = await apiCall('GET', 'variant-mappings/?parametric_bom_item__bom_item=' + bomItemId);
+  if (!vmRes.error) {
+    var vms = Array.isArray(vmRes.data) ? vmRes.data : (vmRes.data.results || []);
+    if (vms.length) {
+      await apiCall('DELETE', 'variant-mappings/' + vms[0].id + '/');
     }
-  });
-  // 2) Delete ParametricBomItem config if exists
-  apiCall('GET', `bom-item-config/?bom_item=${bomItemId}`).then(res => {
-    if (!res.error) {
-      const configs = Array.isArray(res.data) ? res.data : (res.data.results || []);
-      if (configs.length) {
-        apiCall('DELETE', `bom-item-config/${configs[0].id}/`);
-      }
+  }
+  // 2) Delete ParametricBomItem config next
+  var cfgRes = await apiCall('GET', 'bom-item-config/?bom_item=' + bomItemId);
+  if (!cfgRes.error) {
+    var configs = Array.isArray(cfgRes.data) ? cfgRes.data : (cfgRes.data.results || []);
+    if (configs.length) {
+      await apiCall('DELETE', 'bom-item-config/' + configs[0].id + '/');
     }
-  });
-  // 2) Delete the BomItem itself
-  fetch(`/api/bom/${bomItemId}/`, {
-    method: 'DELETE',
-    headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken()},
-    credentials: 'same-origin',
-  }).then(res => {
-    if (res.ok || res.status === 204) {
-      setStatus('success', `✅ 已移除「${name}」`);
-      loadPdBOMM();
+  }
+  // 3) Finally, delete the BomItem itself
+  try {
+    var delResp = await fetch('/api/bom/' + bomItemId + '/', {
+      method: 'DELETE',
+      headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken()},
+      credentials: 'same-origin',
+    });
+    if (delResp.ok || delResp.status === 204) {
+      setStatus('success', '✅ 已移除「' + name + '」');
+      // Refresh list
+      var pdBomList = document.getElementById('pd-bom-list');
+      if (pdBomList) { loadPdBOMM(); }
     } else {
       setStatus('error', '删除BOM项失败');
     }
-  }).catch(() => {
-    setStatus('error', '网络错误');
-  });
+  } catch(e) {
+    setStatus('error', '网络错误: ' + e.message);
+  }
 }
 
 // ── Add BOM Item ──
@@ -538,26 +542,8 @@ async function openAddBomItemModal() {
   renderAbPartList();
   openModal('modal-add-bom');
   const countEl = document.getElementById('ab-search-count');
-  if (countEl) countEl.textContent = '加载零件库中...';
-  try {
-    const res = await fetch('/api/part/?limit=10000&ordering=-creation_date', {
-      headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken()}, credentials: 'same-origin'
-    });
-    const data = res.ok ? (await res.json()) : [];
-    const all = Array.isArray(data) ? data : (data.results || []);
-    _allPartsCache = all.filter(function(p) { return p.pk != pid; });
-    // Auto-retry search if user already typed something while loading
-    const searchVal = (document.getElementById('ab-search').value || '').trim();
-    if (searchVal) {
-      doAbFilter(searchVal);
-    } else {
-      _abAllParts = _allPartsCache.slice(0, 200);
-      renderAbPartList();
-      if (countEl) countEl.textContent = '共 ' + _allPartsCache.length + ' 个零件';
-    }
-  } catch(e) {
-    if (countEl) countEl.textContent = '加载失败';
-  }
+  if (countEl) countEl.textContent = '输入关键字搜索零件';
+  // Don't load all parts upfront — use server-side search on filter
 }
 
 let _abSearchTimer = null;
@@ -569,29 +555,30 @@ function filterAbParts(value) {
 function doAbFilter(value) {
   const q = (value || '').trim().toLowerCase();
   const countEl = document.getElementById('ab-search-count');
-  
-  if (!_allPartsCache) {
-    if (countEl) countEl.textContent = '零件库加载中，请稍候...';
-    return;
-  }
-  
+  const sel = document.getElementById('ab-sub-part');
+
   if (!q) {
-    _abAllParts = _allPartsCache.slice(0, 200);
-    renderAbPartList();
-    if (countEl) countEl.textContent = `共 ${_allPartsCache.length} 个零件`;
+    sel.innerHTML = '<option value="">-- 输入关键字搜索零件 --</option>';
+    if (countEl) countEl.textContent = '输入关键字搜索零件';
+    _abAllParts = [];
     return;
   }
-  
-  const matched = _allPartsCache.filter(p =>
-    (p.name || p.full_name || '').toLowerCase().includes(q) ||
-    (p.ipn || p.IPN || '').toLowerCase().includes(q) ||
-    (p.description || '').toLowerCase().includes(q)
-  );
-  _abAllParts = matched.slice(0, 200);
-  renderAbPartList();
-  if (countEl) countEl.textContent = matched.length > 200
-    ? `找到 ${matched.length}+ 个零件，显示前 200`
-    : `找到 ${matched.length} 个零件`;
+
+  if (countEl) countEl.textContent = '搜索中...';
+  fetch('/api/part/?search=' + encodeURIComponent(q) + '&limit=200&ordering=name', {
+    headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken()}, credentials: 'same-origin'
+  }).then(function(res) {
+    return res.ok ? res.json() : {results: []};
+  }).then(function(data) {
+    var results = Array.isArray(data) ? data : (data.results || []);
+    _abAllParts = results;
+    renderAbPartList();
+    if (countEl) countEl.textContent = results.length
+      ? '找到 ' + results.length + ' 个零件' + (results.length >= 200 ? '+' : '')
+      : '未找到匹配的零件';
+  }).catch(function() {
+    if (countEl) countEl.textContent = '搜索失败';
+  });
 }
 
 function renderAbPartList() {
