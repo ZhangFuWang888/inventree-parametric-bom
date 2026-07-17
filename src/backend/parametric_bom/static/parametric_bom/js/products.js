@@ -1143,49 +1143,203 @@ function syncPcNumSlider(cfgId, val) {
 
 // ── Candidate Parts Modal ──
 function showCandidateModal(pbiId) {
-  var cands = (window.__bomCandByPbi && window.__bomCandByPbi[pbiId]) || [];
+  var cands = _loadCandidateCache(pbiId);
   if (!cands.length) { setStatus('error', '没有候选零件数据'); return; }
 
-  var pcfg = null;
-  for (var k in window.__bomPcfgMap) {
-    if (window.__bomPcfgMap[k] && window.__bomPcfgMap[k].id === pbiId) {
-      pcfg = window.__bomPcfgMap[k];
-      break;
-    }
-  }
-  var partName = pcfg ? (pcfg.sub_part_name || 'BOM项') : 'BOM项';
+  var overlay = _getCandidateOverlay();
+  var html = _candidateModalHtml(pbiId, cands);
+  overlay.innerHTML = html;
+  overlay.classList.add('show');
+}
 
-  var overlay = document.getElementById('candidate-modal-overlay');
+function _loadCandidateCache(pbiId) {
+  return (window.__bomCandByPbi && window.__bomCandByPbi[pbiId]) || [];
+}
+
+function _getCandidateOverlay() {
+  var el = document.getElementById('candidate-modal-overlay');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'candidate-modal-overlay';
+    el.className = 'modal-overlay';
+    el.onclick = function(e) { if (e.target === el) el.classList.remove('show'); };
+    document.body.appendChild(el);
+  }
+  return el;
+}
+
+function _candidateModalHtml(pbiId, cands) {
+  var html = '<div class="modal-box" style="max-width:800px">';
+  html += '<div class="flex items-center justify-between mb-3">';
+  html += '<div><span class="font-semibold text-sm text-slate-800">🎯 候选零件列表</span>';
+  html += '<span class="text-xs text-gray-400 ml-2">共 ' + cands.length + ' 个</span></div>';
+  html += '<div class="flex items-center gap-2">';
+  html += '<button class="btn btn-sm btn-primary text-[10px]" onclick="addCandidate(' + pbiId + ')">➕ 添加候选</button>';
+  html += '<button onclick="closeCandidateModal()" class="text-gray-400 hover:text-gray-600 text-lg leading-none">&times;</button>';
+  html += '</div></div>';
+  html += '<div class="text-xs text-gray-400 mb-2">按 priority 升序检查，第一个匹配条件生效</div>';
+  html += '<table class="w-full text-xs border-collapse"><thead><tr class="bg-slate-50">';
+  html += '<th class="p-2 text-left font-semibold text-gray-600 border-b w-8">#</th>';
+  html += '<th class="p-2 text-left font-semibold text-gray-600 border-b">候选零件</th>';
+  html += '<th class="p-2 text-left font-semibold text-gray-600 border-b">条件公式</th>';
+  html += '<th class="p-2 text-center font-semibold text-gray-600 border-b w-20">操作</th>';
+  html += '</tr></thead><tbody>';
+
+  for (var i = 0; i < cands.length; i++) {
+    var cand = cands[i];
+    var escCond = escHtml(cand.condition_formula || '');
+    html += '<tr class="border-b border-gray-50 hover:bg-gray-50/50" id="cand-row-' + cand.id + '">';
+    html += '<td class="p-2 text-gray-400">' + (i + 1) + '</td>';
+    html += '<td class="p-2 font-medium text-gray-700">' + escHtml(cand.part_name) + '</td>';
+    html += '<td class="p-2">';
+    html += '<div class="flex items-center gap-1">';
+    html += '<input class="cand-cond-input" id="cand-cond-' + cand.id + '" value="' + escCond + '"';
+    html += ' style="width:100%;padding:2px 6px;border:1px solid #e2e8f0;border-radius:4px;font-size:10px;font-family:monospace;color:#d97706;background:#fff"';
+    html += ' onchange="_candidateCondChanged(' + cand.id + ',' + pbiId + ')"';
+    html += ' onkeydown="if(event.key==\'Enter\')this.blur()">';
+    html += '</div></td>';
+    html += '<td class="p-2 text-center whitespace-nowrap">';
+    html += '<button class="text-red-400 hover:text-red-600 text-xs px-1.5 py-0.5 rounded hover:bg-red-50" onclick="deleteCandidate(' + cand.id + ',' + pbiId + ')" title="删除">🗑️</button>';
+    html += '</td></tr>';
+  }
+  html += '</tbody></table></div>';
+  return html;
+}
+
+function closeCandidateModal() {
+  var el = document.getElementById('candidate-modal-overlay');
+  if (el) el.classList.remove('show');
+}
+
+function _candidateCondChanged(candId, pbiId) {
+  var input = document.getElementById('cand-cond-' + candId);
+  if (!input) return;
+  var val = input.value.trim();
+  apiCall('PATCH', 'candidate-parts/' + candId + '/', {condition_formula: val}).then(function(res) {
+    if (res.error) { setStatus('error', '保存失败'); return; }
+    // Update cache
+    var cands = _loadCandidateCache(pbiId);
+    for (var i = 0; i < cands.length; i++) {
+      if (cands[i].id === candId) { cands[i].condition_formula = val; break; }
+    }
+    setStatus('success', '条件已更新');
+  });
+}
+
+function deleteCandidate(candId, pbiId) {
+  if (!confirm('确定删除这个候选零件？')) return;
+  apiCall('DELETE', 'candidate-parts/' + candId + '/').then(function(res) {
+    if (res.error) { setStatus('error', '删除失败'); return; }
+    // Update cache
+    var cands = _loadCandidateCache(pbiId);
+    var idx = -1;
+    for (var i = 0; i < cands.length; i++) {
+      if (cands[i].id === candId) { idx = i; break; }
+    }
+    if (idx >= 0) cands.splice(idx, 1);
+    // Refresh modal
+    showCandidateModal(pbiId);
+    setStatus('success', '已删除');
+  });
+}
+
+function addCandidate(pbiId) {
+  // Build part selector from existing parts data or fetch
+  var overlay = document.getElementById('candidate-add-overlay');
   if (!overlay) {
     overlay = document.createElement('div');
-    overlay.id = 'candidate-modal-overlay';
+    overlay.id = 'candidate-add-overlay';
     overlay.className = 'modal-overlay';
     overlay.onclick = function(e) { if (e.target === overlay) overlay.classList.remove('show'); };
     document.body.appendChild(overlay);
   }
 
-  var html = '<div class="modal-box" style="max-width:800px">';
-  html += '<div class="flex items-center justify-between mb-3">';
-  html += '<div><span class="font-semibold text-sm text-slate-800">🎯 候选零件列表</span>';
-  html += '<span class="text-xs text-gray-400 ml-2">' + partName + '</span></div>';
-  html += '<button onclick="document.getElementById(\'candidate-modal-overlay\').classList.remove(\'show\')" class="text-gray-400 hover:text-gray-600 text-lg leading-none">&times;</button>';
-  html += '</div>';
-  html += '<div class="text-xs text-gray-400 mb-2">按 priority 升序检查，第一个匹配条件生效</div>';
-  html += '<table class="w-full text-xs border-collapse"><thead><tr class="bg-slate-50">';
-  html += '<th class="p-2 text-left font-semibold text-gray-600 border-b">#</th>';
-  html += '<th class="p-2 text-left font-semibold text-gray-600 border-b">候选零件</th>';
-  html += '<th class="p-2 text-left font-semibold text-gray-600 border-b">条件公式</th>';
-  html += '</tr></thead><tbody>';
+  // Fetch available parts (立柱类的模板零件)
+  apiCall('GET', 'candidate-parts/?parametric_bom_item=' + pbiId).then(function(res) {
+    if (res.error) { setStatus('error', '加载失败'); return; }
+    var existing = Array.isArray(res.data) ? res.data : (res.data.results || []);
+    var existingIds = {};
+    existing.forEach(function(c) { existingIds[c.part] = true; });
 
-  for (var i = 0; i < cands.length; i++) {
-    var cand = cands[i];
-    html += '<tr class="border-b border-gray-50 hover:bg-gray-50/50">';
-    html += '<td class="p-2 text-gray-400">' + (i + 1) + '</td>';
-    html += '<td class="p-2 font-medium text-gray-700">' + escHtml(cand.part_name) + '</td>';
-    html += '<td class="p-2 font-mono text-amber-600 text-[10px]">' + escHtml(cand.condition_formula || '—') + '</td>';
-    html += '</tr>';
-  }
-  html += '</tbody></table></div>';
-  overlay.innerHTML = html;
-  overlay.classList.add('show');
+    // Fetch all candidate-worthy parts (立柱-*)
+    fetch('/api/part/?search=立柱-&is_template=True&limit=200', {
+      headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken()},
+      credentials: 'same-origin'
+    }).then(function(r) { return r.json(); }).then(function(data) {
+      var parts = data.results || data || [];
+      var html = '<div class="modal-box" style="max-width:700px">';
+      html += '<div class="flex items-center justify-between mb-3">';
+      html += '<span class="font-semibold text-sm text-slate-800">➕ 添加候选零件</span>';
+      html += '<button onclick="document.getElementById(\'candidate-add-overlay\').classList.remove(\'show\')" class="text-gray-400 hover:text-gray-600 text-lg leading-none">&times;</button>';
+      html += '</div>';
+
+      html += '<div class="mb-2">';
+      html += '<label class="text-xs text-gray-500 block mb-1">选择零件</label>';
+      html += '<select id="cand-add-part" class="input-field" style="font-size:0.75rem">';
+      html += '<option value="">-- 请选择 --</option>';
+      for (var i = 0; i < parts.length; i++) {
+        var p = parts[i];
+        var disabled = existingIds[p.pk] ? ' disabled' : '';
+        var note = existingIds[p.pk] ? ' (已存在)' : '';
+        html += '<option value="' + p.pk + '"' + disabled + '>' + escHtml(p.name || '#parts[i].pk') + note + '</option>';
+      }
+      html += '</select></div>';
+
+      html += '<div class="mb-2">';
+      html += '<label class="text-xs text-gray-500 block mb-1">条件公式</label>';
+      html += '<input class="input-field" id="cand-add-cond" placeholder="例如: param.立柱规格 = &quot;120*85-2（21折面）&quot;" style="font-size:0.75rem;font-family:monospace">';
+      html += '</div>';
+
+      html += '<div class="flex justify-end gap-2 mt-3">';
+      html += '<button class="btn btn-secondary btn-sm" onclick="document.getElementById(\'candidate-add-overlay\').classList.remove(\'show\')">取消</button>';
+      html += '<button class="btn btn-primary btn-sm" onclick="saveNewCandidate(' + pbiId + ')">保存</button>';
+      html += '</div></div>';
+      overlay.innerHTML = html;
+      overlay.classList.add('show');
+    }).catch(function() {
+      // Fallback: simple input for part ID
+      var html = '<div class="modal-box" style="max-width:500px">';
+      html += '<div class="flex items-center justify-between mb-3">';
+      html += '<span class="font-semibold text-sm text-slate-800">➕ 添加候选零件</span>';
+      html += '<button onclick="document.getElementById(\'candidate-add-overlay\').classList.remove(\'show\')" class="text-gray-400 hover:text-gray-600 text-lg leading-none">&times;</button>';
+      html += '</div>';
+      html += '<div class="mb-2"><label class="text-xs text-gray-500 block mb-1">零件ID</label>';
+      html += '<input class="input-field" id="cand-add-part" placeholder="输入零件ID，如 2798" style="font-size:0.75rem"></div>';
+      html += '<div class="mb-2"><label class="text-xs text-gray-500 block mb-1">条件公式</label>';
+      html += '<input class="input-field" id="cand-add-cond" placeholder="param.立柱规格 = ..." style="font-size:0.75rem;font-family:monospace"></div>';
+      html += '<div class="flex justify-end gap-2 mt-3">';
+      html += '<button class="btn btn-secondary btn-sm" onclick="document.getElementById(\'candidate-add-overlay\').classList.remove(\'show\')">取消</button>';
+      html += '<button class="btn btn-primary btn-sm" onclick="saveNewCandidate(' + pbiId + ')">保存</button>';
+      html += '</div></div>';
+      overlay.innerHTML = html;
+      overlay.classList.add('show');
+    });
+  });
+}
+
+function saveNewCandidate(pbiId) {
+  var partEl = document.getElementById('cand-add-part');
+  var condEl = document.getElementById('cand-add-cond');
+  if (!partEl || !partEl.value) { setStatus('error', '请选择零件'); return; }
+  var partId = parseInt(partEl.value);
+  var condition = condEl ? condEl.value.trim() : '';
+
+  apiCall('POST', 'candidate-parts/', {
+    parametric_bom_item: pbiId,
+    part: partId,
+    condition_formula: condition,
+    priority: 999
+  }).then(function(res) {
+    if (res.error) { setStatus('error', '添加失败: ' + (res.error_message || JSON.stringify(res.error))); return; }
+    // Close add modal
+    document.getElementById('candidate-add-overlay').classList.remove('show');
+    // Refresh cache
+    apiCall('GET', 'candidate-parts/?parametric_bom_item=' + pbiId + '&ordering=priority').then(function(r) {
+      if (!r.error) {
+        window.__bomCandByPbi[pbiId] = Array.isArray(r.data) ? r.data : (r.data.results || []);
+      }
+      showCandidateModal(pbiId);
+      setStatus('success', '已添加');
+    });
+  });
 }
