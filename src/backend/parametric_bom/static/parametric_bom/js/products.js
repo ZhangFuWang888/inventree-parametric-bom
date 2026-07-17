@@ -1128,112 +1128,107 @@ function renderBOMTable(items, pcfgMap, vmByPbi, candByPbi) {
   container.innerHTML = html;
 }
 
-// ── Copy BOM Item ──
-function copyBomItem(bomItemPk) {
+// ── Copy BOM Item (async, full chain) ──
+async function copyBomItem(bomItemPk) {
   var items = window.__bomItems || [];
   var item = null;
   for (var i = 0; i < items.length; i++) {
     if (items[i].pk === bomItemPk || items[i].id === bomItemPk) { item = items[i]; break; }
   }
   if (!item) { setStatus('error', '未找到BOM项'); return; }
-
   if (!configuratorPartId) { setStatus('error', '请先选择产品'); return; }
 
   setStatus('loading', '复制中...');
 
-  // Step 1: Create new BomItem
-  fetch('/api/bom/', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken()},
-    credentials: 'same-origin',
-    body: JSON.stringify({
-      part: configuratorPartId,
-      sub_part: item.sub_part,
-      quantity: item.quantity || 1,
-      reference: (item.reference || '') + ' (副本)',
-    })
-  })
-  .then(function(r) { return r.json().then(function(d) { return {ok: r.ok, data: d}; }); })
-  .then(function(res) {
-    if (!res.ok) {
-      var errMsg = res.data.error || res.data.detail || JSON.stringify(res.data).substring(0,120);
-      setStatus('error', '复制失败: ' + errMsg);
-      return;
-    }
-    var newBomItemId = res.data.pk || res.data.id;
-    if (!newBomItemId) { setStatus('error', '复制失败: 未返回新BomItem ID'); return; }
-
-    // Step 2: Copy parametric config if exists
-    var pcfg = window.__bomPcfgMap ? window.__bomPcfgMap[bomItemPk] : null;
-    if (pcfg) {
-      apiCall('POST', 'bom-item-config/', {
-        bom_item: newBomItemId,
-        enable_qty_formula: !!pcfg.enable_qty_formula,
-        qty_formula: pcfg.qty_formula || '',
-        enable_conditional: !!pcfg.enable_conditional,
-        condition_formula: pcfg.condition_formula || '',
-        enable_candidate: !!pcfg.enable_candidate,
-        enable_variant: !!pcfg.enable_variant,
-        enable_specification: !!pcfg.enable_specification,
-        enable_structure: !!pcfg.enable_structure,
-        name_formula: pcfg.name_formula || '',
-        reference_formula: pcfg.reference_formula || '',
-        price_formula: pcfg.price_formula || '',
-        param_mapping: pcfg.param_mapping || {},
-      }).then(function(cfgRes) {
-        if (cfgRes.error) {
-          setStatus('warning', 'BOM已复制，参数配置复制失败');
-        } else {
-          setStatus('success', '已复制');
-        }
-        // Step 3: Copy candidates if source had them
-        copyCandidatesIfNeeded(pcfg, newBomItemId, configuratorPartId);
-      });
-    } else {
-      setStatus('success', '已复制');
-      loadBomFormulaConfigs(configuratorPartId);
-    }
-  })
-  .catch(function(err) {
-    setStatus('error', '复制失败: ' + (err.message || err));
-  });
-}
-
-function copyCandidatesIfNeeded(pcfg, newBomItemId, partId) {
-  if (!pcfg || !pcfg.enable_candidate) {
-    // No candidates to copy, just refresh
-    loadBomFormulaConfigs(partId);
+  // Step 1: Create new BomItem via InvenTree core API
+  var bomResp;
+  try {
+    bomResp = await fetch('/api/bom/', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken()},
+      credentials: 'same-origin',
+      body: JSON.stringify({
+        part: configuratorPartId,
+        sub_part: item.sub_part,
+        quantity: item.quantity || 1,
+        reference: (item.reference || '') + ' (副本)',
+      })
+    });
+  } catch(e) {
+    setStatus('error', '网络错误: ' + e.message);
     return;
   }
-  // Find the new parametric config that was just created
-  apiCall('GET', 'bom-item-config/?bom_item=' + newBomItemId).then(function(r) {
-    if (r.error || !r.data) { loadBomFormulaConfigs(partId); return; }
-    var newPcfgList = Array.isArray(r.data) ? r.data : (r.data.results || []);
-    var newPcfg = newPcfgList[0];
-    if (!newPcfg || !newPcfg.id) { loadBomFormulaConfigs(partId); return; }
-    var newPbiId = newPcfg.id;
+  
+  var bomData;
+  try { bomData = await bomResp.json(); } catch(e) { bomData = {}; }
+  
+  if (!bomResp.ok) {
+    var errMsg = bomData.error || bomData.detail || JSON.stringify(bomData).substring(0,120);
+    setStatus('error', 'BOM项创建失败: ' + errMsg);
+    return;
+  }
+  
+  var newBomItemId = bomData.pk || bomData.id;
+  if (!newBomItemId) { setStatus('error', 'BOM项创建失败: 未返回ID'); return; }
 
-    // Get source candidates
-    var oldPbiId = pcfg.id;
-    var sourceCands = (window.__bomCandByPbi && window.__bomCandByPbi[oldPbiId]) || [];
-    if (sourceCands.length === 0) { loadBomFormulaConfigs(partId); return; }
-
-    // Copy each candidate
-    var promises = sourceCands.map(function(cand) {
-      return apiCall('POST', 'candidate-parts/', {
-        parametric_bom_item: newPbiId,
-        part: cand.part,
-        label: cand.label || '',
-        condition_formula: cand.condition_formula || '',
-        priority: cand.priority || 100,
-      });
+  // Step 2: Copy parametric config
+  var pcfg = window.__bomPcfgMap ? window.__bomPcfgMap[bomItemPk] : null;
+  if (pcfg) {
+    var cfgResp = await apiCall('POST', 'bom-item-config/', {
+      bom_item: newBomItemId,
+      enable_qty_formula: !!pcfg.enable_qty_formula,
+      qty_formula: pcfg.qty_formula || '',
+      enable_conditional: !!pcfg.enable_conditional,
+      condition_formula: pcfg.condition_formula || '',
+      enable_candidate: !!pcfg.enable_candidate,
+      enable_variant: !!pcfg.enable_variant,
+      enable_specification: !!pcfg.enable_specification,
+      enable_structure: !!pcfg.enable_structure,
+      name_formula: pcfg.name_formula || '',
+      reference_formula: pcfg.reference_formula || '',
+      price_formula: pcfg.price_formula || '',
+      param_mapping: pcfg.param_mapping || {},
     });
-
-    Promise.all(promises).then(function() {
-      setStatus('success', '已复制（含候选零件）');
-      loadBomFormulaConfigs(partId);
-    });
-  });
+    
+    if (cfgResp && cfgResp.error) {
+      setStatus('warning', 'BOM已复制，参数配置复制失败');
+      loadBomFormulaConfigs(configuratorPartId);
+      return;
+    }
+    
+    // Step 3: Copy candidates
+    if (pcfg.enable_candidate) {
+      var newPbiId = cfgResp ? (cfgResp.id || 0) : 0;
+      if (newPbiId) {
+        var oldPbiId = pcfg.id;
+        var sourceCands = (window.__bomCandByPbi && window.__bomCandByPbi[oldPbiId]) || [];
+        
+        if (sourceCands.length > 0) {
+          var candPromises = sourceCands.map(function(cand) {
+            return apiCall('POST', 'candidate-parts/', {
+              parametric_bom_item: newPbiId,
+              part: cand.part,
+              label: cand.label || '',
+              condition_formula: cand.condition_formula || '',
+              priority: cand.priority || 100,
+            });
+          });
+          
+          await Promise.all(candPromises);
+          setStatus('success', '已复制（含候选零件）');
+          loadBomFormulaConfigs(configuratorPartId);
+          return;
+        }
+      }
+    }
+    
+    setStatus('success', '已复制');
+    loadBomFormulaConfigs(configuratorPartId);
+    
+  } else {
+    setStatus('success', '已复制');
+    loadBomFormulaConfigs(configuratorPartId);
+  }
 }
 
 // ── Param Card: sync slider → number input ──
