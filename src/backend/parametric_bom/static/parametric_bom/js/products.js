@@ -364,6 +364,30 @@ function markDirty(cfgId, updates) {
   __hasDirty = true;
   __dirtyAreas.add('params');
   showDirtyButtons();
+  
+  // ⏱ Auto-save after 1.2s debounce
+  if (window.__autoSaveTimer) clearTimeout(window.__autoSaveTimer);
+  window.__autoSaveTimer = setTimeout(async function() {
+    const entries = Object.entries(__dirtyUpdates);
+    if (!entries.length) return;
+    const btn = document.getElementById('btn-save-params');
+    const origText = btn ? btn.textContent : '';
+    if (btn) { btn.disabled = true; btn.textContent = '⏳ 保存中...'; }
+    let ok = 0;
+    for (const [cid, upd] of entries) {
+      const r = await apiCall('PATCH', 'part-config/' + cid + '/', upd);
+      if (!r.error) {
+        const c = (window.__paramConfigs || []).find(x => x.id == cid);
+        if (c) Object.assign(c, upd);
+        ok++;
+      }
+    }
+    if (btn) { btn.disabled = false; btn.textContent = origText || '💾 保存修改'; }
+    if (ok > 0) {
+      clearDirty();
+      setStatus('success', '💾 已自动保存 ' + ok + ' 项');
+    }
+  }, 1200);
 }
 
 function syncSliderRange(el, field) {
@@ -392,6 +416,10 @@ function clearDirty() {
   __hasDirty = false;
   __dirtyAreas.clear();
   showDirtyButtons();
+  if (window.__autoSaveTimer) {
+    clearTimeout(window.__autoSaveTimer);
+    window.__autoSaveTimer = null;
+  }
 }
 
 function markAreaDirty(area) {
@@ -425,6 +453,12 @@ function confirmDiscardChanges(message) {
 }
 
 async function saveAllParams() {
+  // Cancel any pending auto-save
+  if (window.__autoSaveTimer) {
+    clearTimeout(window.__autoSaveTimer);
+    window.__autoSaveTimer = null;
+  }
+  
   const entries = Object.entries(__dirtyUpdates);
   if (!entries.length) {
     setStatus('info', '💡 当前没有需要保存的修改');
@@ -557,6 +591,7 @@ function renderParamCard(cfg, idx) {
       <div class="pc-opts-editor" id="pc-opts-${cfgId}">
         ${opts.map(o => `<span class="pc-opt-tag">${o}<span class="pc-opt-del" onclick="removeOption(${cfgId},'${o.replace(/'/g,"\\'")}')">✕</span></span>`).join('')}
         <span class="pc-opt-add-inline" onclick="startAddOption(${cfgId})">➕ 选项</span>
+        <span class="pc-opt-add-inline" onclick="openBatchImport(${cfgId})" style="margin-left:2px;padding:2px 5px;background:#f0f9ff;color:#2563eb;border:1px dashed #93c5fd;border-radius:4px;font-size:0.65rem">📋 批量</span>
       </div>
     </div>`;
     
@@ -574,6 +609,7 @@ function renderParamCard(cfg, idx) {
       <div class="pc-opts-editor">
         ${opts.map(o => `<span class="pc-opt-tag">${o}<span class="pc-opt-del" onclick="removeOption(${cfgId},'${o.replace(/'/g,"\\'")}')">✕</span></span>`).join('')}
         <span class="pc-opt-add-inline" onclick="startAddOption(${cfgId})">➕ 选项</span>
+        <span class="pc-opt-add-inline" onclick="openBatchImport(${cfgId})" style="margin-left:2px;padding:2px 5px;background:#f0f9ff;color:#2563eb;border:1px dashed #93c5fd;border-radius:4px;font-size:0.65rem">📋 批量</span>
       </div>
     </div>`;
     
@@ -777,6 +813,73 @@ function updateMultiDefault(cfgId, mark) {
   showDirtyButtons();
 }
 
+// ── Batch Options Import ──
+let _batchImportCfgId = null;
+
+function openBatchImport(cfgId) {
+  _batchImportCfgId = cfgId;
+  const cfg = window.__paramConfigs.find(c => c.id === cfgId);
+  if (!cfg) { setStatus('error', '参数配置未找到'); return; }
+  const ta = document.getElementById('batch-options-textarea');
+  if (ta) ta.value = '';
+  updateBatchPreview();
+  openModal('modal-batch-options');
+}
+
+function updateBatchPreview() {
+  const ta = document.getElementById('batch-options-textarea');
+  if (!ta) return;
+  const lines = ta.value.split('\n').map(s => s.trim()).filter(Boolean);
+  const countEl = document.getElementById('batch-count');
+  if (countEl) countEl.textContent = lines.length;
+  
+  const cfg = window.__paramConfigs.find(c => c.id === _batchImportCfgId);
+  const existingEl = document.getElementById('batch-existing');
+  if (existingEl && cfg) {
+    const existing = (cfg.options || []).filter(o => lines.includes(o));
+    existingEl.textContent = existing.length > 0
+      ? (existing.length + ' 个已存在，将跳过')
+      : '';
+  } else if (existingEl) {
+    existingEl.textContent = '';
+  }
+}
+
+function batchImportOptions() {
+  const cfgId = _batchImportCfgId;
+  if (!cfgId) { setStatus('error', '参数ID丢失'); return; }
+  const cfg = window.__paramConfigs.find(c => c.id === cfgId);
+  if (!cfg) { setStatus('error', '参数配置未找到'); return; }
+  
+  const ta = document.getElementById('batch-options-textarea');
+  if (!ta) return;
+  const lines = ta.value.split('\n').map(s => s.trim()).filter(Boolean);
+  if (!lines.length) { setStatus('error', '请至少输入一个选项'); return; }
+  
+  const existing = cfg.options || [];
+  const newOptions = lines.filter(o => !existing.includes(o));
+  
+  if (!newOptions.length) {
+    setStatus('error', '所有选项都已存在');
+    return;
+  }
+  
+  const merged = [...existing, ...newOptions];
+  cfg.options = merged;
+  markDirty(cfgId, {options: merged});
+  showDirtyButtons();
+  closeModal('modal-batch-options');
+  
+  setStatus('success', `✅ 已导入 ${newOptions.length} 个选项`);
+  
+  // Re-render the param card to show new tags
+  const sorted = window.__paramConfigs.sort((a,b)=>(a.display_order||0)-(b.display_order||0));
+  const canvas = document.getElementById('pd-params-canvas');
+  if (canvas) {
+    canvas.innerHTML = sorted.map((c,i)=>renderParamCard(c,i)).join('');
+  }
+}
+
 // ── Description editor ──
 function startEditDesc(cfgId, el) {
   const textEl = el.querySelector('.pc-desc-text');
@@ -842,16 +945,33 @@ async function loadPdBOMM() {
   var vmByPbi = {};
   vmData.forEach(function(v) { vmByPbi[v.parametric_bom_item] = v; });
   
+  // Fetch candidates for candidate-enabled BOM items
+  var candByPbi = {};
+  var candidatePbiIds = pcfgs.filter(function(c) { return c.enable_candidate; }).map(function(c) { return c.id; });
+  if (candidatePbiIds.length > 0) {
+    var candPromises = candidatePbiIds.map(function(pbiId) {
+      return apiCall('GET', 'candidate-parts/?parametric_bom_item=' + pbiId + '&ordering=priority');
+    });
+    var candResults = await Promise.all(candPromises);
+    candResults.forEach(function(res, idx) {
+      if (!res.error) {
+        var cands = Array.isArray(res.data) ? res.data : (res.data.results || []);
+        candByPbi[candidatePbiIds[idx]] = cands;
+      }
+    });
+  }
+  
   // Store globally for search filtering
   window.__bomItems = items;
   window.__bomPcfgMap = pcfgMap;
   window.__bomVmByPbi = vmByPbi;
+  window.__bomCandByPbi = candByPbi;
   
   // Clear search input on fresh load
   const searchInput = document.getElementById('bom-search-input');
   if (searchInput) searchInput.value = '';
   
-  renderBOMTable(items, pcfgMap, vmByPbi);
+  renderBOMTable(items, pcfgMap, vmByPbi, candByPbi);
   if (countBadge) countBadge.textContent = '共 ' + items.length + ' 项';
 }
 
@@ -883,11 +1003,11 @@ function filterBOMList() {
     if (filterCount) filterCount.textContent = filtered.length + '/' + items.length;
   }
   
-  renderBOMTable(filtered, pcfgMap, vmByPbi);
+  renderBOMTable(filtered, pcfgMap, vmByPbi, window.__bomCandByPbi || {});
   if (countBadge) countBadge.textContent = '共 ' + items.length + ' 项' + (q ? '（显示 ' + filtered.length + ' 项）' : '');
 }
 
-function renderBOMTable(items, pcfgMap, vmByPbi) {
+function renderBOMTable(items, pcfgMap, vmByPbi, candByPbi) {
   const container = document.getElementById('pd-bom-list');
   if (!items.length) {
     const q = (document.getElementById('bom-search-input').value || '').trim();
@@ -966,16 +1086,36 @@ function renderBOMTable(items, pcfgMap, vmByPbi) {
       let display;
       if (c.isQty) {
         if (val) {
-          display = '<span class="fmla-text" title="' + val.replace(/"/g,'&quot;') + '">×' + staticQty + ' → 📐 ' + val + '</span>';
+          display = '<span class="fmla-text" title="' + val.replace(/"/g,'&quot;') + '">\u00d7' + staticQty + ' \u2192 \ud83d\udcd0 ' + val + '</span>';
         } else {
-          display = '<span class="pbs-qty">×' + staticQty + '</span>';
+          display = '<span class="pbs-qty">\u00d7' + staticQty + '</span>';
+        }
+      } else if (c.key === 'condition_formula' && hasCfg && cfg.enable_candidate) {
+        var pbiId = cfg.id;
+        var cands = (candByPbi && candByPbi[pbiId]) || [];
+        if (cands.length > 0) {
+          display = '<span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 text-[10px] font-medium border border-amber-200 cursor-pointer" onclick="showCandidateModal(' + pbiId + ')" title="\u70b9\u51fb\u67e5\u770b\u5168\u90e8\u5019\u9009\u96f6\u4ef6">\ud83c\udfaf \u5019\u9009 ' + cands.length + '\u4e2a</span>';
+          display += '<div class="text-[9px] text-gray-400 mt-0.5 leading-relaxed">';
+          var showCands = cands.slice(0, 3);
+          for (var k = 0; k < showCands.length; k++) {
+            display += '<div><span class="font-medium text-gray-500">' + escHtml(showCands[k].part_name) + '</span> <span class="text-amber-500">\u2192</span> <span class="text-gray-400">' + (showCands[k].condition_formula || '\u2014') + '</span></div>';
+          }
+          if (cands.length > 3) {
+            display += '<div class="text-amber-500 mt-0.5">\u22ef \u8fd8\u6709 ' + (cands.length - 3) + ' \u4e2a</div>';
+          }
+          display += '</div>';
+        } else {
+          display = '<span class="text-amber-500 text-[10px]">\ud83c\udfaf \u5019\u9009 (\u65e0\u6570\u636e)</span>';
         }
       } else {
-        display = val ? '<span class="fmla-text" title="' + val.replace(/"/g,'&quot;') + '">' + val + '</span>' : '<span class="fmla-empty">—</span>';
+        display = val ? '<span class="fmla-text" title="' + val.replace(/"/g,'&quot;') + '">' + val + '</span>' : '<span class="fmla-empty">\u2014</span>';
       }
-      const hint = val ? '双击编辑' : '双击添加公式';
+      const hint = val ? '双击编辑' : (hasCfg && cfg.enable_candidate && c.key === 'condition_formula' ? '点击查看候选' : '双击添加公式');
       const escVal = val.replace(/'/g,"\\'").replace(/"/g,'&quot;');
-      rowHtml += '<td><div class="pbs-formula-cell" ondblclick="openCellEditor(' + item.pk + ",'" + c.key + "','" + escVal + "'," + (c.isQty ? 'true' : 'false') + ',' + (c.isQty ? staticQty : '0') + ')" title="' + hint + '">' + display + '<span class="fmla-hint">' + hint + '</span></div></td>';
+      var cellAttrs = hasCfg && cfg.enable_candidate && c.key === 'condition_formula'
+        ? ' class="pbs-formula-cell" onclick="showCandidateModal(' + cfg.id + ')"'
+        : ' class="pbs-formula-cell" ondblclick="openCellEditor(' + item.pk + ",'" + c.key + "','" + escVal + "'," + (c.isQty ? 'true' : 'false') + ',' + (c.isQty ? staticQty : '0') + ')"';
+      rowHtml += '<td><div' + cellAttrs + ' title="' + hint + '">' + display + '<span class="fmla-hint">' + hint + '</span></div></td>';
     }
 
     const escName = subPartName.replace(/'/g,"\\'");
@@ -999,4 +1139,53 @@ function syncPcNumSlider(cfgId, val) {
   const range = document.getElementById(`pc-range-${cfgId}`);
   if (range) range.value = val;
   markDirty(cfgId, {default_value: String(val)});
+}
+
+// ── Candidate Parts Modal ──
+function showCandidateModal(pbiId) {
+  var cands = (window.__bomCandByPbi && window.__bomCandByPbi[pbiId]) || [];
+  if (!cands.length) { setStatus('error', '没有候选零件数据'); return; }
+
+  var pcfg = null;
+  for (var k in window.__bomPcfgMap) {
+    if (window.__bomPcfgMap[k] && window.__bomPcfgMap[k].id === pbiId) {
+      pcfg = window.__bomPcfgMap[k];
+      break;
+    }
+  }
+  var partName = pcfg ? (pcfg.sub_part_name || 'BOM项') : 'BOM项';
+
+  var overlay = document.getElementById('candidate-modal-overlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'candidate-modal-overlay';
+    overlay.className = 'modal-overlay';
+    overlay.onclick = function(e) { if (e.target === overlay) overlay.classList.remove('show'); };
+    document.body.appendChild(overlay);
+  }
+
+  var html = '<div class="modal-box" style="max-width:800px">';
+  html += '<div class="flex items-center justify-between mb-3">';
+  html += '<div><span class="font-semibold text-sm text-slate-800">🎯 候选零件列表</span>';
+  html += '<span class="text-xs text-gray-400 ml-2">' + partName + '</span></div>';
+  html += '<button onclick="document.getElementById(\'candidate-modal-overlay\').classList.remove(\'show\')" class="text-gray-400 hover:text-gray-600 text-lg leading-none">&times;</button>';
+  html += '</div>';
+  html += '<div class="text-xs text-gray-400 mb-2">按 priority 升序检查，第一个匹配条件生效</div>';
+  html += '<table class="w-full text-xs border-collapse"><thead><tr class="bg-slate-50">';
+  html += '<th class="p-2 text-left font-semibold text-gray-600 border-b">#</th>';
+  html += '<th class="p-2 text-left font-semibold text-gray-600 border-b">候选零件</th>';
+  html += '<th class="p-2 text-left font-semibold text-gray-600 border-b">条件公式</th>';
+  html += '</tr></thead><tbody>';
+
+  for (var i = 0; i < cands.length; i++) {
+    var cand = cands[i];
+    html += '<tr class="border-b border-gray-50 hover:bg-gray-50/50">';
+    html += '<td class="p-2 text-gray-400">' + (i + 1) + '</td>';
+    html += '<td class="p-2 font-medium text-gray-700">' + escHtml(cand.part_name) + '</td>';
+    html += '<td class="p-2 font-mono text-amber-600 text-[10px]">' + escHtml(cand.condition_formula || '—') + '</td>';
+    html += '</tr>';
+  }
+  html += '</tbody></table></div>';
+  overlay.innerHTML = html;
+  overlay.classList.add('show');
 }

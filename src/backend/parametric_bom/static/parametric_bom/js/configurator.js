@@ -736,9 +736,11 @@ document.addEventListener('DOMContentLoaded', function() {
           quickAddTemplate(data.tplId, data.tplName);
         } else if (data && data.type) {
           const insertBeforeId = getInsertPosition(e.clientY);
-          addIndependentParam(data.type, insertBeforeId);
+          await addIndependentParam(data.type, insertBeforeId);
         }
-      } catch(err) {}
+      } catch(err) {
+        console.warn('Canvas drop error:', err);
+      }
     });
 
     // Global mouse move to update ghost position even when not over canvas
@@ -780,7 +782,8 @@ function getInsertPosition(mouseY) {
     const cardTop = rect.top - canvasRect.top;
     const cardMid = cardTop + rect.height / 2;
     if (relY < cardMid) {
-      return parseInt(card.dataset.configId);
+      const id = parseInt(card.dataset.configId);
+      return id;
     }
   }
   return null; // append at end
@@ -792,6 +795,26 @@ let _paramCounter = {};
 async function addIndependentParam(type, insertBeforeId) {
   const partId = configuratorPartId;
   if (!partId) { setStatus('error', '请先选择产品'); return; }
+
+  // ✅ Auto-save any pending changes first
+  if (typeof isAnyDirty === 'function' && isAnyDirty()) {
+    setStatus('info', '⏳ 正在自动保存修改...');
+    const btn = document.getElementById('btn-save-params');
+    if (btn) { btn.disabled = true; }
+    const entries = Object.entries(window.__dirtyUpdates || {});
+    let ok = 0;
+    for (const [cfgId, updates] of entries) {
+      const r = await apiCall('PATCH', 'part-config/' + cfgId + '/', updates);
+      if (!r.error) {
+        const c = (window.__paramConfigs || []).find(x => x.id == cfgId);
+        if (c) Object.assign(c, updates);
+        ok++;
+      }
+    }
+    if (btn) { btn.disabled = false; }
+    if (typeof clearDirty === 'function') clearDirty();
+    setStatus('success', '✅ 已自动保存 ' + ok + ' 项修改');
+  }
 
   // Generate unique name
   if (!_paramCounter[type]) _paramCounter[type] = 0;
@@ -807,17 +830,16 @@ async function addIndependentParam(type, insertBeforeId) {
     const idx = configs.findIndex(c => c.id === insertBeforeId);
     if (idx > 0) {
       // Between previous and target
-      const prev = configs[idx - 1].display_order || 0;
-      const next = configs[idx].display_order || 100;
+      const prev = configs[idx - 1].display_order != null ? configs[idx - 1].display_order : 0;
+      const next = configs[idx].display_order != null ? configs[idx].display_order : 100;
       displayOrder = Math.round((prev + next) / 2);
-      // If no space, re-number
       if (displayOrder <= prev) displayOrder = prev + 5;
     } else if (idx === 0) {
-      // Insert before first
-      displayOrder = Math.round((configs[0].display_order || 100) / 2) - 5;
-      if (displayOrder < 0) displayOrder = 5;
+      // Insert before first — calculate a value LESS than the first card's display_order
+      const firstOrder = configs[0].display_order != null ? configs[0].display_order : 100;
+      displayOrder = firstOrder - 10;
+      // Don't clamp to 5 — allow negative values (model supports them)
     }
-    // else idx === -1, append at end (default 100)
   }
 
   setStatus('loading', `正在创建「${paramName}」...`);
@@ -1492,30 +1514,35 @@ function onCardDragOver(event) {
 }
 
 async function onCardDrop(event, targetId) {
-  event.preventDefault();
-  _dragCardSourceId = null;
-  document.querySelectorAll('#pd-params-canvas .param-card').forEach(c => {
-    c.classList.remove('drag-over', 'dragging');
-  });
-
-  const rawData = event.dataTransfer.getData('text/plain');
-  if (!rawData) return;
-
-  // Case 1: Type library drop onto a card → create before this card
   try {
-    const parsed = JSON.parse(rawData);
-    if (parsed && parsed.type) {
-      await addIndependentParam(parsed.type, targetId);
-      return;
+    event.preventDefault();
+    event.stopPropagation();
+    _dragCardSourceId = null;
+    document.querySelectorAll('#pd-params-canvas .param-card').forEach(c => {
+      c.classList.remove('drag-over', 'dragging');
+    });
+  
+    const rawData = event.dataTransfer.getData('text/plain');
+    if (!rawData) return;
+  
+    // Case 1: Type library drop onto a card → create before this card
+    try {
+      const parsed = JSON.parse(rawData);
+      if (parsed && parsed.type) {
+        await addIndependentParam(parsed.type, targetId);
+        return;
+      }
+    } catch(e) {
+      // Not JSON — treat as reorder
     }
+  
+    // Case 2: Card reorder
+    const sourceId = parseInt(rawData);
+    if (!sourceId || isNaN(sourceId) || sourceId === targetId) return;
+    await reorderParams(sourceId, targetId);
   } catch(e) {
-    // Not JSON — treat as reorder
+    setStatus('error', '拖放失败: ' + e.message);
   }
-
-  // Case 2: Card reorder
-  const sourceId = parseInt(rawData);
-  if (!sourceId || isNaN(sourceId) || sourceId === targetId) return;
-  await reorderParams(sourceId, targetId);
 }
 
 function onCardDragEnd(event) {

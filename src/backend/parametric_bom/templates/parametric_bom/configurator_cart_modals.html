@@ -323,4 +323,32 @@
   </div>
 </div>
 
+<!-- ===== MODAL: Batch Import Options ===== -->
+<div class="modal-overlay" id="modal-batch-options" onclick="if(event.target===this){closeModal('modal-batch-options')}">
+  <div class="modal-box" style="max-width:420px">
+    <div class="flex items-center justify-between mb-3">
+      <h3 class="text-sm font-semibold text-gray-800">📋 批量导入选项</h3>
+      <button class="text-gray-400 hover:text-gray-600 text-lg leading-none" onclick="closeModal('modal-batch-options')">&times;</button>
+    </div>
+    <div class="mb-2">
+      <label class="block text-xs font-medium text-gray-500 mb-1">每行输入一个选项：</label>
+      <textarea class="input-field" id="batch-options-textarea" rows="8"
+        placeholder="红色&#10;蓝色&#10;绿色&#10;黄色"
+        style="width:100%;font-size:0.8rem;resize:vertical;font-family:monospace"
+        oninput="updateBatchPreview()"></textarea>
+    </div>
+    <div id="batch-options-preview" class="mb-3">
+      <div class="text-xs text-gray-400 flex items-center gap-1">
+        <span>共 <span id="batch-count">0</span> 个选项</span>
+        <span class="text-gray-300">|</span>
+        <span id="batch-existing" class="text-amber-500"></span>
+      </div>
+    </div>
+    <div class="flex justify-end gap-2">
+      <button class="btn btn-secondary" onclick="closeModal('modal-batch-options')">取消</button>
+      <button class="btn btn-primary" id="btn-batch-import" onclick="batchImportOptions()">导入选项</button>
+    </div>
+  </div>
+</div>
+
 <script>
