@@ -111,7 +111,18 @@ async function renderDashboard() {
 
 // ===== INIT ENHANCEMENT (overrides previous) =====
 document.addEventListener('DOMContentLoaded', async function() {
-  await loadParts();
+  // Standalone product page: skip loading all parts, fetch only the needed one
+  if (standalone && initialProductId) {
+    try {
+      const resp = await fetch('/api/part/' + initialProductId + '/', {credentials: 'same-origin'});
+      if (resp.ok) {
+        const data = await resp.json();
+        parts = [data];  // parts array with just this one product
+      }
+    } catch(e) {}
+  } else {
+    await loadParts();
+  }
   
   // Auto-load product from URL query parameter
   if (initialProductId) {
