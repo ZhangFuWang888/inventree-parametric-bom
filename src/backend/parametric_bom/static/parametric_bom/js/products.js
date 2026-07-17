@@ -1121,7 +1121,7 @@ function renderBOMTable(items, pcfgMap, vmByPbi, candByPbi) {
     const escName = subPartName.replace(/'/g,"\\'");
     const escIpn = (subPartRef || '').replace(/'/g,"\\'");
     rowHtml += '<td class="text-center"><button class="text-red-400 hover:text-red-600 text-xs p-1 rounded hover:bg-red-50" onclick="resetBomConfig(' + item.pk + ",'" + escName + "')" + '" title="从BOM移除">✕</button></td>';
-    rowHtml += '<td class="text-center"><button class="text-blue-400 hover:text-blue-600 text-xs p-1 rounded hover:bg-blue-50" onclick="copyBomItem(' + item.pk + ')" title="复制BOM项">📋</button></td></tr>';
+    rowHtml += '<td class="text-center"><button class="text-gray-400 hover:text-blue-600 text-xs p-1 rounded hover:bg-blue-50" onclick="copyBomItem(' + item.pk + ')" title="复制BOM项">📄</button></td></tr>';
     html += rowHtml;
   }
     html += '</tbody></table>';
@@ -1137,59 +1137,102 @@ function copyBomItem(bomItemPk) {
   }
   if (!item) { setStatus('error', '未找到BOM项'); return; }
 
-  var subPartId = item.sub_part;
-  var partId = item.part;
-  var quantity = item.quantity || 1;
+  if (!configuratorPartId) { setStatus('error', '请先选择产品'); return; }
 
   setStatus('loading', '复制中...');
+
+  // Step 1: Create new BomItem
   fetch('/api/bom/', {
     method: 'POST',
     headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken()},
     credentials: 'same-origin',
     body: JSON.stringify({
-      part: partId,
-      sub_part: subPartId,
-      quantity: quantity,
+      part: configuratorPartId,
+      sub_part: item.sub_part,
+      quantity: item.quantity || 1,
       reference: (item.reference || '') + ' (副本)',
     })
-  }).then(function(r) { return r.json().catch(function() { return {}; }).then(function(data) { return {ok: r.ok, status: r.status, data: data}; }); })
+  })
+  .then(function(r) { return r.json().then(function(d) { return {ok: r.ok, data: d}; }); })
   .then(function(res) {
-    if (!res.ok) { setStatus('error', '复制失败: ' + (res.data.error || res.data.detail || JSON.stringify(res.data).substring(0,100))); return; }
-    // If source has parametric config, copy it too
+    if (!res.ok) {
+      var errMsg = res.data.error || res.data.detail || JSON.stringify(res.data).substring(0,120);
+      setStatus('error', '复制失败: ' + errMsg);
+      return;
+    }
+    var newBomItemId = res.data.pk || res.data.id;
+    if (!newBomItemId) { setStatus('error', '复制失败: 未返回新BomItem ID'); return; }
+
+    // Step 2: Copy parametric config if exists
     var pcfg = window.__bomPcfgMap ? window.__bomPcfgMap[bomItemPk] : null;
     if (pcfg) {
-      var newBomItemId = res.data.pk || res.data.id;
-      if (newBomItemId) {
-        apiCall('POST', 'bom-item-config/', {
-          bom_item: newBomItemId,
-          enable_qty_formula: pcfg.enable_qty_formula || false,
-          qty_formula: pcfg.qty_formula || '',
-          enable_conditional: pcfg.enable_conditional || false,
-          condition_formula: pcfg.condition_formula || '',
-          enable_candidate: pcfg.enable_candidate || false,
-          enable_variant: pcfg.enable_variant || false,
-          enable_specification: pcfg.enable_specification || false,
-          enable_structure: pcfg.enable_structure || false,
-          name_formula: pcfg.name_formula || '',
-          reference_formula: pcfg.reference_formula || '',
-          price_formula: pcfg.price_formula || '',
-          param_mapping: pcfg.param_mapping || {},
-        }).then(function(cfgRes) {
-          if (cfgRes.error) {
-            setStatus('error', 'BOM已复制，但参数配置复制失败');
-          } else {
-            setStatus('success', '已复制');
-          }
-          // Reload
-          loadBomFormulaConfigs(configuratorPartId);
-        });
-        return;
-      }
+      apiCall('POST', 'bom-item-config/', {
+        bom_item: newBomItemId,
+        enable_qty_formula: !!pcfg.enable_qty_formula,
+        qty_formula: pcfg.qty_formula || '',
+        enable_conditional: !!pcfg.enable_conditional,
+        condition_formula: pcfg.condition_formula || '',
+        enable_candidate: !!pcfg.enable_candidate,
+        enable_variant: !!pcfg.enable_variant,
+        enable_specification: !!pcfg.enable_specification,
+        enable_structure: !!pcfg.enable_structure,
+        name_formula: pcfg.name_formula || '',
+        reference_formula: pcfg.reference_formula || '',
+        price_formula: pcfg.price_formula || '',
+        param_mapping: pcfg.param_mapping || {},
+      }).then(function(cfgRes) {
+        if (cfgRes.error) {
+          setStatus('warning', 'BOM已复制，参数配置复制失败');
+        } else {
+          setStatus('success', '已复制');
+        }
+        // Step 3: Copy candidates if source had them
+        copyCandidatesIfNeeded(pcfg, newBomItemId, configuratorPartId);
+      });
+    } else {
+      setStatus('success', '已复制');
+      loadBomFormulaConfigs(configuratorPartId);
     }
-    setStatus('success', '已复制');
-    loadBomFormulaConfigs(configuratorPartId);
-  }).catch(function(err) {
+  })
+  .catch(function(err) {
     setStatus('error', '复制失败: ' + (err.message || err));
+  });
+}
+
+function copyCandidatesIfNeeded(pcfg, newBomItemId, partId) {
+  if (!pcfg || !pcfg.enable_candidate) {
+    // No candidates to copy, just refresh
+    loadBomFormulaConfigs(partId);
+    return;
+  }
+  // Find the new parametric config that was just created
+  apiCall('GET', 'bom-item-config/?bom_item=' + newBomItemId).then(function(r) {
+    if (r.error || !r.data) { loadBomFormulaConfigs(partId); return; }
+    var newPcfgList = Array.isArray(r.data) ? r.data : (r.data.results || []);
+    var newPcfg = newPcfgList[0];
+    if (!newPcfg || !newPcfg.id) { loadBomFormulaConfigs(partId); return; }
+    var newPbiId = newPcfg.id;
+
+    // Get source candidates
+    var oldPbiId = pcfg.id;
+    var sourceCands = (window.__bomCandByPbi && window.__bomCandByPbi[oldPbiId]) || [];
+    if (sourceCands.length === 0) { loadBomFormulaConfigs(partId); return; }
+
+    // Copy each candidate
+    var promises = sourceCands.map(function(cand) {
+      return apiCall('POST', 'candidate-parts/', {
+        parametric_bom_item: newPbiId,
+        part: cand.part,
+        label: cand.label || '',
+        condition_formula: cand.condition_formula || '',
+        priority: cand.priority || 100,
+      });
+    });
+
+    Promise.all(promises).then(function() {
+      setStatus('success', '已复制（含候选零件）');
+      loadBomFormulaConfigs(partId);
+    });
   });
 }
 
