@@ -1121,11 +1121,76 @@ function renderBOMTable(items, pcfgMap, vmByPbi, candByPbi) {
     const escName = subPartName.replace(/'/g,"\\'");
     const escIpn = (subPartRef || '').replace(/'/g,"\\'");
     rowHtml += '<td class="text-center"><button class="text-red-400 hover:text-red-600 text-xs p-1 rounded hover:bg-red-50" onclick="resetBomConfig(' + item.pk + ",'" + escName + "')" + '" title="从BOM移除">✕</button></td>';
-    rowHtml += '<td class="text-center"><button class="text-blue-400 hover:text-blue-600 text-xs p-1 rounded hover:bg-blue-50" onclick="cartAddStaticPart(' + item.sub_part + ",'" + escName + "','" + escIpn + "')" + '" title="加入购物车">🛒</button></td></tr>';
+    rowHtml += '<td class="text-center"><button class="text-blue-400 hover:text-blue-600 text-xs p-1 rounded hover:bg-blue-50" onclick="copyBomItem(' + item.pk + ')" title="复制BOM项">📋</button></td></tr>';
     html += rowHtml;
   }
     html += '</tbody></table>';
   container.innerHTML = html;
+}
+
+// ── Copy BOM Item ──
+function copyBomItem(bomItemPk) {
+  var items = window.__bomItems || [];
+  var item = null;
+  for (var i = 0; i < items.length; i++) {
+    if (items[i].pk === bomItemPk || items[i].id === bomItemPk) { item = items[i]; break; }
+  }
+  if (!item) { setStatus('error', '未找到BOM项'); return; }
+
+  var subPartId = item.sub_part;
+  var partId = item.part;
+  var quantity = item.quantity || 1;
+
+  setStatus('loading', '复制中...');
+  fetch('/api/bom/', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken()},
+    credentials: 'same-origin',
+    body: JSON.stringify({
+      part: partId,
+      sub_part: subPartId,
+      quantity: quantity,
+      reference: (item.reference || '') + ' (副本)',
+    })
+  }).then(function(r) { return r.json().catch(function() { return {}; }).then(function(data) { return {ok: r.ok, status: r.status, data: data}; }); })
+  .then(function(res) {
+    if (!res.ok) { setStatus('error', '复制失败: ' + (res.data.error || res.data.detail || JSON.stringify(res.data).substring(0,100))); return; }
+    // If source has parametric config, copy it too
+    var pcfg = window.__bomPcfgMap ? window.__bomPcfgMap[bomItemPk] : null;
+    if (pcfg) {
+      var newBomItemId = res.data.pk || res.data.id;
+      if (newBomItemId) {
+        apiCall('POST', 'bom-item-config/', {
+          bom_item: newBomItemId,
+          enable_qty_formula: pcfg.enable_qty_formula || false,
+          qty_formula: pcfg.qty_formula || '',
+          enable_conditional: pcfg.enable_conditional || false,
+          condition_formula: pcfg.condition_formula || '',
+          enable_candidate: pcfg.enable_candidate || false,
+          enable_variant: pcfg.enable_variant || false,
+          enable_specification: pcfg.enable_specification || false,
+          enable_structure: pcfg.enable_structure || false,
+          name_formula: pcfg.name_formula || '',
+          reference_formula: pcfg.reference_formula || '',
+          price_formula: pcfg.price_formula || '',
+          param_mapping: pcfg.param_mapping || {},
+        }).then(function(cfgRes) {
+          if (cfgRes.error) {
+            setStatus('error', 'BOM已复制，但参数配置复制失败');
+          } else {
+            setStatus('success', '已复制');
+          }
+          // Reload
+          loadBomFormulaConfigs(configuratorPartId);
+        });
+        return;
+      }
+    }
+    setStatus('success', '已复制');
+    loadBomFormulaConfigs(configuratorPartId);
+  }).catch(function(err) {
+    setStatus('error', '复制失败: ' + (err.message || err));
+  });
 }
 
 // ── Param Card: sync slider → number input ──
