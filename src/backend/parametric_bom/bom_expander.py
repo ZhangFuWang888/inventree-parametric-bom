@@ -355,12 +355,8 @@ def _expand_single_bom_item(
         return child_node
 
     child_node['parametric'] = True
-    # Determine primary mode from enable flags (priority: most specific first)
-    if parametric_cfg.enable_candidate and parametric_cfg.enable_variant:
-        child_node['mode'] = 'candidate+variant'
-    elif parametric_cfg.enable_candidate:
-        child_node['mode'] = 'candidate'
-    elif parametric_cfg.enable_specification:
+    # Determine primary mode from enable flags
+    if parametric_cfg.enable_specification:
         child_node['mode'] = 'specification'
     elif parametric_cfg.enable_structure:
         child_node['mode'] = 'structure'
@@ -378,7 +374,7 @@ def _expand_single_bom_item(
     }
 
     # ── 0a) Pre-evaluate variant name/IPN (before condition, so excluded items also have dynamic data) ──
-    if parametric_cfg.enable_variant and not parametric_cfg.enable_candidate:
+    if parametric_cfg.enable_variant:
         try:
             variant_mapping = parametric_cfg.variant_mapping
             if variant_mapping:
@@ -445,18 +441,7 @@ def _expand_single_bom_item(
     # ── 2) Mode-specific sub-part resolution ──────────────────────
     actual_sub_part = sub_part
 
-    if parametric_cfg.enable_candidate:
-        actual_sub_part = _resolve_candidate(
-            child_node, parametric_cfg, params, parent_params, timeout_ms,
-        ) or sub_part
-        
-        # ── 2a) If both candidate + variant: generate variant from selected candidate ──
-        if parametric_cfg.enable_variant:
-            _evaluate_variant_from_template(
-                child_node, parametric_cfg, actual_sub_part, params, parent_params, timeout_ms,
-            )
-
-    elif parametric_cfg.enable_specification:
+    if parametric_cfg.enable_specification:
         _resolve_specification(
             child_node, parametric_cfg, params, parent_params, timeout_ms,
         )
@@ -592,114 +577,6 @@ def _ctx(params: ParamMap, parent_params: Optional[ParamMap] = None) -> dict:
     return ctx
 
 
-def _resolve_candidate(
-    node: BomTreeNode,
-    cfg,
-    params: ParamMap,
-    parent_params: Optional[ParamMap],
-    timeout_ms: int,
-):
-    """Resolve sub-part from BomCandidatePart list.
-
-    Evaluates each candidate's condition in priority order.
-    Returns the selected Part or None.
-    """
-    from parametric_bom.models import BomCandidatePart
-
-    candidates = BomCandidatePart.objects.filter(
-        parametric_bom_item=cfg,
-    ).select_related('part').order_by('priority')
-
-    if not candidates:
-        node['errors'].append('No candidate parts configured')
-        return None
-
-    candidates_considered = []
-    selected = None
-
-    for candidate in candidates:
-        match = False
-        condition_error = None
-        if candidate.condition_formula:
-            try:
-                result = eval_formula(
-                    candidate.condition_formula,
-                    context=_ctx(params, parent_params),
-                    timeout_ms=timeout_ms,
-                )
-                match = bool(result)
-            except (ParseError, ReferenceError, EvaluationError, TimeoutError) as e:
-                condition_error = str(e)
-                match = False
-        else:
-            match = True  # Empty condition = always available
-
-        candidates_considered.append({
-            'part_id': candidate.part_id,
-            'part_name': candidate.part.name,
-            'label': candidate.label or '',
-            'condition': candidate.condition_formula or '',
-            'matched': match,
-            'error': condition_error,
-        })
-
-        if match and selected is None:
-            selected = candidate.part
-
-    node['candidates_considered'] = candidates_considered
-    if selected:
-        node['selected_candidate_part_id'] = _part_pk(selected)
-        node['selected_candidate_part_name'] = _part_display(selected)
-    else:
-        node['errors'].append('No candidate part matched conditions')
-
-    return selected
-
-
-def _evaluate_variant_from_template(
-    node: BomTreeNode,
-    cfg,
-    template_part,
-    params: ParamMap,
-    parent_params: Optional[ParamMap],
-    timeout_ms: int,
-):
-    """Evaluate variant name/IPN from a template part (used by candidate+variant mode).
-
-    Extracted from step 0a logic to work with dynamically resolved template parts.
-    """
-    from parametric_bom.models import VariantMapping
-
-    try:
-        variant_mapping = VariantMapping.objects.get(parametric_bom_item=cfg)
-        if variant_mapping:
-            ctx = _ctx(params, parent_params)
-            n_template = variant_mapping.variant_name_template or ''
-            i_template = variant_mapping.variant_ipn_template or ''
-            if n_template:
-                try:
-                    dynamic_name = eval_formula(
-                        n_template,
-                        context=ctx,
-                        timeout_ms=timeout_ms,
-                    )
-                except (ParseError, ReferenceError, EvaluationError, TimeoutError):
-                    dynamic_name = template_part.name
-                node['variant_name'] = str(dynamic_name)
-            if i_template:
-                try:
-                    dynamic_ipn = eval_formula(
-                        i_template,
-                        context=ctx,
-                        timeout_ms=timeout_ms,
-                    )
-                except (ParseError, ReferenceError, EvaluationError, TimeoutError):
-                    dynamic_ipn = template_part.IPN or ''
-                node['variant_ipn'] = str(dynamic_ipn)
-            node['template_part_id'] = _part_pk(template_part)
-            node['template_part_name'] = _part_display(template_part)
-    except ObjectDoesNotExist:
-        pass
 
 
 def _resolve_specification(

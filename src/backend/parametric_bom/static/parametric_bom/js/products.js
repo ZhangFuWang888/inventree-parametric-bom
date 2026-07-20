@@ -945,33 +945,16 @@ async function loadPdBOMM() {
   var vmByPbi = {};
   vmData.forEach(function(v) { vmByPbi[v.parametric_bom_item] = v; });
   
-  // Fetch candidates for candidate-enabled BOM items
-  var candByPbi = {};
-  var candidatePbiIds = pcfgs.filter(function(c) { return c.enable_candidate; }).map(function(c) { return c.id; });
-  if (candidatePbiIds.length > 0) {
-    var candPromises = candidatePbiIds.map(function(pbiId) {
-      return apiCall('GET', 'candidate-parts/?parametric_bom_item=' + pbiId + '&ordering=priority');
-    });
-    var candResults = await Promise.all(candPromises);
-    candResults.forEach(function(res, idx) {
-      if (!res.error) {
-        var cands = Array.isArray(res.data) ? res.data : (res.data.results || []);
-        candByPbi[candidatePbiIds[idx]] = cands;
-      }
-    });
-  }
-  
   // Store globally for search filtering
   window.__bomItems = items;
   window.__bomPcfgMap = pcfgMap;
   window.__bomVmByPbi = vmByPbi;
-  window.__bomCandByPbi = candByPbi;
-  
+
   // Clear search input on fresh load
   const searchInput = document.getElementById('bom-search-input');
   if (searchInput) searchInput.value = '';
-  
-  renderBOMTable(items, pcfgMap, vmByPbi, candByPbi);
+
+  renderBOMTable(items, pcfgMap, vmByPbi);
   if (countBadge) countBadge.textContent = '共 ' + items.length + ' 项';
 }
 
@@ -1003,11 +986,11 @@ function filterBOMList() {
     if (filterCount) filterCount.textContent = filtered.length + '/' + items.length;
   }
   
-  renderBOMTable(filtered, pcfgMap, vmByPbi, window.__bomCandByPbi || {});
+  renderBOMTable(filtered, pcfgMap, vmByPbi);
   if (countBadge) countBadge.textContent = '共 ' + items.length + ' 项' + (q ? '（显示 ' + filtered.length + ' 项）' : '');
 }
 
-function renderBOMTable(items, pcfgMap, vmByPbi, candByPbi) {
+function renderBOMTable(items, pcfgMap, vmByPbi) {
   const container = document.getElementById('pd-bom-list');
   if (!items.length) {
     const q = (document.getElementById('bom-search-input').value || '').trim();
@@ -1021,14 +1004,13 @@ function renderBOMTable(items, pcfgMap, vmByPbi, candByPbi) {
     {key:'name_formula', icon:'🏷️', label:'名称公式'},
     {key:'qty_formula', icon:'📐', label:'数量/公式', isQty:true},
     {key:'condition_formula', icon:'⚡', label:'条件公式'},
-    {key:'candidate_parts', icon:'🎯', label:'候选零件', isCandidate:true},
     {key:'reference_formula', icon:'📝', label:'备注公式'},
     {key:'price_formula', icon:'💰', label:'价格公式'},
   ];
 
-  let colHeaders = '<th style="width:13%">物料名称</th><th style="width:10%">产品型号</th>';
+  let colHeaders = '<th style="width:15%">物料名称</th><th style="width:12%">产品型号</th>';
   formulaCols.forEach(function(c) {
-    colHeaders += '<th style="width:12%"><span class="col-icon">' + c.icon + '</span>' + c.label + '</th>';
+    colHeaders += '<th style="width:13%"><span class="col-icon">' + c.icon + '</span>' + c.label + '</th>';
   });
   colHeaders += '<th style="width:2rem"></th><th style="width:2rem"></th>';
 
@@ -1092,47 +1074,13 @@ function renderBOMTable(items, pcfgMap, vmByPbi, candByPbi) {
           display = '<span class="pbs-qty">\u00d7' + staticQty + '</span>';
         }
       } else if (c.key === 'condition_formula') {
-        // Pure condition formula display — no candidate mixing
-        display = val ? '<span class="fmla-text" title="' + val.replace(/\"/g,'&quot;') + '">' + val + '</span>' : '<span class="fmla-empty">—</span>';
-      } else if (c.isCandidate) {
-        // 🎯 Candidate parts column
-        if (hasCfg && cfg.enable_candidate) {
-          var pbiId = cfg.id;
-          var cands = (candByPbi && candByPbi[pbiId]) || [];
-          var refPartName = subPartName;
-          var refPartId = item.sub_part;
-          display = '<div class="flex flex-col gap-0.5">';
-          if (cands.length > 0) {
-            display += '<span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 text-[10px] font-medium border border-amber-200">候选 ' + cands.length + '个</span>';
-            display += '<div class="text-[9px] text-gray-400 mt-0.5 leading-relaxed">';
-            var showCands = cands.slice(0, 2);
-            for (var k = 0; k < showCands.length; k++) {
-              display += '<div><span class="font-medium text-gray-500">' + escHtml(showCands[k].part_name) + '</span></div>';
-            }
-            if (cands.length > 2) {
-              display += '<div class="text-amber-500 mt-0.5">⋯ 还有 ' + (cands.length - 2) + ' 个</div>';
-            }
-            display += '</div>';
-          } else {
-            display += '<span class="text-amber-500 text-[10px]">候选 (无数据)</span>';
-          }
-          display += '<div class="text-[9px] text-blue-400">📎 参考: <span class="cursor-pointer hover:text-blue-600 underline decoration-dotted" onclick="event.stopPropagation();openPartDetail(' + refPartId + ')">' + escHtml(refPartName) + '</span></div>';
-          display += '</div>';
-        } else if (hasCfg && cfg.enable_variant) {
-          display = '<span class="text-purple-400 text-[10px] cursor-pointer hover:text-purple-600 underline decoration-dotted" onclick="showCandidateModal(' + cfg.id + ')">🧬 变体模式（点击添加候选零件）</span>';
-        } else {
-          display = '<span class="text-gray-300">—</span>';
-        }
+        display = val ? '<span class="fmla-text" title="' + val.replace(/\"/g,'&quot;') + '">' + val + '</span>' : '<span class="fmla-empty">\u2014</span>';
       } else {
-        display = val ? '<span class="fmla-text" title="' + val.replace(/"/g,'&quot;') + '">' + val + '</span>' : '<span class="fmla-empty">\u2014</span>';
+        display = val ? '<span class="fmla-text" title="' + val.replace(/\"/g,'&quot;') + '">' + val + '</span>' : '<span class="fmla-empty">\u2014</span>';
       }
-      const hint = c.isCandidate
-        ? (hasCfg && cfg.enable_candidate ? '点击查看候选零件' : '—')
-        : (val ? '双击编辑' : '双击添加公式');
+      const hint = val ? '双击编辑' : '双击添加公式';
       const escVal = val.replace(/'/g,"\\'").replace(/"/g,'&quot;');
-      var cellAttrs = c.isCandidate
-        ? (hasCfg && cfg.enable_candidate ? ' class="pbs-candidate-cell cursor-pointer" onclick="showCandidateModal(' + cfg.id + ')"' : ' class="pbs-candidate-cell"')
-        : ' class="pbs-formula-cell" ondblclick="openCellEditor(' + item.pk + ",'" + c.key + "','" + escVal + "'," + (c.isQty ? 'true' : 'false') + ',' + (c.isQty ? staticQty : '0') + ')"';
+      var cellAttrs = ' class="pbs-formula-cell" ondblclick="openCellEditor(' + item.pk + ",'" + c.key + "','" + escVal + "'," + (c.isQty ? 'true' : 'false') + ',' + (c.isQty ? staticQty : '0') + ')"';
       rowHtml += '<td><div' + cellAttrs + ' title="' + hint + '">' + display + '<span class="fmla-hint">' + hint + '</span></div></td>';
     }
 
@@ -1146,7 +1094,7 @@ function renderBOMTable(items, pcfgMap, vmByPbi, candByPbi) {
   container.innerHTML = html;
 }
 
-// ── Copy BOM Item — full deep copy (all fields + param config + candidates + variant mapping) ──
+// ── Copy BOM Item — full deep copy (all fields + param config + variant mapping) ──
 async function copyBomItem(bomItemPk) {
   var items = window.__bomItems || [];
   var item = null;
@@ -1226,32 +1174,7 @@ async function copyBomItem(bomItemPk) {
       var newPbiData = cfgResp && cfgResp.data;
       var newPbiId = newPbiData ? (newPbiData.id || 0) : 0;
 
-      // ── Step 3: Copy candidate parts (if enabled) ──
-      if (pcfg.enable_candidate && newPbiId) {
-        var oldPbiId = pcfg.id;
-        var sourceCands = (window.__bomCandByPbi && window.__bomCandByPbi[oldPbiId]) || [];
-        // Also try fetching fresh from backend in case client cache is stale
-        if (!sourceCands.length) {
-          var freshCandRes = await apiCall('GET', 'candidate-parts/?parametric_bom_item=' + oldPbiId);
-          if (!freshCandRes.error) {
-            sourceCands = Array.isArray(freshCandRes.data) ? freshCandRes.data : (freshCandRes.data.results || []);
-          }
-        }
-        if (sourceCands.length > 0) {
-          var candPromises = sourceCands.map(function(cand) {
-            return apiCall('POST', 'candidate-parts/', {
-              parametric_bom_item: newPbiId,
-              part: cand.part,
-              label: cand.label || '',
-              condition_formula: cand.condition_formula || '',
-              priority: cand.priority || 100,
-            });
-          });
-          await Promise.all(candPromises);
-        }
-      }
-
-      // ── Step 4: Copy variant mapping (if enabled) ──
+      // ── Step 3: Copy variant mapping (if enabled) ──
       if (pcfg.enable_variant && newPbiId) {
         var oldPbiId = pcfg.id;
         var sourceVm = window.__bomVmByPbi ? window.__bomVmByPbi[oldPbiId] : null;
@@ -1264,7 +1187,7 @@ async function copyBomItem(bomItemPk) {
         }
       }
 
-      setStatus('success', '已复制（含全部参数配置）');
+      setStatus('success', '已复制（含变体配置）');
     }
   } else {
     setStatus('success', '已复制');
@@ -1293,243 +1216,4 @@ function syncPcNumSlider(cfgId, val) {
   const range = document.getElementById(`pc-range-${cfgId}`);
   if (range) range.value = val;
   markDirty(cfgId, {default_value: String(val)});
-}
-
-// ── Candidate Parts Modal ──
-function showCandidateModal(pbiId) {
-  var cands = _loadCandidateCache(pbiId);
-
-  // Find reference part for this PBI
-  var refName = '';
-  var refId = 0;
-  var pcfgMap = window.__bomPcfgMap || {};
-  var items = window.__bomItems || [];
-  for (var bomPk in pcfgMap) {
-    if (pcfgMap[bomPk].id === pbiId) {
-      for (var i = 0; i < items.length; i++) {
-        if (items[i].pk == bomPk) {
-          var sd = items[i].sub_part_detail || {};
-          refName = sd.name || '#' + items[i].sub_part;
-          refId = items[i].sub_part;
-          break;
-        }
-      }
-      break;
-    }
-  }
-
-  var overlay = _getCandidateOverlay();
-  var html = _candidateModalHtml(pbiId, cands, refName, refId);
-  overlay.innerHTML = html;
-  overlay.classList.add('show');
-}
-
-function _loadCandidateCache(pbiId) {
-  return (window.__bomCandByPbi && window.__bomCandByPbi[pbiId]) || [];
-}
-
-function _getCandidateOverlay() {
-  var el = document.getElementById('candidate-modal-overlay');
-  if (!el) {
-    el = document.createElement('div');
-    el.id = 'candidate-modal-overlay';
-    el.className = 'modal-overlay';
-    el.onclick = function(e) { if (e.target === el) el.classList.remove('show'); };
-    document.body.appendChild(el);
-  }
-  return el;
-}
-
-function _candidateModalHtml(pbiId, cands, refName, refId) {
-  var html = '<div class="modal-box" style="max-width:800px">';
-  html += '<div class="flex items-center justify-between mb-3">';
-  html += '<div><span class="font-semibold text-sm text-slate-800">🎯 候选零件列表</span>';
-  html += '<span class="text-xs text-gray-400 ml-2">共 ' + cands.length + ' 个</span></div>';
-  html += '<div class="flex items-center gap-2">';
-  html += '<button class="btn btn-sm btn-primary text-[10px]" onclick="addCandidate(' + pbiId + ')">➕ 添加候选</button>';
-  html += '<button onclick="closeCandidateModal()" class="text-gray-400 hover:text-gray-600 text-lg leading-none">&times;</button>';
-  html += '</div></div>';
-  if (refName) {
-    html += '<div class="text-xs text-blue-500 mb-2">📎 参考零件: <span class="cursor-pointer hover:text-blue-700 underline decoration-dotted" onclick="openPartDetail(' + refId + ')">' + escHtml(refName) + '</span>（无匹配条件时使用此零件）</div>';
-  }
-  html += '<div class="text-xs text-gray-400 mb-2">按 priority 升序检查，第一个匹配条件生效</div>';
-  html += '<table class="w-full text-xs border-collapse"><thead><tr class="bg-slate-50">';
-  html += '<th class="p-2 text-left font-semibold text-gray-600 border-b w-8">#</th>';
-  html += '<th class="p-2 text-left font-semibold text-gray-600 border-b">候选零件</th>';
-  html += '<th class="p-2 text-left font-semibold text-gray-600 border-b">条件公式</th>';
-  html += '<th class="p-2 text-center font-semibold text-gray-600 border-b w-20">操作</th>';
-  html += '</tr></thead><tbody>';
-
-  for (var i = 0; i < cands.length; i++) {
-    var cand = cands[i];
-    var escCond = escHtml(cand.condition_formula || '');
-    html += '<tr class="border-b border-gray-50 hover:bg-gray-50/50" id="cand-row-' + cand.id + '">';
-    html += '<td class="p-2 text-gray-400">' + (i + 1) + '</td>';
-    html += '<td class="p-2 font-medium text-gray-700">' + escHtml(cand.part_name) + '</td>';
-    html += '<td class="p-2">';
-    html += '<div class="flex items-center gap-1">';
-    html += '<input class="cand-cond-input" id="cand-cond-' + cand.id + '" value="' + escCond + '"';
-    html += ' style="width:100%;padding:2px 6px;border:1px solid #e2e8f0;border-radius:4px;font-size:10px;font-family:monospace;color:#d97706;background:#fff"';
-    html += ' onchange="_candidateCondChanged(' + cand.id + ',' + pbiId + ')"';
-    html += ' onkeydown="if(event.key==\'Enter\')this.blur()">';
-    html += '</div></td>';
-    html += '<td class="p-2 text-center whitespace-nowrap">';
-    html += '<button class="text-red-400 hover:text-red-600 text-xs px-1.5 py-0.5 rounded hover:bg-red-50" onclick="deleteCandidate(' + cand.id + ',' + pbiId + ')" title="删除">🗑️</button>';
-    html += '</td></tr>';
-  }
-  html += '</tbody></table></div>';
-  return html;
-}
-
-function closeCandidateModal() {
-  var el = document.getElementById('candidate-modal-overlay');
-  if (el) el.classList.remove('show');
-}
-
-function _candidateCondChanged(candId, pbiId) {
-  var input = document.getElementById('cand-cond-' + candId);
-  if (!input) return;
-  var val = input.value.trim();
-  apiCall('PATCH', 'candidate-parts/' + candId + '/', {condition_formula: val}).then(function(res) {
-    if (res.error) { setStatus('error', '保存失败'); return; }
-    // Update cache
-    var cands = _loadCandidateCache(pbiId);
-    for (var i = 0; i < cands.length; i++) {
-      if (cands[i].id === candId) { cands[i].condition_formula = val; break; }
-    }
-    setStatus('success', '条件已更新');
-  });
-}
-
-function deleteCandidate(candId, pbiId) {
-  if (!confirm('确定删除这个候选零件？')) return;
-  apiCall('DELETE', 'candidate-parts/' + candId + '/').then(function(res) {
-    if (res.error) { setStatus('error', '删除失败'); return; }
-    // Update cache
-    var cands = _loadCandidateCache(pbiId);
-    var idx = -1;
-    for (var i = 0; i < cands.length; i++) {
-      if (cands[i].id === candId) { idx = i; break; }
-    }
-    if (idx >= 0) cands.splice(idx, 1);
-    // Refresh modal
-    showCandidateModal(pbiId);
-    setStatus('success', '已删除');
-  });
-}
-
-function addCandidate(pbiId) {
-  // Build part selector from existing parts data or fetch
-  var overlay = document.getElementById('candidate-add-overlay');
-  if (!overlay) {
-    overlay = document.createElement('div');
-    overlay.id = 'candidate-add-overlay';
-    overlay.className = 'modal-overlay';
-    overlay.onclick = function(e) { if (e.target === overlay) overlay.classList.remove('show'); };
-    document.body.appendChild(overlay);
-  }
-
-  // Fetch available parts (立柱类的模板零件)
-  apiCall('GET', 'candidate-parts/?parametric_bom_item=' + pbiId).then(function(res) {
-    if (res.error) { setStatus('error', '加载失败'); return; }
-    var existing = Array.isArray(res.data) ? res.data : (res.data.results || []);
-    var existingIds = {};
-    existing.forEach(function(c) { existingIds[c.part] = true; });
-
-    // Fetch all candidate-worthy parts (立柱-*)
-    fetch('/api/part/?search=立柱-&is_template=True&limit=200', {
-      headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken()},
-      credentials: 'same-origin'
-    }).then(function(r) { return r.json(); }).then(function(data) {
-      var parts = data.results || data || [];
-      var html = '<div class="modal-box" style="max-width:700px">';
-      html += '<div class="flex items-center justify-between mb-3">';
-      html += '<span class="font-semibold text-sm text-slate-800">➕ 添加候选零件</span>';
-      html += '<button onclick="document.getElementById(\'candidate-add-overlay\').classList.remove(\'show\')" class="text-gray-400 hover:text-gray-600 text-lg leading-none">&times;</button>';
-      html += '</div>';
-
-      html += '<div class="mb-2">';
-      html += '<label class="text-xs text-gray-500 block mb-1">选择零件</label>';
-      html += '<select id="cand-add-part" class="input-field" style="font-size:0.75rem">';
-      html += '<option value="">-- 请选择 --</option>';
-      for (var i = 0; i < parts.length; i++) {
-        var p = parts[i];
-        var disabled = existingIds[p.pk] ? ' disabled' : '';
-        var note = existingIds[p.pk] ? ' (已存在)' : '';
-        html += '<option value="' + p.pk + '"' + disabled + '>' + escHtml(p.name || '#parts[i].pk') + note + '</option>';
-      }
-      html += '</select></div>';
-
-      html += '<div class="mb-2">';
-      html += '<label class="text-xs text-gray-500 block mb-1">条件公式</label>';
-      html += '<input class="input-field" id="cand-add-cond" placeholder="例如: param.立柱规格 = &quot;120*85-2（21折面）&quot;" style="font-size:0.75rem;font-family:monospace">';
-      html += '</div>';
-
-      html += '<div class="flex justify-end gap-2 mt-3">';
-      html += '<button class="btn btn-secondary btn-sm" onclick="document.getElementById(\'candidate-add-overlay\').classList.remove(\'show\')">取消</button>';
-      html += '<button class="btn btn-primary btn-sm" onclick="saveNewCandidate(' + pbiId + ')">保存</button>';
-      html += '</div></div>';
-      overlay.innerHTML = html;
-      overlay.classList.add('show');
-    }).catch(function() {
-      // Fallback: simple input for part ID
-      var html = '<div class="modal-box" style="max-width:500px">';
-      html += '<div class="flex items-center justify-between mb-3">';
-      html += '<span class="font-semibold text-sm text-slate-800">➕ 添加候选零件</span>';
-      html += '<button onclick="document.getElementById(\'candidate-add-overlay\').classList.remove(\'show\')" class="text-gray-400 hover:text-gray-600 text-lg leading-none">&times;</button>';
-      html += '</div>';
-      html += '<div class="mb-2"><label class="text-xs text-gray-500 block mb-1">零件ID</label>';
-      html += '<input class="input-field" id="cand-add-part" placeholder="输入零件ID，如 2798" style="font-size:0.75rem"></div>';
-      html += '<div class="mb-2"><label class="text-xs text-gray-500 block mb-1">条件公式</label>';
-      html += '<input class="input-field" id="cand-add-cond" placeholder="param.立柱规格 = ..." style="font-size:0.75rem;font-family:monospace"></div>';
-      html += '<div class="flex justify-end gap-2 mt-3">';
-      html += '<button class="btn btn-secondary btn-sm" onclick="document.getElementById(\'candidate-add-overlay\').classList.remove(\'show\')">取消</button>';
-      html += '<button class="btn btn-primary btn-sm" onclick="saveNewCandidate(' + pbiId + ')">保存</button>';
-      html += '</div></div>';
-      overlay.innerHTML = html;
-      overlay.classList.add('show');
-    });
-  });
-}
-
-function saveNewCandidate(pbiId) {
-  var partEl = document.getElementById('cand-add-part');
-  var condEl = document.getElementById('cand-add-cond');
-  if (!partEl || !partEl.value) { setStatus('error', '请选择零件'); return; }
-  var partId = parseInt(partEl.value);
-  var condition = condEl ? condEl.value.trim() : '';
-
-  // First ensure this PBI has enable_candidate=True (variant-only items need this)
-  apiCall('PATCH', 'bom-item-config/' + pbiId + '/', {
-    enable_candidate: true
-  }).then(function(patchRes) {
-    if (patchRes.error) { setStatus('error', '启用候选模式失败'); return; }
-    // Update local cache so the column display refreshes with candidate badge
-    var pcfgMap = window.__bomPcfgMap || {};
-    for (var bpk in pcfgMap) {
-      if (pcfgMap[bpk].id === pbiId) { pcfgMap[bpk].enable_candidate = true; break; }
-    }
-
-    apiCall('POST', 'candidate-parts/', {
-      parametric_bom_item: pbiId,
-      part: partId,
-      condition_formula: condition,
-      priority: 999
-    }).then(function(res) {
-      if (res.error) { setStatus('error', '添加失败'); return; }
-      // Close add modal
-      document.getElementById('candidate-add-overlay').classList.remove('show');
-      // Refresh cache
-      apiCall('GET', 'candidate-parts/?parametric_bom_item=' + pbiId + '&ordering=priority').then(function(r) {
-        if (!r.error) {
-          window.__bomCandByPbi[pbiId] = Array.isArray(r.data) ? r.data : (r.data.results || []);
-        }
-        showCandidateModal(pbiId);
-        // Also refresh BOM table to show candidate badge instead of variant text
-        var pdBomList = document.getElementById('pd-bom-list');
-        if (pdBomList) loadPdBOMM();
-        setStatus('success', '已添加候选零件，BOM已刷新');
-      });
-    });
-  });
 }
