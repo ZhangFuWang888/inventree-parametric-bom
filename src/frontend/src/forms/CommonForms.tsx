@@ -119,168 +119,162 @@ export function useParameterTemplateFields(): ApiFormFieldSet {
 
 export function useParameterFields({
   modelType,
-  modelId
+  modelId,
+  initialData
 }: {
   modelType: ModelType;
   modelId: number;
+  initialData?: any;
 }): ApiFormFieldSet {
   const api = useApi();
-
-  const user = useUserState.getState();
-
-  const templateCreateFields = useParameterTemplateFields();
-
-  const [selectionListId, setSelectionListId] = useState<number | null>(null);
-
-  // Valid field choices
-  const [choices, setChoices] = useState<any[]>([]);
-
-  // Field type for "data" input
-  const [fieldType, setFieldType] = useState<
-    'string' | 'boolean' | 'choice' | 'related field'
-  >('string');
-
-  // Memoized value for the "data" field
-  const [data, setData] = useState<string>('');
-
-  const fetchSelectionEntry = useCallback(
-    (value: any) => {
-      if (!value || !selectionListId) {
-        return null;
-      }
-
-      return api
-        .get(apiUrl(ApiEndpoints.selectionentry_list, selectionListId), {
-          params: {
-            value: value
-          }
-        })
-        .then((response) => {
-          if (response.data && response.data.length == 1) {
-            return response.data[0];
-          } else {
-            return null;
-          }
-        });
-    },
-    [selectionListId]
+  const [templatePk, setTemplatePk] = useState<number | null>(
+    initialData?.template ?? null
+  );
+  const [templateName, setTemplateName] = useState<string>(
+    initialData?.template_detail?.name ?? ''
+  );
+  const [templateUnits, setTemplateUnits] = useState<string>(
+    initialData?.template_detail?.units ?? ''
+  );
+  const [paramType, setParamType] = useState<string>(
+    initialData?.template_detail?.checkbox ? 'boolean'
+    : (initialData?.template_detail?.choices ? 'choice' : 'text')
+  );
+  const [templateChoices, setTemplateChoices] = useState<string>(
+    initialData?.template_detail?.choices ?? ''
   );
 
-  // Reset the field type and choices when the model changes
+  // Build checkbox and choices from paramType
+  const isCheckbox = paramType === 'boolean';
+  const isChoice = paramType === 'choice';
+  const needsChoices = isChoice;
+  const needsUnits = paramType === 'number';
+
+  // Debounced template creation/update
   useEffect(() => {
-    setSelectionListId(null);
-    setFieldType('string');
-    setChoices([]);
-    setData('');
-  }, [modelType, modelId]);
+    if (!templateName.trim()) {
+      setTemplatePk(null);
+      return;
+    }
 
-  return useMemo(() => {
-    return {
-      model_type: {
-        hidden: true,
-        value: modelType
-      },
-      model_id: {
-        hidden: true,
-        value: modelId
-      },
-      template: {
-        filters: {
-          for_model: modelType,
-          enabled: true
-        },
-        onValueChange: (value: any, record: any) => {
-          setSelectionListId(record?.selectionlist || null);
+    const timer = setTimeout(async () => {
+      const name = templateName.trim();
+      // Build template data
+      const tplData: any = { name };
+      if (needsUnits && templateUnits.trim()) tplData.units = templateUnits.trim();
+      if (isCheckbox) tplData.checkbox = true;
+      if (isChoice && templateChoices.trim()) tplData.choices = templateChoices.trim();
 
-          // Adjust the type of the "data" field based on the selected template
-          if (record?.checkbox) {
-            // This is a "checkbox" field
-            setChoices([]);
-            setFieldType('boolean');
-            setData('false');
-          } else if (record?.choices) {
-            const _choices: string[] = record.choices.split(',');
-
-            if (_choices.length > 0) {
-              setChoices(
-                _choices.map((choice) => {
-                  return {
-                    display_name: choice.trim(),
-                    value: choice.trim()
-                  };
-                })
-              );
-              setFieldType('choice');
-            } else {
-              setChoices([]);
-              setFieldType('string');
-            }
-          } else if (record?.selectionlist) {
-            setFieldType('related field');
+      try {
+        const createRes = await api.post(
+          apiUrl(ApiEndpoints.parameter_template_list),
+          tplData
+        );
+        setTemplatePk(createRes.data.pk);
+      } catch {
+        try {
+          const searchRes = await api.get(
+            apiUrl(ApiEndpoints.parameter_template_list),
+            { params: { search: name, limit: 5 } }
+          );
+          if (searchRes.data?.results?.length > 0) {
+            const match = searchRes.data.results.find(
+              (t: any) => t.name === name
+            );
+            setTemplatePk(match ? match.pk : null);
           } else {
-            // Default to a simple string field
-            setFieldType('string');
+            setTemplatePk(null);
           }
-        },
-        addCreateFields: user.isStaff() ? templateCreateFields : undefined
-      },
-      data: {
-        value: data,
-        onValueChange: (value: any, record: any) => {
-          if (fieldType === 'related field' && selectionListId) {
-            // For related fields, we need to store the selected primary key value (not the string representation)
-            setData(record?.value ?? value);
-          } else {
-            setData(value);
-          }
-        },
-        type: fieldType,
-        field_type: fieldType,
-        choices: fieldType === 'choice' ? choices : undefined,
-        default: fieldType === 'boolean' ? false : undefined,
-        pk_field:
-          fieldType === 'related field' && selectionListId
-            ? 'value'
-            : undefined,
-        model:
-          fieldType === 'related field' && selectionListId
-            ? ModelType.selectionentry
-            : undefined,
-        api_url:
-          fieldType === 'related field' && selectionListId
-            ? apiUrl(ApiEndpoints.selectionentry_list, selectionListId)
-            : undefined,
-        filters:
-          fieldType === 'related field'
-            ? {
-                active: true
-              }
-            : undefined,
-        adjustValue: (value: any) => {
-          // Coerce boolean value into a string (required by backend)
+        } catch {
+          setTemplatePk(null);
+        }
+      }
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [templateName, templateUnits, paramType, templateChoices, api]);
 
-          let v: string = value.toString().trim();
+  // Data field type derived from paramType
+  const dataFieldType: 'string' | 'boolean' | 'choice' = isCheckbox ? 'boolean' : (isChoice ? 'choice' : 'string');
+  const choiceOptions: any[] = isChoice && templateChoices.trim()
+    ? templateChoices.split(',').map(s => ({
+        display_name: s.trim(),
+        value: s.trim()
+      }))
+    : [];
 
-          if (fieldType === 'boolean') {
-            if (v.toLowerCase() !== 'true') {
-              v = 'false';
-            }
-          }
+  const typeChoices = [
+    { value: 'text', display_name: '文本型' },
+    { value: 'number', display_name: '数值型' },
+    { value: 'boolean', display_name: '布尔型' },
+    { value: 'choice', display_name: '选项型' }
+  ];
 
-          return v;
-        },
-        singleFetchFunction: fetchSelectionEntry
-      },
-      note: {}
-    };
-  }, [
-    data,
-    modelType,
-    fieldType,
-    choices,
-    modelId,
-    selectionListId,
-    templateCreateFields,
-    user
-  ]);
+  return {
+    model_type: {
+      hidden: true,
+      value: modelType
+    },
+    model_id: {
+      hidden: true,
+      value: modelId
+    },
+    template: {
+      hidden: true,
+      required: false,
+      value: templatePk,
+      filters: {
+        for_model: modelType,
+        enabled: true
+      }
+    },
+    name: {
+      label: '参数名称',
+      required: true,
+      field_type: 'string',
+      value: templateName || undefined,
+      onValueChange: (value: any) => {
+        // value is undefined during initial data load (field not in API response)
+        if (value === undefined) return;
+        setTemplateName(value?.toString() || '');
+      }
+    },
+    param_type: {
+      label: '数据类型',
+      required: true,
+      field_type: 'choice',
+      choices: typeChoices,
+      value: paramType,
+      onValueChange: (value: any) => {
+        setParamType(value?.toString() || 'text');
+        if (value !== 'choice') setTemplateChoices('');
+        if (value !== 'number') setTemplateUnits('');
+      }
+    },
+    units: {
+      label: '单位',
+      required: false,
+      field_type: 'string',
+      hidden: !needsUnits,
+      onValueChange: (value: any) => {
+        setTemplateUnits(value?.toString() || '');
+      }
+    },
+    choices: {
+      label: '选项值（逗号分隔）',
+      required: false,
+      field_type: 'string',
+      hidden: !needsChoices,
+      onValueChange: (value: any) => {
+        setTemplateChoices(value?.toString() || '');
+      }
+    },
+    data: {
+      label: '数值',
+      required: true,
+      field_type: dataFieldType,
+      choices: dataFieldType === 'choice' ? choiceOptions : undefined,
+      default: dataFieldType === 'boolean' ? false : undefined
+    },
+    note: {}
+  };
 }

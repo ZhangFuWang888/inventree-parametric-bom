@@ -365,9 +365,24 @@ def bom_evaluate(request):
 @api_view(['POST'])
 @permission_classes([permissions.IsAuthenticated])
 def formula_validate(request):
-    """Validate a formula string."""
+    """Validate a formula string.
+
+    Request body:
+        formula (str): The formula to validate.
+        expected_type (str, optional): Expected return type.
+            One of: 'string', 'boolean', 'integer', 'float', 'number'.
+
+    Returns:
+        valid (bool): Whether the formula is valid.
+        errors (list): Validation error messages.
+        referenced_params (list): Parameter references found.
+        result_type (str|None): Detected return type.
+        type_valid (bool|None): Whether result type matches expected.
+        type_detail (str|None): Type mismatch detail if applicable.
+    """
     formula = request.data.get('formula', '')
-    result = validate_formula(formula)
+    expected_type = request.data.get('expected_type')
+    result = validate_formula(formula, expected_type=expected_type)
     return Response(result)
 
 

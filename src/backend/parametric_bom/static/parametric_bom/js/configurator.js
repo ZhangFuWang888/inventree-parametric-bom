@@ -1702,22 +1702,8 @@ async function openEditParamModal(configId) {
     document.getElementById('ap-product-name-display').textContent = part ? (part.name || part.full_name || '—') : `#${cfg.part}`;
   }
   
-  // Template selector — show all for editing, filter out used ones for create
-  const tmplSel = document.getElementById('ap-template');
-  tmplSel.innerHTML = '<option value="">-- 请选择 --</option>';
-  const currentConfigs = window.__paramConfigs || [];
-  const existingIds = new Set();
-  currentConfigs.forEach(c => { if (c.id !== configId) existingIds.add(c.template); });
-  templates.forEach(t => {
-    if (existingIds.has(t.pk) && t.pk !== cfg.template) return;
-    const opt = document.createElement('option');
-    opt.value = t.pk;
-    opt.textContent = `${t.name}${t.units ? ' ('+t.units+')' : ''}`;
-    if (t.pk === cfg.template) opt.selected = true;
-    tmplSel.appendChild(opt);
-  });
-  
   // Fill in values
+  document.getElementById('ap-name').value = cfg.name || cfg.template_name || '';
   document.getElementById('ap-type').value = cfg.parameter_type || 'number';
   document.getElementById('ap-default').value = cfg.default_value || '';
   document.getElementById('ap-min').value = cfg.min_value != null ? cfg.min_value : '';
@@ -1734,7 +1720,7 @@ async function openEditParamModal(configId) {
   document.getElementById('ap-formula-group').style.display = cfg.is_computed ? 'block' : 'none';
   
   // Change modal title and button
-  document.querySelector('#modal-add-param h3').textContent = `✏️ 编辑参数配置: ${cfg.template_name || ''}`;
+  document.querySelector('#modal-add-param h3').textContent = `✏️ 编辑参数: ${cfg.name || cfg.template_name || ''}`;
   const btn = document.querySelector('#modal-add-param .btn-primary');
   btn.textContent = '保存修改';
   btn.onclick = updateParamConfig;
@@ -1747,7 +1733,9 @@ async function updateParamConfig() {
   if (!configId) return;
   
   const type = document.getElementById('ap-type').value;
+  const name = document.getElementById('ap-name').value.trim();
   const body = {
+    name: name,
     parameter_type: type,
     default_value: type === 'boolean' ? document.getElementById('ap-boolean-default').value : document.getElementById('ap-default').value,
     min_value: (type === 'number' && document.getElementById('ap-min').value) ? parseFloat(document.getElementById('ap-min').value) : null,
@@ -1790,19 +1778,8 @@ function openAddParamModal() {
   document.getElementById('ap-part').value = partId || '';
   document.getElementById('ap-product-name-display').textContent = part ? (part.name || part.full_name || '—') : '—';
   
-  const tmplSel = document.getElementById('ap-template');
-  tmplSel.innerHTML = '<option value="">-- 请选择 --</option>';
-  const configs = window.__paramConfigs || [];
-  const existingTemplateIds = new Set(configs.map(c => c.template));
-  templates.forEach(t => {
-    if (existingTemplateIds.has(t.pk)) return; // skip already added
-    const opt = document.createElement('option');
-    opt.value = t.pk;
-    opt.textContent = `${t.name}${t.units ? ' ('+t.units+')' : ''}`;
-    tmplSel.appendChild(opt);
-  });
-  
-  // Reset form
+  // Clear name field
+  document.getElementById('ap-name').value = '';
   document.getElementById('ap-type').value = 'number';
   document.getElementById('ap-default').value = '';
   document.getElementById('ap-min').value = '';
@@ -1811,9 +1788,9 @@ function openAddParamModal() {
   document.getElementById('ap-options').value = '';
   document.getElementById('ap-driving').checked = true;
   document.getElementById('ap-computed').checked = false;
-  document.getElementById('ap-formula').value = '';
-  document.getElementById('ap-order').value = '100';
   document.getElementById('ap-formula-group').style.display = 'none';
+  document.getElementById('ap-formula').value = '';
+  document.getElementById('ap-order').value = 100;
   onAddParamTypeChange();
   
   openModal('modal-add-param');
@@ -1864,21 +1841,21 @@ function onAddParamTypeChange() {
 
 async function createParamConfig() {
   const partId = document.getElementById('ap-part').value;
-  const templateId = document.getElementById('ap-template').value;
-  if (!partId || !templateId) { setStatus('error', '请选择零件和参数模板'); return; }
+  const name = document.getElementById('ap-name').value.trim();
+  if (!partId) { setStatus('error', '请先选择产品'); return; }
+  if (!name) { setStatus('error', '请输入参数名称'); return; }
   
-  // Check for duplicates
+  // Check for duplicates by name
   const configs = window.__paramConfigs || [];
-  if (configs.some(c => c.template == templateId)) {
-    const tpl = templates.find(t => t.pk == templateId);
-    setStatus('error', `❌ 「${tpl ? tpl.name : '该参数'}」已存在，不能重复添加`);
+  if (configs.some(c => (c.name || c.template_name || '').toLowerCase() === name.toLowerCase())) {
+    setStatus('error', `❌ 参数「${name}」已存在，不能重复添加`);
     return;
   }
   
   const type = document.getElementById('ap-type').value;
   const body = {
     part: parseInt(partId),
-    template: parseInt(templateId),
+    name: name,
     parameter_type: type,
     default_value: type === 'boolean' ? document.getElementById('ap-boolean-default').value : document.getElementById('ap-default').value,
     min_value: (type === 'number' && document.getElementById('ap-min').value) ? parseFloat(document.getElementById('ap-min').value) : null,

@@ -105,23 +105,53 @@ async function ceDoPreview() {
   if (!formula) {
     statusEl.innerHTML = '<span class="text-gray-400">输入公式</span>';
     _ceState.hasError = false;
+    _ceState.typeError = null;
     _ceUpdateSaveButton();
     return;
   }
   statusEl.innerHTML = '<span class="text-gray-400">⏳ 计算中...</span>';
   const ctx = window.__ceParamContext || {};
-  const res = await apiCall('POST', 'formula/preview/', { formula, context: { param: ctx } });
+  // Build proper nested context: param namespace + 内置 namespace
+  var builtinCtx = ctx['内置'] || {};
+  var paramCtx = {};
+  for (var k in ctx) {
+    if (k !== '内置') paramCtx[k] = ctx[k];
+  }
+  var fullCtx = { param: paramCtx };
+  if (Object.keys(builtinCtx).length > 0) fullCtx['内置'] = builtinCtx;
+  const res = await apiCall('POST', 'formula/preview/', { formula, context: fullCtx });
   const data = res.data || {};
   if (data.success === false || data.error) {
     const errMsg = data.error || '未知错误';
     statusEl.innerHTML = `<span class=\"text-red-500\">❌ ${escHtml(errMsg)}</span>`;
     _ceState.hasError = true;
+    _ceState.typeError = null;
     _ceUpdateSaveButton();
     return;
   }
   const val = data.result !== undefined ? data.result : (data.value || '');
-  statusEl.innerHTML = `📐 结果: <strong class=\"text-green-600 font-mono\">${escHtml(String(val))}</strong>`;
+  const resultType = data.result_type || '';
   _ceState.hasError = false;
+  _ceState.typeError = null;
+
+  // Type validation
+  var typeDetail = '';
+  if (_ceState.expectedType && resultType) {
+    const valRes = await apiCall('POST', 'formula/validate/', {
+      formula: formula,
+      expected_type: _ceState.expectedType,
+    });
+    const valData = valRes.data || {};
+    if (valData.type_valid === false) {
+      typeDetail = ' | <span class="text-red-500 font-medium">' + escHtml(valData.type_detail || '类型不匹配') + '</span>';
+      _ceState.typeError = valData.type_detail || '类型不匹配';
+    } else if (valData.type_detail) {
+      typeDetail = ' | <span class="text-amber-500 text-[9px]">' + escHtml(valData.type_detail) + '</span>';
+    }
+  }
+
+  var typeInfo = resultType ? ' <span class="text-blue-400 text-[9px]">(' + resultType + ')</span>' : '';
+  statusEl.innerHTML = `📐 结果: <strong class=\"text-green-600 font-mono\">${escHtml(String(val))}</strong>${typeInfo}${typeDetail}`;
   _ceUpdateSaveButton();
 }
 
@@ -129,66 +159,98 @@ function _ceUpdateSaveButton() {
   const btn = document.querySelector('#pbs-ce-box .btn-primary[onclick*="saveCellFormula"]');
   if (!btn) return;
   const hasError = _ceState.hasError === true;
-  btn.disabled = hasError;
-  btn.style.opacity = hasError ? '0.5' : '';
-  btn.style.cursor = hasError ? 'not-allowed' : '';
-  btn.title = hasError ? '公式存在错误，请修正后再保存' : '保存';
+  const hasTypeError = _ceState.typeError !== null && _ceState.typeError !== undefined;
+  const disabled = hasError || hasTypeError;
+  btn.disabled = disabled;
+  btn.style.opacity = disabled ? '0.5' : '';
+  btn.style.cursor = disabled ? 'not-allowed' : '';
+  if (hasTypeError) {
+    btn.title = '公式返回类型不匹配，请修正后再保存';
+  } else if (hasError) {
+    btn.title = '公式存在错误，请修正后再保存';
+  } else {
+    btn.title = '保存';
+  }
 }
 
 function ceLoadPills(pid) {
-  const pillsEl = document.getElementById('ce-param-pills');
-  if (!pid || !pillsEl) { pillsEl.innerHTML = '<span class="text-[10px] text-gray-400">请先选择产品</span>'; return; }
-  pillsEl.innerHTML = '<span class="text-[10px] text-gray-400">加载中...</span>';
+  if (!pid) {
+    document.getElementById('ce-param-pills').innerHTML = '<span class="text-[10px] text-gray-400">请先选择产品</span>';
+    return;
+  }
+  document.getElementById('ce-param-pills').innerHTML = '<span class="text-[10px] text-gray-400">加载中...</span>';
+  if (document.getElementById('ce-builtin-pills')) document.getElementById('ce-builtin-pills').innerHTML = '<span class="text-[10px] text-gray-400">加载中...</span>';
+  if (document.getElementById('ce-variable-pills')) document.getElementById('ce-variable-pills').innerHTML = '<span class="text-[10px] text-gray-400">加载中...</span>';
   Promise.all([
     apiCall('GET', `part-config/?part=${pid}`),
     apiCall('GET', `part-variables/?part=${pid}&limit=9999`),
-  ]).then(([paramRes, varRes]) => {
+    // Fetch InvenTree built-in parameters
+    fetch('/api/parameter/?model_type=part&model_id=' + pid).then(function(resp) {
+      return resp.ok ? resp.json() : Promise.resolve([]);
+    }).catch(function(){ return []; })
+  ]).then(([paramRes, varRes, builtinParams]) => {
     const configs = paramRes.error ? [] : (Array.isArray(paramRes.data) ? paramRes.data : (paramRes.data.results || []));
     const vars = varRes.error ? [] : (Array.isArray(varRes.data) ? varRes.data : (varRes.data.results || []));
-    let html = '';
-    const ctx = {};
-    // Function pills — grouped in two columns like variable dialog
-    html += '<div class="grid grid-cols-2 gap-x-2 gap-y-0.5 mb-1">';
-    html += '<div><label class="text-[9px] text-gray-400 mb-0.5 block">🔢 数学:</label><div class="flex flex-wrap gap-1">';
-    ['CEIL','FLOOR','ROUND','IF','AND','OR','NOT','MIN','MAX','ABS','SQRT','POW','MOD','SUM','AVG','COUNT'].forEach(function(fn) {
-      const sigs = {CEIL:'(x)',FLOOR:'(x)',ROUND:'(x,[n])',IF:'(c,t,f)',AND:'(...)',OR:'(...)',NOT:'(x)',MIN:'(a,b)',MAX:'(a,b)',ABS:'(x)',SQRT:'(x)',POW:'(base,exp)',MOD:'(a,b)',SUM:'(...)',AVG:'(...)',COUNT:'(...)'};
-      const titles = {CEIL:'向上取整',FLOOR:'向下取整',ROUND:'四舍五入',IF:'条件判断',AND:'逻辑与',OR:'逻辑或',NOT:'逻辑非',MIN:'取最小值',MAX:'取最大值',ABS:'绝对值',SQRT:'平方根',POW:'幂运算',MOD:'取余数',SUM:'求和',AVG:'平均值',COUNT:'计数'};
-      html += `<span class="fe-fn-pill text-[10px] px-1.5 py-0.5" onclick="ceInsertText('${fn}${sigs[fn]||'()'}')" title="${fn}${sigs[fn]||'()'} — ${titles[fn]||''}">${fn}</span>`;
-    });
-    html += '</div></div><div><label class="text-[9px] text-gray-400 mb-0.5 block">🔤 字符串/类型:</label><div class="flex flex-wrap gap-1">';
-    ['CONCAT','LEN','UPPER','LOWER','TRIM','INT','FLOAT','STR','BOOL'].forEach(function(fn) {
-      const sigs = {CONCAT:'(...)',LEN:'(s)',UPPER:'(s)',LOWER:'(s)',TRIM:'(s)',INT:'(x)',FLOAT:'(x)',STR:'(x)',BOOL:'(x)'};
-      const titles = {CONCAT:'拼接字符串',LEN:'字符串长度',UPPER:'转大写',LOWER:'转小写',TRIM:'去除首尾空格',INT:'取整',FLOAT:'转浮点数',STR:'转字符串',BOOL:'转布尔值'};
-      html += `<span class="fe-fn-pill text-[10px] px-1.5 py-0.5" onclick="ceInsertText('${fn}${sigs[fn]||'()'}')" title="${fn}${sigs[fn]||'()'} — ${titles[fn]||''}">${fn}</span>`;
-    });
-    html += '</div></div></div>';
-    // Params
+    const builtins = Array.isArray(builtinParams) ? builtinParams : (builtinParams.results || []);
+    var ctx = {};
+
+    // ── Parameters ──
+    const paramsEl = document.getElementById('ce-param-pills');
     if (configs.length) {
-      html += '<div class="flex flex-wrap gap-1 mb-1">';
+      var pHtml = '';
       configs.forEach(c => {
         const paramName = c.name || c.template_name || 'unknown';
         const defVal = c.default_value;
         ctx[paramName] = defVal;
-        html += `<span class="fe-param-pill text-[10px] px-1.5 py-0.5" onclick="ceInsertText('param.${paramName.replace(/'/g, "\\'")}')">${paramName}${defVal ? '=' + defVal : ''}</span>`;
+        pHtml += `<span class="pbs-ce-param-pill param" onclick="ceInsertText('param.${paramName.replace(/'/g, "\\'")}')">${paramName}${defVal ? '<span class="text-gray-400 ml-0.5">=' + escHtml(String(defVal)) + '</span>' : ''}</span>`;
       });
-      html += '</div>';
+      paramsEl.innerHTML = pHtml;
+    } else {
+      paramsEl.innerHTML = '<span class="text-[10px] text-gray-400">暂无可选参数</span>';
     }
-    // Variables
-    if (vars.length) {
-      html += '<div class="flex flex-wrap gap-1">';
-      vars.forEach(v => {
-        const vName = v.name || 'unknown';
-        const vVal = v.computed_value;
-        if (vVal != null) ctx[vName] = vVal;
-        html += `<span class="fe-param-pill text-[10px] px-1.5 py-0.5" style="background:#eff6ff;border-color:#bfdbfe;color:#1d4ed8" onclick="ceInsertText('param.${vName.replace(/'/g, "\\'")}')">${vName}${vVal != null ? '=' + escHtml(String(vVal)) : ''}</span>`;
-      });
-      html += '</div>';
+
+    // ── Built-in parameters ──
+    const builtinEl = document.getElementById('ce-builtin-pills');
+    if (builtinEl) {
+      if (builtins.length) {
+        ctx['内置'] = ctx['内置'] || {};
+        var bHtml = '';
+        builtins.forEach(function(p) {
+          var pName = p.template_detail ? p.template_detail.name : (p.name || 'unknown');
+          var pVal = p.data;
+          var hasVal = pVal != null && String(pVal).trim() !== '';
+          if (hasVal) ctx['内置'][pName] = pVal;
+          bHtml += `<span class="pbs-ce-param-pill builtin" onclick="ceInsertText('内置.${pName.replace(/'/g, "\\'")}')" title="${escHtml(pName)}${hasVal ? '=' + escHtml(String(pVal)) : '（无值）'}">内置.${escHtml(pName)}${hasVal ? '<span class="text-gray-400 ml-0.5">=' + escHtml(String(pVal)) + '</span>' : ''}</span>`;
+        });
+        builtinEl.innerHTML = bHtml;
+      } else {
+        builtinEl.innerHTML = '<span class="text-[10px] text-gray-400">暂无内置参数</span>';
+      }
     }
-    pillsEl.innerHTML = html;
+
+    // ── Variables ──
+    const varEl = document.getElementById('ce-variable-pills');
+    if (varEl) {
+      if (vars.length) {
+        var vHtml = '';
+        vars.forEach(v => {
+          const vName = v.name || 'unknown';
+          const vVal = v.computed_value;
+          if (vVal != null) ctx[vName] = vVal;
+          vHtml += `<span class="pbs-ce-param-pill variable" onclick="ceInsertText('${vName.replace(/'/g, "\\'")}')" title="${escHtml(vName)}${vVal != null ? '=' + escHtml(String(vVal)) : ''}">${escHtml(vName)}${vVal != null ? '<span class="text-gray-400 ml-0.5">=' + escHtml(String(vVal)) + '</span>' : ''}</span>`;
+        });
+        varEl.innerHTML = vHtml;
+      } else {
+        varEl.innerHTML = '<span class="text-[10px] text-gray-400">暂无变量</span>';
+      }
+    }
+
     window.__ceParamContext = ctx;
     ceSchedulePreview();
   }).catch(() => {
-    pillsEl.innerHTML = '<span class="text-[10px] text-gray-400">加载失败</span>';
+    document.getElementById('ce-param-pills').innerHTML = '<span class="text-[10px] text-gray-400">加载失败</span>';
+    if (document.getElementById('ce-builtin-pills')) document.getElementById('ce-builtin-pills').innerHTML = '<span class="text-[10px] text-gray-400">加载失败</span>';
+    if (document.getElementById('ce-variable-pills')) document.getElementById('ce-variable-pills').innerHTML = '<span class="text-[10px] text-gray-400">加载失败</span>';
   });
 }
 
@@ -289,8 +351,8 @@ window.FormulaTemplates = {
   }
 };
 
-function openCellEditor(itemPk, field, currentVal, isQty, mappingId) {
-  _ceState = { itemPk: itemPk, field: field, isQty: !!isQty, staticQty: mappingId || 1, mappingId: mappingId || null, hasError: false };
+function openCellEditor(itemPk, field, currentVal, isQty, mappingId, expectedType) {
+  _ceState = { itemPk: itemPk, field: field, isQty: !!isQty, staticQty: mappingId || 1, mappingId: mappingId || null, hasError: false, typeError: null, expectedType: expectedType || '' };
   const overlay = document.getElementById('pbs-ce-overlay');
   const input = document.getElementById('pbs-ce-input');
   const title = document.getElementById('pbs-ce-title');
@@ -319,6 +381,16 @@ function openCellEditor(itemPk, field, currentVal, isQty, mappingId) {
     title.textContent = (iconMap[field] || '✏️') + ' ' + (labels[field] || '编辑');
     input.value = currentVal || '';
     input.placeholder = placeholders[field] || '输入公式...';
+  }
+
+  // Show expected type badge
+  var typeBadge = document.getElementById('pbs-ce-type-badge');
+  if (typeBadge && _ceState.expectedType) {
+    var typeLabels = {string:'字符串', boolean:'布尔值', integer:'整数', float:'浮点数', number:'数值'};
+    typeBadge.textContent = '期望: ' + (typeLabels[_ceState.expectedType] || _ceState.expectedType);
+    typeBadge.style.display = 'inline';
+  } else if (typeBadge) {
+    typeBadge.style.display = 'none';
   }
 
   overlay.classList.add('open');
@@ -355,7 +427,7 @@ function closeCellEditor(evt) {
     if (box && box.contains(evt.target)) return;
   }
   document.getElementById('pbs-ce-overlay').classList.remove('open');
-  _ceState = { itemPk: null, field: null, hasError: false };
+  _ceState = { itemPk: null, field: null, hasError: false, typeError: null, expectedType: '' };
 }
 
 async function saveCellFormula() {
@@ -363,6 +435,10 @@ async function saveCellFormula() {
   if (!st.itemPk || !st.field) return;
   if (st.hasError) {
     document.getElementById('pbs-ce-status').innerHTML = '<span class="text-red-500">❌ 公式存在错误，请修正后再保存</span>';
+    return;
+  }
+  if (st.typeError) {
+    document.getElementById('pbs-ce-status').innerHTML = '<span class="text-red-500">❌ ' + escHtml(st.typeError) + '</span>';
     return;
   }
   const input = document.getElementById('pbs-ce-input');

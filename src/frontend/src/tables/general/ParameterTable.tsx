@@ -159,7 +159,7 @@ export function ParameterTable({
 
   const newParameter = useCreateApiFormModal({
     url: ApiEndpoints.parameter_list,
-    title: t`Add Parameter`,
+    title: '添加参数',
     fields: useParameterFields({ modelType, modelId }),
     initialData: {
       data: ''
@@ -171,7 +171,7 @@ export function ParameterTable({
     url: ApiEndpoints.parameter_list,
     pk: selectedParameter?.pk,
     title: t`Edit Parameter`,
-    fields: useParameterFields({ modelType, modelId }),
+    fields: useParameterFields({ modelType, modelId, initialData: selectedParameter }),
     table: table
   });
 

@@ -10,7 +10,7 @@ Grammar:
     unary          → ("-" | "NOT") unary | primary
     primary        → NUMBER | STRING | BOOL | "(" expression ")" | func_call | param_ref
     func_call      → IDENTIFIER "(" expression ("," expression)* ")"
-    param_ref      → ("param" | "parent" | "sys") "." IDENTIFIER
+    param_ref      → ("param" | "parent" | "sys" | "内置") "." IDENTIFIER
 """
 
 import re
@@ -132,6 +132,18 @@ class SysParamNode:
         return f'SysParam({self.name})'
 
 
+class BuiltinParamNode:
+    """Reference to an InvenTree built-in parameter (e.g., 内置.密度)."""
+
+    __slots__ = ('name',)
+
+    def __init__(self, name: str):
+        self.name = name
+
+    def __repr__(self):
+        return f'BuiltinParam({self.name})'
+
+
 class BinOpNode:
     """Binary operation like a + b, a * b, etc."""
 
@@ -219,7 +231,7 @@ KEYWORDS = {
 }
 
 # Identifiers that are treated as parameter/system prefixes
-PARAM_PREFIXES = {'param', 'parent', 'sys'}
+PARAM_PREFIXES = {'param', 'parent', 'sys', '内置'}
 
 
 def tokenize(source: str) -> list[Token]:
@@ -403,6 +415,7 @@ class FormulaParser:
                 'param': ParamNode,
                 'parent': ParentParamNode,
                 'sys': SysParamNode,
+                '内置': BuiltinParamNode,
             }
             return prefix_map[prefix](name)
 

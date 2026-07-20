@@ -16,7 +16,7 @@ async function loadParts() {
   }
   // Populate part selects
   const selects = ['cfg-part-select', 'pm-part-select', 'tpl-sync-part', 'bom-part-select', 'ap-part'];
-  const templateSelects = ['ap-template'];
+  const templateSelects = [];
   
   selects.forEach(id => {
     const sel = document.getElementById(id);
@@ -1001,11 +1001,10 @@ function renderBOMTable(items, pcfgMap, vmByPbi) {
   }
 
   const formulaCols = [
-    {key:'name_formula', icon:'🏷️', label:'名称公式'},
-    {key:'qty_formula', icon:'📐', label:'数量/公式', isQty:true},
-    {key:'condition_formula', icon:'⚡', label:'条件公式'},
-    {key:'reference_formula', icon:'📝', label:'备注公式'},
-    {key:'price_formula', icon:'💰', label:'价格公式'},
+    {key:'qty_formula', icon:'📐', label:'数量/公式', isQty:true, expectedType:'number'},
+    {key:'condition_formula', icon:'⚡', label:'条件公式', expectedType:'boolean'},
+    {key:'reference_formula', icon:'📝', label:'备注公式', expectedType:'string'},
+    {key:'price_formula', icon:'💰', label:'价格公式', expectedType:'number'},
   ];
 
   let colHeaders = '<th style="width:15%">物料名称</th><th style="width:12%">产品型号</th>';
@@ -1050,10 +1049,16 @@ function renderBOMTable(items, pcfgMap, vmByPbi) {
       const nfVal = hasCfg ? (cfg.name_formula || '') : '';
       if (nfVal) {
         var escNfVal = nfVal.replace(/'/g,"\\'").replace(/"/g,'&quot;');
-        nameCell = '<td><div class="pbs-formula-cell" ondblclick="openCellEditor(' + item.pk + ",'name_formula','" + escNfVal + "',false,0)\" title=\"双击编辑名称公式\">"
+        nameCell = '<td><div class="pbs-formula-cell" ondblclick="openCellEditor(' + item.pk + ",'name_formula','" + escNfVal + "',false,0,'string')\" title=\"双击编辑名称公式\">"
           + '<span class="fmla-text" title="' + escNfVal + '">' + escHtml(nfVal) + '</span>'
           + '<span class="fmla-hint">双击编辑</span>'
           + '<div class="text-[9px] text-gray-400 mt-0.5">→ ' + escHtml(subPartName) + '</div>'
+          + '</div></td>';
+      } else if (hasCfg) {
+        var escSubName = (subPartName || '').replace(/'/g,"\\'").replace(/"/g,'&quot;');
+        nameCell = '<td><div class="pbs-formula-cell" ondblclick="openCellEditor(' + item.pk + ",'name_formula','" + "',false,0,'string')" + '" title="双击添加名称公式">'
+          + '<span class="pbs-name clickable-part" onclick="openPartDetail(' + item.sub_part + ')" title="点击查看零件详情">' + subPartName + '</span>'
+          + '<span class="fmla-hint">双击添加名称公式</span>'
           + '</div></td>';
       } else {
         nameCell = '<td><span class="pbs-name clickable-part" onclick="openPartDetail(' + item.sub_part + ')" title="点击查看零件详情">' + subPartName + '</span></td>';
@@ -1079,7 +1084,7 @@ function renderBOMTable(items, pcfgMap, vmByPbi) {
       }
       const hint = val ? '双击编辑' : '双击添加公式';
       const escVal = val.replace(/'/g,"\\'").replace(/"/g,'&quot;');
-      var cellAttrs = ' class="pbs-formula-cell" ondblclick="openCellEditor(' + item.pk + ",'" + c.key + "','" + escVal + "'," + (c.isQty ? 'true' : 'false') + ',' + (c.isQty ? staticQty : '0') + ')"';
+      var cellAttrs = ' class="pbs-formula-cell" ondblclick="openCellEditor(' + item.pk + ",'" + c.key + "','" + escVal + "'," + (c.isQty ? 'true' : 'false') + ',' + (c.isQty ? staticQty : '0') + ",'" + (c.expectedType || '') + "'" + ')"';
       rowHtml += '<td><div' + cellAttrs + ' title="' + hint + '">' + display + '<span class="fmla-hint">' + hint + '</span></div></td>';
     }
 

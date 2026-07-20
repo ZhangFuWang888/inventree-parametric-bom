@@ -250,6 +250,9 @@ export function ApiForm({
     for (const [k, field] of Object.entries(fields)) {
       const dataValue = data[k];
 
+      // Skip virtual fields not present in API response
+      if (dataValue === undefined) continue;
+
       if (
         field.field_type === 'nested object' &&
         field.children &&

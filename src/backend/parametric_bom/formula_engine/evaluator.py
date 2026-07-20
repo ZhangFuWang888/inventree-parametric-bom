@@ -13,6 +13,7 @@ from .functions import get_function
 from .parser import (
     BinOpNode,
     BoolNode,
+    BuiltinParamNode,
     CompareNode,
     FuncCallNode,
     NumberNode,
@@ -114,6 +115,9 @@ class FormulaEvaluator:
         if isinstance(node, SysParamNode):
             return self._resolve_sys(node.name)
 
+        if isinstance(node, BuiltinParamNode):
+            return self._resolve_builtin(node.name)
+
         if isinstance(node, BinOpNode):
             return self._eval_binop(node)
 
@@ -160,6 +164,45 @@ class FormulaEvaluator:
             return defaults[name]
 
         raise ReferenceError(f"System variable 'sys.{name}' not found")
+
+    def _resolve_builtin(self, name: str) -> Any:
+        """Resolve an InvenTree built-in parameter from the database.
+
+        Looks up the PartParameter by name for the current part ID.
+        Falls back to context['内置'] if available.
+        """
+        # First check context (pre-loaded by caller)
+        ns = self.context.get('内置', {})
+        if name in ns:
+            val = ns[name]
+            if isinstance(val, str):
+                try:
+                    return float(val)
+                except ValueError:
+                    return val
+            return val
+
+        # Fall back to DB query if we have a part_id in context
+        part_id = self.context.get('_part_id')
+        if part_id:
+            try:
+                from common.models import Parameter
+                params = Parameter.objects.filter(
+                    model_id=part_id,
+                    template__name=name
+                )
+                if params.exists():
+                    val = params.first().data
+                    try:
+                        return float(val)
+                    except (ValueError, TypeError):
+                        return val
+            except Exception:
+                pass
+
+        raise ReferenceError(
+            f"Built-in parameter '内置.{name}' not found"
+        )
 
     def _eval_binop(self, node: BinOpNode) -> Any:
         """Evaluate binary operations."""
