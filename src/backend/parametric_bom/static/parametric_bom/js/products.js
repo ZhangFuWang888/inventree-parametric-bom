@@ -1222,40 +1222,21 @@ function syncPcNumSlider(cfgId, val) {
 
 // ── Change Template Part for Variant Items ──
 function changeTemplatePart(mappingId, currentTplId) {
-  // Find current part name from API
+  // Find current part name
   var currentName = '';
-  
-  // Show loading overlay immediately
-  setStatus('info', '正在加载零件列表...');
-  
-  // Fetch all parts via API (don't rely on window.parts — may be incomplete in standalone mode)
-  var apiUrl = '/api/part/?limit=2000&ordering=name';
-  fetch(apiUrl, {credentials: 'same-origin'})
-    .then(function(r) { return r.json(); })
-    .then(function(data) {
-      var allParts = Array.isArray(data) ? data : (data.results || []);
-      showPartSelector(mappingId, currentTplId, allParts);
-    })
-    .catch(function() {
-      // Fallback: use window.parts if available
-      if (window.parts && window.parts.length) {
-        showPartSelector(mappingId, currentTplId, window.parts);
-      } else {
-        setStatus('error', '无法加载零件列表');
-      }
-    });
+  if (window.parts) {
+    var found = window.parts.find(function(p) { return p.pk == currentTplId; });
+    if (found) currentName = found.name || found.full_name || ('#' + found.pk);
+  }
+  showPartSelector(mappingId, currentTplId, currentName);
 }
 
 // ── Show Part Selector Modal ──
-function showPartSelector(mappingId, currentTplId, allParts) {
+function showPartSelector(mappingId, currentTplId, currentName) {
   // Find current part name
-  var currentName = '';
-  var found = allParts.find(function(p) { return p.pk == currentTplId; });
-  if (found) currentName = found.name || found.full_name || ('#' + found.pk);
-  
-  if (!allParts || !allParts.length) {
-    setStatus('error', '零件列表为空');
-    return;
+  if (!currentName) {
+    var found = window.parts ? window.parts.find(function(p) { return p.pk == currentTplId; }) : null;
+    currentName = found ? (found.name || found.full_name || ('#' + found.pk)) : ('#' + currentTplId);
   }
   
   // Create modal overlay
@@ -1277,33 +1258,62 @@ function showPartSelector(mappingId, currentTplId, allParts) {
   // Search input
   var searchDiv = document.createElement('div');
   searchDiv.style.cssText = 'padding:10px 18px;border-bottom:1px solid #e2e8f0;';
-  searchDiv.innerHTML = '<input id="tp-search" type="text" placeholder="搜索零件名称或型号..." value="' + (currentName || '') + '" style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;outline:none;box-sizing:border-box;" autofocus>';
+  searchDiv.innerHTML = '<input id="tp-search" type="text" placeholder="输入关键字搜索零件..." style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;outline:none;box-sizing:border-box;" autofocus>';
   modal.appendChild(searchDiv);
   
   // Parts list
   var listDiv = document.createElement('div');
   listDiv.style.cssText = 'overflow-y:auto;flex:1;padding:4px 0;';
   listDiv.id = 'tp-list';
+  listDiv.innerHTML = '<div style="text-align:center;padding:24px;color:#94a3b8;font-size:13px;">输入关键字后自动搜索</div>';
   modal.appendChild(listDiv);
   
   overlay.appendChild(modal);
   document.body.appendChild(overlay);
   
-  function renderList(query) {
-    var lower = (query || '').toLowerCase().trim();
-    var filtered = [];
+  var partCache = null;
+  var searchTimer = null;
+  
+  function doSearch(query) {
+    var lower = query.toLowerCase().trim();
     if (!lower) {
-      listDiv.innerHTML = '<div style="text-align:center;padding:24px;color:#94a3b8;font-size:13px;">请输入搜索关键字查找零件</div>';
+      listDiv.innerHTML = '<div style="text-align:center;padding:24px;color:#94a3b8;font-size:13px;">输入关键字后自动搜索</div>';
       return;
-    } else {
-      for (var i = 0; i < allParts.length; i++) {
-        var p = allParts[i];
-        var name = (p.name || p.full_name || '').toLowerCase();
-        var ipn = (p.ipn || p.IPN || '').toLowerCase();
-        var idStr = String(p.pk);
-        if (name.indexOf(lower) !== -1 || ipn.indexOf(lower) !== -1 || idStr.indexOf(lower) !== -1) {
-          filtered.push(p);
+    }
+    
+    if (partCache) {
+      renderFiltered(lower);
+      return;
+    }
+    
+    listDiv.innerHTML = '<div style="text-align:center;padding:24px;color:#94a3b8;font-size:13px;">搜索中...</div>';
+    
+    fetch('/api/part/?limit=2000&ordering=name', {credentials: 'same-origin'})
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        partCache = Array.isArray(data) ? data : (data.results || []);
+        renderFiltered(lower);
+      })
+      .catch(function() {
+        // Fallback
+        if (window.parts && window.parts.length) {
+          partCache = window.parts;
+          renderFiltered(lower);
+        } else {
+          listDiv.innerHTML = '<div style="text-align:center;padding:24px;color:#ef4444;font-size:13px;">加载失败</div>';
         }
+      });
+  }
+  
+  function renderFiltered(lower) {
+    var filtered = [];
+    for (var i = 0; i < partCache.length; i++) {
+      var p = partCache[i];
+      var name = (p.name || p.full_name || '').toLowerCase();
+      var ipn = (p.ipn || p.IPN || '').toLowerCase();
+      var idStr = String(p.pk);
+      if (name.indexOf(lower) !== -1 || ipn.indexOf(lower) !== -1 || idStr.indexOf(lower) !== -1) {
+        filtered.push(p);
       }
     }
     
@@ -1336,12 +1346,14 @@ function showPartSelector(mappingId, currentTplId, allParts) {
     listDiv.innerHTML = html;
   }
   
-  renderList(currentName || '');
-  
+  // Bind search input
   setTimeout(function() {
     var inp = document.getElementById('tp-search');
     if (inp) {
-      inp.addEventListener('input', function() { renderList(this.value); });
+      inp.addEventListener('input', function() {
+        clearTimeout(searchTimer);
+        searchTimer = setTimeout(function() { doSearch(inp.value); }, 300);
+      });
     }
   }, 50);
 }
