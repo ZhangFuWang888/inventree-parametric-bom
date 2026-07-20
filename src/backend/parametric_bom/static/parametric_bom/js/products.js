@@ -1277,7 +1277,7 @@ function showPartSelector(mappingId, currentTplId, allParts) {
   // Search input
   var searchDiv = document.createElement('div');
   searchDiv.style.cssText = 'padding:10px 18px;border-bottom:1px solid #e2e8f0;';
-  searchDiv.innerHTML = '<input id="tp-search" type="text" placeholder="搜索零件名称或型号..." style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;outline:none;box-sizing:border-box;" autofocus>';
+  searchDiv.innerHTML = '<input id="tp-search" type="text" placeholder="搜索零件名称或型号..." value="' + (currentName || '') + '" style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;outline:none;box-sizing:border-box;" autofocus>';
   modal.appendChild(searchDiv);
   
   // Parts list
@@ -1293,7 +1293,8 @@ function showPartSelector(mappingId, currentTplId, allParts) {
     var lower = (query || '').toLowerCase().trim();
     var filtered = [];
     if (!lower) {
-      filtered = allParts;
+      listDiv.innerHTML = '<div style="text-align:center;padding:24px;color:#94a3b8;font-size:13px;">请输入搜索关键字查找零件</div>';
+      return;
     } else {
       for (var i = 0; i < allParts.length; i++) {
         var p = allParts[i];
@@ -1335,7 +1336,7 @@ function showPartSelector(mappingId, currentTplId, allParts) {
     listDiv.innerHTML = html;
   }
   
-  renderList('');
+  renderList(currentName || '');
   
   setTimeout(function() {
     var inp = document.getElementById('tp-search');
