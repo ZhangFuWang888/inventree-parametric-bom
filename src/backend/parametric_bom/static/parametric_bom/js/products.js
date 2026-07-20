@@ -1222,16 +1222,39 @@ function syncPcNumSlider(cfgId, val) {
 
 // ── Change Template Part for Variant Items ──
 function changeTemplatePart(mappingId, currentTplId) {
+  // Find current part name from API
+  var currentName = '';
+  
+  // Show loading overlay immediately
+  setStatus('info', '正在加载零件列表...');
+  
+  // Fetch all parts via API (don't rely on window.parts — may be incomplete in standalone mode)
+  var apiUrl = '/api/part/?limit=2000&ordering=name';
+  fetch(apiUrl, {credentials: 'same-origin'})
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      var allParts = Array.isArray(data) ? data : (data.results || []);
+      showPartSelector(mappingId, currentTplId, allParts);
+    })
+    .catch(function() {
+      // Fallback: use window.parts if available
+      if (window.parts && window.parts.length) {
+        showPartSelector(mappingId, currentTplId, window.parts);
+      } else {
+        setStatus('error', '无法加载零件列表');
+      }
+    });
+}
+
+// ── Show Part Selector Modal ──
+function showPartSelector(mappingId, currentTplId, allParts) {
   // Find current part name
   var currentName = '';
-  if (window.parts) {
-    var found = window.parts.find(function(p) { return p.pk == currentTplId; });
-    if (found) currentName = found.name || found.full_name || ('#' + found.pk);
-  }
+  var found = allParts.find(function(p) { return p.pk == currentTplId; });
+  if (found) currentName = found.name || found.full_name || ('#' + found.pk);
   
-  // Ensure parts are loaded
-  if (!window.parts || !window.parts.length) {
-    setStatus('error', '零件列表未加载，请刷新页面');
+  if (!allParts || !allParts.length) {
+    setStatus('error', '零件列表为空');
     return;
   }
   
@@ -1270,10 +1293,10 @@ function changeTemplatePart(mappingId, currentTplId) {
     var lower = (query || '').toLowerCase().trim();
     var filtered = [];
     if (!lower) {
-      filtered = window.parts;
+      filtered = allParts;
     } else {
-      for (var i = 0; i < window.parts.length; i++) {
-        var p = window.parts[i];
+      for (var i = 0; i < allParts.length; i++) {
+        var p = allParts[i];
         var name = (p.name || p.full_name || '').toLowerCase();
         var ipn = (p.ipn || p.IPN || '').toLowerCase();
         var idStr = String(p.pk);
@@ -1304,7 +1327,7 @@ function changeTemplatePart(mappingId, currentTplId) {
         + '<div style="font-size:10px;color:#94a3b8;white-space:nowrap;">ID:' + p.pk + '</div>'
         + '</div>';
       count++;
-      if (count > 200) break; // Limit display
+      if (count > 200) break;
     }
     if (filtered.length > 200) {
       html += '<div style="text-align:center;padding:10px;color:#94a3b8;font-size:11px;">仅显示前200条，共' + filtered.length + '条</div>';
@@ -1312,10 +1335,8 @@ function changeTemplatePart(mappingId, currentTplId) {
     listDiv.innerHTML = html;
   }
   
-  // Initial render
   renderList('');
   
-  // Search on input
   setTimeout(function() {
     var inp = document.getElementById('tp-search');
     if (inp) {
