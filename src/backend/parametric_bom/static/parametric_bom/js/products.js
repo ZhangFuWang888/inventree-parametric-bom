@@ -1222,62 +1222,113 @@ function syncPcNumSlider(cfgId, val) {
 
 // ── Change Template Part for Variant Items ──
 function changeTemplatePart(mappingId, currentTplId) {
-  // Find current part name for display
+  // Find current part name
   var currentName = '';
   if (window.parts) {
     var found = window.parts.find(function(p) { return p.pk == currentTplId; });
     if (found) currentName = found.name || found.full_name || ('#' + found.pk);
   }
-  var msg = '当前模板: ' + (currentName || ('#' + currentTplId)) + ' (ID:' + currentTplId + ')\n\n输入新模板零件的名称或ID:';
-  var input = prompt(msg, currentName);
-  if (!input) return;
   
-  // Search for the part
-  var newPartId = null;
-  input = input.trim();
+  // Ensure parts are loaded
+  if (!window.parts || !window.parts.length) {
+    setStatus('error', '零件列表未加载，请刷新页面');
+    return;
+  }
   
-  // Check if input is a number (ID)
-  if (/^\d+$/.test(input)) {
-    newPartId = parseInt(input);
-  } else {
-    // Search by name (fuzzy)
-    var lower = input.toLowerCase();
-    var matches = [];
-    if (window.parts) {
+  // Create modal overlay
+  var overlay = document.createElement('div');
+  overlay.id = 'tp-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:9999;display:flex;align-items:center;justify-content:center;';
+  
+  var modal = document.createElement('div');
+  modal.style.cssText = 'background:#fff;border-radius:12px;width:560px;max-width:92vw;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 8px 40px rgba(0,0,0,0.18);';
+  
+  // Header
+  var header = document.createElement('div');
+  header.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid #e2e8f0;';
+  header.innerHTML = '<span style="font-weight:600;font-size:14px;color:#1e293b;">选择参考零件</span>'
+    + '<span style="font-size:11px;color:#94a3b8;">当前: ' + (currentName || '#' + currentTplId) + '</span>'
+    + '<button onclick="document.getElementById(\'tp-overlay\').remove()" style="background:none;border:none;font-size:18px;cursor:pointer;color:#94a3b8;padding:2px 6px;line-height:1;">&times;</button>';
+  modal.appendChild(header);
+  
+  // Search input
+  var searchDiv = document.createElement('div');
+  searchDiv.style.cssText = 'padding:10px 18px;border-bottom:1px solid #e2e8f0;';
+  searchDiv.innerHTML = '<input id="tp-search" type="text" placeholder="搜索零件名称或型号..." style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;outline:none;box-sizing:border-box;" autofocus>';
+  modal.appendChild(searchDiv);
+  
+  // Parts list
+  var listDiv = document.createElement('div');
+  listDiv.style.cssText = 'overflow-y:auto;flex:1;padding:4px 0;';
+  listDiv.id = 'tp-list';
+  modal.appendChild(listDiv);
+  
+  overlay.appendChild(modal);
+  document.body.appendChild(overlay);
+  
+  function renderList(query) {
+    var lower = (query || '').toLowerCase().trim();
+    var filtered = [];
+    if (!lower) {
+      filtered = window.parts;
+    } else {
       for (var i = 0; i < window.parts.length; i++) {
         var p = window.parts[i];
         var name = (p.name || p.full_name || '').toLowerCase();
-        var ipn = (p.ipn || '').toLowerCase();
-        if (name.indexOf(lower) !== -1 || ipn.indexOf(lower) !== -1) {
-          matches.push(p);
+        var ipn = (p.ipn || p.IPN || '').toLowerCase();
+        var idStr = String(p.pk);
+        if (name.indexOf(lower) !== -1 || ipn.indexOf(lower) !== -1 || idStr.indexOf(lower) !== -1) {
+          filtered.push(p);
         }
       }
     }
     
-    if (matches.length === 0) {
-      setStatus('error', '未找到匹配的零件: ' + input);
+    if (!filtered.length) {
+      listDiv.innerHTML = '<div style="text-align:center;padding:24px;color:#94a3b8;font-size:13px;">未找到匹配的零件</div>';
       return;
-    } else if (matches.length === 1) {
-      newPartId = matches[0].pk;
-    } else {
-      // Multiple matches — let user pick
-      var choices = matches.map(function(p, i) {
-        return (i+1) + '. ' + (p.name || p.full_name) + ' (ID:' + p.pk + ')';
-      }).join('\n');
-      var pick = prompt('找到多个匹配的零件，请输入序号:\n\n' + choices, '1');
-      if (!pick) return;
-      var idx = parseInt(pick) - 1;
-      if (isNaN(idx) || idx < 0 || idx >= matches.length) {
-        setStatus('error', '序号无效');
-        return;
-      }
-      newPartId = matches[idx].pk;
     }
+    
+    var html = '';
+    var count = 0;
+    for (var i = 0; i < filtered.length; i++) {
+      var p = filtered[i];
+      var isCurrent = p.pk == currentTplId;
+      var pName = p.name || p.full_name || ('#' + p.pk);
+      var pIpn = p.ipn || p.IPN || '';
+      var catName = p.category_name || '';
+      html += '<div class="tp-item' + (isCurrent ? ' tp-current' : '') + '" data-pk="' + p.pk + '" style="display:flex;align-items:center;gap:10px;padding:8px 18px;cursor:pointer;border-bottom:1px solid #f1f5f9;transition:background 0.1s;" onmouseover="this.style.background=\'#f8fafc\'" onmouseout="this.style.background=\'\'" onclick="selectTemplatePart(' + mappingId + ',' + p.pk + ')">'
+        + '<div style="flex:1;min-width:0;"><div style="font-size:13px;font-weight:500;color:#1e293b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + (isCurrent ? '✓ ' : '') + pName + '</div>'
+        + (pIpn ? '<div style="font-size:11px;color:#64748b;">型号: ' + pIpn + '</div>' : '')
+        + (catName ? '<div style="font-size:10px;color:#94a3b8;">' + catName + '</div>' : '')
+        + '</div>'
+        + '<div style="font-size:10px;color:#94a3b8;white-space:nowrap;">ID:' + p.pk + '</div>'
+        + '</div>';
+      count++;
+      if (count > 200) break; // Limit display
+    }
+    if (filtered.length > 200) {
+      html += '<div style="text-align:center;padding:10px;color:#94a3b8;font-size:11px;">仅显示前200条，共' + filtered.length + '条</div>';
+    }
+    listDiv.innerHTML = html;
   }
   
-  if (!newPartId || newPartId == currentTplId) return;
+  // Initial render
+  renderList('');
   
-  // PATCH the variant mapping
+  // Search on input
+  setTimeout(function() {
+    var inp = document.getElementById('tp-search');
+    if (inp) {
+      inp.addEventListener('input', function() { renderList(this.value); });
+    }
+  }, 50);
+}
+
+// ── Select Template Part from modal ──
+function selectTemplatePart(mappingId, newPartId) {
+  var overlay = document.getElementById('tp-overlay');
+  if (overlay) overlay.remove();
+  
   setStatus('info', '正在更新模板零件...');
   apiCall('PATCH', 'variant-mappings/' + mappingId + '/', {template_part: newPartId}).then(function(resp) {
     if (resp.error) {
