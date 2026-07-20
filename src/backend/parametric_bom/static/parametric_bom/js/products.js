@@ -1035,8 +1035,7 @@ function renderBOMTable(items, pcfgMap, vmByPbi) {
       var mappingId = vm.id;
       var tplId = vm.template_part || 0;
       var tplName = vm.template_part_name || '#部件';
-      tplRef = '<div class="text-[9px] text-purple-400 mt-0.5">🧬参考: <span class="cursor-pointer hover:text-purple-600 underline decoration-dotted" onclick="openPartDetail(' + tplId + ')">' + tplName + '</span></div>';
-      tplIpn = '<div class="text-[9px] text-purple-400 mt-0.5">型号: ' + (vm.template_part_ipn || '—') + '</div>';
+      tplRef = '<div class=\"text-[9px] text-purple-400 mt-0.5\">🧬参考: <span class=\"cursor-pointer hover:text-purple-600 underline decoration-dotted\" onclick=\"changeTemplatePart(' + mappingId + ',' + tplId + ')\" title=\"点击更换模板零件\">' + tplName + '</span></div>';
       nameCell = '<td><div class="pbs-formula-cell" ondblclick="openCellEditor(' + item.pk + ",'variant_name','" + escNameVal + "',false," + mappingId + ')" title="双击编辑动态名称">'
         + (vm.variant_name_template ? '<span class="fmla-text">' + escHtml(vm.variant_name_template) + '</span>' : '<span class="fmla-empty">—</span>')
         + '<span class="fmla-hint">双击编辑</span>'
@@ -1216,4 +1215,73 @@ function syncPcNumSlider(cfgId, val) {
   const range = document.getElementById(`pc-range-${cfgId}`);
   if (range) range.value = val;
   markDirty(cfgId, {default_value: String(val)});
+}
+
+// ── Change Template Part for Variant Items ──
+function changeTemplatePart(mappingId, currentTplId) {
+  // Find current part name for display
+  var currentName = '';
+  if (window.parts) {
+    var found = window.parts.find(function(p) { return p.pk == currentTplId; });
+    if (found) currentName = found.name || found.full_name || ('#' + found.pk);
+  }
+  var msg = '当前模板: ' + (currentName || ('#' + currentTplId)) + ' (ID:' + currentTplId + ')\n\n输入新模板零件的名称或ID:';
+  var input = prompt(msg, currentName);
+  if (!input) return;
+  
+  // Search for the part
+  var newPartId = null;
+  input = input.trim();
+  
+  // Check if input is a number (ID)
+  if (/^\d+$/.test(input)) {
+    newPartId = parseInt(input);
+  } else {
+    // Search by name (fuzzy)
+    var lower = input.toLowerCase();
+    var matches = [];
+    if (window.parts) {
+      for (var i = 0; i < window.parts.length; i++) {
+        var p = window.parts[i];
+        var name = (p.name || p.full_name || '').toLowerCase();
+        var ipn = (p.ipn || '').toLowerCase();
+        if (name.indexOf(lower) !== -1 || ipn.indexOf(lower) !== -1) {
+          matches.push(p);
+        }
+      }
+    }
+    
+    if (matches.length === 0) {
+      setStatus('error', '未找到匹配的零件: ' + input);
+      return;
+    } else if (matches.length === 1) {
+      newPartId = matches[0].pk;
+    } else {
+      // Multiple matches — let user pick
+      var choices = matches.map(function(p, i) {
+        return (i+1) + '. ' + (p.name || p.full_name) + ' (ID:' + p.pk + ')';
+      }).join('\n');
+      var pick = prompt('找到多个匹配的零件，请输入序号:\n\n' + choices, '1');
+      if (!pick) return;
+      var idx = parseInt(pick) - 1;
+      if (isNaN(idx) || idx < 0 || idx >= matches.length) {
+        setStatus('error', '序号无效');
+        return;
+      }
+      newPartId = matches[idx].pk;
+    }
+  }
+  
+  if (!newPartId || newPartId == currentTplId) return;
+  
+  // PATCH the variant mapping
+  setStatus('info', '正在更新模板零件...');
+  apiCall('PATCH', 'variant-mappings/' + mappingId + '/', {template_part: newPartId}).then(function(resp) {
+    if (resp.error) {
+      setStatus('error', '更新失败: ' + (resp.error_detail || resp.error));
+      return;
+    }
+    setStatus('success', '模板零件已更换');
+    loadPdBOMM();
+  });
 }
