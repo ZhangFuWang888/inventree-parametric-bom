@@ -1118,6 +1118,8 @@ function renderBOMTable(items, pcfgMap, vmByPbi, candByPbi) {
           }
           display += '<div class="text-[9px] text-blue-400">📎 参考: <span class="cursor-pointer hover:text-blue-600 underline decoration-dotted" onclick="event.stopPropagation();openPartDetail(' + refPartId + ')">' + escHtml(refPartName) + '</span></div>';
           display += '</div>';
+        } else if (hasCfg && cfg.enable_variant) {
+          display = '<span class="text-purple-400 text-[10px] cursor-pointer hover:text-purple-600 underline decoration-dotted" onclick="showCandidateModal(' + cfg.id + ')">🧬 变体模式（点击添加候选零件）</span>';
         } else {
           display = '<span class="text-gray-300">—</span>';
         }
@@ -1296,7 +1298,6 @@ function syncPcNumSlider(cfgId, val) {
 // ── Candidate Parts Modal ──
 function showCandidateModal(pbiId) {
   var cands = _loadCandidateCache(pbiId);
-  if (!cands.length) { setStatus('error', '没有候选零件数据'); return; }
 
   // Find reference part for this PBI
   var refName = '';
@@ -1498,22 +1499,37 @@ function saveNewCandidate(pbiId) {
   var partId = parseInt(partEl.value);
   var condition = condEl ? condEl.value.trim() : '';
 
-  apiCall('POST', 'candidate-parts/', {
-    parametric_bom_item: pbiId,
-    part: partId,
-    condition_formula: condition,
-    priority: 999
-  }).then(function(res) {
-    if (res.error) { setStatus('error', '添加失败: ' + (res.error_message || JSON.stringify(res.error))); return; }
-    // Close add modal
-    document.getElementById('candidate-add-overlay').classList.remove('show');
-    // Refresh cache
-    apiCall('GET', 'candidate-parts/?parametric_bom_item=' + pbiId + '&ordering=priority').then(function(r) {
-      if (!r.error) {
-        window.__bomCandByPbi[pbiId] = Array.isArray(r.data) ? r.data : (r.data.results || []);
-      }
-      showCandidateModal(pbiId);
-      setStatus('success', '已添加');
+  // First ensure this PBI has enable_candidate=True (variant-only items need this)
+  apiCall('PATCH', 'bom-item-config/' + pbiId + '/', {
+    enable_candidate: true
+  }).then(function(patchRes) {
+    if (patchRes.error) { setStatus('error', '启用候选模式失败'); return; }
+    // Update local cache so the column display refreshes with candidate badge
+    var pcfgMap = window.__bomPcfgMap || {};
+    for (var bpk in pcfgMap) {
+      if (pcfgMap[bpk].id === pbiId) { pcfgMap[bpk].enable_candidate = true; break; }
+    }
+
+    apiCall('POST', 'candidate-parts/', {
+      parametric_bom_item: pbiId,
+      part: partId,
+      condition_formula: condition,
+      priority: 999
+    }).then(function(res) {
+      if (res.error) { setStatus('error', '添加失败'); return; }
+      // Close add modal
+      document.getElementById('candidate-add-overlay').classList.remove('show');
+      // Refresh cache
+      apiCall('GET', 'candidate-parts/?parametric_bom_item=' + pbiId + '&ordering=priority').then(function(r) {
+        if (!r.error) {
+          window.__bomCandByPbi[pbiId] = Array.isArray(r.data) ? r.data : (r.data.results || []);
+        }
+        showCandidateModal(pbiId);
+        // Also refresh BOM table to show candidate badge instead of variant text
+        var pdBomList = document.getElementById('pd-bom-list');
+        if (pdBomList) loadPdBOMM();
+        setStatus('success', '已添加候选零件，BOM已刷新');
+      });
     });
   });
 }
