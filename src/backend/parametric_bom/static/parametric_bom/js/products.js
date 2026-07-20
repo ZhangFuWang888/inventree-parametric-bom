@@ -1281,51 +1281,30 @@ function showPartSelector(mappingId, currentTplId, currentName) {
       return;
     }
     
-    if (partCache) {
-      renderFiltered(lower);
-      return;
-    }
-    
     listDiv.innerHTML = '<div style="text-align:center;padding:24px;color:#94a3b8;font-size:13px;">搜索中...</div>';
     
-    fetch('/api/part/?limit=2000&ordering=name', {credentials: 'same-origin'})
+    // Use server-side search (much faster than loading all parts)
+    fetch('/api/part/?search=' + encodeURIComponent(lower) + '&limit=50', {credentials: 'same-origin'})
       .then(function(r) { return r.json(); })
       .then(function(data) {
-        partCache = Array.isArray(data) ? data : (data.results || []);
-        renderFiltered(lower);
+        var results = Array.isArray(data) ? data : (data.results || []);
+        renderResults(lower, results);
       })
       .catch(function() {
-        // Fallback
-        if (window.parts && window.parts.length) {
-          partCache = window.parts;
-          renderFiltered(lower);
-        } else {
-          listDiv.innerHTML = '<div style="text-align:center;padding:24px;color:#ef4444;font-size:13px;">加载失败</div>';
-        }
+        listDiv.innerHTML = '<div style="text-align:center;padding:24px;color:#ef4444;font-size:13px;">搜索失败</div>';
       });
   }
   
-  function renderFiltered(lower) {
-    var filtered = [];
-    for (var i = 0; i < partCache.length; i++) {
-      var p = partCache[i];
-      var name = (p.name || p.full_name || '').toLowerCase();
-      var ipn = (p.ipn || p.IPN || '').toLowerCase();
-      var idStr = String(p.pk);
-      if (name.indexOf(lower) !== -1 || ipn.indexOf(lower) !== -1 || idStr.indexOf(lower) !== -1) {
-        filtered.push(p);
-      }
-    }
-    
-    if (!filtered.length) {
+  function renderResults(lower, results) {
+    if (!results.length) {
       listDiv.innerHTML = '<div style="text-align:center;padding:24px;color:#94a3b8;font-size:13px;">未找到匹配的零件</div>';
       return;
     }
     
     var html = '';
     var count = 0;
-    for (var i = 0; i < filtered.length; i++) {
-      var p = filtered[i];
+    for (var i = 0; i < results.length; i++) {
+      var p = results[i];
       var isCurrent = p.pk == currentTplId;
       var pName = p.name || p.full_name || ('#' + p.pk);
       var pIpn = p.ipn || p.IPN || '';
@@ -1340,8 +1319,8 @@ function showPartSelector(mappingId, currentTplId, currentName) {
       count++;
       if (count > 200) break;
     }
-    if (filtered.length > 200) {
-      html += '<div style="text-align:center;padding:10px;color:#94a3b8;font-size:11px;">仅显示前200条，共' + filtered.length + '条</div>';
+    if (results.length > 200) {
+      html += '<div style="text-align:center;padding:10px;color:#94a3b8;font-size:11px;">仅显示前200条，共' + results.length + '条</div>';
     }
     listDiv.innerHTML = html;
   }
