@@ -444,23 +444,29 @@ async function resetBomConfig(bomItemId, name) {
   if (!confirm(`确认从BOM中移除「${name}」？`)) return;
   setStatus('loading', '移除中...');
 
-  // 1) Delete VariantMapping first
-  var vmRes = await apiCall('GET', 'variant-mappings/?parametric_bom_item__bom_item=' + bomItemId);
-  if (!vmRes.error) {
-    var vms = Array.isArray(vmRes.data) ? vmRes.data : (vmRes.data.results || []);
-    if (vms.length) {
-      await apiCall('DELETE', 'variant-mappings/' + vms[0].id + '/');
-    }
-  }
-  // 2) Delete ParametricBomItem config next
+  // 1) Get ParametricBomItem id first
   var cfgRes = await apiCall('GET', 'bom-item-config/?bom_item=' + bomItemId);
-  if (!cfgRes.error) {
-    var configs = Array.isArray(cfgRes.data) ? cfgRes.data : (cfgRes.data.results || []);
-    if (configs.length) {
-      await apiCall('DELETE', 'bom-item-config/' + configs[0].id + '/');
-    }
+  if (cfgRes.error) {
+    setStatus('error', '查询配置失败');
+    return;
   }
-  // 3) Finally, delete the BomItem itself
+  var configs = Array.isArray(cfgRes.data) ? cfgRes.data : (cfgRes.data.results || []);
+  var pbiId = configs.length ? configs[0].id : null;
+
+  // 2) Delete VariantMapping (if exists) via parametric_bom_item
+  if (pbiId) {
+    var vmRes = await apiCall('GET', 'variant-mappings/?parametric_bom_item=' + pbiId);
+    if (!vmRes.error) {
+      var vms = Array.isArray(vmRes.data) ? vmRes.data : (vmRes.data.results || []);
+      if (vms.length) {
+        await apiCall('DELETE', 'variant-mappings/' + vms[0].id + '/');
+      }
+    }
+    // 3) Delete ParametricBomItem config
+    await apiCall('DELETE', 'bom-item-config/' + pbiId + '/');
+  }
+
+  // 4) Finally, delete the BomItem itself
   try {
     var delResp = await fetch('/api/bom/' + bomItemId + '/', {
       method: 'DELETE',

@@ -1182,6 +1182,9 @@ async function copyBomItem(bomItemPk) {
             parametric_bom_item: newPbiId,
             template_part: sourceVm.template_part,
             variant_part: sourceVm.variant_part || null,
+            variant_name_template: sourceVm.variant_name_template || '',
+            variant_ipn_template: sourceVm.variant_ipn_template || '',
+            param_mapping: sourceVm.param_mapping || {},
           });
         }
       }
