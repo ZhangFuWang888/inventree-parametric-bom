@@ -22,6 +22,28 @@ async function projectApi(method, path, data) {
   }
 }
 
+// ── Copy to clipboard helper ──
+function copyText(text, label) {
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(() => {
+      setStatus('success', `已复制${label || '内容'}`);
+    }).catch(() => {
+      fallbackCopy(text, label);
+    });
+  } else {
+    fallbackCopy(text, label);
+  }
+}
+function fallbackCopy(text, label) {
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.position = 'fixed'; ta.style.opacity = '0';
+  document.body.appendChild(ta);
+  ta.select();
+  try { document.execCommand('copy'); setStatus('success', `已复制${label || '内容'}`); } catch (e) {}
+  document.body.removeChild(ta);
+}
+
 // ── Status badge ──
 function projectStatusBadge(status) {
   const m = {
@@ -144,8 +166,8 @@ function clearProjectSearch() {
 function renderProjectRows(projects) {
   return projects.map(p => `
   <tr class="border-b border-gray-100 hover:bg-gray-50 cursor-pointer" onclick="showProjectDetail(${p.id})">
-    <td class="p-2 font-mono text-blue-600">${p.project_code}</td>
-    <td class="p-2 font-medium">${escHtml(p.name)}</td>
+    <td class="p-2 font-mono text-blue-600">${p.project_code}<button class="copy-btn ml-1" onclick="event.stopPropagation(); copyText('${escHtml(p.project_code)}', '项目编号')" title="复制编号"></button></td>
+    <td class="p-2 font-medium">${escHtml(p.name)}<button class="copy-btn ml-1" onclick="event.stopPropagation(); copyText('${escHtml(p.name)}', '项目名称')" title="复制名称"></button></td>
     <td class="p-2 text-gray-500">${p.customer_name || '-'}</td>
     <td class="p-2">${projectStatusBadge(p.status)}</td>
     <td class="p-2 text-gray-500">${p.owner_name || '-'}</td>
@@ -228,8 +250,8 @@ async function showProjectDetail(projectId) {
     <div class="card-header flex items-center justify-between flex-wrap gap-2">
       <div class="flex items-center gap-2">
         <span>${p.is_template ? '📌' : '📋'}</span>
-        <span class="text-lg font-semibold">${escHtml(p.project_code)}</span>
-        <span class="text-base text-gray-700 ml-1">${escHtml(p.name)}</span>
+        <span class="text-lg font-semibold">${escHtml(p.project_code)}<button class="copy-btn ml-1" onclick="event.stopPropagation(); copyText('${escHtml(p.project_code)}', '项目编号')" title="复制编号"></button></span>
+        <span class="text-base text-gray-700 ml-1">${escHtml(p.name)}<button class="copy-btn ml-1" onclick="event.stopPropagation(); copyText('${escHtml(p.name)}', '项目名称')" title="复制名称"></button></span>
         ${p.is_template ? '<span class="inline-block px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-700">模板</span>' : ''}
         ${projectStatusBadge(p.status)}
       </div>
@@ -245,10 +267,10 @@ async function showProjectDetail(projectId) {
     </div>
 
     <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3 text-xs">
-      <div><span class="text-gray-400">客户</span><br><span class="font-medium">${p.customer_name || '-'}</span></div>
-      <div><span class="text-gray-400">负责人</span><br><span class="font-medium">${p.owner_name || '-'}</span></div>
-      <div><span class="text-gray-400">截止日期</span><br><span class="font-medium">${p.deadline || '-'}</span></div>
-      <div><span class="text-gray-400">创建时间</span><br><span class="font-medium">${new Date(p.created_at).toLocaleDateString('zh-CN')}</span></div>
+      <div><span class="text-gray-400">客户</span><br><span class="font-medium">${p.customer_name || '-'}${p.customer_name ? `<button class="copy-btn ml-1" onclick="event.stopPropagation(); copyText('${escHtml(p.customer_name)}', '客户名称')" title="复制客户名"></button>` : ''}</span></div>
+      <div><span class="text-gray-400">负责人</span><br><span class="font-medium">${p.owner_name || '-'}${p.owner_name ? `<button class="copy-btn ml-1" onclick="event.stopPropagation(); copyText('${escHtml(p.owner_name)}', '负责人')" title="复制负责人"></button>` : ''}</span></div>
+      <div><span class="text-gray-400">截止日期</span><br><span class="font-medium">${p.deadline || '-'}${p.deadline ? `<button class="copy-btn ml-1" onclick="event.stopPropagation(); copyText('${p.deadline}', '截止日期')" title="复制日期"></button>` : ''}</span></div>
+      <div><span class="text-gray-400">创建时间</span><br><span class="font-medium">${new Date(p.created_at).toLocaleDateString('zh-CN')}<button class="copy-btn ml-1" onclick="event.stopPropagation(); copyText('${new Date(p.created_at).toISOString().split('T')[0]}', '创建日期')" title="复制日期"></button></span></div>
     </div>
     ${p.description ? `<div class="text-xs text-gray-600 mb-3 p-2 bg-gray-50 rounded">${escHtml(p.description)}</div>` : ''}
   </div>
@@ -713,6 +735,7 @@ function toggleAddMember() {
 }
 
 // ── Expose to window ──
+window.copyText = copyText;
 window.showNewProjectDialog = showNewProjectDialog;
 window.showProjectDetail = showProjectDetail;
 window.switchProjectTab = switchProjectTab;
