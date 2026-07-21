@@ -2214,10 +2214,12 @@ class ProjectViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['get'])
     def cost_summary(self, request, pk=None):
         """Get cost summary for a project."""
+        import re
         project = self.get_object()
         total_cost = 0
         total_price = 0
         breakdown = []
+        batch_breakdown = {}
         for item in project.items.all():
             cost = float(item.unit_cost or 0) * item.quantity
             price = float(item.unit_price or 0) * item.quantity
@@ -2227,11 +2229,28 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 'title': item.title,
                 'type': item.item_type,
                 'quantity': item.quantity,
+                'batch_name': item.batch_name or '未分组',
                 'unit_cost': float(item.unit_cost or 0),
                 'unit_price': float(item.unit_price or 0),
                 'subtotal_cost': cost,
                 'subtotal_price': price,
             })
+            bname = item.batch_name or '未分组'
+            if bname not in batch_breakdown:
+                batch_breakdown[bname] = {'item_count': 0, 'total_qty': 0, 'total_cost': 0, 'total_price': 0}
+            batch_breakdown[bname]['item_count'] += 1
+            batch_breakdown[bname]['total_qty'] += item.quantity
+            batch_breakdown[bname]['total_cost'] += cost
+            batch_breakdown[bname]['total_price'] += price
+
+        # Sort batch breakdown: "第N批" by number desc, others by cost desc
+        batch_list = []
+        for bname, data in batch_breakdown.items():
+            ma = re.match(r'^第(\d+)批$', bname) if bname != '未分组' else None
+            bn = int(ma.group(1)) if ma else (0 if bname == '未分组' else 999)
+            batch_list.append({'batch_name': bname, **data, '_sort_num': bn})
+        batch_list.sort(key=lambda b: (1 if b['batch_name'] == '未分组' else 0, -b['_sort_num']))
+
         return Response({
             'project_id': project.id,
             'project_code': project.project_code,
@@ -2240,6 +2259,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
             'profit': total_price - total_cost,
             'margin_pct': round((total_price - total_cost) / total_price * 100, 2) if total_price and total_price > 0 else (0 if total_price == 0 and total_cost == 0 else -100.0),
             'breakdown': breakdown,
+            'batch_breakdown': batch_list,
         })
 
     @action(detail=True, methods=['get'])

@@ -513,6 +513,134 @@ async function loadProjectCost(projectId) {
   if (!container) return;
   if (!result.ok) { container.innerHTML = `<div class="empty-state p-4 text-center text-red-400 text-sm">加载失败</div>`; return; }
   const c = result.data;
+  const batches = c.batch_breakdown || [];
+
+  // ── Bar chart SVG ──
+  function renderBarChart(batches) {
+    if (!batches.length) return '';
+    const maxVal = Math.max(...batches.map(b => Math.max(b.total_cost, b.total_price)), 1);
+    const barW = 28, gap = 12, chartH = 180, padL = 40, padR = 10, padT = 20, padB = 40;
+    const groupW = barW * 2 + gap;
+    const totalW = padL + batches.length * groupW + padR;
+
+    let bars = '', labels = '';
+    batches.forEach((b, i) => {
+      const x = padL + i * groupW;
+      const costH = (b.total_cost / maxVal) * (chartH - padT - padB);
+      const priceH = (b.total_price / maxVal) * (chartH - padT - padB);
+      const costY = chartH - padB - costH;
+      const priceY = chartH - padB - priceH;
+      const label = b.batch_name.length > 6 ? b.batch_name.slice(0, 6) + '..' : b.batch_name;
+      bars += `<rect x="${x}" y="${costY}" width="${barW}" height="${costH}" fill="#ef4444" opacity="0.8" rx="2">
+        <title>${b.batch_name} 成本: ¥${b.total_cost.toFixed(2)}</title></rect>`;
+      bars += `<rect x="${x + barW + gap}" y="${priceY}" width="${barW}" height="${priceH}" fill="#22c55e" opacity="0.8" rx="2">
+        <title>${b.batch_name} 售价: ¥${b.total_price.toFixed(2)}</title></rect>`;
+      labels += `<text x="${x + barW + gap/2}" y="${chartH + 14}" text-anchor="middle" font-size="10" fill="#888">${label}</text>`;
+    });
+
+    // Y axis
+    let yAxis = '';
+    const steps = 4;
+    for (let i = 0; i <= steps; i++) {
+      const val = (maxVal / steps) * i;
+      const y = chartH - padB - (val / maxVal) * (chartH - padT - padB);
+      yAxis += `<text x="${padL - 4}" y="${y + 3}" text-anchor="end" font-size="9" fill="#aaa">¥${val >= 1000 ? (val/1000).toFixed(0) + 'k' : val.toFixed(0)}</text>`;
+      yAxis += `<line x1="${padL}" y1="${y}" x2="${totalW}" y2="${y}" stroke="#eee" stroke-width="0.5"/>`;
+    }
+
+    return `<svg width="${totalW}" height="${chartH}" viewBox="0 0 ${totalW} ${chartH}" style="max-width:100%">
+      ${yAxis}${bars}${labels}
+      <rect x="${padL}" y="${padT}" width="${totalW-padR-padL}" height="${chartH-padT-padB}" fill="none" stroke="#e5e7eb" stroke-width="1"/>
+      <text x="${padL}" y="${12}" font-size="10" fill="#666">金额 (¥)</text>
+    </svg>`;
+  }
+
+  // ── Pie chart SVG ──
+  function renderPieChart(batches) {
+    if (!batches.length) return '';
+    const total = batches.reduce((s, b) => s + b.total_cost, 0);
+    if (total <= 0) return '<div class="text-xs text-gray-400 text-center py-4">无成本数据</div>';
+    const cx = 110, cy = 110, r = 80, ir = 50; // donut
+    const colors = ['#3b82f6','#ef4444','#f59e0b','#22c55e','#8b5cf6','#ec4899','#14b8a6','#f97316','#6366f1','#84cc16'];
+    let cumulative = 0;
+    let slices = '';
+    let legend = '';
+
+    batches.forEach((b, i) => {
+      const angle = (b.total_cost / total) * 360;
+      const startAngle = cumulative;
+      const endAngle = cumulative + angle;
+      cumulative = endAngle;
+
+      const sr = ((startAngle - 90) * Math.PI) / 180;
+      const er = ((endAngle - 90) * Math.PI) / 180;
+      const x1 = cx + r * Math.cos(sr);
+      const y1 = cy + r * Math.sin(sr);
+      const x2 = cx + r * Math.cos(er);
+      const y2 = cy + r * Math.sin(er);
+      const large = angle > 180 ? 1 : 0;
+      const color = colors[i % colors.length];
+
+      slices += `<path d="M${cx} ${cy} L${x1} ${y1} A${r} ${r} 0 ${large} 1 ${x2} ${y2} Z" fill="${color}">
+        <title>${b.batch_name}: ¥${b.total_cost.toFixed(2)} (${(b.total_cost/total*100).toFixed(1)}%)</title></path>`;
+
+      // Legend
+      const pct = (b.total_cost / total * 100).toFixed(1);
+      legend += `<div class="flex items-center gap-1.5 text-xs mt-1">
+        <span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${color}"></span>
+        <span class="text-gray-600">${escHtml(b.batch_name)}</span>
+        <span class="text-gray-400 ml-auto">¥${b.total_cost.toFixed(2)} (${pct}%)</span>
+      </div>`;
+    });
+
+    // Donut hole
+    slices += `<circle cx="${cx}" cy="${cy}" r="${ir}" fill="white"/>`;
+    slices += `<text x="${cx}" y="${cy - 6}" text-anchor="middle" font-size="16" font-weight="bold" fill="#333">¥${total.toFixed(0)}</text>`;
+    slices += `<text x="${cx}" y="${cy + 10}" text-anchor="middle" font-size="9" fill="#999">总成本</text>`;
+
+    return `<div class="flex flex-col sm:flex-row items-center gap-4">
+      <svg width="220" height="220" viewBox="0 0 220 220">${slices}</svg>
+      <div class="flex-1 min-w-0">${legend}</div>
+    </div>`;
+  }
+
+  // ── Build page ──
+  let batchTableHtml = '';
+  if (batches.length > 0) {
+    batchTableHtml = `
+    <div class="card mb-3">
+      <div class="text-sm font-medium text-gray-700 mb-2">📊 按批次统计</div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-xs">
+          <thead><tr class="border-b border-gray-200 text-gray-500">
+            <th class="p-2 text-left">批次</th>
+            <th class="p-2 text-right">项目数</th>
+            <th class="p-2 text-right">总数量</th>
+            <th class="p-2 text-right">成本小计</th>
+            <th class="p-2 text-right">售价小计</th>
+            <th class="p-2 text-right">利润</th>
+            <th class="p-2 text-right">毛利率</th>
+          </tr></thead>
+          <tbody>
+            ${batches.map(b => {
+              const profit = b.total_price - b.total_cost;
+              const margin = b.total_price > 0 ? (profit / b.total_price * 100).toFixed(1) : '0.0';
+              return `<tr class="border-b border-gray-100">
+                <td class="p-2 font-medium">${escHtml(b.batch_name)}</td>
+                <td class="p-2 text-right">${b.item_count}</td>
+                <td class="p-2 text-right">×${b.total_qty}</td>
+                <td class="p-2 text-right text-red-600">¥${b.total_cost.toFixed(2)}</td>
+                <td class="p-2 text-right text-green-600">¥${b.total_price.toFixed(2)}</td>
+                <td class="p-2 text-right ${profit >= 0 ? 'text-green-600' : 'text-red-500'}">¥${profit.toFixed(2)}</td>
+                <td class="p-2 text-right">${margin}%</td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>`;
+  }
+
   container.innerHTML = `
     <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
       <div class="bg-white border rounded-lg p-3 text-center">
@@ -532,7 +660,21 @@ async function loadProjectCost(projectId) {
         <div class="text-lg font-bold ${c.margin_pct >= 0 ? 'text-green-600' : 'text-red-500'}">${c.margin_pct.toFixed(1)}%</div>
       </div>
     </div>
+    ${batches.length > 0 ? `
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-3 mb-3">
+      <div class="card">
+        <div class="text-sm font-medium text-gray-700 mb-2">📊 各批次成本/售价对比</div>
+        ${renderBarChart(batches)}
+      </div>
+      <div class="card">
+        <div class="text-sm font-medium text-gray-700 mb-2">🥧 成本占比</div>
+        ${renderPieChart(batches)}
+      </div>
+    </div>
+    ${batchTableHtml}` : ''}
     ${c.breakdown && c.breakdown.length ? `
+    <div class="card">
+      <div class="text-sm font-medium text-gray-700 mb-2">📋 明细清单</div>
     <table class="w-full text-xs">
       <thead><tr class="border-b border-gray-200 text-gray-500">
         <th class="p-2 text-left">名称</th>
@@ -544,7 +686,7 @@ async function loadProjectCost(projectId) {
       </tr></thead>
       <tbody>
         ${c.breakdown.map(b => `<tr class="border-b border-gray-100">
-          <td class="p-2">${escHtml(b.title)}</td>
+          <td class="p-2">${escHtml(b.title)} <span class="text-gray-400">${escHtml(b.batch_name || '')}</span></td>
           <td class="p-2 text-right">×${b.quantity}</td>
           <td class="p-2 text-right">¥${b.unit_cost.toFixed(2)}</td>
           <td class="p-2 text-right">¥${b.unit_price.toFixed(2)}</td>
@@ -552,7 +694,7 @@ async function loadProjectCost(projectId) {
           <td class="p-2 text-right">¥${b.subtotal_price.toFixed(2)}</td>
         </tr>`).join('')}
       </tbody>
-    </table>` : '<div class="text-xs text-gray-400 text-center py-2">暂无成本明细</div>'}`;
+    </table></div>` : '<div class="text-xs text-gray-400 text-center py-2">暂无成本明细</div>'}`;
 }
 
 // ── New project dialog ──
