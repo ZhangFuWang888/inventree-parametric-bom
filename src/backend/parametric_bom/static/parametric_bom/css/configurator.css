@@ -1004,3 +1004,5 @@ textarea.input-field{resize:vertical;font-family:monospace;font-size:0.75rem}
 .batch-card .card-header{background:#f8fafc;padding:0.5rem 0.75rem;}
 .batch-card table{margin:0;}
 .batch-card tfoot td{border-top:1px solid #e2e8f0;}
+.batch-card .batch-table{table-layout:fixed;}
+.batch-card .batch-table td{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}

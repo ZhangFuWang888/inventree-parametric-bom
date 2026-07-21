@@ -327,7 +327,15 @@ async function showProjectDetail(projectId) {
             </div>
           </div>
           <div class="overflow-x-auto">
-            <table class="w-full text-xs">
+            <table class="w-full text-xs batch-table">
+              <colgroup>
+                <col style="width:38%">
+                <col style="width:14%">
+                <col style="width:10%">
+                <col style="width:13%">
+                <col style="width:13%">
+                ${canEdit ? '<col style="width:12%">' : ''}
+              </colgroup>
               <thead>
                 <tr class="border-b border-gray-200 text-gray-500">
                   <th class="p-2 text-left">名称</th>
