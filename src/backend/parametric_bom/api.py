@@ -2813,6 +2813,30 @@ class ProjectViewSet(viewsets.ModelViewSet):
             'cart_item_ids': cart_items,
         })
 
+    @action(detail=True, methods=['post'], url_path='delete-batch')
+    def delete_batch(self, request, pk=None):
+        """Delete all items in a batch permanently."""
+        project = self.get_object()
+        batch_name = request.data.get('batch_name', '').strip()
+
+        if not batch_name:
+            return Response({'error': '请指定批次名称'}, status=400)
+        if batch_name == '未分组':
+            return Response({'error': '不能删除未分组批次'}, status=400)
+
+        items = project.items.filter(batch_name=batch_name)
+        count = items.count()
+        if not count:
+            return Response({'error': f'批次 "{batch_name}" 无条目'}, status=404)
+
+        items.delete()
+        self._log(project, 'batch_deleted',
+                  f'已删除批次 "{batch_name}"（{count} 个条目）')
+        return Response({
+            'success': True,
+            'message': f'已删除批次 "{batch_name}"，共 {count} 个条目',
+        })
+
     def _collect_bom_parts(self, node, parts_dict, multiplier=1):
         """Recursively collect parts from a BOM snapshot tree."""
         if node.get('part_id'):

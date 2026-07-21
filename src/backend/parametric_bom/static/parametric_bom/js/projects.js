@@ -313,7 +313,7 @@ async function showProjectDetail(projectId) {
         const totalAmt = items.reduce((s, it) => s + parseFloat(it.unit_price || 0) * it.quantity, 0);
         // Find earliest created_at and creator
         const times = items.map(it => it.created_at).filter(Boolean).sort();
-        const batchTime = times.length ? new Date(times[0]).toLocaleString('zh-CN', {month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}) : '';
+        const batchTime = times.length ? new Date(times[0]).toLocaleString('zh-CN', {year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}) : '';
         const creator = items.find(it => it.created_by_name)?.created_by_name || '';
         const isLocked = batchName !== '未分组';
         const safeBatch = encodeURIComponent(batchName);
@@ -339,6 +339,7 @@ async function showProjectDetail(projectId) {
               <button class="btn btn-sm btn-secondary text-orange-600" onclick="batchToCart(${p.id}, '${safeBatch}')" title="还原到购物车">
                 🛒
               </button>
+              <button class="btn btn-sm btn-secondary text-red-500" onclick="deleteBatch(${p.id}, '${safeBatch}')" title="删除批次">🗑️</button>
             </div>
           </div>
           <div class="overflow-x-auto">
@@ -1116,6 +1117,19 @@ async function batchToCart(projectId, batchName) {
   }
 }
 
+async function deleteBatch(projectId, batchName) {
+  const name = decodeURIComponent(batchName);
+  const count = prompt(`确认删除批次「${name}」？输入条目数确认：`);
+  if (!count) return;
+  const result = await projectApi('POST', `/${projectId}/delete-batch/`, { batch_name: name });
+  if (result.ok) {
+    setStatus('success', result.data.message || '批次已删除');
+    showProjectDetail(projectId);
+  } else {
+    setStatus('error', result.data?.error || '删除失败');
+  }
+}
+
 // ── Expose to window ──
 window.copyText = copyText;
 window.showNewProjectDialog = showNewProjectDialog;
@@ -1131,6 +1145,7 @@ window.removeProjectItem = removeProjectItem;
 window.searchUsersForMembership = searchUsersForMembership;
 window.addMembership = addMembership;
 window.removeMembership = removeMembership;
+window.deleteBatch = deleteBatch;
 window.changeMemberRole = changeMemberRole;
 window.toggleRolePermission = toggleRolePermission;
 window.deleteRole = deleteRole;
