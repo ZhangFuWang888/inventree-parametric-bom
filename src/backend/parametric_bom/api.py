@@ -1438,6 +1438,20 @@ def _calc_tree_total(node) -> float:
     return total
 
 
+def _flatten_bom_subtree(children, depth=0):
+    """Flatten recursive BOM tree children into a flat list for ProjectItem creation."""
+    items = []
+    for child in children:
+        if child.get('excluded'):
+            continue
+        items.append(child)
+        # Recurse into grandchildren
+        grandchildren = child.get('children', [])
+        if grandchildren:
+            items.extend(_flatten_bom_subtree(grandchildren, depth + 1))
+    return items
+
+
 @api_view(['POST'])
 @permission_classes([permissions.AllowAny])
 def cart_add(request):
@@ -1821,6 +1835,35 @@ class ProjectViewSet(viewsets.ModelViewSet):
         if changes:
             self._log(project, 'updated', '; '.join(changes))
 
+    @action(detail=True, methods=['post'])
+    def archive(self, request, pk=None):
+        """Soft-delete (archive) a project."""
+        project = self.get_object()
+        project.is_active = False
+        project.save(update_fields=['is_active'])
+        self._log(project, 'archived', '项目已归档')
+        return Response({'success': True, 'is_active': False})
+
+    @action(detail=True, methods=['post'])
+    def restore(self, request, pk=None):
+        """Restore an archived project."""
+        project = self.get_object()
+        project.is_active = True
+        project.save(update_fields=['is_active'])
+        self._log(project, 'restored', '项目已恢复')
+        return Response({'success': True, 'is_active': True})
+
+    @action(detail=True, methods=['post'])
+    def hard_delete(self, request, pk=None):
+        """Permanently delete a project and all its data."""
+        project = self.get_object()
+        name = project.name
+        code = project.project_code
+        # Log before deletion
+        self._log(project, 'hard_deleted', f'项目已永久删除: {code} - {name}')
+        project.delete()  # CASCADE deletes items, logs, memberships
+        return Response({'success': True, 'deleted': f'{code} - {name}'})
+
     def _log(self, project, action, description='', details=None):
         ProjectLog.objects.create(
             project=project,
@@ -1842,24 +1885,102 @@ class ProjectViewSet(viewsets.ModelViewSet):
     def add_item(self, request, pk=None):
         """Add an item to a project."""
         project = self.get_object()
+        data = {**request.data, 'project': project.id}
+
+        # Auto-expand BOM for configuration items
+        if data.get('item_type') == 'configuration':
+            product_part_id = data.get('product_part_id') or data.get('product_part')
+            if product_part_id:
+                try:
+                    from part.models import Part
+                    from parametric_bom.bom_expander import expand_bom_level
+                    from parametric_bom.models import ProductConfiguration
+                    part = Part.objects.get(pk=int(product_part_id))
+                    params = data.get('parameters', {}) or {}
+                    bom_tree = expand_bom_level(part, params, timeout_ms=1000)
+                    data['bom_snapshot'] = bom_tree
+                    # Calculate price
+                    total = _calc_tree_total(bom_tree)
+                    if total and total > 0:
+                        data['unit_price'] = str(round(total, 4))
+                    # Create ProductConfiguration record
+                    config = ProductConfiguration.objects.create(
+                        template_part=part,
+                        title=data.get('title', part.name),
+                        params_snapshot=params,
+                        generated_bom=bom_tree,
+                        created_by=request.user,
+                    )
+                    data['product_config'] = config.id
+                except Exception:
+                    pass
+
         serializer = ProjectItemSerializer(
-            data={**request.data, 'project': project.id},
+            data=data,
             context={'request': request},
         )
         if serializer.is_valid():
             item = serializer.save()
             self._log(project, 'item_added', f'添加条目: {item.title} x{item.quantity}')
-            return Response(serializer.data, status=201)
+
+            # Auto-expand BOM sub-items into project
+            created_items = [serializer.data]
+            bom_snapshot = getattr(item, 'bom_snapshot', None) or data.get('bom_snapshot')
+            if bom_snapshot:
+                # Handle both flat format {bom_tree: [...]} and tree format {children: [...]}
+                bom_items = None
+                if isinstance(bom_snapshot, dict):
+                    if 'bom_tree' in bom_snapshot and isinstance(bom_snapshot['bom_tree'], list):
+                        bom_items = bom_snapshot['bom_tree']
+                    elif 'children' in bom_snapshot:
+                        bom_items = _flatten_bom_subtree(bom_snapshot['children'])
+                if bom_items:
+                    batch_name = data.get('batch_name', '') or item.batch_name or ''
+                    for bi in bom_items:
+                        qty = bi.get('calculated_quantity', bi.get('quantity', 1))
+                        up = bi.get('unit_price')
+                        child = ProjectItem.objects.create(
+                            project=project,
+                            item_type='part',
+                            title=bi.get('part_name', bi.get('calculated_name', '')),
+                            part_id=bi.get('part_id'),
+                            quantity=int(qty) if qty == int(qty) else qty,
+                            unit_price=str(round(float(up), 4)) if up else None,
+                            batch_name=batch_name,
+                        )
+                        child_ser = ProjectItemSerializer(child, context={'request': request})
+                        created_items.append(child_ser.data)
+                    self._log(project, 'item_added',
+                              f'并展开 {len(bom_items)} 个BOM子件')
+
+            return Response(created_items if len(created_items) > 1 else created_items[0],
+                          status=201)
         return Response(serializer.errors, status=400)
 
-    @action(detail=True, methods=['delete'], url_path='items/(?P<item_id>[^/.]+)')
-    def remove_item(self, request, pk=None, item_id=None):
-        """Remove an item from a project."""
+    @action(detail=True, methods=['patch', 'delete'], url_path='items/(?P<item_id>[^/.]+)')
+    def update_item(self, request, pk=None, item_id=None):
+        """Update or remove an item from a project."""
         project = self.get_object()
         item = get_object_or_404(ProjectItem, id=item_id, project=project)
-        self._log(project, 'item_removed', f'移除条目: {item.title}')
-        item.delete()
-        return Response({'success': True}, status=200)
+
+        if request.method == 'DELETE':
+            self._log(project, 'item_removed', f'移除条目: {item.title}')
+            item.delete()
+            return Response({'success': True}, status=200)
+
+        # PATCH — update item fields
+        serializer = ProjectItemSerializer(
+            item,
+            data=request.data,
+            partial=True,
+            context={'request': request},
+        )
+        if serializer.is_valid():
+            updated = serializer.save()
+            self._log(project, 'item_updated',
+                      f'更新条目: {item.title} → {updated.title} x{updated.quantity}')
+            return Response(serializer.data, status=200)
+        return Response(serializer.errors, status=400)
 
     @action(detail=False, methods=['post'])
     def from_cart(self, request):
@@ -1902,7 +2023,16 @@ class ProjectViewSet(viewsets.ModelViewSet):
             }
             if ci.item_type == 'parametric' and ci.product_part:
                 item_kwargs['item_type'] = 'configuration'
-                item_kwargs['product_config'] = ci.product_config if hasattr(ci, 'product_config') else None
+                # Create ProductConfiguration from CartItem data
+                from parametric_bom.models import ProductConfiguration
+                config = ProductConfiguration.objects.create(
+                    template_part=ci.product_part,
+                    title=ci.title or ci.product_part.name,
+                    params_snapshot=ci.parameters,
+                    generated_bom=ci.bom_snapshot,
+                    created_by=request.user,
+                )
+                item_kwargs['product_config'] = config
                 item_kwargs['bom_snapshot'] = ci.bom_snapshot
                 item_kwargs['unit_cost'] = ci.unit_price
             else:
@@ -2075,7 +2205,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
             'total_cost': total_cost,
             'total_price': total_price,
             'profit': total_price - total_cost,
-            'margin_pct': round((total_price - total_cost) / total_price * 100, 2) if total_price else 0,
+            'margin_pct': round((total_price - total_cost) / total_price * 100, 2) if total_price and total_price > 0 else (0 if total_price == 0 and total_cost == 0 else -100.0),
             'breakdown': breakdown,
         })
 

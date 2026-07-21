@@ -120,3 +120,8 @@ InvenTree/web/static
 # performance test results
 .codspeed/
 venv/
+
+# Database
+*.db
+*.sqlite3
+

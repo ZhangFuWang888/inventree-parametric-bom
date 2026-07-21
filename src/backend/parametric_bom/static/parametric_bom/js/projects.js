@@ -231,16 +231,19 @@ function renderPagination(page, totalPages, total) {
 
 // ── Show project detail ──
 async function showProjectDetail(projectId) {
-  const result = await projectApi('GET', `/${projectId}/`);
-  if (!result.ok) { setStatus('error', '加载项目失败'); return; }
-  const p = result.data;
-  window._currentProjectId = projectId;
-
   const container = document.getElementById('project-detail-content');
   if (!container) { switchPage('project-detail'); await delay(50); return showProjectDetail(projectId); }
-
-  // Switch to detail page
+  // Show loading state
   switchPage('project-detail');
+  container.innerHTML = '<div class="flex items-center justify-center py-12"><div class="text-gray-400 text-sm flex items-center gap-3"><span class="inline-block w-5 h-5 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"></span>加载中...</div></div>';
+
+  const result = await projectApi('GET', `/${projectId}/`);
+  if (!result.ok) {
+    container.innerHTML = '<div class="card"><div class="empty-state p-4 text-center text-red-400 text-sm">❌ 加载项目失败 <button class="btn btn-sm btn-secondary ml-2" onclick="showProjectDetail(' + projectId + ')">重试</button></div></div>';
+    return;
+  }
+  const p = result.data;
+  window._currentProjectId = projectId;
 
   const canEdit = p.user_role === 'owner' || p.user_permissions?.includes('edit_project');
   const canManageMembers = p.user_role === 'owner' || p.user_permissions?.includes('manage_members');
@@ -258,7 +261,8 @@ async function showProjectDetail(projectId) {
       <div class="flex items-center gap-2">
         ${canEdit ? `
         <button class="btn btn-sm btn-secondary" onclick="editProjectField('name')">编辑</button>
-        <button class="btn btn-sm btn-secondary" onclick="confirmDeleteProject(${p.id})">删除</button>` : ''}
+        <button class="btn btn-sm btn-secondary" onclick="confirmArchiveProject(${p.id}, ${p.is_active})">${p.is_active ? '归档' : '恢复'}</button>
+        ${p.is_active ? '' : `<button class="btn btn-sm btn-secondary text-red-600" onclick="confirmHardDelete(${p.id})">永久删除</button>`}` : ''}
         ${!p.is_template ? `<button class="btn btn-sm btn-secondary" onclick="saveAsTemplate(${p.id})">存为模板</button>` : ''}
         ${p.is_template ? `<button class="btn btn-sm btn-secondary" onclick="createFromTemplate(${p.id})">从模板创建</button>` : ''}
         <button class="btn btn-sm btn-secondary" onclick="downloadProjectCsv(${p.id})">导出</button>
@@ -374,7 +378,11 @@ async function showProjectDetail(projectId) {
                     <td class="p-2 text-right">×${item.quantity}</td>
                     <td class="p-2 text-right">¥${parseFloat(item.unit_price || 0).toFixed(2)}</td>
                     <td class="p-2 text-right font-medium">¥${subtotal}</td>
-                    ${canEdit && !isLocked ? `<td class="p-2 text-center"><button class="text-red-500 hover:text-red-700" onclick="removeProjectItem(${p.id}, ${item.id})">✕</button></td>` : ''}
+                    ${canEdit && !isLocked ? `<td class="p-2 text-center whitespace-nowrap">
+                      <input type="checkbox" class="batch-item-cb" data-item-id="${item.id}" onchange="updateBatchActions()" style="vertical-align:middle;cursor:pointer">
+                      <button class="text-blue-500 hover:text-blue-700 ml-1" onclick="event.stopPropagation(); editProjectItem(${p.id}, ${item.id})" title="编辑">✏️</button>
+                      <button class="text-red-500 hover:text-red-700" onclick="event.stopPropagation(); removeProjectItem(${p.id}, ${item.id})" title="删除">✕</button>
+                    </td>` : ''}
                   </tr>
                   ${hasBom ? `<tr id="bom-tree-${item.id}" class="bom-tree-container" style="display:none">
                     <td colspan="${colCount}" style="padding:0;background:#fafafa">
@@ -389,7 +397,7 @@ async function showProjectDetail(projectId) {
                           </tr>
                         </thead>
                         <tbody>
-                          ${renderBomTreeNode(item.bom_snapshot, 0, 1)}
+                          ${renderBomSnapshot(item.bom_snapshot, item.quantity || 1)}
                         </tbody>
                       </table>
                     </td>
@@ -411,10 +419,15 @@ async function showProjectDetail(projectId) {
       });
 
       html += `
-      <div class="flex items-center gap-2 mt-2">
+      <div class="flex items-center gap-2 mt-2 flex-wrap" id="batch-actions-${p.id}">
         <button class="btn btn-sm btn-secondary" onclick="showAddItemDialog(${p.id}, '')">添加条目到项目</button>
         <button class="btn btn-sm btn-secondary" onclick="generatePurchaseOrders(${p.id})">生成采购订单</button>
         <button class="btn btn-sm btn-secondary" onclick="generateSalesOrder(${p.id})">生成销售订单</button>
+        <span id="batch-bar-${p.id}" class="batch-action-bar" style="display:none;margin-left:8px;padding-left:8px;border-left:1px solid #d1d5db">
+          <span id="batch-count-${p.id}" class="text-xs text-gray-500 mr-2">已选 0 项</span>
+          <button class="btn btn-sm btn-secondary text-red-600" onclick="batchDeleteItems(${p.id})" id="batch-del-btn-${p.id}">批量删除</button>
+          <button class="btn btn-sm btn-secondary" onclick="batchChangeBatch(${p.id})">改批次</button>
+        </span>
       </div>`;
 
       return html;
@@ -620,6 +633,31 @@ async function deleteProject(id) {
   }
 }
 
+// ── Archive / Restore / Hard Delete ──
+async function confirmArchiveProject(id, isActive) {
+  const action = isActive ? '归档' : '恢复';
+  if (!confirm(`确定${action}此项目？${isActive ? '归档后项目将不再显示在列表中，可在URL加?inactive=1查看' : ''}`)) return;
+  const endpoint = isActive ? 'archive' : 'restore';
+  const r = await projectApi('POST', `/${id}/${endpoint}/`);
+  if (r.ok) {
+    setStatus('success', `项目已${action}`);
+    showProjectDetail(id);
+  } else {
+    setStatus('error', `${action}失败`);
+  }
+}
+async function confirmHardDelete(id) {
+  if (!confirm('⚠️ 确定永久删除此项目？该操作不可恢复，所有条目和日志将被彻底清除！')) return;
+  if (!confirm('再次确认：此操作不可撤销！')) return;
+  const r = await projectApi('POST', `/${id}/hard_delete/`);
+  if (r.ok) {
+    setStatus('success', `项目已永久删除: ${r.data?.deleted || ''}`);
+    switchPage('projects');
+  } else {
+    setStatus('error', '删除失败');
+  }
+}
+
 // ── Add item to project dialog ──
 function showAddItemDialog(projectId) {
   showModal('添加条目', `
@@ -686,6 +724,108 @@ async function removeProjectItem(projectId, itemId) {
   } else {
     setStatus('error', '移除失败');
   }
+}
+
+async function editProjectItem(projectId, itemId) {
+  // Fetch current item data from the detail view's rendered table
+  const projectData = window._projectData;
+  if (!projectData) return;
+  const allItems = (projectData.items || []).filter(Boolean);
+  // If items is not populated (e.g., loaded via detail endpoint), fetch directly
+  let item = allItems.find(i => i.id === itemId);
+  if (!item) {
+    const resp = await fetch(`/api/parametric-bom/projects/${projectId}/`);
+    if (resp.ok) {
+      const data = await resp.json();
+      window._projectData = data;
+      item = (data.items || []).find(i => i.id === itemId);
+    }
+  }
+  if (!item) { setStatus('error', '找不到条目数据'); return; }
+
+  const bodyHtml = `
+    <div class="space-y-3">
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">名称</label>
+        <input id="edit-item-title" class="w-full border border-gray-300 rounded px-3 py-2 text-sm" value="${escHtml(item.title)}">
+      </div>
+      <div class="flex gap-3">
+        <div class="flex-1">
+          <label class="block text-xs text-gray-500 mb-1">数量</label>
+          <input id="edit-item-qty" type="number" min="1" class="w-full border border-gray-300 rounded px-3 py-2 text-sm" value="${item.quantity}">
+        </div>
+        <div class="flex-1">
+          <label class="block text-xs text-gray-500 mb-1">单价 (¥)</label>
+          <input id="edit-item-price" type="number" step="0.0001" min="0" class="w-full border border-gray-300 rounded px-3 py-2 text-sm" value="${parseFloat(item.unit_price || 0).toFixed(4)}">
+        </div>
+      </div>
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">备注</label>
+        <input id="edit-item-notes" class="w-full border border-gray-300 rounded px-3 py-2 text-sm" value="${escHtml(item.notes || '')}">
+      </div>
+    </div>`;
+  const buttons = [
+    { text: '取消', cls: 'btn btn-sm btn-secondary', action: () => document.getElementById('hermes-modal-overlay')?.remove() },
+    { text: '保存', cls: 'btn btn-sm btn-primary bg-blue-500 text-white', action: async () => {
+      const title = document.getElementById('edit-item-title')?.value?.trim();
+      const qty = parseInt(document.getElementById('edit-item-qty')?.value);
+      const price = parseFloat(document.getElementById('edit-item-price')?.value);
+      const notes = document.getElementById('edit-item-notes')?.value?.trim();
+      if (!title || !qty || qty < 1) { setStatus('error', '名称和数量不能为空'); return; }
+      const payload = { title, quantity: qty };
+      if (price >= 0) payload.unit_price = String(price);
+      payload.notes = notes || '';
+      const result = await projectApi('PATCH', `/${projectId}/items/${itemId}/`, payload);
+      if (result.ok) {
+        document.getElementById('hermes-modal-overlay')?.remove();
+        setStatus('success', '条目已更新');
+        showProjectDetail(projectId);
+      } else {
+        setStatus('error', result.data?.error || '更新失败');
+      }
+    }},
+  ];
+  showModal('编辑条目', bodyHtml, buttons);
+}
+
+// ── Batch operations ──
+function updateBatchActions() {
+  const cbs = document.querySelectorAll('.batch-item-cb:checked');
+  const checked = Array.from(cbs).map(cb => cb.dataset.itemId);
+  const bar = document.querySelector('[id^="batch-bar-"]');
+  if (!bar) return;
+  const pid = bar.id.replace('batch-bar-', '');
+  const countEl = document.getElementById('batch-count-' + pid);
+  const barEl = document.getElementById('batch-bar-' + pid);
+  if (countEl) countEl.textContent = `已选 ${checked.length} 项`;
+  if (barEl) barEl.style.display = checked.length > 0 ? 'inline' : 'none';
+}
+async function batchDeleteItems(projectId) {
+  const cbs = document.querySelectorAll('.batch-item-cb:checked');
+  const ids = Array.from(cbs).map(cb => cb.dataset.itemId);
+  if (!ids.length) return;
+  if (!confirm(`确定删除选中的 ${ids.length} 个条目？`)) return;
+  let ok = 0, fail = 0;
+  for (const id of ids) {
+    const r = await projectApi('DELETE', `/${projectId}/items/${id}/`);
+    if (r.ok) ok++; else fail++;
+  }
+  setStatus(ok > 0 ? 'success' : 'error', `批量删除完成: ${ok} 成功, ${fail} 失败`);
+  showProjectDetail(projectId);
+}
+async function batchChangeBatch(projectId) {
+  const cbs = document.querySelectorAll('.batch-item-cb:checked');
+  const ids = Array.from(cbs).map(cb => cb.dataset.itemId);
+  if (!ids.length) return;
+  const newBatch = prompt('请输入新的批次名称：');
+  if (!newBatch || !newBatch.trim()) return;
+  let ok = 0, fail = 0;
+  for (const id of ids) {
+    const r = await projectApi('PATCH', `/${projectId}/items/${id}/`, { batch_name: newBatch.trim() });
+    if (r.ok) ok++; else fail++;
+  }
+  setStatus(ok > 0 ? 'success' : 'error', `批次修改完成: ${ok} 成功, ${fail} 失败`);
+  showProjectDetail(projectId);
 }
 
 // ── Generate purchase orders ──
@@ -781,6 +921,34 @@ function delay(ms) {
 }
 
 // ── BOM Tree expand ──
+function renderBomSnapshot(snapshot, multiplier) {
+  // Handle flat format: {bom_tree: [{part_name, quantity, unit_price, IPN, ...}], part_name: "..."}
+  if (!snapshot) return '';
+  const m = multiplier || 1;
+
+  // Flat format (ProjectItem storage)
+  const bomTree = snapshot.bom_tree;
+  if (Array.isArray(bomTree)) {
+    let html = '';
+    for (const item of bomTree) {
+      const qty = (item.quantity || 1) * m;
+      const up = item.unit_price != null ? parseFloat(item.unit_price) : null;
+      const tp = up != null ? up * qty : null;
+      html += `<tr class="bom-tree-row" style="font-size:11px">
+        <td style="padding:3px 6px;padding-left:16px">${escHtml(item.part_name || '')}</td>
+        <td style="padding:3px 6px;color:#6b7280">${item.IPN ? escHtml(item.IPN) : '<span style="color:#d1d5db">—</span>'}</td>
+        <td style="padding:3px 6px;text-align:right">×${qty.toFixed(2)}</td>
+        <td style="padding:3px 6px;text-align:right">${up != null ? '¥' + up.toFixed(2) : '—'}</td>
+        <td style="padding:3px 6px;text-align:right;font-weight:500">${tp != null ? '¥' + tp.toFixed(2) : '—'}</td>
+      </tr>`;
+    }
+    return html;
+  }
+
+  // Tree format (recursive BomTreeNode)
+  return renderBomTreeNode(snapshot, 0, m);
+}
+
 function renderBomTreeNode(node, depth, multiplier) {
   if (!node) return '';
   const m = multiplier || 1;
@@ -987,12 +1155,14 @@ async function searchPartsForItem() {
 
   _partSearchTimer = setTimeout(async () => {
     try {
-      const resp = await fetch('/api/part/?search=' + encodeURIComponent(q) + '&limit=15', { credentials: 'same-origin' });
+      // Use dynamic API base path
+      const basePath = window._inventreeApiBase || '/api';
+      const resp = await fetch(basePath + '/part/?search=' + encodeURIComponent(q) + '&limit=15', { credentials: 'same-origin' });
       const data = await resp.json();
       const parts = data.results || data || [];
       if (!parts.length) { results.innerHTML = '<div class="text-xs text-gray-400 py-1">未找到零件</div>'; return; }
       results.innerHTML = parts.map(p =>
-        '<div class="flex items-center justify-between py-1 px-2 text-xs border border-gray-200 rounded hover:bg-gray-50 cursor-pointer" onclick="selectPartForItem(' + p.pk + ', \'' + escHtml(p.name).replace(/'/g, "\\'") + '\')">' +
+        '<div class="flex items-center justify-between py-1 px-2 text-xs border border-gray-200 rounded hover:bg-gray-50 cursor-pointer" data-part-id="' + p.pk + '" data-part-name="' + escHtml(p.name).replace(/"/g, '&quot;') + '" onclick="selectPartForItem(this.dataset.partId, this.dataset.partName)">' +
         '<span class="font-medium">' + escHtml(p.name) + '</span>' +
         '<span class="text-gray-400">' + escHtml(p.IPN || '') + '</span>' +
         '</div>'
