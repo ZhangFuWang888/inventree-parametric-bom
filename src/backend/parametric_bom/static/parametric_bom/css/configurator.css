@@ -1000,7 +1000,7 @@ textarea.input-field{resize:vertical;font-family:monospace;font-size:0.75rem}
 }
 
 /* ── Batch Card ── */
-.batch-card{border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;}
+.batch-card{border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;position:relative;}
 .batch-card .card-header{background:#f8fafc;padding:0.5rem 0.75rem;}
 .batch-card table{margin:0;}
 .batch-card tfoot td{border-top:1px solid #e2e8f0;}
@@ -1009,3 +1009,9 @@ textarea.input-field{resize:vertical;font-family:monospace;font-size:0.75rem}
 .batch-card.batch-locked{opacity:0.9;}
 .batch-card.batch-locked tbody tr{color:#64748b;}
 .batch-card.batch-locked tbody tr:hover{background:#f1f5f9;}
+
+/* ── Batch Actions Right Side ── */
+.batch-actions-right{
+  position:absolute;top:0.5rem;right:0.75rem;
+  display:flex;align-items:center;gap:0.375rem;
+}

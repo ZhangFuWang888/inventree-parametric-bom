@@ -323,15 +323,18 @@ async function showProjectDetail(projectId) {
               <span class="text-xs text-gray-400">${items.length} 项 · ${totalQty} 件 · ¥${totalAmt.toFixed(2)}</span>
               ${batchTime ? `<span class="text-xs text-gray-400">🕐 ${batchTime}</span>` : ''}
               ${creator ? `<span class="text-xs text-gray-400">👤 ${escHtml(creator)}</span>` : ''}
+            </div>
             <div class="flex items-center gap-2">
               ${canEdit && !isLocked ? `<button class="btn btn-sm btn-secondary" onclick="showAddItemDialog(${p.id}, '${escHtml(batchName)}')">添加</button>` : ''}
-              <button class="btn btn-sm btn-secondary batch-export-btn" onclick="exportBatchCsv(${p.id}, '${safeBatch}')" title="导出 XLSX 订单表">
-                <span class="batch-export-icon"></span> XLSX
-              </button>
-              <button class="btn btn-sm btn-secondary batch-export-btn" onclick="exportBatchZip(${p.id}, '${safeBatch}')" title="导出 ZIP（订单表+BOM表）">
-                <span class="batch-export-icon"></span> ZIP
-              </button>
             </div>
+          </div>
+          <div class="batch-actions-right">
+            <button class="btn btn-sm btn-secondary batch-export-btn" onclick="exportBatchCsv(${p.id}, '${safeBatch}')" title="导出 XLSX 订单表">
+              <span class="batch-export-icon"></span> XLSX
+            </button>
+            <button class="btn btn-sm btn-secondary batch-export-btn" onclick="exportBatchZip(${p.id}, '${safeBatch}')" title="导出 ZIP（订单表+BOM表）">
+              <span class="batch-export-icon"></span> ZIP
+            </button>
           </div>
           <div class="overflow-x-auto">
             <table class="w-full text-xs batch-table">
