@@ -311,20 +311,22 @@ async function showProjectDetail(projectId) {
         const times = items.map(it => it.created_at).filter(Boolean).sort();
         const batchTime = times.length ? new Date(times[0]).toLocaleString('zh-CN', {month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}) : '';
         const creator = items.find(it => it.created_by_name)?.created_by_name || '';
+        const isLocked = batchName !== '未分组';
         const safeBatch = encodeURIComponent(batchName);
 
         html += `
-        <div class="card mb-3 batch-card">
+        <div class="card mb-3 batch-card${isLocked ? ' batch-locked' : ''}">
           <div class="card-header flex items-center justify-between flex-wrap gap-2">
             <div class="flex items-center gap-2 flex-wrap">
               <span class="font-semibold text-sm">📦 ${escHtml(batchName)}</span>
+              ${isLocked ? '<span class="text-[10px] text-gray-400 font-normal">🔒 已锁定</span>' : ''}
               <span class="text-xs text-gray-400">${items.length} 项 · ${totalQty} 件 · ¥${totalAmt.toFixed(2)}</span>
               ${batchTime ? `<span class="text-xs text-gray-400">🕐 ${batchTime}</span>` : ''}
               ${creator ? `<span class="text-xs text-gray-400">👤 ${escHtml(creator)}</span>` : ''}
             <div class="flex items-center gap-2">
-              ${canEdit ? `<button class="btn btn-sm btn-secondary" onclick="showAddItemDialog(${p.id}, '${escHtml(batchName)}')">添加</button>` : ''}
-              <button class="btn btn-sm btn-secondary batch-export-btn" onclick="exportBatchCsv(${p.id}, '${safeBatch}')" title="导出 CSV 订单表">
-                <span class="batch-export-icon"></span> CSV
+              ${canEdit && !isLocked ? `<button class="btn btn-sm btn-secondary" onclick="showAddItemDialog(${p.id}, '${escHtml(batchName)}')">添加</button>` : ''}
+              <button class="btn btn-sm btn-secondary batch-export-btn" onclick="exportBatchCsv(${p.id}, '${safeBatch}')" title="导出 XLSX 订单表">
+                <span class="batch-export-icon"></span> XLSX
               </button>
               <button class="btn btn-sm btn-secondary batch-export-btn" onclick="exportBatchZip(${p.id}, '${safeBatch}')" title="导出 ZIP（订单表+BOM表）">
                 <span class="batch-export-icon"></span> ZIP
@@ -339,7 +341,7 @@ async function showProjectDetail(projectId) {
                 <col style="width:10%">
                 <col style="width:13%">
                 <col style="width:13%">
-                ${canEdit ? '<col style="width:12%">' : ''}
+                ${canEdit && !isLocked ? '<col style="width:12%">' : ''}
               </colgroup>
               <thead>
                 <tr class="border-b border-gray-200 text-gray-500">
@@ -348,7 +350,7 @@ async function showProjectDetail(projectId) {
                   <th class="p-2 text-right">数量</th>
                   <th class="p-2 text-right">单价</th>
                   <th class="p-2 text-right">小计</th>
-                  ${canEdit ? '<th class="p-2 text-center">操作</th>' : ''}
+                  ${canEdit && !isLocked ? '<th class="p-2 text-center">操作</th>' : ''}
                 </tr>
               </thead>
               <tbody>
@@ -360,7 +362,7 @@ async function showProjectDetail(projectId) {
                     <td class="p-2 text-right">×${item.quantity}</td>
                     <td class="p-2 text-right">¥${parseFloat(item.unit_price || 0).toFixed(2)}</td>
                     <td class="p-2 text-right font-medium">¥${subtotal}</td>
-                    ${canEdit ? `<td class="p-2 text-center"><button class="text-red-500 hover:text-red-700" onclick="removeProjectItem(${p.id}, ${item.id})">✕</button></td>` : ''}
+                    ${canEdit && !isLocked ? `<td class="p-2 text-center"><button class="text-red-500 hover:text-red-700" onclick="removeProjectItem(${p.id}, ${item.id})">✕</button></td>` : ''}
                   </tr>`;
                 }).join('')}
               </tbody>
@@ -370,7 +372,7 @@ async function showProjectDetail(projectId) {
                   <td class="p-2 text-right">×${totalQty}</td>
                   <td class="p-2 text-right"></td>
                   <td class="p-2 text-right font-semibold text-blue-600">¥${totalAmt.toFixed(2)}</td>
-                  ${canEdit ? '<td class="p-2"></td>' : ''}
+                  ${canEdit && !isLocked ? '<td class="p-2"></td>' : ''}
                 </tr>
               </tfoot>
             </table>
@@ -804,7 +806,7 @@ function exportBatchCsv(projectId, batchName) {
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
-  setStatus('success', '正在下载 CSV 订单表...');
+  setStatus('success', '正在下载 XLSX 订单表...');
 }
 
 function exportBatchZip(projectId, batchName) {

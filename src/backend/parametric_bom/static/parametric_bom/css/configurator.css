@@ -1006,3 +1006,6 @@ textarea.input-field{resize:vertical;font-family:monospace;font-size:0.75rem}
 .batch-card tfoot td{border-top:1px solid #e2e8f0;}
 .batch-card .batch-table{table-layout:fixed;}
 .batch-card .batch-table td{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.batch-card.batch-locked{opacity:0.9;}
+.batch-card.batch-locked tbody tr{color:#64748b;}
+.batch-card.batch-locked tbody tr:hover{background:#f1f5f9;}
