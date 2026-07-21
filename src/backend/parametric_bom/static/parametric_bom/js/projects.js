@@ -673,22 +673,21 @@ async function loadProjectCost(projectId) {
     </div>
     ${batchTableHtml}
     ${(() => {
-      const types = c.type_breakdown || [];
-      if (!types.length || types.every(t => t.count === 0)) return '';
+      const cats = c.category_breakdown || [];
+      if (!cats.length) return '';
+      const colors = ['#3b82f6','#ef4444','#f59e0b','#22c55e','#8b5cf6','#ec4899','#14b8a6','#f97316','#6366f1','#84cc16'];
       return `
     <div class="card mb-3">
-      <div class="text-sm font-medium text-gray-700 mb-2">🏷️ 按物料类型统计</div>
+      <div class="text-sm font-medium text-gray-700 mb-2">🏷️ 按物料类别统计</div>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        ${types.filter(t => t.count > 0).map(t => {
+        ${cats.map((t, i) => {
           const pct = c.total_cost > 0 ? (t.total_cost / c.total_cost * 100).toFixed(1) : '0';
           const profit = t.total_price - t.total_cost;
-          const color = t.item_type === 'configuration' ? '#3b82f6' : '#f59e0b';
-          const icon = t.item_type === 'configuration' ? '📦' : '⚙️';
+          const color = colors[i % colors.length];
           const barW = Math.max(4, parseFloat(pct));
           return `<div class="border rounded-lg p-3">
             <div class="flex items-center gap-2 mb-2">
-              <span>${icon}</span>
-              <span class="font-medium text-sm">${t.label}</span>
+              <span class="font-medium text-sm">${escHtml(t.category)}</span>
               <span class="text-xs text-gray-400">${t.count} 条</span>
             </div>
             <div class="flex items-center gap-3 mb-1">

@@ -2215,21 +2215,42 @@ class ProjectViewSet(viewsets.ModelViewSet):
     def cost_summary(self, request, pk=None):
         """Get cost summary for a project."""
         import re
+        from part.models import Part, PartCategory
         project = self.get_object()
         total_cost = 0
         total_price = 0
         breakdown = []
         batch_breakdown = {}
-        for item in project.items.all():
+        cat_breakdown = {}
+        for item in project.items.all().select_related('part', 'product_config__template_part'):
             cost = float(item.unit_cost or 0) * item.quantity
             price = float(item.unit_price or 0) * item.quantity
             total_cost += cost
             total_price += price
+
+            # Determine category name from the underlying Part
+            part_obj = None
+            if item.part_id:
+                part_obj = item.part
+            elif item.product_config and item.product_config.template_part_id:
+                part_obj = item.product_config.template_part
+            cat_name = '未分类'
+            if part_obj and part_obj.category_id:
+                cat_name = part_obj.category.name
+                # Walk up to root for full path
+                parent = part_obj.category
+                path_parts = [parent.name]
+                while parent.parent_id:
+                    parent = parent.parent
+                    path_parts.insert(0, parent.name)
+                cat_name = ' / '.join(path_parts)
+
             breakdown.append({
                 'title': item.title,
                 'type': item.item_type,
                 'quantity': item.quantity,
                 'batch_name': item.batch_name or '未分组',
+                'category': cat_name,
                 'unit_cost': float(item.unit_cost or 0),
                 'unit_price': float(item.unit_price or 0),
                 'subtotal_cost': cost,
@@ -2242,6 +2263,12 @@ class ProjectViewSet(viewsets.ModelViewSet):
             batch_breakdown[bname]['total_qty'] += item.quantity
             batch_breakdown[bname]['total_cost'] += cost
             batch_breakdown[bname]['total_price'] += price
+
+            if cat_name not in cat_breakdown:
+                cat_breakdown[cat_name] = {'count': 0, 'total_cost': 0, 'total_price': 0}
+            cat_breakdown[cat_name]['count'] += 1
+            cat_breakdown[cat_name]['total_cost'] += cost
+            cat_breakdown[cat_name]['total_price'] += price
 
         # Sort batch breakdown: "第N批" by number desc, others by cost desc
         batch_list = []
@@ -2260,9 +2287,9 @@ class ProjectViewSet(viewsets.ModelViewSet):
             'margin_pct': round((total_price - total_cost) / total_price * 100, 2) if total_price and total_price > 0 else (0 if total_price == 0 and total_cost == 0 else -100.0),
             'breakdown': breakdown,
             'batch_breakdown': batch_list,
-            'type_breakdown': [
-                {'item_type': 'configuration', 'label': '参数化配置', 'count': sum(1 for b in breakdown if b['type'] == 'configuration'), 'total_cost': sum(b['subtotal_cost'] for b in breakdown if b['type'] == 'configuration'), 'total_price': sum(b['subtotal_price'] for b in breakdown if b['type'] == 'configuration')},
-                {'item_type': 'part', 'label': '静态零件', 'count': sum(1 for b in breakdown if b['type'] == 'part'), 'total_cost': sum(b['subtotal_cost'] for b in breakdown if b['type'] == 'part'), 'total_price': sum(b['subtotal_price'] for b in breakdown if b['type'] == 'part')},
+            'category_breakdown': [
+                {'category': cat, 'count': data['count'], 'total_cost': data['total_cost'], 'total_price': data['total_price']}
+                for cat, data in sorted(cat_breakdown.items(), key=lambda x: -x[1]['total_cost'])
             ],
         })
 
