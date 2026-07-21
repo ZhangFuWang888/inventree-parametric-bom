@@ -1887,6 +1887,29 @@ class ProjectViewSet(viewsets.ModelViewSet):
         project = self.get_object()
         data = {**request.data, 'project': project.id}
 
+        # ── Merge: 同一批次内名称+型号相同则叠加数量 ──
+        batch_name = data.get('batch_name', '')
+        title = data.get('title', '')
+        part_id = data.get('part')
+        item_type = data.get('item_type', 'configuration')
+        merge_filter = {
+            'project': project,
+            'batch_name': batch_name or None,
+            'title': title,
+            'item_type': item_type,
+        }
+        if part_id and item_type == 'part':
+            merge_filter['part_id'] = int(part_id)
+        existing = ProjectItem.objects.filter(**merge_filter).first()
+        if existing:
+            add_qty = int(data.get('quantity', 1))
+            existing.quantity += add_qty
+            existing.save(update_fields=['quantity'])
+            self._log(project, 'item_merged',
+                      f'合并条目: {title} 数量 +{add_qty} → {existing.quantity}')
+            serializer = ProjectItemSerializer(existing, context={'request': request})
+            return Response(serializer.data, status=200)
+
         # Auto-expand BOM for configuration items
         if data.get('item_type') == 'configuration':
             product_part_id = data.get('product_part_id') or data.get('product_part')
