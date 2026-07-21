@@ -68,7 +68,7 @@ async function renderProjectList() {
   <div class="card mb-3">
     <div class="card-header flex items-center justify-between flex-wrap gap-2">
       <span>📋 项目管理 <span class="text-xs text-gray-400 font-normal">(共 ${total} 个)</span></span>
-      <button class="btn btn-sm btn-success" onclick="showNewProjectDialog()">➕ 新建项目</button>
+      <button class="btn btn-sm btn-secondary" onclick="showNewProjectDialog()">新建项目</button>
     </div>
     <div class="p-2 border-b border-gray-100 flex items-center gap-2 flex-wrap">
       <input class="input-field flex-1 min-w-[180px]" id="project-search-input"
@@ -235,12 +235,12 @@ async function showProjectDetail(projectId) {
       </div>
       <div class="flex items-center gap-2">
         ${canEdit ? `
-        <button class="btn btn-sm" onclick="editProjectField('name')">✏️ 编辑</button>
-        <button class="btn btn-sm btn-primary" onclick="confirmDeleteProject(${p.id})">🗑️ 删除</button>` : ''}
-        ${!p.is_template ? `<button class="btn btn-sm" onclick="saveAsTemplate(${p.id})">📌 存为模板</button>` : ''}
-        ${p.is_template ? `<button class="btn btn-sm btn-success" onclick="createFromTemplate(${p.id})">📋 从模板创建</button>` : ''}
-        <button class="btn btn-sm btn-secondary" onclick="downloadProjectCsv(${p.id})">📥 导出</button>
-        <button class="btn btn-sm btn-secondary" onclick="switchPage('projects')">← 返回</button>
+        <button class="btn btn-sm btn-secondary" onclick="editProjectField('name')">编辑</button>
+        <button class="btn btn-sm btn-secondary" onclick="confirmDeleteProject(${p.id})">删除</button>` : ''}
+        ${!p.is_template ? `<button class="btn btn-sm btn-secondary" onclick="saveAsTemplate(${p.id})">存为模板</button>` : ''}
+        ${p.is_template ? `<button class="btn btn-sm btn-secondary" onclick="createFromTemplate(${p.id})">从模板创建</button>` : ''}
+        <button class="btn btn-sm btn-secondary" onclick="downloadProjectCsv(${p.id})">导出</button>
+        <button class="btn btn-sm btn-secondary" onclick="switchPage('projects')">返回</button>
       </div>
     </div>
 
@@ -255,12 +255,12 @@ async function showProjectDetail(projectId) {
 
   <!-- Tabs -->
   <div class="flex gap-0 border-b border-gray-200 mb-3">
-    <button class="pd-tab active" data-proj-tab="items" onclick="switchProjectTab('items')">📋 产品/零件</button>
-    <button class="pd-tab" data-proj-tab="cost" onclick="switchProjectTab('cost')">💰 成本</button>
-    <button class="pd-tab" data-proj-tab="orders" onclick="switchProjectTab('orders')">📦 订单</button>
-    <button class="pd-tab" data-proj-tab="logs" onclick="switchProjectTab('logs')">📝 日志</button>
-    <button class="pd-tab" data-proj-tab="attachments" onclick="switchProjectTab('attachments')">📎 附件</button>
-    <button class="pd-tab" data-proj-tab="members" onclick="switchProjectTab('members')">👥 成员</button>
+    <button class="pd-tab active" data-proj-tab="items" onclick="switchProjectTab('items')">产品/零件</button>
+    <button class="pd-tab" data-proj-tab="cost" onclick="switchProjectTab('cost')">成本</button>
+    <button class="pd-tab" data-proj-tab="orders" onclick="switchProjectTab('orders')">订单</button>
+    <button class="pd-tab" data-proj-tab="logs" onclick="switchProjectTab('logs')">日志</button>
+    <button class="pd-tab" data-proj-tab="attachments" onclick="switchProjectTab('attachments')">附件</button>
+    <button class="pd-tab" data-proj-tab="members" onclick="switchProjectTab('members')">成员</button>
   </div>
 
   <div id="project-tab-items" class="proj-tab-panel">
@@ -268,7 +268,7 @@ async function showProjectDetail(projectId) {
     <div class="card">
       <div class="card-header flex items-center justify-between">
         <span>项目条目</span>
-        ${canEdit ? `<button class="btn btn-sm btn-success" onclick="showAddItemDialog(${p.id})">➕ 添加</button>` : ''}
+        ${canEdit ? `<button class="btn btn-sm btn-secondary" onclick="showAddItemDialog(${p.id})">添加</button>` : ''}
       </div>
       <div class="overflow-x-auto">
         <table class="w-full text-xs">
@@ -301,8 +301,8 @@ async function showProjectDetail(projectId) {
 
     ${canEdit ? `
     <div class="flex items-center gap-2 mt-3">
-      <button class="btn btn-sm btn-primary" onclick="generatePurchaseOrders(${p.id})">📦 生成采购订单</button>
-      <button class="btn btn-sm btn-primary" onclick="generateSalesOrder(${p.id})">💰 生成销售订单</button>
+      <button class="btn btn-sm btn-secondary" onclick="generatePurchaseOrders(${p.id})">生成采购订单</button>
+      <button class="btn btn-sm btn-secondary" onclick="generateSalesOrder(${p.id})">生成销售订单</button>
     </div>` : ''}
   </div>
 
@@ -939,7 +939,7 @@ async function loadProjectAttachments(projectId) {
           <label class="text-[10px] text-gray-400 block mb-0.5">备注</label>
           <input type="text" id="att-comment-input" class="input-field w-full text-xs py-1" placeholder="附件说明">
         </div>
-        <button class="btn btn-sm btn-primary mt-1" onclick="uploadProjectAttachment(${projectId})">📤 上传</button>
+        <button class="btn btn-sm btn-secondary mt-1" onclick="uploadProjectAttachment(${projectId})">上传</button>
       </div>
     </div>`;
   }
@@ -1027,7 +1027,7 @@ async function loadProjectMembers(projectId) {
   html += '<div class="flex items-center justify-between mb-3">';
   html += '<span class="text-sm font-medium text-gray-700">👥 项目成员 <span class="text-xs text-gray-400 font-normal">(' + (memberCount + 1) + ' 人)</span></span>';
   if (canManage) {
-    html += '<button class="btn btn-sm btn-success text-xs py-1 px-2" onclick="toggleAddMember()">➕ 添加成员</button>';
+    html += '<button class="btn btn-sm btn-secondary text-xs py-1 px-2" onclick="toggleAddMember()">添加成员</button>';
   }
   html += '</div>';
 
@@ -1128,7 +1128,7 @@ async function showPermissionEditor(projectId) {
     bodyHtml += '<span class="text-[10px] text-gray-400">' + permCount + '/' + allPerms.length + '</span>';
     bodyHtml += '</div>';
     if (!role.is_preset) {
-      bodyHtml += '<button class="text-red-300 hover:text-red-500 text-[10px]" onclick="closeModal(); deleteRole(' + projectId + ', ' + role.id + ')">🗑️ 删除</button>';
+      bodyHtml += '<button class="text-red-300 hover:text-red-500 text-[10px]" onclick="closeModal(); deleteRole(' + projectId + ', ' + role.id + ')">删除</button>';
     }
     bodyHtml += '</div>';
     bodyHtml += '<div class="grid grid-cols-2 sm:grid-cols-3 gap-1 p-2.5">';
@@ -1141,12 +1141,12 @@ async function showPermissionEditor(projectId) {
     });
     bodyHtml += '</div></div>';
   });
-  bodyHtml += '<button class="btn btn-sm btn-secondary text-xs w-full mt-2 py-1.5" onclick="closeModal(); showCreateRoleDialog(' + projectId + ')">➕ 新建角色</button>';
+  bodyHtml += '<button class="btn btn-sm btn-secondary text-xs w-full mt-2 py-1.5" onclick="closeModal(); showCreateRoleDialog(' + projectId + ')">新建角色</button>';
   bodyHtml += '</div>';
 
   showModal('⚙️ 权限设置', bodyHtml, [
     { text: '取消', cls: 'btn btn-sm btn-secondary', action: closeModal },
-    { text: '💾 保存', cls: 'btn btn-sm btn-primary', action: async () => {
+    { text: '保存', cls: 'btn btn-sm btn-primary', action: async () => {
       // Collect changes from checkboxes
       const checkboxes = document.querySelectorAll('.perm-checkbox');
       const newState = JSON.parse(JSON.stringify(window._permEditorState));

@@ -393,7 +393,10 @@ header .text-sm.font-semibold{
 #page-projects .btn-danger,
 #page-project-detail .btn-danger,
 #page-projects .btn-warning,
-#page-project-detail .btn-warning {
+#page-project-detail .btn-warning,
+#hermes-modal-content .btn-primary,
+#hermes-modal-content .btn-success,
+#hermes-modal-content .btn-danger {
   background: #fff !important;
   color: #475569 !important;
   border-color: #d1d5db !important;
@@ -403,7 +406,10 @@ header .text-sm.font-semibold{
 #page-projects .btn-success:hover,
 #page-project-detail .btn-success:hover,
 #page-projects .btn-danger:hover,
-#page-project-detail .btn-danger:hover {
+#page-project-detail .btn-danger:hover,
+#hermes-modal-content .btn-primary:hover,
+#hermes-modal-content .btn-success:hover,
+#hermes-modal-content .btn-danger:hover {
   background: #f8fafc !important;
   border-color: #9ca3af !important;
 }
