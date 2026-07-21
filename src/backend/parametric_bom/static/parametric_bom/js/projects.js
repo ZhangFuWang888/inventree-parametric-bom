@@ -345,10 +345,10 @@ async function showProjectDetail(projectId) {
               <button class="btn btn-sm btn-secondary batch-export-btn" onclick="exportBatchZip(${p.id}, '${safeBatch}')" title="导出 ZIP（订单表+BOM表）">
                 <span class="batch-export-icon"></span> ZIP
               </button>
-              <button class="btn btn-sm btn-secondary text-orange-600" onclick="batchToCart(${p.id}, '${safeBatch}')" title="还原到购物车">
+              ${status !== 'completed' ? `<button class="btn btn-sm btn-secondary text-orange-600" onclick="batchToCart(${p.id}, '${safeBatch}')" title="还原到购物车">
                 🛒
-              </button>
-              ${batchName !== '未分组' ? `<button class="btn btn-sm btn-secondary text-red-500" onclick="deleteBatch(${p.id}, '${safeBatch}')" title="删除批次">🗑️</button>` : ''}
+              </button>` : ''}
+              ${batchName !== '未分组' && status !== 'completed' ? `<button class="btn btn-sm btn-secondary text-red-500" onclick="deleteBatch(${p.id}, '${safeBatch}')" title="删除批次">🗑️</button>` : ''}
             </div>
           </div>
           <div class="overflow-x-auto">

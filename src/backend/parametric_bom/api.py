@@ -2771,6 +2771,11 @@ class ProjectViewSet(viewsets.ModelViewSet):
         if not items.exists():
             return Response({'error': f'批次 "{batch_name}" 无条目'}, status=404)
 
+        # 禁止对已完成批次操作
+        batch_obj = self._get_or_create_batch(project, batch_name)
+        if batch_obj and batch_obj.status == 'completed':
+            return Response({'error': '已完成批次不能还原到购物车'}, status=400)
+
         cart_items = []
         for item in items:
             if item.item_type == 'configuration':
@@ -2824,6 +2829,10 @@ class ProjectViewSet(viewsets.ModelViewSet):
             return Response({'error': '请指定批次名称'}, status=400)
         if batch_name == '未分组':
             return Response({'error': '不能删除未分组批次'}, status=400)
+
+        batch_obj = self._get_or_create_batch(project, batch_name)
+        if batch_obj and batch_obj.status == 'completed':
+            return Response({'error': '已完成批次不能删除'}, status=400)
 
         items = project.items.filter(batch_name=batch_name)
         count = items.count()
@@ -2995,18 +3004,26 @@ class ProjectViewSet(viewsets.ModelViewSet):
 
         orders, unassigned, err = self._generate_batch_pos(project, batch_name, request.user)
         if err:
-            return Response({'error': err}, status=400)
+            # No purchasable parts — still allow marking as completed
+            orders = []
+            unassigned = []
 
         batch.status = 'completed'
         batch.save(update_fields=['status', 'updated_at'])
         self._log(project, 'batch_completed', f'批次 "{batch_name}" 已完成')
+
+        msg = f'批次 "{batch_name}" 已完成'
+        if orders:
+            msg += f'，生成 {len(orders)} 个采购订单'
+        else:
+            msg += '（无可采购零件，未生成订单）'
 
         return Response({
             'success': True,
             'status': 'completed',
             'orders': orders,
             'unassigned': unassigned,
-            'message': f'批次 "{batch_name}" 已完成，生成 {len(orders)} 个采购订单',
+            'message': msg,
         })
 
     def _collect_bom_parts(self, node, parts_dict, multiplier=1):
