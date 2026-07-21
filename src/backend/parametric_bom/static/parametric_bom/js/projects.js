@@ -328,20 +328,18 @@ async function showProjectDetail(projectId) {
               ${batchTime ? `<span class="text-xs text-gray-400">🕐 ${batchTime}</span>` : ''}
               ${creator ? `<span class="text-xs text-gray-400">👤 ${escHtml(creator)}</span>` : ''}
             </div>
-            <div class="flex items-center gap-2">
+            <div class="flex items-center gap-1.5">
               ${canEdit && !isLocked ? `<button class="btn btn-sm btn-secondary" onclick="showAddItemDialog(${p.id}, '${escHtml(batchName)}')">添加</button>` : ''}
+              <button class="btn btn-sm btn-secondary batch-export-btn" onclick="exportBatchCsv(${p.id}, '${safeBatch}')" title="导出 XLSX 订单表">
+                <span class="batch-export-icon"></span> XLSX
+              </button>
+              <button class="btn btn-sm btn-secondary batch-export-btn" onclick="exportBatchZip(${p.id}, '${safeBatch}')" title="导出 ZIP（订单表+BOM表）">
+                <span class="batch-export-icon"></span> ZIP
+              </button>
+              <button class="btn btn-sm btn-secondary text-orange-600" onclick="batchToCart(${p.id}, '${safeBatch}')" title="还原到购物车">
+                🛒
+              </button>
             </div>
-          </div>
-          <div class="batch-actions-right">
-            <button class="btn btn-sm btn-secondary batch-export-btn" onclick="exportBatchCsv(${p.id}, '${safeBatch}')" title="导出 XLSX 订单表">
-              <span class="batch-export-icon"></span> XLSX
-            </button>
-            <button class="btn btn-sm btn-secondary batch-export-btn" onclick="exportBatchZip(${p.id}, '${safeBatch}')" title="导出 ZIP（订单表+BOM表）">
-              <span class="batch-export-icon"></span> ZIP
-            </button>
-            <button class="btn btn-sm btn-secondary text-orange-600" onclick="batchToCart(${p.id}, '${safeBatch}')" title="还原到购物车">
-              🛒
-            </button>
           </div>
           <div class="overflow-x-auto">
             <table class="w-full text-xs batch-table">
@@ -423,7 +421,7 @@ async function showProjectDetail(projectId) {
 
       html += `
       <div class="flex items-center gap-2 mt-2 flex-wrap" id="batch-actions-${p.id}">
-        <button class="btn btn-sm btn-secondary" onclick="showAddItemDialog(${p.id}, '')">添加条目到项目</button>
+        <button class="btn btn-sm btn-secondary" onclick="showAddItemToProject(${p.id})">添加条目到项目</button>
         <button class="btn btn-sm btn-secondary" onclick="generatePurchaseOrders(${p.id})">生成采购订单</button>
         <button class="btn btn-sm btn-secondary" onclick="generateSalesOrder(${p.id})">生成销售订单</button>
         <span id="batch-bar-${p.id}" class="batch-action-bar" style="display:none;margin-left:8px;padding-left:8px;border-left:1px solid #d1d5db">
@@ -726,6 +724,18 @@ function showAddItemDialog(projectId, batchName) {
       }
     }},
   ]);
+}
+
+function showAddItemToProject(projectId) {
+  const p = window._projectData;
+  if (!p || !p.items) { showAddItemDialog(projectId, ''); return; }
+  const batches = new Set();
+  p.items.forEach(it => { if (it.batch_name) batches.add(it.batch_name); });
+  let nextNum = 1;
+  for (let n = 1; n <= 20; n++) {
+    if (!batches.has('第' + n + '批')) { nextNum = n; break; }
+  }
+  showAddItemDialog(projectId, '第' + nextNum + '批');
 }
 
 function toggleAddItemType() {
@@ -1114,6 +1124,7 @@ window.switchProjectTab = switchProjectTab;
 window.confirmDeleteProject = confirmDeleteProject;
 window.deleteProject = deleteProject;
 window.showAddItemDialog = showAddItemDialog;
+window.showAddItemToProject = showAddItemToProject;
 window.searchProductsForItem = searchProductsForItem;
 window.selectProductForItem = selectProductForItem;
 window.removeProjectItem = removeProjectItem;

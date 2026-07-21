@@ -1026,8 +1026,4 @@ textarea.input-field{resize:vertical;font-family:monospace;font-size:0.75rem}
 .bom-tree-toggle{color:#6b7280;}
 .bom-tree-toggle:hover{color:#3b82f6;}
 
-/* ── Batch Actions Right Side ── */
-.batch-actions-right{
-  position:absolute;top:0.5rem;right:0.75rem;
-  display:flex;align-items:center;gap:0.375rem;
-}
+/* ── Batch Actions (unused, kept for reference) ── */
