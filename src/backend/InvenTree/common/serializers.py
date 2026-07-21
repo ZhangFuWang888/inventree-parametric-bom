@@ -945,6 +945,26 @@ class ParameterSerializer(
 
         return instance
 
+    def __init__(self, *args, **kwargs):
+        """Initialize the serializer and patch the 'data' field to accept booleans.
+
+        The frontend may send boolean values (true/false) for checkbox templates,
+        but the 'data' model field is a CharField. We wrap to_internal_value
+        to convert booleans to 'True'/'False' strings before CharField validation.
+        """
+        super().__init__(*args, **kwargs)
+
+        # Wrap to_internal_value on the 'data' field to accept booleans
+        if 'data' in self.fields:
+            original_to_internal = self.fields['data'].to_internal_value
+
+            def wrapped_to_internal(value, orig=original_to_internal):
+                if isinstance(value, bool):
+                    return 'True' if value else 'False'
+                return orig(value)
+
+            self.fields['data'].to_internal_value = wrapped_to_internal
+
     # Note: The choices are overridden at run-time on class initialization
     model_type = ContentTypeField(
         mixin_class=InvenTreeParameterMixin,

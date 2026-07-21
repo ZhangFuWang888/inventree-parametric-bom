@@ -1,7 +1,7 @@
 """REST API views for Parametric BOM models."""
 
 from django.contrib.auth import authenticate
-from rest_framework import permissions, viewsets
+from rest_framework import filters, permissions, status, viewsets
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
@@ -1774,7 +1774,10 @@ class ProjectViewSet(viewsets.ModelViewSet):
 
     queryset = Project.objects.all()
     permission_classes = [permissions.IsAuthenticated, ProjectPermission]
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = ['name', 'project_code', 'description']
+    ordering_fields = ['created_at', 'name', 'project_code', 'status']
+    ordering = ['-created_at']
     filterset_fields = ['status', 'is_active']
 
     def get_serializer_class(self):
@@ -2539,3 +2542,54 @@ def check_param_status(request):
         'is_parametric': count > 0,
         'param_count': count,
     })
+
+
+@api_view(['GET'])
+@permission_classes([permissions.IsAuthenticated])
+def bom_subparts(request):
+    """Return unique BOM sub-parts (reference parts) for a product.
+    Used by the formula editor to load reference part parameters.
+    """
+    from part.models import BomItem
+
+    part_id = request.query_params.get('part')
+    if not part_id:
+        return Response({'error': 'part parameter is required'}, status=400)
+
+    items = BomItem.objects.filter(part_id=part_id).select_related('sub_part')
+    seen = set()
+    result = []
+    for item in items:
+        if item.sub_part_id not in seen:
+            seen.add(item.sub_part_id)
+            result.append({
+                'id': item.sub_part_id,
+                'name': item.sub_part.name,
+            })
+
+    return Response(result)
+
+
+class PartLiteViewSet(viewsets.ReadOnlyModelViewSet):
+    """Lightweight part list for dropdown selects — only pk, name, full_name, IPN."""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        from part.models import Part
+        qs = Part.objects.all()
+        search = self.request.query_params.get('search', '').strip()
+        if search:
+            from django.db.models import Q
+            qs = qs.filter(
+                Q(name__icontains=search) |
+                Q(IPN__icontains=search) |
+                Q(full_name__icontains=search)
+            )
+        return qs.order_by('-creation_date')[:200]
+
+    def list(self, request, *args, **kwargs):
+        qs = self.get_queryset()
+        data = [{'pk': p.pk, 'name': p.name, 'full_name': p.full_name, 'IPN': p.IPN}
+                for p in qs]
+        return Response(data)

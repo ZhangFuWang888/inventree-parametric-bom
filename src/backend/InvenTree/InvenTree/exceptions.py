@@ -8,6 +8,7 @@ from typing import Optional
 
 from django.conf import settings
 from django.core.exceptions import ValidationError as DjangoValidationError
+from django.db.models.deletion import ProtectedError as DjangoProtectedError
 from django.utils.translation import gettext_lazy as _
 
 import structlog
@@ -119,6 +120,23 @@ def exception_handler(exc, context):
     # Catch any django validation error, and re-throw a DRF validation error
     if isinstance(exc, DjangoValidationError):
         exc = DRFValidationError(detail=serializers.as_serializer_error(exc))
+
+    # Catch ProtectedError (from pre_delete signals) → return 409 Conflict
+    if isinstance(exc, DjangoProtectedError):
+        error_data = exc.args[0] if exc.args else ''
+        resp_data = {'error': 'Protected'}
+
+        # If error_data is a tuple (msg, extra_dict), extract structured info
+        if isinstance(error_data, (list, tuple)) and len(error_data) >= 1:
+            resp_data['detail'] = str(error_data[0])
+            if len(error_data) >= 2 and isinstance(error_data[1], dict):
+                extra = error_data[1]
+                if 'product_urls' in extra:
+                    resp_data['product_urls'] = extra['product_urls']
+        else:
+            resp_data['detail'] = str(error_data) if error_data else _('此项目被其他数据引用，无法删除')
+
+        return Response(resp_data, status=409)
 
     # Default to the built-in DRF exception handler
     response = drfviews.exception_handler(exc, context)

@@ -45,68 +45,100 @@ async function renderProjectList() {
 
   const page = window._projectPage || 1;
   const limit = 20;
-  const result = await projectApi('GET', `/?inactive=0&limit=${limit}&offset=${(page - 1) * limit}`);
+
+  // Build query params
+  const params = new URLSearchParams();
+  params.set('inactive', '0');
+  params.set('limit', limit);
+  params.set('offset', (page - 1) * limit);
+
+  const search = window._projectSearch || '';
+  if (search) params.set('search', search);
+
+  const order = window._projectOrder || '-created_at';
+  params.set('ordering', order);
+
+  const result = await projectApi('GET', `/?${params.toString()}`);
   const data = result.data;
   const projects = result.ok ? (data.results || data || []) : [];
   const total = data.count || projects.length;
-  const hasMore = page * limit < total;
+  const totalPages = Math.max(1, Math.ceil(total / limit));
 
-  if (page === 1) {
-    // First page — full render
-    let role = 'none';
-    if (projects.length) role = projects[0].user_role || 'none';
+  let html = `
+  <div class="card mb-3">
+    <div class="card-header flex items-center justify-between flex-wrap gap-2">
+      <span>📋 项目管理 <span class="text-xs text-gray-400 font-normal">(共 ${total} 个)</span></span>
+      <button class="btn btn-sm btn-success" onclick="showNewProjectDialog()">➕ 新建项目</button>
+    </div>
+    <div class="p-2 border-b border-gray-100 flex items-center gap-2 flex-wrap">
+      <input class="input-field flex-1 min-w-[180px]" id="project-search-input"
+             placeholder="🔍 搜索项目名称/编号..."
+             value="${escHtml(search)}"
+             oninput="debounceProjectSearch()">
+      <select class="input-field w-auto text-xs" id="project-order-select"
+              onchange="changeProjectOrder(this.value)">
+        <option value="-created_at" ${order === '-created_at' ? 'selected' : ''}>最新创建</option>
+        <option value="created_at" ${order === 'created_at' ? 'selected' : ''}>最早创建</option>
+        <option value="name" ${order === 'name' ? 'selected' : ''}>名称 A-Z</option>
+        <option value="-name" ${order === '-name' ? 'selected' : ''}>名称 Z-A</option>
+        <option value="-project_code" ${order === '-project_code' ? 'selected' : ''}>编号降序</option>
+        <option value="project_code" ${order === 'project_code' ? 'selected' : ''}>编号升序</option>
+      </select>
+      ${search ? `<button class="btn btn-sm btn-ghost text-gray-400" onclick="clearProjectSearch()">✕ 清除</button>` : ''}
+    </div>
+    ${projects.length === 0 ? `
+    <div class="empty-state p-8 text-center">
+      <div class="icon text-3xl mb-2">📦</div>
+      <p class="text-gray-500 text-sm">${search ? '未找到匹配项目' : '暂无项目，点击"新建项目"或从购物车提交项目'}</p>
+    </div>` : `
+    <div class="overflow-x-auto">
+      <table class="w-full text-xs">
+        <thead>
+          <tr class="border-b border-gray-200 text-gray-500 uppercase tracking-wider">
+            <th class="p-2 text-left">项目编号</th>
+            <th class="p-2 text-left">名称</th>
+            <th class="p-2 text-left">客户</th>
+            <th class="p-2 text-left">状态</th>
+            <th class="p-2 text-left">负责</th>
+            <th class="p-2 text-right">条目</th>
+            <th class="p-2 text-left">截止</th>
+            <th class="p-2 text-left">操作</th>
+          </tr>
+        </thead>
+        <tbody id="project-list-body">
+          ${renderProjectRows(projects)}
+        </tbody>
+      </table>
+      ${renderPagination(page, totalPages, total)}
+    </div>`}
+  </div>`;
 
-    let html = `
-    <div class="card mb-3">
-      <div class="card-header flex items-center justify-between">
-        <span>📋 项目管理 <span class="text-xs text-gray-400 font-normal">(共 ${total} 个)</span></span>
-        <button class="btn btn-sm btn-success" onclick="showNewProjectDialog()">➕ 新建项目</button>
-      </div>
-      ${projects.length === 0 ? `
-      <div class="empty-state p-8 text-center">
-        <div class="icon text-3xl mb-2">📦</div>
-        <p class="text-gray-500 text-sm">暂无项目，点击"新建项目"或从购物车提交项目</p>
-      </div>` : `
-      <div class="overflow-x-auto">
-        <table class="w-full text-xs">
-          <thead>
-            <tr class="border-b border-gray-200 text-gray-500 uppercase tracking-wider">
-              <th class="p-2 text-left">项目编号</th>
-              <th class="p-2 text-left">名称</th>
-              <th class="p-2 text-left">客户</th>
-              <th class="p-2 text-left">状态</th>
-              <th class="p-2 text-left">负责</th>
-              <th class="p-2 text-right">条目</th>
-              <th class="p-2 text-left">截止</th>
-              <th class="p-2 text-left">操作</th>
-            </tr>
-          </thead>
-          <tbody id="project-list-body">
-            ${renderProjectRows(projects)}
-          </tbody>
-        </table>
-        ${hasMore ? `<div class="text-center py-3"><button class="btn btn-sm btn-secondary" onclick="loadMoreProjects()">📄 加载更多 (${page * limit}/${total})</button></div>` : ''}
-      </div>`}
-    </div>`;
+  container.innerHTML = html;
+}
 
-    container.innerHTML = html;
-  } else {
-    // Append rows
-    const tbody = document.getElementById('project-list-body');
-    if (tbody) {
-      tbody.innerHTML += renderProjectRows(projects);
-    }
-    // Update or remove "加载更多" button
-    const moreBtn = document.querySelector('[onclick="loadMoreProjects()"]');
-    if (moreBtn) {
-      if (hasMore) {
-        moreBtn.textContent = `📄 加载更多 (${page * limit}/${total})`;
-      } else {
-        const btnContainer = moreBtn.closest('.text-center');
-        if (btnContainer) btnContainer.remove();
-      }
-    }
-  }
+function changeProjectOrder(value) {
+  window._projectOrder = value;
+  window._projectPage = 1;
+  renderProjectList();
+}
+
+let _searchTimer = null;
+function debounceProjectSearch() {
+  clearTimeout(_searchTimer);
+  _searchTimer = setTimeout(() => {
+    const val = document.getElementById('project-search-input')?.value?.trim() || '';
+    window._projectSearch = val;
+    window._projectPage = 1;
+    renderProjectList();
+  }, 300);
+}
+
+function clearProjectSearch() {
+  window._projectSearch = '';
+  window._projectPage = 1;
+  const inp = document.getElementById('project-search-input');
+  if (inp) inp.value = '';
+  renderProjectList();
 }
 
 function renderProjectRows(projects) {
@@ -127,9 +159,52 @@ function renderProjectRows(projects) {
   </tr>`).join('');
 }
 
-function loadMoreProjects() {
-  window._projectPage = (window._projectPage || 1) + 1;
+function goToProjectPage(page) {
+  window._projectPage = page;
   renderProjectList();
+}
+
+function renderPagination(page, totalPages, total) {
+  if (totalPages <= 1) return '';
+
+  let pages = [];
+  const start = Math.max(1, page - 2);
+  const end = Math.min(totalPages, page + 2);
+  for (let i = start; i <= end; i++) pages.push(i);
+
+  let html = `<div class="flex items-center justify-center gap-1 py-3 text-xs">`;
+
+  // Prev
+  html += page > 1
+    ? `<button class="px-2 py-1 border rounded hover:bg-gray-100" onclick="goToProjectPage(${page - 1})">‹</button>`
+    : `<span class="px-2 py-1 border rounded text-gray-300">‹</span>`;
+
+  // First page + ellipsis
+  if (start > 1) {
+    html += `<button class="px-2 py-1 border rounded hover:bg-gray-100" onclick="goToProjectPage(1)">1</button>`;
+    if (start > 2) html += `<span class="px-1 text-gray-400">…</span>`;
+  }
+
+  // Page numbers
+  pages.forEach(i => {
+    html += i === page
+      ? `<span class="px-2 py-1 border rounded bg-blue-600 text-white font-medium">${i}</span>`
+      : `<button class="px-2 py-1 border rounded hover:bg-gray-100" onclick="goToProjectPage(${i})">${i}</button>`;
+  });
+
+  // Last page + ellipsis
+  if (end < totalPages) {
+    if (end < totalPages - 1) html += `<span class="px-1 text-gray-400">…</span>`;
+    html += `<button class="px-2 py-1 border rounded hover:bg-gray-100" onclick="goToProjectPage(${totalPages})">${totalPages}</button>`;
+  }
+
+  // Next
+  html += page < totalPages
+    ? `<button class="px-2 py-1 border rounded hover:bg-gray-100" onclick="goToProjectPage(${page + 1})">›</button>`
+    : `<span class="px-2 py-1 border rounded text-gray-300">›</span>`;
+
+  html += ` <span class="text-gray-400 ml-2">${page}/${totalPages}</span></div>`;
+  return html;
 }
 
 // ── Show project detail ──

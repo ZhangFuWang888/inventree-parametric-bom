@@ -124,7 +124,7 @@ def _infer_type_from_ast(node) -> str:
     """
     from .parser import (
         BinOpNode, BoolNode, BuiltinParamNode, CompareNode, FuncCallNode,
-        NumberNode, ParamNode, ParentParamNode, StringNode,
+        NumberNode, ParamNode, ParentParamNode, RefPartParamNode, StringNode,
         SysParamNode, UnaryOpNode,
     )
 
@@ -140,7 +140,7 @@ def _infer_type_from_ast(node) -> str:
     if isinstance(node, BoolNode):
         return 'boolean'
 
-    if isinstance(node, (ParamNode, ParentParamNode, SysParamNode, BuiltinParamNode)):
+    if isinstance(node, (ParamNode, ParentParamNode, SysParamNode, BuiltinParamNode, RefPartParamNode)):
         # Can't know at parse time — assume unknown
         return 'unknown'
 
@@ -261,18 +261,20 @@ def _collect_params(node) -> list:
     """Walk the AST and collect all parameter references."""
     from .parser import (
         BinOpNode, BuiltinParamNode, CompareNode, FuncCallNode, NumberNode,
-        ParamNode, ParentParamNode, StringNode, SysParamNode, UnaryOpNode,
+        ParamNode, ParentParamNode, RefPartParamNode, StringNode,
+        SysParamNode, UnaryOpNode,
     )
 
     params = []
 
-    if isinstance(node, (ParamNode, ParentParamNode, SysParamNode, BuiltinParamNode)):
+    if isinstance(node, (ParamNode, ParentParamNode, SysParamNode, BuiltinParamNode, RefPartParamNode)):
         name = node.name
         prefix = {
             ParamNode: 'param',
             ParentParamNode: 'parent',
             SysParamNode: 'sys',
             BuiltinParamNode: '内置',
+            RefPartParamNode: '参考零件',
         }.get(type(node), '?')
         params.append(f'{prefix}.{name}')
     elif isinstance(node, (BinOpNode, CompareNode)):

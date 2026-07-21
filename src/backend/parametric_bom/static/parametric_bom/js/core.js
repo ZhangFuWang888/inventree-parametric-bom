@@ -138,7 +138,7 @@ function switchPage(page) {
     }
   }
   // Auto-load project pages
-  if (page === 'projects') { renderProjectList(); }
+  if (page === 'projects') { window._projectPage = 1; renderProjectList(); }
   else if (page === 'project-detail') { 
     if (!window._currentProjectId) switchPage('projects');
   }

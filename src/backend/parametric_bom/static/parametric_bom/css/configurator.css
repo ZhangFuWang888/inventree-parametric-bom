@@ -215,6 +215,8 @@ header .text-sm.font-semibold{
 .pbs-cell-editor .pbs-ce-param-pill.variable:hover{background:#fde68a;border-color:#fcd34d}
 .pbs-cell-editor .pbs-ce-param-pill.fn{background:#f3e8ff;color:#6b21a8;border-color:#e9d5ff}
 .pbs-cell-editor .pbs-ce-param-pill.fn:hover{background:#e9d5ff;border-color:#d8b4fe}
+.pbs-cell-editor .pbs-ce-param-pill.refpart{background:#e0e7ff;color:#3730a3;border-color:#c7d2fe}
+.pbs-cell-editor .pbs-ce-param-pill.refpart:hover{background:#c7d2fe;border-color:#a5b4fc}
 .pbs-cell-editor .pbs-ce-separator{height:1px;background:#e2e8f0;margin:6px 0}
 .pbs-cell-editor .pbs-ce-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem}
 .pbs-cell-editor .pbs-ce-title{font-size:0.8rem;font-weight:600;color:#1e293b}

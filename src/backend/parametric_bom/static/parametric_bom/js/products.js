@@ -4,7 +4,7 @@
 // ===== PART LOADING =====
 async function loadParts() {
   try {
-    const resp = await fetch('/api/part/?limit=5000&ordering=-creation_date', {credentials: 'same-origin'});
+    const resp = await fetch('/api/parametric-bom/parts-lite/?search=', {credentials: 'same-origin'});
     if (resp.ok) {
       const data = await resp.json();
       parts = Array.isArray(data) ? data : (data.results || []);

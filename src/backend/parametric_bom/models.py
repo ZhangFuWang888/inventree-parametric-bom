@@ -1196,6 +1196,14 @@ class Project(InvenTree.models.InvenTreeAttachmentMixin, models.Model):
         verbose_name=_('Project code'),
         help_text=_('Auto-generated project code (PRJ-YYYYMMDD-XXXX)'),
     )
+    external_id = models.CharField(
+        max_length=128,
+        blank=True,
+        default='',
+        db_index=True,
+        verbose_name=_('External ID'),
+        help_text=_('ID from external ERP system for sync'),
+    )
     customer = models.ForeignKey(
         'company.Company',
         on_delete=models.SET_NULL,

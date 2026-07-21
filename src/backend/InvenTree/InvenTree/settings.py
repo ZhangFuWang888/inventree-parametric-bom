@@ -373,6 +373,7 @@ MIDDLEWARE = CONFIG.get(
     'middleware',
     [
         'django.middleware.security.SecurityMiddleware',
+        'django.middleware.gzip.GZipMiddleware',
         'x_forwarded_for.middleware.XForwardedForMiddleware',
         'django.contrib.sessions.middleware.SessionMiddleware',
         'allauth.usersessions.middleware.UserSessionsMiddleware',  # DB user sessions

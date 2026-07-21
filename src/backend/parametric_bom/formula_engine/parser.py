@@ -144,6 +144,18 @@ class BuiltinParamNode:
         return f'BuiltinParam({self.name})'
 
 
+class RefPartParamNode:
+    """Reference to a reference part's parameter (e.g., 参考零件.零件名__参数名)."""
+
+    __slots__ = ('name',)
+
+    def __init__(self, name: str):
+        self.name = name
+
+    def __repr__(self):
+        return f'RefPartParam({self.name})'
+
+
 class BinOpNode:
     """Binary operation like a + b, a * b, etc."""
 
@@ -231,7 +243,7 @@ KEYWORDS = {
 }
 
 # Identifiers that are treated as parameter/system prefixes
-PARAM_PREFIXES = {'param', 'parent', 'sys', '内置'}
+PARAM_PREFIXES = {'param', 'parent', 'sys', '内置', '参考零件'}
 
 
 def tokenize(source: str) -> list[Token]:
@@ -404,12 +416,16 @@ class FormulaParser:
             self._expect(RPAREN)
             return expr
 
-        # Parameter reference: param.xxx, parent.xxx, sys.xxx
+        # Parameter reference: param.xxx, parent.xxx, sys.xxx, 或者 参考零件.零件名__参数名
         if token.type == IDENTIFIER and token.value.lower() in PARAM_PREFIXES:
             prefix = self._advance().value.lower()
             self._expect(DOT)
             name_token = self._expect(IDENTIFIER)
             name = name_token.value
+
+            # 参考零件 requires two levels: 参考零件.零件名__参数名
+            if prefix == '参考零件':
+                return RefPartParamNode(name)
 
             prefix_map = {
                 'param': ParamNode,

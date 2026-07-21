@@ -13,6 +13,7 @@ import type { TableColumn } from '@lib/types/Tables';
 import { t } from '@lingui/core/macro';
 import { IconFileUpload, IconPlus } from '@tabler/icons-react';
 import { useCallback, useMemo, useState } from 'react';
+import { Anchor, Button, Modal, Stack, Text } from '@mantine/core';
 import { ActionDropdown } from '../../components/items/ActionDropdown';
 import { useParameterFields } from '../../forms/CommonForms';
 import { dataImporterSessionFields } from '../../forms/ImporterForms';
@@ -131,6 +132,10 @@ export function ParameterTable({
   const [selectedParameter, setSelectedParameter] = useState<any | undefined>(
     undefined
   );
+  const [deleteError, setDeleteError] = useState<{
+    detail: string;
+    product_urls: { name: string; url: string; id: number }[];
+  } | null>(null);
   const openImporter = useImporterState((state) => state.openImporter);
 
   const importSessionFields = useMemo(() => {
@@ -179,7 +184,21 @@ export function ParameterTable({
     url: ApiEndpoints.parameter_list,
     pk: selectedParameter?.pk,
     title: t`Delete Parameter`,
-    table: table
+    table: table,
+    onFormError: (error: any) => {
+      if (
+        error?.response?.status === 409 &&
+        error?.response?.data?.product_urls
+      ) {
+        // Close the delete confirmation modal first
+        deleteParameter.close();
+        // Then show the error popup
+        setDeleteError({
+          detail: error.response.data.detail || '',
+          product_urls: error.response.data.product_urls
+        });
+      }
+    }
   });
 
   const tableActions = useMemo(() => {
@@ -243,6 +262,40 @@ export function ParameterTable({
       {editParameter.modal}
       {deleteParameter.modal}
       {importParameters.modal}
+
+      {/* Error Modal for protected delete */}
+      <Modal
+        opened={!!deleteError}
+        onClose={() => setDeleteError(null)}
+        title="无法删除参数"
+        size="lg"
+      >
+        <Stack gap="md">
+          <Text style={{whiteSpace: 'pre-wrap'}}>{deleteError?.detail}</Text>
+          {deleteError?.product_urls && deleteError.product_urls.length > 0 && (
+            <>
+              <Text fw={600}>🔗 跳转到产品配置：</Text>
+              <Stack gap="xs">
+                {deleteError.product_urls.map((pu) => (
+                  <Anchor
+                    key={pu.id}
+                    href={pu.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {pu.name}
+                  </Anchor>
+                ))}
+              </Stack>
+            </>
+          )}
+          <Text c="dimmed" size="sm">请先修改或删除相关公式后再执行删除。</Text>
+          <Button onClick={() => setDeleteError(null)} color="blue" fullWidth mt="sm">
+            确定
+          </Button>
+        </Stack>
+      </Modal>
+
       <InvenTreeTable
         url={apiUrl(ApiEndpoints.parameter_list)}
         tableState={table}

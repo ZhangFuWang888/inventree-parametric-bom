@@ -19,6 +19,7 @@ from .parser import (
     NumberNode,
     ParamNode,
     ParentParamNode,
+    RefPartParamNode,
     StringNode,
     SysParamNode,
     UnaryOpNode,
@@ -118,6 +119,9 @@ class FormulaEvaluator:
         if isinstance(node, BuiltinParamNode):
             return self._resolve_builtin(node.name)
 
+        if isinstance(node, RefPartParamNode):
+            return self._resolve_refpart(node.name)
+
         if isinstance(node, BinOpNode):
             return self._eval_binop(node)
 
@@ -202,6 +206,25 @@ class FormulaEvaluator:
 
         raise ReferenceError(
             f"Built-in parameter '内置.{name}' not found"
+        )
+
+    def _resolve_refpart(self, name: str) -> Any:
+        """Resolve a reference part parameter from context.
+
+        Looks up 'name' (in '零件名__参数名' format) from context['参考零件'].
+        """
+        ns = self.context.get('参考零件', {})
+        if name in ns:
+            val = ns[name]
+            if isinstance(val, str):
+                try:
+                    return float(val)
+                except ValueError:
+                    return val
+            return val
+
+        raise ReferenceError(
+            f"Reference part parameter '参考零件.{name}' not found"
         )
 
     def _eval_binop(self, node: BinOpNode) -> Any:

@@ -15,9 +15,11 @@ from parametric_bom.api import (
     PartVariableViewSet,
     ProductConfigurationViewSet,
     ProjectViewSet,
+    PartLiteViewSet,
     VariantMappingViewSet,
     affected_variants,
     bom_evaluate,
+    bom_subparts,
     cart_add,
     cart_clear,
     cart_count,
@@ -62,6 +64,7 @@ router.register(r'inheritance', InheritanceMappingViewSet)
 router.register(r'attributes', PartAttributeFormulaViewSet)
 router.register(r'part-variables', PartVariableViewSet)
 router.register(r'projects', ProjectViewSet)
+router.register(r'parts-lite', PartLiteViewSet, basename='part-lite')
 
 urlpatterns = [
     path('api/', include(router.urls)),
@@ -109,4 +112,6 @@ parametric_api_urls = [
     # C# WinForms 客户端
     path('client-login/', client_login, name='client-login'),
     path('check-param-status/', check_param_status, name='check-param-status'),
+    # BOM sub-parts (reference parts for formula editor)
+    path('bom-subparts/', bom_subparts, name='bom-subparts'),
 ] + router.urls

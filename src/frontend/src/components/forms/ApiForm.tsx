@@ -575,8 +575,25 @@ export function ApiForm({
 
               break;
             default:
-              // Unexpected state on form error
-              invalidResponse(error.response.status);
+              // Check if this is a 409 ProtectedError with product_urls
+              // → skip toast, let onFormError show a proper popup
+              const hasProductUrls = error.response.status === 409 &&
+                !!error.response.data?.product_urls;
+
+              if (!hasProductUrls) {
+                // Show actual error detail from server response
+                const detailMsg = error.response.data?.detail || null;
+                if (detailMsg) {
+                  notifications.show({
+                    title: '删除失败',
+                    message: detailMsg,
+                    color: 'red',
+                    autoClose: false
+                  });
+                } else {
+                  invalidResponse(error.response.status);
+                }
+              }
               props.onFormError?.(error, form);
               break;
           }
@@ -624,22 +641,22 @@ export function ApiForm({
             {/* Form Fields */}
             <Stack gap='sm'>
               {(!isValid || nonFieldErrors.length > 0) && (
-                <Alert radius='sm' color='red' title={t`Form Error`}>
-                  {nonFieldErrors.length > 0 ? (
-                    <Stack gap='xs'>
-                      {nonFieldErrors
+                <Alert radius='sm' color='red'>
+                  <Stack gap='xs'>
+                    {nonFieldErrors.length > 0 ? (
+                      nonFieldErrors
                         .filter((message) => !!message && message !== 'None')
                         .map((message) => (
-                          <Text key={message}>{message}</Text>
-                        ))}
-                    </Stack>
-                  ) : (
-                    <Text>{t`Errors exist for one or more form fields`}</Text>
-                  )}
+                          <Text key={message} style={{whiteSpace: 'pre-wrap'}}>{message}</Text>
+                        ))
+                    ) : (
+                      <Text>{t`Errors exist for one or more form fields`}</Text>
+                    )}
+                  </Stack>
                 </Alert>
               )}
               <Boundary label={`ApiForm-${id}-PreFormContent`}>
-                {props.preFormContent}
+                {nonFieldErrors.length === 0 && props.preFormContent}
                 {props.preFormSuccess && (
                   <Alert color='green' radius='sm'>
                     {props.preFormSuccess}

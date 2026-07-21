@@ -111,14 +111,16 @@ async function ceDoPreview() {
   }
   statusEl.innerHTML = '<span class="text-gray-400">⏳ 计算中...</span>';
   const ctx = window.__ceParamContext || {};
-  // Build proper nested context: param namespace + 内置 namespace
+  // Build proper nested context: param namespace + 内置 + 参考零件
   var builtinCtx = ctx['内置'] || {};
+  var refpartCtx = ctx['参考零件'] || {};
   var paramCtx = {};
   for (var k in ctx) {
-    if (k !== '内置') paramCtx[k] = ctx[k];
+    if (k !== '内置' && k !== '参考零件') paramCtx[k] = ctx[k];
   }
   var fullCtx = { param: paramCtx };
   if (Object.keys(builtinCtx).length > 0) fullCtx['内置'] = builtinCtx;
+  if (Object.keys(refpartCtx).length > 0) fullCtx['参考零件'] = refpartCtx;
   const res = await apiCall('POST', 'formula/preview/', { formula, context: fullCtx });
   const data = res.data || {};
   if (data.success === false || data.error) {
@@ -181,14 +183,19 @@ function ceLoadPills(pid) {
   document.getElementById('ce-param-pills').innerHTML = '<span class="text-[10px] text-gray-400">加载中...</span>';
   if (document.getElementById('ce-builtin-pills')) document.getElementById('ce-builtin-pills').innerHTML = '<span class="text-[10px] text-gray-400">加载中...</span>';
   if (document.getElementById('ce-variable-pills')) document.getElementById('ce-variable-pills').innerHTML = '<span class="text-[10px] text-gray-400">加载中...</span>';
+  if (document.getElementById('ce-refpart-pills')) document.getElementById('ce-refpart-pills').innerHTML = '<span class="text-[10px] text-gray-400">加载中...</span>';
   Promise.all([
     apiCall('GET', `part-config/?part=${pid}`),
     apiCall('GET', `part-variables/?part=${pid}&limit=9999`),
     // Fetch InvenTree built-in parameters
     fetch('/api/parameter/?model_type=part&model_id=' + pid).then(function(resp) {
       return resp.ok ? resp.json() : Promise.resolve([]);
-    }).catch(function(){ return []; })
-  ]).then(([paramRes, varRes, builtinParams]) => {
+    }).catch(function(){ return []; }),
+    // Fetch BOM items for reference parts
+    apiCall('GET', 'bom-subparts/?part=' + pid).then(function(resp) {
+      return resp.error ? {results: []} : {results: Array.isArray(resp.data) ? resp.data : []};
+    }).catch(function(){ return Promise.resolve({results: []}); })
+  ]).then(([paramRes, varRes, builtinParams, bomRes]) => {
     const configs = paramRes.error ? [] : (Array.isArray(paramRes.data) ? paramRes.data : (paramRes.data.results || []));
     const vars = varRes.error ? [] : (Array.isArray(varRes.data) ? varRes.data : (varRes.data.results || []));
     const builtins = Array.isArray(builtinParams) ? builtinParams : (builtinParams.results || []);
@@ -224,7 +231,7 @@ function ceLoadPills(pid) {
         });
         builtinEl.innerHTML = bHtml;
       } else {
-        builtinEl.innerHTML = '<span class="text-[10px] text-gray-400">暂无内置参数</span>';
+        builtinEl.innerHTML = '<span class="text-[10px] text-gray-400">暂无零件属性</span>';
       }
     }
 
@@ -245,12 +252,90 @@ function ceLoadPills(pid) {
       }
     }
 
-    window.__ceParamContext = ctx;
-    ceSchedulePreview();
-  }).catch(() => {
+    // ── Reference part parameters (参考零件参数) ──
+    // Collect unique sub-part IDs from BOM
+    var bomData = bomRes;
+    var bomItems = Array.isArray(bomData) ? bomData : (bomData.results || []);
+    var uniqueIds = [];
+    var uniqueIdsSet = {};
+    bomItems.forEach(function(item) {
+      var subId = item.id || item.sub_part || item.sub_part_id;
+      if (subId && !uniqueIdsSet[subId]) {
+        uniqueIdsSet[subId] = true;
+        uniqueIds.push(subId);
+      }
+    });
+
+    if (uniqueIds.length === 0) {
+      var refEl = document.getElementById('ce-refpart-pills');
+      if (refEl) refEl.innerHTML = '<span class="text-[10px] text-gray-400">暂无参考零件</span>';
+      window.__ceParamContext = ctx;
+      ceSchedulePreview();
+      return;
+    }
+
+    // Mark loading
+    var refEl = document.getElementById('ce-refpart-pills');
+    if (refEl) refEl.innerHTML = '<span class="text-[10px] text-gray-400">加载参考零件参数...</span>';
+
+    // Helper: sanitize name for formula reference
+    function sanitizeName(s) {
+      return String(s).replace(/[^A-Za-z0-9_\u4e00-\u9fff]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '');
+    }
+
+    // Gather part names from BOM items
+    var partNames = {};
+    bomItems.forEach(function(item) {
+      var subId = item.id || item.sub_part || item.sub_part_id;
+      if (subId && !partNames[subId]) {
+        partNames[subId] = item.name || (item.sub_part_detail ? item.sub_part_detail.name : (item.sub_part_name || ('#' + subId)));
+      }
+    });
+
+    // Fetch parameters for all unique sub-parts in parallel
+    return Promise.all(uniqueIds.map(function(subId) {
+      return fetch('/api/parameter/?model_type=part&model_id=' + subId, {credentials: 'same-origin'})
+        .then(function(r) { return r.ok ? r.json() : []; })
+        .catch(function() { return []; })
+        .then(function(params) { return {partId: subId, params: Array.isArray(params) ? params : (params.results || [])}; });
+    })).then(function(refResults) {
+      ctx['参考零件'] = ctx['参考零件'] || {};
+      var rHtml = '';
+
+      refResults.forEach(function(rr) {
+        var partId = rr.partId;
+        var params = rr.params;
+        if (!params.length) return;
+        var partName = partNames[partId] || ('#' + partId);
+        var partKey = sanitizeName(partName) || ('p' + partId);
+
+        params.forEach(function(p) {
+          var pTpl = p.template_detail;
+          var pName = pTpl ? pTpl.name : (p.name || 'unknown');
+          var pVal = p.data;
+          var hasVal = pVal != null && String(pVal).trim() !== '';
+          var paramKey = sanitizeName(pName) || ('param_' + p.id);
+          var fullKey = partKey + '__' + paramKey;
+
+          if (hasVal) ctx['参考零件'][fullKey] = pVal;
+
+          rHtml += '<span class="pbs-ce-param-pill refpart" onclick="ceInsertText(\'参考零件.' + fullKey.replace(/'/g, "\\'") + '\')" title="' + escHtml(partName) + ' \u2192 ' + escHtml(pName) + (hasVal ? '=' + escHtml(String(pVal)) : '') + '">' + escHtml(partName) + '<span class="text-gray-400 ml-0.5">\u2192</span>' + escHtml(pName) + (hasVal ? '<span class="text-gray-400 ml-0.5">=' + escHtml(String(pVal)) + '</span>' : '') + '</span>';
+        });
+      });
+
+      var refEl = document.getElementById('ce-refpart-pills');
+      if (refEl) {
+        refEl.innerHTML = rHtml || '<span class="text-[10px] text-gray-400">参考零件无参数</span>';
+      }
+
+      window.__ceParamContext = ctx;
+      ceSchedulePreview();
+    });
+  }).catch(function() {
     document.getElementById('ce-param-pills').innerHTML = '<span class="text-[10px] text-gray-400">加载失败</span>';
     if (document.getElementById('ce-builtin-pills')) document.getElementById('ce-builtin-pills').innerHTML = '<span class="text-[10px] text-gray-400">加载失败</span>';
     if (document.getElementById('ce-variable-pills')) document.getElementById('ce-variable-pills').innerHTML = '<span class="text-[10px] text-gray-400">加载失败</span>';
+    if (document.getElementById('ce-refpart-pills')) document.getElementById('ce-refpart-pills').innerHTML = '<span class="text-[10px] text-gray-400">加载失败</span>';
   });
 }
 

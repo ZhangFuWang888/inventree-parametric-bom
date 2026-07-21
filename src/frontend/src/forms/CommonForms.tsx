@@ -1,16 +1,13 @@
 import { IconUsers } from '@tabler/icons-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 
-import { ApiEndpoints } from '@lib/enums/ApiEndpoints';
 import { ModelType } from '@lib/enums/ModelType';
-import { apiUrl } from '@lib/functions/Api';
-import type { ApiFormFieldSet } from '@lib/types/Forms';
+import type { ApiFormFieldSet, ApiFormFieldType } from '@lib/types/Forms';
 import { t } from '@lingui/core/macro';
 import type {
   StatusCodeInterface,
   StatusCodeListInterface
 } from '../components/render/StatusRenderer';
-import { useApi } from '../contexts/ApiContext';
 import { useGlobalStatusState } from '../states/GlobalStatusState';
 import { useUserState } from '../states/UserState';
 
@@ -89,127 +86,120 @@ export function extraLineItemFields(): ApiFormFieldSet {
     description: {},
     quantity: {},
     price: {},
-    price_currency: {},
-    project_code: {
+    price_currency: {
       description: t`Select project code for this line item`
     },
+    project_code: {},
     notes: {},
     link: {}
   };
 }
 
 export function useParameterTemplateFields(): ApiFormFieldSet {
+  const [paramType, setParamType] = useState<string>('text');
+
   return useMemo(() => {
+    const isNumber = paramType === 'number';
+    const isBoolean = paramType === 'boolean';
+    const isChoice = paramType === 'choice';
+    const isText = paramType === 'text';
+
     return {
-      name: {},
-      description: {},
-      units: {},
-      model_type: {},
-      choices: {},
-      checkbox: {},
-      selectionlist: {
-        filters: {
-          active: true
+      param_type: {
+        label: '参数类型',
+        required: true,
+        field_type: 'choice',
+        choices: [
+          { value: 'text', display_name: '文本型' },
+          { value: 'number', display_name: '数值型' },
+          { value: 'boolean', display_name: '布尔型（开关）' },
+          { value: 'choice', display_name: '选项型（下拉）' }
+        ],
+        value: paramType,
+        onValueChange: (value: any) => {
+          if (value === undefined) return;
+          setParamType(value?.toString() || 'text');
         }
       },
-      enabled: {}
+      name: {
+        label: '参数名称',
+        required: true,
+        description:
+          isText ? '例如：备注、说明'
+          : isNumber ? '例如：密度、长度、温度'
+          : isBoolean ? '例如：是否启用、有无附件'
+          : '例如：表面处理方式、材料等级'
+      },
+      units: {
+        label: '单位',
+        required: false,
+        hidden: !isNumber,
+        description: '输入物理单位（必填有效单位，如 g/cm³, mm, kg, °C）。❌ 不要填数值！'
+      },
+      checkbox: {
+        label: '布尔值',
+        hidden: !isBoolean,
+        value: isBoolean ? true : undefined
+      },
+      choices: {
+        label: '选项值',
+        required: false,
+        hidden: !isChoice,
+        description: '多个选项用逗号分隔，例如：喷塑,电镀,阳极氧化,拉丝'
+      },
+      model_type: { hidden: true },
+      selectionlist: { hidden: true },
+      description: { hidden: true },
+      enabled: { hidden: true }
     };
-  }, []);
+  }, [paramType]);
 }
 
 export function useParameterFields({
   modelType,
-  modelId,
-  initialData
+  modelId
 }: {
   modelType: ModelType;
   modelId: number;
-  initialData?: any;
 }): ApiFormFieldSet {
-  const api = useApi();
-  const [templatePk, setTemplatePk] = useState<number | null>(
-    initialData?.template ?? null
-  );
-  const [templateName, setTemplateName] = useState<string>(
-    initialData?.template_detail?.name ?? ''
-  );
-  const [templateUnits, setTemplateUnits] = useState<string>(
-    initialData?.template_detail?.units ?? ''
-  );
-  const [paramType, setParamType] = useState<string>(
-    initialData?.template_detail?.checkbox ? 'boolean'
-    : (initialData?.template_detail?.choices ? 'choice' : 'text')
-  );
-  const [templateChoices, setTemplateChoices] = useState<string>(
-    initialData?.template_detail?.choices ?? ''
-  );
+  // Track selected template to dynamically adjust the data field type
+  const [templateData, setTemplateData] = useState<any>(null);
+  const templateCreateFields = useParameterTemplateFields();
 
-  // Build checkbox and choices from paramType
-  const isCheckbox = paramType === 'boolean';
-  const isChoice = paramType === 'choice';
-  const needsChoices = isChoice;
-  const needsUnits = paramType === 'number';
-
-  // Debounced template creation/update
-  useEffect(() => {
-    if (!templateName.trim()) {
-      setTemplatePk(null);
-      return;
+  // Build data field definition based on selected template type
+  const dataField: ApiFormFieldType = useMemo(() => {
+    if (templateData?.checkbox) {
+      return { field_type: 'boolean' as const };
     }
 
-    const timer = setTimeout(async () => {
-      const name = templateName.trim();
-      // Build template data
-      const tplData: any = { name };
-      if (needsUnits && templateUnits.trim()) tplData.units = templateUnits.trim();
-      if (isCheckbox) tplData.checkbox = true;
-      if (isChoice && templateChoices.trim()) tplData.choices = templateChoices.trim();
+    const choicesStr: string | undefined = templateData?.choices;
+    if (choicesStr && choicesStr.trim()) {
+      const choices: { value: string; display_name: string }[] = choicesStr
+        .split(',')
+        .map((c: string) => c.trim())
+        .filter((c: string) => c.length > 0)
+        .map((c: string) => ({ value: c, display_name: c }));
 
-      try {
-        const createRes = await api.post(
-          apiUrl(ApiEndpoints.parameter_template_list),
-          tplData
-        );
-        setTemplatePk(createRes.data.pk);
-      } catch {
-        try {
-          const searchRes = await api.get(
-            apiUrl(ApiEndpoints.parameter_template_list),
-            { params: { search: name, limit: 5 } }
-          );
-          if (searchRes.data?.results?.length > 0) {
-            const match = searchRes.data.results.find(
-              (t: any) => t.name === name
-            );
-            setTemplatePk(match ? match.pk : null);
-          } else {
-            setTemplatePk(null);
-          }
-        } catch {
-          setTemplatePk(null);
-        }
+      if (choices.length > 0) {
+        return { field_type: 'choice' as const, choices };
       }
-    }, 500);
-    return () => clearTimeout(timer);
-  }, [templateName, templateUnits, paramType, templateChoices, api]);
+    }
 
-  // Data field type derived from paramType
-  const dataFieldType: 'string' | 'boolean' | 'choice' = isCheckbox ? 'boolean' : (isChoice ? 'choice' : 'string');
-  const choiceOptions: any[] = isChoice && templateChoices.trim()
-    ? templateChoices.split(',').map(s => ({
-        display_name: s.trim(),
-        value: s.trim()
-      }))
-    : [];
+    // Default: text field
+    return {};
+  }, [templateData]);
 
-  const typeChoices = [
-    { value: 'text', display_name: '文本型' },
-    { value: 'number', display_name: '数值型' },
-    { value: 'boolean', display_name: '布尔型' },
-    { value: 'choice', display_name: '选项型' }
-  ];
+  // Extract template info from various callback shapes
+  const handleTemplateChange = useCallback((_pk: number, instance: any) => {
+    // instance may be the full API response (with template_detail)
+    // or the template object directly
+    const tpl = instance?.template_detail ?? instance;
+    if (tpl && typeof tpl === 'object') {
+      setTemplateData(tpl);
+    }
+  }, []);
 
-  return {
+  return useMemo(() => ({
     model_type: {
       hidden: true,
       value: modelType
@@ -219,62 +209,14 @@ export function useParameterFields({
       value: modelId
     },
     template: {
-      hidden: true,
-      required: false,
-      value: templatePk,
       filters: {
         for_model: modelType,
         enabled: true
-      }
+      },
+      addCreateFields: templateCreateFields,
+      onValueChange: handleTemplateChange
     },
-    name: {
-      label: '参数名称',
-      required: true,
-      field_type: 'string',
-      value: templateName || undefined,
-      onValueChange: (value: any) => {
-        // value is undefined during initial data load (field not in API response)
-        if (value === undefined) return;
-        setTemplateName(value?.toString() || '');
-      }
-    },
-    param_type: {
-      label: '数据类型',
-      required: true,
-      field_type: 'choice',
-      choices: typeChoices,
-      value: paramType,
-      onValueChange: (value: any) => {
-        setParamType(value?.toString() || 'text');
-        if (value !== 'choice') setTemplateChoices('');
-        if (value !== 'number') setTemplateUnits('');
-      }
-    },
-    units: {
-      label: '单位',
-      required: false,
-      field_type: 'string',
-      hidden: !needsUnits,
-      onValueChange: (value: any) => {
-        setTemplateUnits(value?.toString() || '');
-      }
-    },
-    choices: {
-      label: '选项值（逗号分隔）',
-      required: false,
-      field_type: 'string',
-      hidden: !needsChoices,
-      onValueChange: (value: any) => {
-        setTemplateChoices(value?.toString() || '');
-      }
-    },
-    data: {
-      label: '数值',
-      required: true,
-      field_type: dataFieldType,
-      choices: dataFieldType === 'choice' ? choiceOptions : undefined,
-      default: dataFieldType === 'boolean' ? false : undefined
-    },
+    data: dataField,
     note: {}
-  };
+  }), [modelType, modelId, dataField, templateCreateFields, handleTemplateChange]);
 }
