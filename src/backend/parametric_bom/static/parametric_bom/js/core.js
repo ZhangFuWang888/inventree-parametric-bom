@@ -138,9 +138,30 @@ function switchPage(page) {
     }
   }
   // Auto-load project pages
-  if (page === 'projects') { window._projectPage = 1; renderProjectList(); }
+  if (page === 'projects') { 
+    window._projectPage = 1; 
+    renderProjectList();
+    // Clean up URL
+    const url = new URL(window.location);
+    if (url.searchParams.has('project') || url.searchParams.get('page') === 'project-detail') {
+      url.searchParams.delete('project');
+      url.searchParams.delete('page');
+      window.history.replaceState({page: 'projects'}, '', url);
+    }
+  }
   else if (page === 'project-detail') { 
-    if (!window._currentProjectId) switchPage('projects');
+    // Check URL param first, then fallback to in-memory ID
+    const urlParams = new URLSearchParams(window.location.search);
+    const projectId = urlParams.get('project') || window._currentProjectId;
+    if (!projectId) {
+      switchPage('projects');
+    } else if (!window._currentProjectId || urlParams.get('project')) {
+      // Auto-load project data from URL param (refresh/bookmark/back-nav)
+      window._currentProjectId = parseInt(projectId);
+      if (typeof showProjectDetail === 'function') {
+        showProjectDetail(parseInt(projectId));
+      }
+    }
   }
   // Load cart
   if (page === 'cart') { loadCart(); }

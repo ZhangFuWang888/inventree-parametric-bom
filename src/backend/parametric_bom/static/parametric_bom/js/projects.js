@@ -244,6 +244,11 @@ async function showProjectDetail(projectId) {
   }
   const p = result.data;
   window._currentProjectId = projectId;
+  // Update URL so page can be refreshed/bookmarked
+  const stateUrl = new URL(window.location);
+  stateUrl.searchParams.set('page', 'project-detail');
+  stateUrl.searchParams.set('project', projectId);
+  window.history.pushState({page: 'project-detail', projectId}, '', stateUrl);
 
   const canEdit = p.user_role === 'owner' || p.user_permissions?.includes('edit_project');
   const canManageMembers = p.user_role === 'owner' || p.user_permissions?.includes('manage_members');
@@ -2284,6 +2289,26 @@ function getHeaders(json) {
   }
   return h;
 }
+
+// ── Browser back/forward navigation for projects ──
+window.addEventListener('popstate', function(e) {
+  const params = new URLSearchParams(window.location.search);
+  const page = params.get('page');
+  const projectId = params.get('project');
+  
+  // Handle returning to project list
+  if (!page || page === 'projects' || page === 'home') {
+    switchPage('projects');
+    return;
+  }
+  
+  // Handle project detail from URL
+  if (page === 'project-detail' && projectId && !isNaN(parseInt(projectId))) {
+    showProjectDetail(parseInt(projectId));
+  } else if (page) {
+    switchPage(page);
+  }
+});
 
 function getCookie(name) {
   const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
