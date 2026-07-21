@@ -339,16 +339,18 @@ async function showProjectDetail(projectId) {
           <div class="overflow-x-auto">
             <table class="w-full text-xs batch-table">
               <colgroup>
-                <col style="width:38%">
+                <col style="width:22%">
+                <col style="width:14%">
                 <col style="width:14%">
                 <col style="width:10%">
-                <col style="width:13%">
-                <col style="width:13%">
-                ${canEdit && !isLocked ? '<col style="width:12%">' : ''}
+                <col style="width:12%">
+                <col style="width:12%">
+                ${canEdit && !isLocked ? '<col style="width:16%">' : ''}
               </colgroup>
               <thead>
                 <tr class="border-b border-gray-200 text-gray-500">
                   <th class="p-2 text-left">名称</th>
+                  <th class="p-2 text-left">型号</th>
                   <th class="p-2 text-left">类型</th>
                   <th class="p-2 text-right">数量</th>
                   <th class="p-2 text-right">单价</th>
@@ -359,19 +361,44 @@ async function showProjectDetail(projectId) {
               <tbody>
                 ${items.map(item => {
                   const subtotal = (parseFloat(item.unit_price || 0) * item.quantity).toFixed(2);
-                  return `<tr class="border-b border-gray-100">
-                    <td class="p-2 font-medium">${escHtml(item.title)}${item.bom_snapshot ? ' <span class="text-[10px] text-gray-400">(含BOM)</span>' : ''}</td>
+                  const hasBom = !!item.bom_snapshot;
+                  const colCount = (canEdit && !isLocked) ? 7 : 6;
+                  return `<tr class="border-b border-gray-100${hasBom ? ' bom-parent-row' : ''}">
+                    <td class="p-2 font-medium">
+                      ${hasBom ? `<span id="bom-toggle-${item.id}" class="bom-toggle-icon" onclick="toggleBomTree(${item.id})">▶</span> ` : ''}
+                      ${escHtml(item.title)}
+                      ${hasBom ? ' <span class="text-[10px] text-blue-400 cursor-pointer bom-expand-hint" onclick="toggleBomTree(' + item.id + ')">(展开BOM)</span>' : ''}
+                    </td>
+                    <td class="p-2 text-gray-500">${item.part_ipn ? escHtml(item.part_ipn) : '<span class="text-gray-300">—</span>'}</td>
                     <td class="p-2">${item.item_type === 'configuration' ? '🔧 参数化配置' : '⚙️ 静态零件'}</td>
                     <td class="p-2 text-right">×${item.quantity}</td>
                     <td class="p-2 text-right">¥${parseFloat(item.unit_price || 0).toFixed(2)}</td>
                     <td class="p-2 text-right font-medium">¥${subtotal}</td>
                     ${canEdit && !isLocked ? `<td class="p-2 text-center"><button class="text-red-500 hover:text-red-700" onclick="removeProjectItem(${p.id}, ${item.id})">✕</button></td>` : ''}
-                  </tr>`;
+                  </tr>
+                  ${hasBom ? `<tr id="bom-tree-${item.id}" class="bom-tree-container" style="display:none">
+                    <td colspan="${colCount}" style="padding:0;background:#fafafa">
+                      <table class="w-full bom-sub-table">
+                        <thead>
+                          <tr class="text-gray-400 text-[10px]">
+                            <th style="padding:4px 8px;text-align:left">名称</th>
+                            <th style="padding:4px 8px;text-align:left">型号</th>
+                            <th style="padding:4px 8px;text-align:right">数量</th>
+                            <th style="padding:4px 8px;text-align:right">单价</th>
+                            <th style="padding:4px 8px;text-align:right">小计</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          ${renderBomTreeNode(item.bom_snapshot, 0, 1)}
+                        </tbody>
+                      </table>
+                    </td>
+                  </tr>` : ''}`;
                 }).join('')}
               </tbody>
               <tfoot>
                 <tr class="bg-gray-50 font-medium text-xs">
-                  <td class="p-2" colspan="2">批次合计</td>
+                  <td class="p-2" colspan="3">批次合计</td>
                   <td class="p-2 text-right">×${totalQty}</td>
                   <td class="p-2 text-right"></td>
                   <td class="p-2 text-right font-semibold text-blue-600">¥${totalAmt.toFixed(2)}</td>
@@ -751,6 +778,62 @@ function escHtml(s) {
 }
 function delay(ms) {
   return new Promise(r => setTimeout(r, ms));
+}
+
+// ── BOM Tree expand ──
+function renderBomTreeNode(node, depth, multiplier) {
+  if (!node) return '';
+  const m = multiplier || 1;
+  const qty = (node.calculated_quantity || node.quantity || 1) * m;
+  const name = node.calculated_name || node.part_name || '';
+  const ipn = node.calculated_ipn || node.static_ipn || '';
+  const unitPrice = node.unit_price != null ? parseFloat(node.unit_price) : null;
+  const totalPrice = node.total_price != null ? parseFloat(node.total_price) : (unitPrice != null ? unitPrice * qty : null);
+  const hasChildren = node.children && node.children.length > 0;
+  const excluded = node.excluded;
+  const childId = Math.random().toString(36).slice(2, 7);
+  let html = '';
+  const indent = depth * 20;
+  const rowClass = excluded ? 'bom-tree-excluded' : (depth === 0 ? 'bom-tree-root' : '');
+  const toggleBtn = hasChildren
+    ? `<span class="bom-tree-toggle" onclick="toggleBomSubTree('${childId}')" style="cursor:pointer;margin-right:4px;font-size:10px;user-select:none">▶</span>`
+    : '<span style="display:inline-block;width:12px"></span>';
+  html += `<tr class="bom-tree-row ${rowClass}" style="font-size:11px">
+    <td style="padding:3px 6px;padding-left:${12 + indent}px">
+      ${toggleBtn}${escHtml(name)}
+      ${excluded ? ' <span class="text-red-400 text-[10px]">(已排除)</span>' : ''}
+    </td>
+    <td style="padding:3px 6px;color:#6b7280">${ipn ? escHtml(ipn) : '<span style="color:#d1d5db">—</span>'}</td>
+    <td style="padding:3px 6px;text-align:right">×${qty.toFixed(2)}</td>
+    <td style="padding:3px 6px;text-align:right">${unitPrice != null ? '¥' + unitPrice.toFixed(2) : '—'}</td>
+    <td style="padding:3px 6px;text-align:right;font-weight:500">${totalPrice != null ? '¥' + totalPrice.toFixed(2) : '—'}</td>
+  </tr>`;
+  if (hasChildren) {
+    html += `<tbody id="bom-sub-${childId}" style="display:none">`;
+    for (const child of node.children) {
+      html += renderBomTreeNode(child, depth + 1, m * qty);
+    }
+    html += '</tbody>';
+  }
+  return html;
+}
+
+function toggleBomTree(itemId) {
+  const row = document.getElementById('bom-tree-' + itemId);
+  const toggle = document.getElementById('bom-toggle-' + itemId);
+  if (!row) return;
+  const expanded = row.style.display !== 'none';
+  row.style.display = expanded ? 'none' : '';
+  if (toggle) toggle.textContent = expanded ? '▶' : '▼';
+}
+
+function toggleBomSubTree(childId) {
+  const tbody = document.getElementById('bom-sub-' + childId);
+  const toggle = tbody?.previousElementSibling?.querySelector('.bom-tree-toggle');
+  if (!tbody) return;
+  const expanded = tbody.style.display !== 'none';
+  tbody.style.display = expanded ? 'none' : '';
+  if (toggle) toggle.textContent = expanded ? '▶' : '▼';
 }
 
 // ── Modal utils ──

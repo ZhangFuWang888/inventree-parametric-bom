@@ -1010,6 +1010,22 @@ textarea.input-field{resize:vertical;font-family:monospace;font-size:0.75rem}
 .batch-card.batch-locked tbody tr{color:#64748b;}
 .batch-card.batch-locked tbody tr:hover{background:#f1f5f9;}
 
+/* ── BOM Tree expand ── */
+.bom-toggle-icon{display:inline-block;width:12px;cursor:pointer;font-size:10px;color:#6b7280;user-select:none;margin-right:2px;vertical-align:middle;}
+.bom-toggle-icon:hover{color:#3b82f6;}
+.bom-expand-hint{vertical-align:middle;}
+.bom-parent-row{cursor:default;}
+.bom-tree-container{border-top:none !important;}
+.bom-tree-container td{padding:0 !important;}
+.bom-sub-table{border-collapse:collapse;font-size:11px;}
+.bom-sub-table thead th{border-bottom:1px solid #e2e8f0;background:#f1f5f9;}
+.bom-tree-row{border-bottom:1px dashed #e5e7eb;}
+.bom-tree-row:hover{background:#f8fafc;}
+.bom-tree-row.bom-tree-root td{font-weight:500;border-bottom:1px solid #e2e8f0;background:#f9fafb;}
+.bom-tree-row.bom-tree-excluded td{color:#9ca3af;text-decoration:line-through;}
+.bom-tree-toggle{color:#6b7280;}
+.bom-tree-toggle:hover{color:#3b82f6;}
+
 /* ── Batch Actions Right Side ── */
 .batch-actions-right{
   position:absolute;top:0.5rem;right:0.75rem;
