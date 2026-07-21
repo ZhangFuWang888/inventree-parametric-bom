@@ -662,23 +662,23 @@ async function confirmHardDelete(id) {
 }
 
 // ── Add item to project dialog ──
-function showAddItemDialog(projectId) {
+function showAddItemDialog(projectId, batchName) {
+  window._addItemBatchName = batchName || '';
   showModal('添加条目', `
     <div class="flex flex-col gap-3">
       <div>
         <label class="text-xs text-gray-500">类型</label>
-        <select class="input-field w-full" id="ai-type" onchange="document.getElementById('ai-part-group').style.display=this.value==='part'?'':'none'">
+        <select class="input-field w-full" id="ai-type" onchange="toggleAddItemType()">
           <option value="configuration">参数化配置</option>
           <option value="part">静态零件</option>
         </select>
       </div>
-      <div>
-        <label class="text-xs text-gray-500">标题</label>
-        <input class="input-field w-full" id="ai-title" placeholder="条目名称">
-      </div>
-      <div>
-        <label class="text-xs text-gray-500">数量</label>
-        <input class="input-field w-full" id="ai-qty" type="number" value="1" min="1">
+      <div id="ai-product-group">
+        <label class="text-xs text-gray-500">搜索产品</label>
+        <input class="input-field w-full" id="ai-product-search" placeholder="输入产品名称/IPN搜索..." oninput="searchProductsForItem()">
+        <div id="ai-product-results" class="mt-1 max-h-[200px] overflow-y-auto"></div>
+        <input type="hidden" id="ai-product-id" value="">
+        <div id="ai-product-selected" class="text-xs text-green-600 mt-1" style="display:none"></div>
       </div>
       <div id="ai-part-group" style="display:none">
         <label class="text-xs text-gray-500">搜索零件</label>
@@ -688,23 +688,34 @@ function showAddItemDialog(projectId) {
         <div id="ai-part-selected" class="text-xs text-green-600 mt-1" style="display:none"></div>
       </div>
       <div>
+        <label class="text-xs text-gray-500">数量</label>
+        <input class="input-field w-full" id="ai-qty" type="number" value="1" min="1">
+      </div>
+      <div>
         <label class="text-xs text-gray-500">单价</label>
         <input class="input-field w-full" id="ai-price" type="number" step="0.01" placeholder="0.00">
       </div>
     </div>`, [
     { text: '取消', cls: 'btn btn-sm btn-secondary', action: closeModal },
     { text: '添加', cls: 'btn btn-sm btn-success', action: async () => {
+      const itemType = document.getElementById('ai-type').value;
       const data = {
-        item_type: document.getElementById('ai-type').value,
-        title: document.getElementById('ai-title').value,
+        item_type: itemType,
         quantity: parseInt(document.getElementById('ai-qty').value) || 1,
         unit_price: parseFloat(document.getElementById('ai-price').value) || null,
       };
-      if (data.item_type === 'part') {
+      if (itemType === 'part') {
         const partId = document.getElementById('ai-part-id').value;
         if (!partId) { setStatus('error', '请先搜索并选择一个零件'); return; }
         data.part = parseInt(partId);
+        data.title = document.getElementById('ai-part-search').value;
+      } else {
+        const productId = document.getElementById('ai-product-id').value;
+        if (!productId) { setStatus('error', '请先搜索并选择一个产品'); return; }
+        data.product_part_id = parseInt(productId);
+        data.title = document.getElementById('ai-product-search').value;
       }
+      if (window._addItemBatchName) data.batch_name = window._addItemBatchName;
       const result = await projectApi('POST', `/${projectId}/add_item/`, data);
       if (result.ok) {
         closeModal();
@@ -715,6 +726,12 @@ function showAddItemDialog(projectId) {
       }
     }},
   ]);
+}
+
+function toggleAddItemType() {
+  const type = document.getElementById('ai-type').value;
+  document.getElementById('ai-product-group').style.display = type === 'configuration' ? '' : 'none';
+  document.getElementById('ai-part-group').style.display = type === 'part' ? '' : 'none';
 }
 
 // ── Remove item ──
@@ -1097,6 +1114,8 @@ window.switchProjectTab = switchProjectTab;
 window.confirmDeleteProject = confirmDeleteProject;
 window.deleteProject = deleteProject;
 window.showAddItemDialog = showAddItemDialog;
+window.searchProductsForItem = searchProductsForItem;
+window.selectProductForItem = selectProductForItem;
 window.removeProjectItem = removeProjectItem;
 window.searchUsersForMembership = searchUsersForMembership;
 window.addMembership = addMembership;
@@ -1195,6 +1214,44 @@ function selectPartForItem(partId, partName) {
   if (selected) {
     selected.style.display = '';
     selected.textContent = '✅ 已选择: ' + partName;
+  }
+}
+
+let _productSearchTimer = null;
+async function searchProductsForItem() {
+  clearTimeout(_productSearchTimer);
+  const input = document.getElementById('ai-product-search');
+  if (!input) return;
+  const q = input.value.trim();
+  const results = document.getElementById('ai-product-results');
+  if (!results) return;
+  if (q.length < 2) { results.innerHTML = ''; return; }
+
+  _productSearchTimer = setTimeout(async () => {
+    try {
+      const basePath = window._inventreeApiBase || '/api';
+      const resp = await fetch(basePath + '/part/?search=' + encodeURIComponent(q) + '&limit=15', { credentials: 'same-origin' });
+      const data = await resp.json();
+      const parts = data.results || data || [];
+      if (!parts.length) { results.innerHTML = '<div class="text-xs text-gray-400 py-1">未找到产品</div>'; return; }
+      results.innerHTML = parts.map(p =>
+        '<div class="flex items-center justify-between py-1 px-2 text-xs border border-gray-200 rounded hover:bg-gray-50 cursor-pointer" data-product-id="' + p.pk + '" data-product-name="' + escHtml(p.name).replace(/"/g, '&quot;') + '" onclick="selectProductForItem(this.dataset.productId, this.dataset.productName)">' +
+        '<span class="font-medium">' + escHtml(p.name) + '</span>' +
+        '<span class="text-gray-400">' + escHtml(p.IPN || '') + '</span>' +
+        '</div>'
+      ).join('');
+    } catch(e) { results.innerHTML = '<div class="text-xs text-red-400 py-1">搜索失败</div>'; }
+  }, 300);
+}
+
+function selectProductForItem(productId, productName) {
+  document.getElementById('ai-product-id').value = productId;
+  document.getElementById('ai-product-search').value = productName;
+  document.getElementById('ai-product-results').innerHTML = '';
+  const selected = document.getElementById('ai-product-selected');
+  if (selected) {
+    selected.style.display = '';
+    selected.textContent = '✅ 已选择: ' + productName;
   }
 }
 
