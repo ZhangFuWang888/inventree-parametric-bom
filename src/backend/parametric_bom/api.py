@@ -27,6 +27,7 @@ from parametric_bom.models import (
     PartVariable,
     ProductConfiguration,
     Project,
+    ProjectBatch,
     ProjectItem,
     ProjectLog,
     ProjectStatusChoices,
@@ -2836,6 +2837,158 @@ class ProjectViewSet(viewsets.ModelViewSet):
             'success': True,
             'message': f'已删除批次 "{batch_name}"，共 {count} 个条目',
         })
+
+    @action(detail=True, methods=['get'])
+    def batch_statuses(self, request, pk=None):
+        """Return all batch statuses for the project."""
+        project = self.get_object()
+        statuses = {}
+        for b in ProjectBatch.objects.filter(project=project):
+            statuses[b.name] = b.status
+        return Response(statuses)
+
+    def _get_or_create_batch(self, project, batch_name):
+        """Get or create a ProjectBatch record."""
+        if not batch_name or batch_name == '未分组':
+            return None
+        batch, _ = ProjectBatch.objects.get_or_create(
+            project=project, name=batch_name,
+            defaults={'status': 'editing'},
+        )
+        return batch
+
+    @action(detail=True, methods=['post'], url_path='batch-lock')
+    def batch_lock(self, request, pk=None):
+        """Lock a batch (editing → locked)."""
+        project = self.get_object()
+        batch_name = request.data.get('batch_name', '').strip()
+        batch = self._get_or_create_batch(project, batch_name)
+        if not batch:
+            return Response({'error': '不能锁定未分组'}, status=400)
+        batch.status = 'locked'
+        batch.save(update_fields=['status', 'updated_at'])
+        self._log(project, 'batch_locked', f'已锁定批次 "{batch_name}"')
+        return Response({'success': True, 'status': 'locked', 'message': f'批次 "{batch_name}" 已锁定'})
+
+    @action(detail=True, methods=['post'], url_path='batch-unlock')
+    def batch_unlock(self, request, pk=None):
+        """Unlock a batch (locked → editing)."""
+        project = self.get_object()
+        batch_name = request.data.get('batch_name', '').strip()
+        try:
+            batch = ProjectBatch.objects.get(project=project, name=batch_name)
+        except ProjectBatch.DoesNotExist:
+            return Response({'error': f'批次 "{batch_name}" 不存在'}, status=404)
+        if batch.status != 'locked':
+            return Response({'error': '只能反审已锁定的批次'}, status=400)
+        batch.status = 'editing'
+        batch.save(update_fields=['status', 'updated_at'])
+        self._log(project, 'batch_unlocked', f'已反审解锁批次 "{batch_name}"')
+        return Response({'success': True, 'status': 'editing', 'message': f'批次 "{batch_name}" 已解锁'})
+
+    @action(detail=True, methods=['post'], url_path='batch-purchase-orders')
+    def batch_purchase_orders(self, request, pk=None):
+        """Generate purchase orders for a specific batch, then mark it completed."""
+        from company.models import Company, SupplierPart
+        from order.models import PurchaseOrder, PurchaseOrderLineItem
+
+        project = self.get_object()
+        batch_name = request.data.get('batch_name', '').strip()
+        batch = self._get_or_create_batch(project, batch_name)
+        if not batch:
+            return Response({'error': '不能为未分组生成采购订单'}, status=400)
+        if batch.status == 'completed':
+            return Response({'error': '该批次已完成，不能重复生成'}, status=400)
+
+        items = project.items.filter(batch_name=batch_name)
+        if not items.exists():
+            return Response({'error': f'批次 "{batch_name}" 无条目'}, status=404)
+
+        # Collect parts from this batch's items
+        parts_needed = {}
+        for item in items:
+            if item.bom_snapshot:
+                self._collect_bom_parts(item.bom_snapshot, parts_needed, item.quantity)
+            elif item.part:
+                pid = item.part.id
+                if pid not in parts_needed:
+                    parts_needed[pid] = {'part': item.part, 'quantity': 0}
+                parts_needed[pid]['quantity'] += item.quantity
+
+        if not parts_needed:
+            return Response({'error': f'批次 "{batch_name}" 中没有需要采购的零件'}, status=400)
+
+        # Group by supplier
+        supplier_groups = {}
+        for pid, info in parts_needed.items():
+            supplier_parts = SupplierPart.objects.filter(part=info['part'])
+            if supplier_parts.exists():
+                sp = supplier_parts.first()
+                sid = sp.supplier.id
+                if sid not in supplier_groups:
+                    supplier_groups[sid] = {'supplier': sp.supplier, 'items': []}
+                supplier_groups[sid]['items'].append({
+                    'part': info['part'], 'quantity': info['quantity'], 'sku': sp.SKU,
+                })
+            else:
+                if 0 not in supplier_groups:
+                    supplier_groups[0] = {'supplier': None, 'items': []}
+                supplier_groups[0]['items'].append({
+                    'part': info['part'], 'quantity': info['quantity'], 'sku': None,
+                })
+
+        orders_created = []
+        for sid, group in supplier_groups.items():
+            if not group['supplier']:
+                continue
+            po = PurchaseOrder.objects.create(
+                supplier=group['supplier'],
+                created_by=request.user,
+                description=f'Auto: {project.project_code} / {batch_name}',
+            )
+            for item in group['items']:
+                PurchaseOrderLineItem.objects.create(
+                    order=po, part=item['part'],
+                    quantity=item['quantity'], reference=item.get('sku', ''),
+                )
+            orders_created.append({
+                'order_id': po.id, 'supplier': group['supplier'].name,
+                'reference': str(po), 'line_items': len(group['items']),
+            })
+
+        self._log(project, 'batch_purchase_orders',
+                  f'批次 "{batch_name}" 生成 {len(orders_created)} 个采购订单')
+
+        return Response({
+            'success': True,
+            'orders': orders_created,
+            'unassigned': supplier_groups.get(0, {}).get('items', []),
+            'message': f'已为批次 "{batch_name}" 生成 {len(orders_created)} 个采购订单',
+        })
+
+    @action(detail=True, methods=['post'], url_path='batch-complete')
+    def batch_complete(self, request, pk=None):
+        """Complete a batch — generates POs then marks as completed."""
+        # First generate POs
+        po_resp = self.batch_purchase_orders(request, pk)
+        if po_resp.status_code != 200:
+            return po_resp
+
+        # Then mark as completed
+        project = self.get_object()
+        batch_name = request.data.get('batch_name', '').strip()
+        try:
+            batch = ProjectBatch.objects.get(project=project, name=batch_name)
+        except ProjectBatch.DoesNotExist:
+            return Response({'error': f'批次 "{batch_name}" 不存在'}, status=404)
+        batch.status = 'completed'
+        batch.save(update_fields=['status', 'updated_at'])
+        self._log(project, 'batch_completed', f'批次 "{batch_name}" 已完成')
+
+        po_data = po_resp.data
+        po_data['status'] = 'completed'
+        po_data['message'] = f'批次 "{batch_name}" 已完成，生成 {len(po_data.get("orders", []))} 个采购订单'
+        return Response(po_data)
 
     def _collect_bom_parts(self, node, parts_dict, multiplier=1):
         """Recursively collect parts from a BOM snapshot tree."""

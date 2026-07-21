@@ -315,21 +315,30 @@ async function showProjectDetail(projectId) {
         const times = items.map(it => it.created_at).filter(Boolean).sort();
         const batchTime = times.length ? new Date(times[0]).toLocaleString('zh-CN', {year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}) : '';
         const creator = items.find(it => it.created_by_name)?.created_by_name || '';
-        const isLocked = batchName !== '未分组';
+        const status = (batchName === '未分组') ? 'editing' : ((p.batch_statuses && p.batch_statuses[batchName]) || 'editing');
         const safeBatch = encodeURIComponent(batchName);
+        const statusBadge = batchName === '未分组' ? '' :
+          (status === 'editing' ? '<span class="inline-block px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-50 text-blue-600 border border-blue-100">✏️ 编辑中</span>' :
+           status === 'locked' ? '<span class="inline-block px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-100 text-gray-600 border border-gray-200">🔒 已锁定</span>' :
+           '<span class="inline-block px-1.5 py-0.5 rounded text-[10px] font-medium bg-green-50 text-green-600 border border-green-100">✅ 已完成</span>');
+        const canEditBatch = canEdit && status === 'editing';
+        const isEditable = canEdit && (batchName === '未分组' || status === 'editing');
 
         html += `
-        <div class="card mb-3 batch-card${isLocked ? ' batch-locked' : ''}">
+        <div class="card mb-3 batch-card${status === 'locked' || status === 'completed' ? ' batch-locked' : ''}">
           <div class="card-header flex items-center justify-between flex-wrap gap-2">
             <div class="flex items-center gap-2 flex-wrap">
               <span class="font-semibold text-sm">📦 ${escHtml(batchName)}</span>
-              ${isLocked ? '<span class="text-[10px] text-gray-400 font-normal">🔒 已锁定</span>' : ''}
+              ${statusBadge}
               <span class="text-xs text-gray-400">${items.length} 项 · ${totalQty} 件 · ¥${totalAmt.toFixed(2)}</span>
               ${batchTime ? `<span class="text-xs text-gray-400">🕐 ${batchTime}</span>` : ''}
               ${creator ? `<span class="text-xs text-gray-400">👤 ${escHtml(creator)}</span>` : ''}
             </div>
             <div class="flex items-center gap-1.5">
-              ${canEdit && !isLocked ? `<button class="btn btn-sm btn-secondary" onclick="showAddItemDialog(${p.id}, '${escHtml(batchName)}')">添加</button>` : ''}
+              ${canEditBatch ? `<button class="btn btn-sm btn-secondary" onclick="showAddItemDialog(${p.id}, '${escHtml(batchName)}')">添加</button>` : ''}
+              ${status === 'editing' && batchName !== '未分组' ? `<button class="btn btn-sm btn-secondary text-blue-600" onclick="lockBatch(${p.id}, '${safeBatch}')">锁定</button>` : ''}
+              ${status === 'locked' ? `<button class="btn btn-sm btn-secondary" onclick="unlockBatch(${p.id}, '${safeBatch}')">反审</button>` : ''}
+              ${status === 'locked' || status === 'editing' ? `<button class="btn btn-sm btn-secondary text-green-600" onclick="completeBatch(${p.id}, '${safeBatch}')">✅ 完成</button>` : ''}
               <button class="btn btn-sm btn-secondary batch-export-btn" onclick="exportBatchCsv(${p.id}, '${safeBatch}')" title="导出 XLSX 订单表">
                 <span class="batch-export-icon"></span> XLSX
               </button>
@@ -351,7 +360,7 @@ async function showProjectDetail(projectId) {
                 <col style="width:10%">
                 <col style="width:12%">
                 <col style="width:12%">
-                ${canEdit && !isLocked ? '<col style="width:16%">' : ''}
+                ${isEditable ? '<col style="width:16%">' : ''}
               </colgroup>
               <thead>
                 <tr class="border-b border-gray-200 text-gray-500">
@@ -361,14 +370,14 @@ async function showProjectDetail(projectId) {
                   <th class="p-2 text-right">数量</th>
                   <th class="p-2 text-right">单价</th>
                   <th class="p-2 text-right">小计</th>
-                  ${canEdit && !isLocked ? '<th class="p-2 text-center">操作</th>' : ''}
+                  ${isEditable ? '<th class="p-2 text-center">操作</th>' : ''}
                 </tr>
               </thead>
               <tbody>
                 ${items.map(item => {
                   const subtotal = (parseFloat(item.unit_price || 0) * item.quantity).toFixed(2);
                   const hasBom = !!item.bom_snapshot;
-                  const colCount = (canEdit && !isLocked) ? 7 : 6;
+                  const colCount = isEditable ? 7 : 6;
                   return `<tr class="border-b border-gray-100${hasBom ? ' bom-parent-row' : ''}">
                     <td class="p-2 font-medium">
                       ${hasBom ? `<span id="bom-toggle-${item.id}" class="bom-toggle-icon" onclick="toggleBomTree(${item.id})">▶</span> ` : ''}
@@ -380,7 +389,7 @@ async function showProjectDetail(projectId) {
                     <td class="p-2 text-right">×${item.quantity}</td>
                     <td class="p-2 text-right">¥${parseFloat(item.unit_price || 0).toFixed(2)}</td>
                     <td class="p-2 text-right font-medium">¥${subtotal}</td>
-                    ${canEdit && !isLocked ? `<td class="p-2 text-center whitespace-nowrap">
+                    ${isEditable ? `<td class="p-2 text-center whitespace-nowrap">
                       <input type="checkbox" class="batch-item-cb" data-item-id="${item.id}" onchange="updateBatchActions()" style="vertical-align:middle;cursor:pointer">
                       <button class="text-blue-500 hover:text-blue-700 ml-1" onclick="event.stopPropagation(); editProjectItem(${p.id}, ${item.id})" title="编辑">✏️</button>
                       <button class="text-red-500 hover:text-red-700" onclick="event.stopPropagation(); removeProjectItem(${p.id}, ${item.id})" title="删除">✕</button>
@@ -412,7 +421,7 @@ async function showProjectDetail(projectId) {
                   <td class="p-2 text-right">×${totalQty}</td>
                   <td class="p-2 text-right"></td>
                   <td class="p-2 text-right font-semibold text-blue-600">¥${totalAmt.toFixed(2)}</td>
-                  ${canEdit && !isLocked ? '<td class="p-2"></td>' : ''}
+                  ${isEditable ? '<td class="p-2"></td>' : ''}
                 </tr>
               </tfoot>
             </table>
@@ -1119,14 +1128,55 @@ async function batchToCart(projectId, batchName) {
 
 async function deleteBatch(projectId, batchName) {
   const name = decodeURIComponent(batchName);
-  const count = prompt(`确认删除批次「${name}」？输入条目数确认：`);
-  if (!count) return;
+  if (!confirm(`确认删除批次「${name}」？将删除该批次所有条目。`)) return;
   const result = await projectApi('POST', `/${projectId}/delete-batch/`, { batch_name: name });
   if (result.ok) {
     setStatus('success', result.data.message || '批次已删除');
     showProjectDetail(projectId);
   } else {
     setStatus('error', result.data?.error || '删除失败');
+  }
+}
+
+async function lockBatch(projectId, batchName) {
+  const name = decodeURIComponent(batchName);
+  const result = await projectApi('POST', `/${projectId}/batch-lock/`, { batch_name: name });
+  if (result.ok) {
+    setStatus('success', result.data.message || '批次已锁定');
+    showProjectDetail(projectId);
+  } else {
+    setStatus('error', result.data?.error || '锁定失败');
+  }
+}
+
+async function unlockBatch(projectId, batchName) {
+  const name = decodeURIComponent(batchName);
+  if (!confirm(`确认反审解锁批次「${name}」？解锁后可以编辑。`)) return;
+  const result = await projectApi('POST', `/${projectId}/batch-unlock/`, { batch_name: name });
+  if (result.ok) {
+    setStatus('success', result.data.message || '批次已解锁');
+    showProjectDetail(projectId);
+  } else {
+    setStatus('error', result.data?.error || '解锁失败');
+  }
+}
+
+async function completeBatch(projectId, batchName) {
+  const name = decodeURIComponent(batchName);
+  if (!confirm(`确认完成批次「${name}」？将自动生成采购订单并锁定该批次。`)) return;
+  const result = await projectApi('POST', `/${projectId}/batch-complete/`, { batch_name: name });
+  if (result.ok) {
+    const msg = result.data.message || '批次已完成';
+    const orders = result.data.orders || [];
+    if (orders.length) {
+      const orderInfo = orders.map(o => o.reference).join(', ');
+      setStatus('success', msg + ' — 采购单: ' + orderInfo);
+    } else {
+      setStatus('success', msg);
+    }
+    showProjectDetail(projectId);
+  } else {
+    setStatus('error', result.data?.error || '操作失败');
   }
 }
 
@@ -1146,6 +1196,9 @@ window.searchUsersForMembership = searchUsersForMembership;
 window.addMembership = addMembership;
 window.removeMembership = removeMembership;
 window.deleteBatch = deleteBatch;
+window.lockBatch = lockBatch;
+window.unlockBatch = unlockBatch;
+window.completeBatch = completeBatch;
 window.changeMemberRole = changeMemberRole;
 window.toggleRolePermission = toggleRolePermission;
 window.deleteRole = deleteRole;

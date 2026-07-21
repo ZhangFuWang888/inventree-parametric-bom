@@ -1567,3 +1567,34 @@ class ProjectMembership(models.Model):
 
     def __str__(self):
         return f'{self.project.project_code} / {self.user.username} → {self.role.name}'
+
+
+class ProjectBatch(models.Model):
+    """Persistent status tracking for a project batch."""
+
+    BATCH_STATUS_CHOICES = [
+        ('editing', '✏️ 编辑中'),
+        ('locked', '🔒 已锁定'),
+        ('completed', '✅ 已完成'),
+    ]
+
+    project = models.ForeignKey(
+        Project, on_delete=models.CASCADE, related_name='batches',
+        verbose_name=_('Project'),
+    )
+    name = models.CharField(max_length=64, verbose_name=_('Batch name'))
+    status = models.CharField(
+        max_length=20, choices=BATCH_STATUS_CHOICES,
+        default='editing', verbose_name=_('Status'),
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        app_label = 'parametric_bom'
+        verbose_name = _('Project batch')
+        verbose_name_plural = _('Project batches')
+        unique_together = [('project', 'name')]
+
+    def __str__(self):
+        return f'{self.project.project_code} / {self.name} [{self.status}]'
