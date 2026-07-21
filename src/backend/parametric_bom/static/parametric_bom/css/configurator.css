@@ -387,6 +387,12 @@ header .text-sm.font-semibold{
 
 /* ── Project page buttons: white background ── */
 #page-projects .btn-primary,
+/* Tab panels fill remaining space */
+#page-project-detail{display:flex;flex-direction:column;min-height:calc(100vh - 10rem)}
+.proj-tab-panel{flex:1;display:flex;flex-direction:column;min-height:0}
+#project-tab-logs .card{flex:1;display:flex;flex-direction:column;min-height:0;padding-bottom:0}
+#project-tab-logs .log-list{flex:1;overflow-y:auto;min-height:0}
+
 #page-project-detail .btn-primary,
 #page-projects .btn-success,
 #page-project-detail .btn-success,

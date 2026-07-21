@@ -1,6 +1,9 @@
 """REST API views for Parametric BOM models."""
 
+from django.conf import settings
 from django.contrib.auth import authenticate
+from django.urls import reverse
+from InvenTree.helpers import pui_url
 from rest_framework import filters, permissions, status, viewsets
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.exceptions import PermissionDenied
@@ -2296,6 +2299,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['get'])
     def orders(self, request, pk=None):
         """Get related purchase/sales orders for a project."""
+        from InvenTree.helpers import pui_url
         from order.models import PurchaseOrder, SalesOrder
         project = self.get_object()
         # Search by description containing project code
@@ -2305,6 +2309,11 @@ class ProjectViewSet(viewsets.ModelViewSet):
         sos = SalesOrder.objects.filter(
             description__icontains=project.project_code
         ).order_by('-creation_date')[:20]
+
+        # Check if user has permission to view purchase/sales orders
+        can_view_po = request.user.has_perm('order.view_purchaseorder')
+        can_view_so = request.user.has_perm('order.view_salesorder')
+
         return Response({
             'purchase_orders': [{
                 'id': po.id,
@@ -2313,6 +2322,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 'status': po.status if hasattr(po, 'status') else '',
                 'line_items': po.lines.count() if hasattr(po, 'lines') else 0,
                 'created': po.creation_date.isoformat() if hasattr(po, 'creation_date') and po.creation_date else '',
+                'url': pui_url(f'/purchasing/purchase-order/{po.pk}/') if can_view_po else '',
             } for po in pos],
             'sales_orders': [{
                 'id': so.id,
@@ -2321,6 +2331,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 'status': so.status if hasattr(so, 'status') else '',
                 'line_items': so.lines.count() if hasattr(so, 'lines') else 0,
                 'created': so.creation_date.isoformat() if hasattr(so, 'creation_date') and so.creation_date else '',
+                'url': pui_url(f'/sales/sales-order/{so.pk}/') if can_view_so else '',
             } for so in sos],
         })
 

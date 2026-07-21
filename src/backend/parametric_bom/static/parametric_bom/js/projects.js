@@ -696,38 +696,69 @@ async function loadProjectCost(projectId) {
         <span id="cost-toggle-cat-${c.project_id}" class="inline-block w-4 text-center text-gray-400">▶</span> 🏷️ 按物料类别统计
       </div>
       <div id="cost-section-cat-${c.project_id}" style="display:none">
-        <div class="flex flex-col sm:flex-row items-center gap-4 mb-4">
-          <svg width="240" height="220" viewBox="0 0 240 220">
-            ${(() => {
-              const ctotal = cats.reduce((s, t) => s + t.total_cost, 0);
-              if (ctotal <= 0) return '';
-              const cx = 110, cy = 110, r = 80, ir = 50;
-              let cumul = 0, slices = '';
-              cats.forEach((t, i) => {
-                const angle = (t.total_cost / ctotal) * 360;
-                const sa = cumul; cumul += angle; const ea = cumul;
-                const sr = ((sa - 90) * Math.PI) / 180;
-                const er = ((ea - 90) * Math.PI) / 180;
-                const x1 = cx + r * Math.cos(sr), y1 = cy + r * Math.sin(sr);
-                const x2 = cx + r * Math.cos(er), y2 = cy + r * Math.sin(er);
-                const large = angle > 180 ? 1 : 0;
-                const color = colors[i % colors.length];
-                slices += `<path d="M${cx} ${cy} L${x1} ${y1} A${r} ${r} 0 ${large} 1 ${x2} ${y2} Z" fill="${color}"><title>${escHtml(t.category)}: ¥${t.total_cost.toFixed(2)} (${(t.total_cost/ctotal*100).toFixed(1)}%)</title></path>`;
-              });
-              slices += `<circle cx="${cx}" cy="${cy}" r="${ir}" fill="white"/>`;
-              slices += `<text x="${cx}" y="${cy - 6}" text-anchor="middle" font-size="16" font-weight="bold" fill="#333">¥${ctotal.toFixed(0)}</text>`;
-              slices += `<text x="${cx}" y="${cy + 10}" text-anchor="middle" font-size="9" fill="#999">总成本</text>`;
-              return slices;
-            })()}
-          </svg>
+        <div class="flex flex-col sm:flex-row items-start gap-4 mb-4">
+          <div class="flex flex-col items-center">
+            <span class="text-xs text-gray-400 mb-1">💰 成本占比</span>
+            <svg width="220" height="200" viewBox="0 0 220 200">
+              ${(() => {
+                const ctotal = cats.reduce((s, t) => s + t.total_cost, 0);
+                if (ctotal <= 0) return '';
+                const cx = 100, cy = 100, r = 75, ir = 45;
+                let cumul = 0, slices = '';
+                cats.forEach((t, i) => {
+                  const angle = (t.total_cost / ctotal) * 360;
+                  const sa = cumul; cumul += angle; const ea = cumul;
+                  const sr = ((sa - 90) * Math.PI) / 180;
+                  const er = ((ea - 90) * Math.PI) / 180;
+                  const x1 = cx + r * Math.cos(sr), y1 = cy + r * Math.sin(sr);
+                  const x2 = cx + r * Math.cos(er), y2 = cy + r * Math.sin(er);
+                  const large = angle > 180 ? 1 : 0;
+                  const color = colors[i % colors.length];
+                  slices += `<path d="M${cx} ${cy} L${x1} ${y1} A${r} ${r} 0 ${large} 1 ${x2} ${y2} Z" fill="${color}"><title>${escHtml(t.category)}: ¥${t.total_cost.toFixed(2)} (${(t.total_cost/ctotal*100).toFixed(1)}%)</title></path>`;
+                });
+                slices += `<circle cx="${cx}" cy="${cy}" r="${ir}" fill="white"/>`;
+                slices += `<text x="${cx}" y="${cy - 6}" text-anchor="middle" font-size="14" font-weight="bold" fill="#333">¥${ctotal.toFixed(0)}</text>`;
+                slices += `<text x="${cx}" y="${cy + 10}" text-anchor="middle" font-size="8" fill="#999">总成本</text>`;
+                return slices;
+              })()}
+            </svg>
+          </div>
+          <div class="flex flex-col items-center">
+            <span class="text-xs text-gray-400 mb-1">📦 物料数量占比</span>
+            <svg width="220" height="200" viewBox="0 0 220 200">
+              ${(() => {
+                const ntotal = cats.reduce((s, t) => s + t.count, 0);
+                if (ntotal <= 0) return '';
+                const cx = 100, cy = 100, r = 75;
+                let cumul = 0, slices = '';
+                cats.forEach((t, i) => {
+                  const angle = (t.count / ntotal) * 360;
+                  const sa = cumul; cumul += angle; const ea = cumul;
+                  const sr = ((sa - 90) * Math.PI) / 180;
+                  const er = ((ea - 90) * Math.PI) / 180;
+                  const x1 = cx + r * Math.cos(sr), y1 = cy + r * Math.sin(sr);
+                  const x2 = cx + r * Math.cos(er), y2 = cy + r * Math.sin(er);
+                  const large = angle > 180 ? 1 : 0;
+                  const color = colors[i % colors.length];
+                  slices += `<path d="M${cx} ${cy} L${x1} ${y1} A${r} ${r} 0 ${large} 1 ${x2} ${y2} Z" fill="${color}"><title>${escHtml(t.category)}: ${t.count} 件 (${(t.count/ntotal*100).toFixed(1)}%)</title></path>`;
+                });
+                slices += `<circle cx="${cx}" cy="${cy}" r="30" fill="white"/>`;
+                slices += `<text x="${cx}" y="${cy - 5}" text-anchor="middle" font-size="16" font-weight="bold" fill="#333">${ntotal}</text>`;
+                slices += `<text x="${cx}" y="${cy + 10}" text-anchor="middle" font-size="8" fill="#999">总件数</text>`;
+                return slices;
+              })()}
+            </svg>
+          </div>
           <div class="flex-1 min-w-0 text-xs space-y-1.5">
+            <span class="text-xs text-gray-400 block mb-1">🎨 图例</span>
             ${cats.map((t, i) => {
-              const pct = c.total_cost > 0 ? (t.total_cost / c.total_cost * 100).toFixed(1) : '0';
+              const cpct = c.total_cost > 0 ? (t.total_cost / c.total_cost * 100).toFixed(1) : '0';
+              const npct = cats.reduce((s, x) => s + x.count, 0) > 0 ? (t.count / cats.reduce((s, x) => s + x.count, 0) * 100).toFixed(1) : '0';
               const color = colors[i % colors.length];
               return `<div class="flex items-center gap-2">
                 <span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${color}"></span>
                 <span class="text-gray-600">${escHtml(t.category)}</span>
-                <span class="text-gray-400 ml-auto">¥${t.total_cost.toFixed(2)} (${pct}%)</span>
+                <span class="text-gray-400 ml-auto">${t.count}件 ¥${t.total_cost.toFixed(2)} (成本${cpct}%)</span>
               </div>`;
             }).join('')}
           </div>
@@ -1689,7 +1720,8 @@ async function loadProjectOrders(projectId) {
     html += '<table class="w-full text-xs mb-4"><thead><tr class="border-b border-gray-200 text-gray-500">';
     html += '<th class="p-2 text-left">单号</th><th class="p-2 text-left">客户</th><th class="p-2 text-right">明细</th><th class="p-2 text-left">创建时间</th></tr></thead><tbody>';
     sos.forEach(so => {
-      html += `<tr class="border-b border-gray-100"><td class="p-2 font-medium">${escHtml(so.reference)}</td>`;
+      const link = so.url ? `<a href="${so.url}" class="text-blue-600 hover:text-blue-800 hover:underline">${escHtml(so.reference)} ↗</a>` : escHtml(so.reference);
+      html += `<tr class="border-b border-gray-100 hover:bg-blue-50/30 cursor-pointer" ${so.url ? `onclick="window.location.href='${so.url}'"` : ''}><td class="p-2 font-medium">${link}</td>`;
       html += `<td class="p-2">${escHtml(so.customer)}</td>`;
       html += `<td class="p-2 text-right">${so.line_items}</td>`;
       html += `<td class="p-2 text-gray-400">${so.created ? new Date(so.created).toLocaleDateString('zh-CN') : '-'}</td></tr>`;
@@ -1702,7 +1734,8 @@ async function loadProjectOrders(projectId) {
     html += '<table class="w-full text-xs"><thead><tr class="border-b border-gray-200 text-gray-500">';
     html += '<th class="p-2 text-left">单号</th><th class="p-2 text-left">供应商</th><th class="p-2 text-right">明细</th><th class="p-2 text-left">创建时间</th></tr></thead><tbody>';
     pos.forEach(po => {
-      html += `<tr class="border-b border-gray-100"><td class="p-2 font-medium">${escHtml(po.reference)}</td>`;
+      const link = po.url ? `<a href="${po.url}" class="text-blue-600 hover:text-blue-800 hover:underline">${escHtml(po.reference)} ↗</a>` : escHtml(po.reference);
+      html += `<tr class="border-b border-gray-100 hover:bg-blue-50/30 cursor-pointer" ${po.url ? `onclick="window.location.href='${po.url}'"` : ''}><td class="p-2 font-medium">${link}</td>`;
       html += `<td class="p-2">${escHtml(po.supplier)}</td>`;
       html += `<td class="p-2 text-right">${po.line_items}</td>`;
       html += `<td class="p-2 text-gray-400">${po.created ? new Date(po.created).toLocaleDateString('zh-CN') : '-'}</td></tr>`;
@@ -1726,7 +1759,7 @@ async function loadProjectLogs(projectId) {
   }
   container.innerHTML = `
     <div class="text-xs text-gray-500 mb-2 font-medium">变更历史（最近50条）</div>
-    <div class="space-y-1 max-h-[400px] overflow-y-auto">
+    <div class="log-list space-y-1">
       ${logs.map(l => `
       <div class="flex items-start gap-2 p-1.5 border-b border-gray-100 last:border-0">
         <span class="text-gray-400 shrink-0 mt-0.5">${getLogIcon(l.action)}</span>
