@@ -738,7 +738,7 @@ window.downloadProjectCsv = downloadProjectCsv;
 window.saveAsTemplate = saveAsTemplate;
 window.createFromTemplate = createFromTemplate;
 window.loadProjectLogs = loadProjectLogs;
-window.loadMoreProjects = loadMoreProjects;
+// (removed: loadMoreProjects was replaced by pagination)
 
 // ── Download CSV ──
 async function downloadProjectCsv(id) {
