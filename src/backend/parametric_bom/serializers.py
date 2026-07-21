@@ -388,7 +388,7 @@ class ProjectItemSerializer(serializers.ModelSerializer):
             'part', 'part_name', 'part_ipn',
             'title', 'quantity', 'bom_snapshot',
             'unit_cost', 'unit_price', 'notes',
-            'sort_order', 'created_at', 'user_role',
+            'sort_order', 'batch_name', 'created_at', 'user_role',
         ]
         read_only_fields = ['created_at']
 

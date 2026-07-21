@@ -1390,6 +1390,13 @@ class ProjectItem(models.Model):
         default=0,
         verbose_name=_('Sort order'),
     )
+    batch_name = models.CharField(
+        max_length=64,
+        null=True, blank=True,
+        default=None,
+        verbose_name=_('Batch name'),
+        help_text=_('Group identifier for batch display'),
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

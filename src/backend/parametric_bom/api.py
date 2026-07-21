@@ -2427,6 +2427,120 @@ class ProjectViewSet(viewsets.ModelViewSet):
             'name': u.get_full_name() or u.username,
         } for u in users])
 
+    @action(detail=True, methods=['get'], url_path='export-batch-csv')
+    def export_batch_csv(self, request, pk=None):
+        """Export items of a specific batch as CSV."""
+        import csv
+        from django.http import HttpResponse
+
+        project = self.get_object()
+        batch_name = request.query_params.get('batch_name', '').strip()
+        items = project.items.filter(batch_name=batch_name).order_by('id')
+
+        if not items.exists():
+            return Response({'error': f'批次 "{batch_name}" 无条目'}, status=404)
+
+        safe = batch_name.replace(' ', '_').replace('-', '_')
+        response = HttpResponse(content_type='text/csv; charset=utf-8-sig')
+        response['Content-Disposition'] = f'attachment; filename="{project.project_code}_{safe}.csv"'
+
+        writer = csv.writer(response)
+        writer.writerow(['项目', project.project_code, project.name])
+        writer.writerow(['批次', batch_name])
+        writer.writerow([])
+        writer.writerow(['名称', '类型', 'IPN', '数量', '单价', '小计', '含BOM', '备注'])
+
+        total_price = 0
+        for item in items:
+            price = float(item.unit_price or 0) * item.quantity
+            total_price += price
+            has_bom = '是' if item.bom_snapshot else ''
+            writer.writerow([
+                item.title,
+                item.get_item_type_display(),
+                item.part.IPN if item.part else '',
+                item.quantity,
+                f'{item.unit_price or 0:.2f}',
+                f'{price:.2f}',
+                has_bom,
+                item.notes or '',
+            ])
+
+        writer.writerow([])
+        writer.writerow(['合计', '', '', '', '', f'{total_price:.2f}'])
+        return response
+
+    @action(detail=True, methods=['get'], url_path='export-batch-zip')
+    def export_batch_zip(self, request, pk=None):
+        """Export items of a batch as ZIP: CSV order table + individual BOM CSVs."""
+        import csv, zipfile, io
+
+        project = self.get_object()
+        batch_name = request.query_params.get('batch_name', '').strip()
+        items = project.items.filter(batch_name=batch_name).order_by('id')
+
+        if not items.exists():
+            return Response({'error': f'批次 "{batch_name}" 无条目'}, status=404)
+
+        buf = io.BytesIO()
+        safe = batch_name.replace(' ', '_').replace('-', '_')
+
+        with zipfile.ZipFile(buf, 'w', zipfile.ZIP_DEFLATED) as zf:
+            # 1. Main order CSV
+            csv_buf = io.StringIO()
+            writer = csv.writer(csv_buf)
+            writer.writerow(['项目', project.project_code, project.name])
+            writer.writerow(['批次', batch_name])
+            writer.writerow([])
+            writer.writerow(['名称', '类型', 'IPN', '数量', '单价', '小计', '含BOM', '备注'])
+            total_price = 0
+            for item in items:
+                price = float(item.unit_price or 0) * item.quantity
+                total_price += price
+                has_bom = '是' if item.bom_snapshot else ''
+                writer.writerow([
+                    item.title, item.get_item_type_display(),
+                    item.part.IPN if item.part else '',
+                    item.quantity, f'{item.unit_price or 0:.2f}',
+                    f'{price:.2f}', has_bom, item.notes or '',
+                ])
+            writer.writerow([])
+            writer.writerow(['合计', '', '', '', '', f'{total_price:.2f}'])
+            zf.writestr(f'{safe}_订单表.csv', csv_buf.getvalue().encode('utf-8-sig'))
+
+            # 2. Individual BOM CSVs for items with bom_snapshot
+            for item in items:
+                if not item.bom_snapshot or not item.bom_snapshot.get('bom_tree'):
+                    continue
+                bom_items = item.bom_snapshot['bom_tree']
+                bom_buf = io.StringIO()
+                bw = csv.writer(bom_buf)
+                part_name = item.bom_snapshot.get('part_name', item.title)
+                bw.writerow([f'BOM — {part_name}'])
+                bw.writerow(['子件名称', 'IPN', '数量', '单价', '单位'])
+
+                def write_tree(tree, level=0):
+                    for n in tree:
+                        indent = '  ' * level
+                        bw.writerow([
+                            f'{indent}{n["part_name"]}',
+                            n.get('IPN', ''),
+                            n.get('quantity', 1),
+                            f'{n.get("unit_price", 0):.2f}',
+                            n.get('unit', ''),
+                        ])
+                        if 'children' in n:
+                            write_tree(n['children'], level + 1)
+
+                write_tree(bom_items)
+                safe_title = item.title.replace(' ', '_').replace('/', '_')
+                zf.writestr(f'{safe}/BOM_{safe_title}.csv', bom_buf.getvalue().encode('utf-8-sig'))
+
+        from django.http import HttpResponse
+        resp = HttpResponse(buf.getvalue(), content_type='application/zip')
+        resp['Content-Disposition'] = f'attachment; filename="{project.project_code}_{safe}.zip"'
+        return resp
+
     def _collect_bom_parts(self, node, parts_dict, multiplier=1):
         """Recursively collect parts from a BOM snapshot tree."""
         if node.get('part_id'):

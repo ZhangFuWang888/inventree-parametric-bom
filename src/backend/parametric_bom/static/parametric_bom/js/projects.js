@@ -286,46 +286,94 @@ async function showProjectDetail(projectId) {
   </div>
 
   <div id="project-tab-items" class="proj-tab-panel">
-    ${p.items && p.items.length ? `
-    <div class="card">
-      <div class="card-header flex items-center justify-between">
-        <span>项目条目</span>
-        ${canEdit ? `<button class="btn btn-sm btn-secondary" onclick="showAddItemDialog(${p.id})">添加</button>` : ''}
-      </div>
-      <div class="overflow-x-auto">
-        <table class="w-full text-xs">
-          <thead>
-            <tr class="border-b border-gray-200 text-gray-500">
-              <th class="p-2 text-left">名称</th>
-              <th class="p-2 text-left">类型</th>
-              <th class="p-2 text-right">数量</th>
-              <th class="p-2 text-right">单价</th>
-              <th class="p-2 text-right">小计</th>
-              ${canEdit ? '<th class="p-2 text-center">操作</th>' : ''}
-            </tr>
-          </thead>
-          <tbody>
-            ${p.items.map(item => {
-              const subtotal = (parseFloat(item.unit_price || 0) * item.quantity).toFixed(2);
-              return `<tr class="border-b border-gray-100">
-                <td class="p-2 font-medium">${escHtml(item.title)}${item.bom_snapshot ? ' <span class="text-[10px] text-gray-400">(含BOM)</span>' : ''}</td>
-                <td class="p-2">${item.item_type === 'configuration' ? '🔧 参数化配置' : '⚙️ 静态零件'}</td>
-                <td class="p-2 text-right">×${item.quantity}</td>
-                <td class="p-2 text-right">¥${parseFloat(item.unit_price || 0).toFixed(2)}</td>
-                <td class="p-2 text-right font-medium">¥${subtotal}</td>
-                ${canEdit ? `<td class="p-2 text-center"><button class="text-red-500 hover:text-red-700" onclick="removeProjectItem(${p.id}, ${item.id})">✕</button></td>` : ''}
-              </tr>`;
-            }).join('')}
-          </tbody>
-        </table>
-      </div>
-    </div>` : `<div class="card"><div class="empty-state p-4 text-center text-gray-400 text-sm">暂无项目条目</div></div>`}
+    ${p.items && p.items.length ? (() => {
+      // Group items by batch_name
+      const groups = {};
+      p.items.forEach(item => {
+        const key = item.batch_name || '未分组';
+        if (!groups[key]) groups[key] = [];
+        groups[key].push(item);
+      });
+      // Define display order
+      const batchOrder = ['第一批','第二批','第三批','产品类-BOM','未分组'];
+      const sortedKeys = Object.keys(groups).sort((a,b) => {
+        const ai = batchOrder.indexOf(a);
+        const bi = batchOrder.indexOf(b);
+        return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
+      });
 
-    ${canEdit ? `
-    <div class="flex items-center gap-2 mt-3">
-      <button class="btn btn-sm btn-secondary" onclick="generatePurchaseOrders(${p.id})">生成采购订单</button>
-      <button class="btn btn-sm btn-secondary" onclick="generateSalesOrder(${p.id})">生成销售订单</button>
-    </div>` : ''}
+      let html = '';
+      sortedKeys.forEach(batchName => {
+        const items = groups[batchName];
+        const totalQty = items.reduce((s, it) => s + it.quantity, 0);
+        const totalAmt = items.reduce((s, it) => s + parseFloat(it.unit_price || 0) * it.quantity, 0);
+        const safeBatch = encodeURIComponent(batchName);
+
+        html += `
+        <div class="card mb-3 batch-card">
+          <div class="card-header flex items-center justify-between flex-wrap gap-2">
+            <div class="flex items-center gap-2">
+              <span class="font-semibold text-sm">📦 ${escHtml(batchName)}</span>
+              <span class="text-xs text-gray-400">${items.length} 项 · ${totalQty} 件 · ¥${totalAmt.toFixed(2)}</span>
+            </div>
+            <div class="flex items-center gap-2">
+              ${canEdit ? `<button class="btn btn-sm btn-secondary" onclick="showAddItemDialog(${p.id}, '${escHtml(batchName)}')">添加</button>` : ''}
+              <button class="btn btn-sm btn-secondary batch-export-btn" onclick="exportBatchCsv(${p.id}, '${safeBatch}')" title="导出 CSV 订单表">
+                <span class="batch-export-icon"></span> CSV
+              </button>
+              <button class="btn btn-sm btn-secondary batch-export-btn" onclick="exportBatchZip(${p.id}, '${safeBatch}')" title="导出 ZIP（订单表+BOM表）">
+                <span class="batch-export-icon"></span> ZIP
+              </button>
+            </div>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-xs">
+              <thead>
+                <tr class="border-b border-gray-200 text-gray-500">
+                  <th class="p-2 text-left">名称</th>
+                  <th class="p-2 text-left">类型</th>
+                  <th class="p-2 text-right">数量</th>
+                  <th class="p-2 text-right">单价</th>
+                  <th class="p-2 text-right">小计</th>
+                  ${canEdit ? '<th class="p-2 text-center">操作</th>' : ''}
+                </tr>
+              </thead>
+              <tbody>
+                ${items.map(item => {
+                  const subtotal = (parseFloat(item.unit_price || 0) * item.quantity).toFixed(2);
+                  return `<tr class="border-b border-gray-100">
+                    <td class="p-2 font-medium">${escHtml(item.title)}${item.bom_snapshot ? ' <span class="text-[10px] text-gray-400">(含BOM)</span>' : ''}</td>
+                    <td class="p-2">${item.item_type === 'configuration' ? '🔧 参数化配置' : '⚙️ 静态零件'}</td>
+                    <td class="p-2 text-right">×${item.quantity}</td>
+                    <td class="p-2 text-right">¥${parseFloat(item.unit_price || 0).toFixed(2)}</td>
+                    <td class="p-2 text-right font-medium">¥${subtotal}</td>
+                    ${canEdit ? `<td class="p-2 text-center"><button class="text-red-500 hover:text-red-700" onclick="removeProjectItem(${p.id}, ${item.id})">✕</button></td>` : ''}
+                  </tr>`;
+                }).join('')}
+              </tbody>
+              <tfoot>
+                <tr class="bg-gray-50 font-medium text-xs">
+                  <td class="p-2" colspan="2">批次合计</td>
+                  <td class="p-2 text-right">×${totalQty}</td>
+                  <td class="p-2 text-right"></td>
+                  <td class="p-2 text-right font-semibold text-blue-600">¥${totalAmt.toFixed(2)}</td>
+                  ${canEdit ? '<td class="p-2"></td>' : ''}
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>`;
+      });
+
+      html += `
+      <div class="flex items-center gap-2 mt-2">
+        <button class="btn btn-sm btn-secondary" onclick="showAddItemDialog(${p.id}, '')">添加条目到项目</button>
+        <button class="btn btn-sm btn-secondary" onclick="generatePurchaseOrders(${p.id})">生成采购订单</button>
+        <button class="btn btn-sm btn-secondary" onclick="generateSalesOrder(${p.id})">生成销售订单</button>
+      </div>`;
+
+      return html;
+    })() : `<div class="card"><div class="empty-state p-4 text-center text-gray-400 text-sm">暂无项目条目</div></div>`}
   </div>
 
   <div id="project-tab-cost" class="proj-tab-panel" style="display:none">
@@ -734,6 +782,29 @@ function toggleAddMember() {
   }
 }
 
+// ── Batch export ──
+function exportBatchCsv(projectId, batchName) {
+  const url = `/api/parametric-bom/projects/${projectId}/export-batch-csv/?batch_name=${batchName}`;
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = '';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setStatus('success', '正在下载 CSV 订单表...');
+}
+
+function exportBatchZip(projectId, batchName) {
+  const url = `/api/parametric-bom/projects/${projectId}/export-batch-zip/?batch_name=${batchName}`;
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = '';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setStatus('success', '正在下载 ZIP 订单包...');
+}
+
 // ── Expose to window ──
 window.copyText = copyText;
 window.showNewProjectDialog = showNewProjectDialog;
@@ -752,6 +823,8 @@ window.deleteRole = deleteRole;
 window.showCreateRoleDialog = showCreateRoleDialog;
 window.toggleAddMember = toggleAddMember;
 window.showPermissionEditor = showPermissionEditor;
+window.exportBatchCsv = exportBatchCsv;
+window.exportBatchZip = exportBatchZip;
 window.generatePurchaseOrders = generatePurchaseOrders;
 window.generateSalesOrder = generateSalesOrder;
 window.submitCartAsProject = submitCartAsProject;

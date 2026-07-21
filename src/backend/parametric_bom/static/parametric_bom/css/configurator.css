@@ -988,3 +988,19 @@ textarea.input-field{resize:vertical;font-family:monospace;font-size:0.75rem}
   background-size:contain;
 }
 .copy-btn:hover{opacity:1;background:#e2e8f0;}
+
+/* ── Batch Export Button Icon ── */
+.batch-export-icon{
+  display:inline-block;width:0.85em;height:0.85em;vertical-align:-1px;
+  background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%234b5563' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4'/%3E%3Cpolyline points='7 10 12 15 17 10'/%3E%3Cline x1='12' y1='15' x2='12' y2='3'/%3E%3C/svg%3E") no-repeat center;
+  background-size:contain;
+}
+.batch-export-btn:hover .batch-export-icon{
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%232563eb' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4'/%3E%3Cpolyline points='7 10 12 15 17 10'/%3E%3Cline x1='12' y1='15' x2='12' y2='3'/%3E%3C/svg%3E");
+}
+
+/* ── Batch Card ── */
+.batch-card{border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;}
+.batch-card .card-header{background:#f8fafc;padding:0.5rem 0.75rem;}
+.batch-card table{margin:0;}
+.batch-card tfoot td{border-top:1px solid #e2e8f0;}
