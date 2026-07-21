@@ -696,6 +696,42 @@ async function loadProjectCost(projectId) {
         <span id="cost-toggle-cat-${c.project_id}" class="inline-block w-4 text-center text-gray-400">▶</span> 🏷️ 按物料类别统计
       </div>
       <div id="cost-section-cat-${c.project_id}" style="display:none">
+        <div class="flex flex-col sm:flex-row items-center gap-4 mb-4">
+          <svg width="240" height="220" viewBox="0 0 240 220">
+            ${(() => {
+              const ctotal = cats.reduce((s, t) => s + t.total_cost, 0);
+              if (ctotal <= 0) return '';
+              const cx = 110, cy = 110, r = 80, ir = 50;
+              let cumul = 0, slices = '';
+              cats.forEach((t, i) => {
+                const angle = (t.total_cost / ctotal) * 360;
+                const sa = cumul; cumul += angle; const ea = cumul;
+                const sr = ((sa - 90) * Math.PI) / 180;
+                const er = ((ea - 90) * Math.PI) / 180;
+                const x1 = cx + r * Math.cos(sr), y1 = cy + r * Math.sin(sr);
+                const x2 = cx + r * Math.cos(er), y2 = cy + r * Math.sin(er);
+                const large = angle > 180 ? 1 : 0;
+                const color = colors[i % colors.length];
+                slices += `<path d="M${cx} ${cy} L${x1} ${y1} A${r} ${r} 0 ${large} 1 ${x2} ${y2} Z" fill="${color}"><title>${escHtml(t.category)}: ¥${t.total_cost.toFixed(2)} (${(t.total_cost/ctotal*100).toFixed(1)}%)</title></path>`;
+              });
+              slices += `<circle cx="${cx}" cy="${cy}" r="${ir}" fill="white"/>`;
+              slices += `<text x="${cx}" y="${cy - 6}" text-anchor="middle" font-size="16" font-weight="bold" fill="#333">¥${ctotal.toFixed(0)}</text>`;
+              slices += `<text x="${cx}" y="${cy + 10}" text-anchor="middle" font-size="9" fill="#999">总成本</text>`;
+              return slices;
+            })()}
+          </svg>
+          <div class="flex-1 min-w-0 text-xs space-y-1.5">
+            ${cats.map((t, i) => {
+              const pct = c.total_cost > 0 ? (t.total_cost / c.total_cost * 100).toFixed(1) : '0';
+              const color = colors[i % colors.length];
+              return `<div class="flex items-center gap-2">
+                <span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${color}"></span>
+                <span class="text-gray-600">${escHtml(t.category)}</span>
+                <span class="text-gray-400 ml-auto">¥${t.total_cost.toFixed(2)} (${pct}%)</span>
+              </div>`;
+            }).join('')}
+          </div>
+        </div>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
           ${cats.map((t, i) => {
             const pct = c.total_cost > 0 ? (t.total_cost / c.total_cost * 100).toFixed(1) : '0';
@@ -758,7 +794,7 @@ async function loadProjectCost(projectId) {
     </table></div></div>` : '<div class="text-xs text-gray-400 text-center py-2">暂无成本明细</div>'}`;
 }
 
-\n// ── Toggle cost section ──
+// ── Toggle cost section ──
 function toggleCostSection(id) {
   const section = document.getElementById("cost-section-" + id);
   const toggle = document.getElementById("cost-toggle-" + id);
