@@ -385,6 +385,29 @@ header .text-sm.font-semibold{
 .btn-lg{padding:0.625rem 1.5rem;font-size:0.875rem}
 .btn-block{width:100%;justify-content:center}
 
+/* ── Project page buttons: white background ── */
+#page-projects .btn-primary,
+#page-project-detail .btn-primary,
+#page-projects .btn-success,
+#page-project-detail .btn-success,
+#page-projects .btn-danger,
+#page-project-detail .btn-danger,
+#page-projects .btn-warning,
+#page-project-detail .btn-warning {
+  background: #fff !important;
+  color: #475569 !important;
+  border-color: #d1d5db !important;
+}
+#page-projects .btn-primary:hover,
+#page-project-detail .btn-primary:hover,
+#page-projects .btn-success:hover,
+#page-project-detail .btn-success:hover,
+#page-projects .btn-danger:hover,
+#page-project-detail .btn-danger:hover {
+  background: #f8fafc !important;
+  border-color: #9ca3af !important;
+}
+
 /* Form elements */
 select.input-field, input.input-field, textarea.input-field{width:100%;padding:0.5rem 0.75rem;border:1px solid #d1d5db;border-radius:8px;font-size:0.8125rem;transition:border-color 0.15s;background:#fff;color:#1e293b}
 select.input-field:focus, input.input-field:focus, textarea.input-field:focus{outline:none;border-color:#2563eb;box-shadow:0 0 0 3px rgba(37,99,235,0.1)}
