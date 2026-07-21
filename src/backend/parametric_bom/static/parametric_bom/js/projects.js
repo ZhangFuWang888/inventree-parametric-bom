@@ -671,7 +671,48 @@ async function loadProjectCost(projectId) {
         ${renderPieChart(batches)}
       </div>
     </div>
-    ${batchTableHtml}` : ''}
+    ${batchTableHtml}
+    ${(() => {
+      const types = c.type_breakdown || [];
+      if (!types.length || types.every(t => t.count === 0)) return '';
+      return `
+    <div class="card mb-3">
+      <div class="text-sm font-medium text-gray-700 mb-2">🏷️ 按物料类型统计</div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        ${types.filter(t => t.count > 0).map(t => {
+          const pct = c.total_cost > 0 ? (t.total_cost / c.total_cost * 100).toFixed(1) : '0';
+          const profit = t.total_price - t.total_cost;
+          const color = t.item_type === 'configuration' ? '#3b82f6' : '#f59e0b';
+          const icon = t.item_type === 'configuration' ? '📦' : '⚙️';
+          const barW = Math.max(4, parseFloat(pct));
+          return `<div class="border rounded-lg p-3">
+            <div class="flex items-center gap-2 mb-2">
+              <span>${icon}</span>
+              <span class="font-medium text-sm">${t.label}</span>
+              <span class="text-xs text-gray-400">${t.count} 条</span>
+            </div>
+            <div class="flex items-center gap-3 mb-1">
+              <span class="text-xs text-gray-500 w-14">成本</span>
+              <div class="flex-1 h-4 bg-gray-100 rounded overflow-hidden">
+                <div style="width:${barW}%;height:100%;background:${color};border-radius:3px;min-width:4px"></div>
+              </div>
+              <span class="text-xs font-medium text-red-600 w-20 text-right">¥${t.total_cost.toFixed(2)}</span>
+            </div>
+            <div class="flex items-center gap-3 mb-1">
+              <span class="text-xs text-gray-500 w-14">售价</span>
+              <div class="flex-1 h-4 bg-gray-100 rounded overflow-hidden">
+                <div style="width:${c.total_price > 0 ? Math.max(4, t.total_price / c.total_price * 100).toFixed(0) : 0}%;height:100%;background:#22c55e;border-radius:3px;min-width:4px"></div>
+              </div>
+              <span class="text-xs font-medium text-green-600 w-20 text-right">¥${t.total_price.toFixed(2)}</span>
+            </div>
+            <div class="flex items-center gap-3">
+              <span class="text-xs text-gray-500 w-14">利润</span>
+              <span class="text-xs font-medium ${profit >= 0 ? 'text-green-600' : 'text-red-500'}">¥${profit.toFixed(2)}</span>
+            </div>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>`;})()}` : ''}
     ${c.breakdown && c.breakdown.length ? `
     <div class="card">
       <div class="text-sm font-medium text-gray-700 mb-2">📋 明细清单</div>

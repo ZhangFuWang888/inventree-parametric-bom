@@ -2260,6 +2260,10 @@ class ProjectViewSet(viewsets.ModelViewSet):
             'margin_pct': round((total_price - total_cost) / total_price * 100, 2) if total_price and total_price > 0 else (0 if total_price == 0 and total_cost == 0 else -100.0),
             'breakdown': breakdown,
             'batch_breakdown': batch_list,
+            'type_breakdown': [
+                {'item_type': 'configuration', 'label': '参数化配置', 'count': sum(1 for b in breakdown if b['type'] == 'configuration'), 'total_cost': sum(b['subtotal_cost'] for b in breakdown if b['type'] == 'configuration'), 'total_price': sum(b['subtotal_price'] for b in breakdown if b['type'] == 'configuration')},
+                {'item_type': 'part', 'label': '静态零件', 'count': sum(1 for b in breakdown if b['type'] == 'part'), 'total_cost': sum(b['subtotal_cost'] for b in breakdown if b['type'] == 'part'), 'total_price': sum(b['subtotal_price'] for b in breakdown if b['type'] == 'part')},
+            ],
         })
 
     @action(detail=True, methods=['get'])
