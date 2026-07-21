@@ -2734,6 +2734,62 @@ class ProjectViewSet(viewsets.ModelViewSet):
         resp['Content-Disposition'] = f'attachment; filename="{project.project_code}_{safe}.zip"'
         return resp
 
+    @action(detail=True, methods=['post'], url_path='batch-to-cart')
+    def batch_to_cart(self, request, pk=None):
+        """Move all items in a batch back to the shopping cart."""
+        project = self.get_object()
+        batch_name = request.data.get('batch_name', '').strip()
+
+        if not batch_name:
+            return Response({'error': '请指定批次名称'}, status=400)
+
+        items = project.items.filter(batch_name=batch_name)
+        if not items.exists():
+            return Response({'error': f'批次 "{batch_name}" 无条目'}, status=404)
+
+        cart_items = []
+        for item in items:
+            if item.item_type == 'configuration':
+                product_part = None
+                parameters = None
+                bom_snapshot = item.bom_snapshot
+                if item.product_config:
+                    product_part = item.product_config.template_part
+                    parameters = item.product_config.params_snapshot
+                ci = CartItem.objects.create(
+                    user=request.user if request.user.is_authenticated else None,
+                    session_key=request.session.session_key if not request.user.is_authenticated else '',
+                    item_type='parametric',
+                    product_part=product_part,
+                    title=item.title,
+                    quantity=item.quantity,
+                    parameters=parameters,
+                    bom_snapshot=bom_snapshot,
+                    unit_price=item.unit_cost or item.unit_price,
+                )
+            else:
+                ci = CartItem.objects.create(
+                    user=request.user if request.user.is_authenticated else None,
+                    session_key=request.session.session_key if not request.user.is_authenticated else '',
+                    item_type='static',
+                    part=item.part,
+                    title=item.title,
+                    quantity=item.quantity,
+                    unit_price=item.unit_price,
+                )
+            cart_items.append(ci.id)
+
+        count = items.count()
+        items.delete()
+
+        self._log(project, 'batch_to_cart',
+                  f'批次 "{batch_name}" 的 {count} 个条目已还原到购物车')
+        return Response({
+            'success': True,
+            'message': f'已还原 {count} 个条目到购物车',
+            'cart_item_ids': cart_items,
+        })
+
     def _collect_bom_parts(self, node, parts_dict, multiplier=1):
         """Recursively collect parts from a BOM snapshot tree."""
         if node.get('part_id'):

@@ -339,6 +339,9 @@ async function showProjectDetail(projectId) {
             <button class="btn btn-sm btn-secondary batch-export-btn" onclick="exportBatchZip(${p.id}, '${safeBatch}')" title="导出 ZIP（订单表+BOM表）">
               <span class="batch-export-icon"></span> ZIP
             </button>
+            <button class="btn btn-sm btn-secondary text-orange-600" onclick="batchToCart(${p.id}, '${safeBatch}')" title="还原到购物车">
+              🛒
+            </button>
           </div>
           <div class="overflow-x-auto">
             <table class="w-full text-xs batch-table">
@@ -1074,6 +1077,18 @@ function exportBatchZip(projectId, batchName) {
   setStatus('success', '正在下载 ZIP 订单包...');
 }
 
+async function batchToCart(projectId, batchName) {
+  const name = decodeURIComponent(batchName);
+  if (!confirm(`确定将批次「${name}」的所有条目还原到购物车？项目中的这些条目将被删除。`)) return;
+  const result = await projectApi('POST', `/${projectId}/batch-to-cart/`, { batch_name: name });
+  if (result.ok) {
+    setStatus('success', result.data.message || '已还原到购物车');
+    showProjectDetail(projectId);
+  } else {
+    setStatus('error', result.data?.error || '还原失败');
+  }
+}
+
 // ── Expose to window ──
 window.copyText = copyText;
 window.showNewProjectDialog = showNewProjectDialog;
@@ -1094,6 +1109,7 @@ window.toggleAddMember = toggleAddMember;
 window.showPermissionEditor = showPermissionEditor;
 window.exportBatchCsv = exportBatchCsv;
 window.exportBatchZip = exportBatchZip;
+window.batchToCart = batchToCart;
 window.generatePurchaseOrders = generatePurchaseOrders;
 window.generateSalesOrder = generateSalesOrder;
 window.submitCartAsProject = submitCartAsProject;
