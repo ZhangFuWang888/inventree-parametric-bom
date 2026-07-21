@@ -1720,8 +1720,8 @@ async function loadProjectOrders(projectId) {
     html += '<table class="w-full text-xs mb-4"><thead><tr class="border-b border-gray-200 text-gray-500">';
     html += '<th class="p-2 text-left">单号</th><th class="p-2 text-left">客户</th><th class="p-2 text-right">明细</th><th class="p-2 text-left">创建时间</th></tr></thead><tbody>';
     sos.forEach(so => {
-      const link = so.url ? `<a href="${so.url}" class="text-blue-600 hover:text-blue-800 hover:underline">${escHtml(so.reference)} ↗</a>` : escHtml(so.reference);
-      html += `<tr class="border-b border-gray-100 hover:bg-blue-50/30 cursor-pointer" ${so.url ? `onclick="window.location.href='${so.url}'"` : ''}><td class="p-2 font-medium">${link}</td>`;
+      const link = so.url ? `<a href="${so.url}" target="_blank" class="text-blue-600 hover:text-blue-800 hover:underline">${escHtml(so.reference)} ↗</a>` : escHtml(so.reference);
+      html += `<tr class="border-b border-gray-100"><td class="p-2 font-medium">${link}</td>`;
       html += `<td class="p-2">${escHtml(so.customer)}</td>`;
       html += `<td class="p-2 text-right">${so.line_items}</td>`;
       html += `<td class="p-2 text-gray-400">${so.created ? new Date(so.created).toLocaleDateString('zh-CN') : '-'}</td></tr>`;
@@ -1734,8 +1734,8 @@ async function loadProjectOrders(projectId) {
     html += '<table class="w-full text-xs"><thead><tr class="border-b border-gray-200 text-gray-500">';
     html += '<th class="p-2 text-left">单号</th><th class="p-2 text-left">供应商</th><th class="p-2 text-right">明细</th><th class="p-2 text-left">创建时间</th></tr></thead><tbody>';
     pos.forEach(po => {
-      const link = po.url ? `<a href="${po.url}" class="text-blue-600 hover:text-blue-800 hover:underline">${escHtml(po.reference)} ↗</a>` : escHtml(po.reference);
-      html += `<tr class="border-b border-gray-100 hover:bg-blue-50/30 cursor-pointer" ${po.url ? `onclick="window.location.href='${po.url}'"` : ''}><td class="p-2 font-medium">${link}</td>`;
+      const link = po.url ? `<a href="${po.url}" target="_blank" class="text-blue-600 hover:text-blue-800 hover:underline">${escHtml(po.reference)} ↗</a>` : escHtml(po.reference);
+      html += `<tr class="border-b border-gray-100"><td class="p-2 font-medium">${link}</td>`;
       html += `<td class="p-2">${escHtml(po.supplier)}</td>`;
       html += `<td class="p-2 text-right">${po.line_items}</td>`;
       html += `<td class="p-2 text-gray-400">${po.created ? new Date(po.created).toLocaleDateString('zh-CN') : '-'}</td></tr>`;
