@@ -307,15 +307,20 @@ async function showProjectDetail(projectId) {
         const items = groups[batchName];
         const totalQty = items.reduce((s, it) => s + it.quantity, 0);
         const totalAmt = items.reduce((s, it) => s + parseFloat(it.unit_price || 0) * it.quantity, 0);
+        // Find earliest created_at and creator
+        const times = items.map(it => it.created_at).filter(Boolean).sort();
+        const batchTime = times.length ? new Date(times[0]).toLocaleString('zh-CN', {month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}) : '';
+        const creator = items.find(it => it.created_by_name)?.created_by_name || '';
         const safeBatch = encodeURIComponent(batchName);
 
         html += `
         <div class="card mb-3 batch-card">
           <div class="card-header flex items-center justify-between flex-wrap gap-2">
-            <div class="flex items-center gap-2">
+            <div class="flex items-center gap-2 flex-wrap">
               <span class="font-semibold text-sm">📦 ${escHtml(batchName)}</span>
               <span class="text-xs text-gray-400">${items.length} 项 · ${totalQty} 件 · ¥${totalAmt.toFixed(2)}</span>
-            </div>
+              ${batchTime ? `<span class="text-xs text-gray-400">🕐 ${batchTime}</span>` : ''}
+              ${creator ? `<span class="text-xs text-gray-400">👤 ${escHtml(creator)}</span>` : ''}
             <div class="flex items-center gap-2">
               ${canEdit ? `<button class="btn btn-sm btn-secondary" onclick="showAddItemDialog(${p.id}, '${escHtml(batchName)}')">添加</button>` : ''}
               <button class="btn btn-sm btn-secondary batch-export-btn" onclick="exportBatchCsv(${p.id}, '${safeBatch}')" title="导出 CSV 订单表">

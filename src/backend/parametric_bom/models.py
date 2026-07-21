@@ -1397,6 +1397,13 @@ class ProjectItem(models.Model):
         verbose_name=_('Batch name'),
         help_text=_('Group identifier for batch display'),
     )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='project_items_created',
+        verbose_name=_('Created by'),
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

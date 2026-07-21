@@ -372,7 +372,13 @@ class ProjectItemSerializer(serializers.ModelSerializer):
     config_title = serializers.CharField(
         source='product_config.title', read_only=True, default=None
     )
+    created_by_name = serializers.SerializerMethodField()
     user_role = serializers.SerializerMethodField()
+
+    def get_created_by_name(self, obj):
+        if not obj.created_by:
+            return None
+        return obj.created_by.get_full_name() or obj.created_by.username
 
     def get_user_role(self, obj):
         request = self.context.get('request')
@@ -388,7 +394,8 @@ class ProjectItemSerializer(serializers.ModelSerializer):
             'part', 'part_name', 'part_ipn',
             'title', 'quantity', 'bom_snapshot',
             'unit_cost', 'unit_price', 'notes',
-            'sort_order', 'batch_name', 'created_at', 'user_role',
+            'sort_order', 'batch_name', 'created_by_name',
+            'created_at', 'user_role',
         ]
         read_only_fields = ['created_at']
 
