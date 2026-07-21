@@ -299,14 +299,27 @@ async function showProjectDetail(projectId) {
         groups[key].push(item);
       });
       // Define display order
-      const batchOrder = ['第一批','第二批','第三批','产品类-BOM','未分组'];
-      const sortedKeys = Object.keys(groups).sort((a,b) => {
-        const ai = batchOrder.indexOf(a);
-        const bi = batchOrder.indexOf(b);
-        return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
+      // Sort: newest batch first, "未分组" always last
+      const sortedKeys = Object.keys(groups).sort((a, b) => {
+        if (a === '未分组') return 1;
+        if (b === '未分组') return -1;
+        // By batch number if it's "第N批" format
+        const ma = a.match(/^第(\d+)批$/);
+        const mb = b.match(/^第(\d+)批$/);
+        if (ma && mb) return parseInt(mb[1]) - parseInt(ma[1]);
+        if (ma) return -1;
+        if (mb) return 1;
+        // Fallback: by latest item created_at
+        const ta = Math.max(...groups[a].map(it => new Date(it.created_at).getTime()));
+        const tb = Math.max(...groups[b].map(it => new Date(it.created_at).getTime()));
+        return tb - ta;
       });
 
       let html = '';
+      // Add-item button at the top of batches
+      html += `<div class="flex items-center gap-2 mb-3 flex-wrap">
+        <button class="btn btn-sm btn-secondary" onclick="showAddItemToProject(${p.id})">添加条目到项目</button>
+      </div>`;
       sortedKeys.forEach(batchName => {
         const items = groups[batchName];
         const totalQty = items.reduce((s, it) => s + it.quantity, 0);
@@ -431,9 +444,6 @@ async function showProjectDetail(projectId) {
 
       html += `
       <div class="flex items-center gap-2 mt-2 flex-wrap" id="batch-actions-${p.id}">
-        <button class="btn btn-sm btn-secondary" onclick="showAddItemToProject(${p.id})">添加条目到项目</button>
-        <button class="btn btn-sm btn-secondary" onclick="generatePurchaseOrders(${p.id})">生成采购订单</button>
-        <button class="btn btn-sm btn-secondary" onclick="generateSalesOrder(${p.id})">生成销售订单</button>
         <span id="batch-bar-${p.id}" class="batch-action-bar" style="display:none;margin-left:8px;padding-left:8px;border-left:1px solid #d1d5db">
           <span id="batch-count-${p.id}" class="text-xs text-gray-500 mr-2">已选 0 项</span>
           <button class="btn btn-sm btn-secondary text-red-600" onclick="batchDeleteItems(${p.id})" id="batch-del-btn-${p.id}">批量删除</button>
@@ -670,70 +680,151 @@ async function confirmHardDelete(id) {
 }
 
 // ── Add item to project dialog ──
+let _addItemSelectedParts = []; // {id, name, ipn, qty, price, unit}
+
 function showAddItemDialog(projectId, batchName) {
   window._addItemBatchName = batchName || '';
-  showModal('添加条目', `
+  _addItemSelectedParts = [];
+
+  showModal('批量添加物料', `
     <div class="flex flex-col gap-3">
       <div>
-        <label class="text-xs text-gray-500">类型</label>
-        <select class="input-field w-full" id="ai-type" onchange="toggleAddItemType()">
-          <option value="configuration">参数化配置</option>
-          <option value="part">静态零件</option>
-        </select>
-      </div>
-      <div id="ai-product-group">
-        <label class="text-xs text-gray-500">搜索产品</label>
-        <input class="input-field w-full" id="ai-product-search" placeholder="输入产品名称/IPN搜索..." oninput="searchProductsForItem()">
-        <div id="ai-product-results" class="mt-1 max-h-[200px] overflow-y-auto"></div>
-        <input type="hidden" id="ai-product-id" value="">
-        <div id="ai-product-selected" class="text-xs text-green-600 mt-1" style="display:none"></div>
-      </div>
-      <div id="ai-part-group" style="display:none">
-        <label class="text-xs text-gray-500">搜索零件</label>
-        <input class="input-field w-full" id="ai-part-search" placeholder="输入零件名称/IPN搜索..." oninput="searchPartsForItem()">
+        <label class="text-xs text-gray-500">搜索零件（点击添加到列表）</label>
+        <input class="input-field w-full" id="ai-part-search" placeholder="输入零件名称/IPN搜索..." oninput="searchPartsForBatchAdd()">
         <div id="ai-part-results" class="mt-1 max-h-[200px] overflow-y-auto"></div>
-        <input type="hidden" id="ai-part-id" value="">
-        <div id="ai-part-selected" class="text-xs text-green-600 mt-1" style="display:none"></div>
       </div>
-      <div>
-        <label class="text-xs text-gray-500">数量</label>
-        <input class="input-field w-full" id="ai-qty" type="number" value="1" min="1">
+      <div id="ai-selected-area" style="display:none">
+        <label class="text-xs text-gray-500 font-medium">已选物料 <span id="ai-selected-count" class="text-blue-600">0</span> 项</label>
+        <div class="border border-gray-200 rounded max-h-[300px] overflow-y-auto" id="ai-selected-table-wrap">
+          <table class="w-full text-xs">
+            <thead><tr class="border-b border-gray-200 bg-gray-50 text-gray-500">
+              <th class="p-2 text-left">物料名称</th>
+              <th class="p-2 text-center w-[60px]">数量</th>
+              <th class="p-2 text-right w-[100px]">单价 (¥)</th>
+              <th class="p-2 text-center w-[50px]">操作</th>
+            </tr></thead>
+            <tbody id="ai-selected-tbody"></tbody>
+          </table>
+        </div>
       </div>
-      <div>
-        <label class="text-xs text-gray-500">单价</label>
-        <input class="input-field w-full" id="ai-price" type="number" step="0.01" placeholder="0.00">
-      </div>
+      <div class="text-xs text-gray-400">提示：搜索后点击零件即可添加到列表，支持批量添加</div>
     </div>`, [
     { text: '取消', cls: 'btn btn-sm btn-secondary', action: closeModal },
-    { text: '添加', cls: 'btn btn-sm btn-success', action: async () => {
-      const itemType = document.getElementById('ai-type').value;
-      const data = {
-        item_type: itemType,
-        quantity: parseInt(document.getElementById('ai-qty').value) || 1,
-        unit_price: parseFloat(document.getElementById('ai-price').value) || null,
-      };
-      if (itemType === 'part') {
-        const partId = document.getElementById('ai-part-id').value;
-        if (!partId) { setStatus('error', '请先搜索并选择一个零件'); return; }
-        data.part = parseInt(partId);
-        data.title = document.getElementById('ai-part-search').value;
-      } else {
-        const productId = document.getElementById('ai-product-id').value;
-        if (!productId) { setStatus('error', '请先搜索并选择一个产品'); return; }
-        data.product_part_id = parseInt(productId);
-        data.title = document.getElementById('ai-product-search').value;
+    { text: '确认添加', cls: 'btn btn-sm btn-success', action: async () => {
+      if (!_addItemSelectedParts.length) { setStatus('error', '请先搜索并添加物料'); return; }
+      let ok = 0, fail = 0;
+      for (const sp of _addItemSelectedParts) {
+        const data = {
+          item_type: 'part',
+          part: sp.id,
+          title: sp.name,
+          quantity: sp.qty || 1,
+          unit_price: sp.price || null,
+        };
+        if (window._addItemBatchName) data.batch_name = window._addItemBatchName;
+        const result = await projectApi('POST', `/${projectId}/add_item/`, data);
+        if (result.ok) ok++; else fail++;
       }
-      if (window._addItemBatchName) data.batch_name = window._addItemBatchName;
-      const result = await projectApi('POST', `/${projectId}/add_item/`, data);
-      if (result.ok) {
-        closeModal();
-        setStatus('success', '条目已添加');
-        showProjectDetail(projectId);
-      } else {
-        setStatus('error', '添加失败');
-      }
+      closeModal();
+      if (ok > 0) setStatus('success', `成功添加 ${ok} 个物料${fail > 0 ? '，' + fail + ' 个失败' : ''}`);
+      else setStatus('error', '添加失败');
+      showProjectDetail(projectId);
     }},
   ]);
+}
+
+function searchPartsForBatchAdd() {
+  clearTimeout(_partSearchTimer);
+  const input = document.getElementById('ai-part-search');
+  if (!input) return;
+  const q = input.value.trim();
+  const results = document.getElementById('ai-part-results');
+  if (!results) return;
+  if (q.length < 2) { results.innerHTML = ''; return; }
+
+  _partSearchTimer = setTimeout(async () => {
+    try {
+      const basePath = window._inventreeApiBase || '/api';
+      const resp = await fetch(basePath + '/part/?search=' + encodeURIComponent(q) + '&limit=15', { credentials: 'same-origin' });
+      const data = await resp.json();
+      const parts = data.results || data || [];
+      if (!parts.length) { results.innerHTML = '<div class="text-xs text-gray-400 py-1">未找到零件</div>'; return; }
+      results.innerHTML = parts.map(p =>
+        '<div class="flex items-center justify-between py-1.5 px-2 text-xs border border-gray-200 rounded hover:bg-gray-50 cursor-pointer"' +
+        ' onclick="addToSelectedList(' + p.pk + ', \'' + escHtml(p.name).replace(/'/g, "\\'") + '\', \'' + escHtml(p.IPN || '').replace(/'/g, "\\'") + '\')">' +
+        '<div><span class="font-medium">' + escHtml(p.name) + '</span> ' +
+        '<span class="text-gray-400 ml-1">' + escHtml(p.IPN || '') + '</span></div>' +
+        '<span class="text-blue-500 font-medium text-[11px]">+ 添加</span>' +
+        '</div>'
+      ).join('');
+    } catch(e) { results.innerHTML = '<div class="text-xs text-red-400 py-1">搜索失败</div>'; }
+  }, 300);
+}
+
+async function addToSelectedList(partId, partName, partIpn) {
+  // Check if already selected
+  if (_addItemSelectedParts.find(p => p.id === partId)) {
+    setStatus('info', '该物料已在列表中');
+    return;
+  }
+
+  // Fetch pricing
+  let price = null;
+  try {
+    const basePath = window._inventreeApiBase || '/api';
+    const pResp = await fetch(basePath + '/part/' + partId + '/pricing/', { credentials: 'same-origin' });
+    if (pResp.ok) {
+      const pData = await pResp.json();
+      price = parseFloat(pData.overall_min || pData.overall_max || pData.internal_cost_min || pData.bom_cost_min || 0) || null;
+      if (price !== null) price = Math.round(price * 100) / 100;
+    }
+  } catch(e) {}
+
+  _addItemSelectedParts.push({ id: partId, name: partName, ipn: partIpn, qty: 1, price: price });
+  renderSelectedList();
+  document.getElementById('ai-part-search').value = '';
+  document.getElementById('ai-part-results').innerHTML = '';
+}
+
+function renderSelectedList() {
+  const area = document.getElementById('ai-selected-area');
+  const tbody = document.getElementById('ai-selected-tbody');
+  const count = document.getElementById('ai-selected-count');
+  if (!area || !tbody) return;
+
+  if (!_addItemSelectedParts.length) {
+    area.style.display = 'none';
+    return;
+  }
+
+  area.style.display = '';
+  if (count) count.textContent = _addItemSelectedParts.length;
+
+  tbody.innerHTML = _addItemSelectedParts.map((sp, idx) =>
+    '<tr class="border-b border-gray-100">' +
+    '<td class="p-2"><span class="font-medium">' + escHtml(sp.name) + '</span>' +
+    (sp.ipn ? ' <span class="text-gray-400">' + escHtml(sp.ipn) + '</span>' : '') + '</td>' +
+    '<td class="p-2 text-center"><input type="number" min="1" max="9999" value="' + sp.qty + '"' +
+    ' onchange="updateSelectedQty(' + idx + ', this.value)"' +
+    ' style="width:50px;text-align:center;border:1px solid #d0d5dd;border-radius:3px;padding:2px 4px;font-size:12px"></td>' +
+    '<td class="p-2 text-right">' + (sp.price !== null ? '<span class="text-gray-700">¥' + sp.price.toFixed(2) : '<span class="text-gray-300">自动</span>') + '</td>' +
+    '<td class="p-2 text-center"><span class="text-red-500 cursor-pointer text-[13px]" onclick="removeSelectedItem(' + idx + ')">✕</span></td>' +
+    '</tr>'
+  ).join('');
+}
+
+function updateSelectedQty(idx, val) {
+  const qty = parseInt(val) || 1;
+  if (idx >= 0 && idx < _addItemSelectedParts.length) {
+    _addItemSelectedParts[idx].qty = Math.max(1, Math.min(9999, qty));
+  }
+}
+
+function removeSelectedItem(idx) {
+  if (idx >= 0 && idx < _addItemSelectedParts.length) {
+    _addItemSelectedParts.splice(idx, 1);
+    renderSelectedList();
+  }
 }
 
 function showAddItemToProject(projectId) {
@@ -746,12 +837,6 @@ function showAddItemToProject(projectId) {
     if (!batches.has('第' + n + '批')) { nextNum = n; break; }
   }
   showAddItemDialog(projectId, '第' + nextNum + '批');
-}
-
-function toggleAddItemType() {
-  const type = document.getElementById('ai-type').value;
-  document.getElementById('ai-product-group').style.display = type === 'configuration' ? '' : 'none';
-  document.getElementById('ai-part-group').style.display = type === 'part' ? '' : 'none';
 }
 
 // ── Remove item ──
@@ -1346,7 +1431,7 @@ async function loadProjectOrders(projectId) {
   const sos = data.sales_orders || [];
 
   if (!pos.length && !sos.length) {
-    container.innerHTML = '<div class="empty-state p-4 text-center text-gray-400 text-sm">暂无关联订单，在"产品/零件"Tab中生成</div>';
+    container.innerHTML = '<div class="empty-state p-4 text-center text-gray-400 text-sm">暂无关联订单</div>';
     return;
   }
 

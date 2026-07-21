@@ -1905,7 +1905,8 @@ class ProjectViewSet(viewsets.ModelViewSet):
         if existing:
             add_qty = int(data.get('quantity', 1))
             existing.quantity += add_qty
-            existing.save(update_fields=['quantity'])
+            existing.created_by = request.user
+            existing.save(update_fields=['quantity', 'created_by'])
             self._log(project, 'item_merged',
                       f'合并条目: {title} 数量 +{add_qty} → {existing.quantity}')
             serializer = ProjectItemSerializer(existing, context={'request': request})
@@ -1945,7 +1946,13 @@ class ProjectViewSet(viewsets.ModelViewSet):
         )
         if serializer.is_valid():
             item = serializer.save()
+            # Set created_by on the item (not in serializer fields)
+            item.created_by = request.user
+            item.save(update_fields=['created_by'])
             self._log(project, 'item_added', f'添加条目: {item.title} x{item.quantity}')
+
+            # Re-serialize to include created_by_name
+            serializer = ProjectItemSerializer(item, context={'request': request})
 
             # Auto-expand BOM sub-items into project
             created_items = [serializer.data]
@@ -1971,6 +1978,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
                             quantity=int(qty) if qty == int(qty) else qty,
                             unit_price=str(round(float(up), 4)) if up else None,
                             batch_name=batch_name,
+                            created_by=request.user,
                         )
                         child_ser = ProjectItemSerializer(child, context={'request': request})
                         created_items.append(child_ser.data)
@@ -2063,6 +2071,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 item_kwargs['item_type'] = 'part'
                 item_kwargs['part'] = ci.part
                 item_kwargs['unit_price'] = ci.unit_price
+            item_kwargs['created_by'] = request.user
             ProjectItem.objects.create(**item_kwargs)
             item_count += 1
 
@@ -2932,7 +2941,10 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 if 0 not in supplier_groups:
                     supplier_groups[0] = {'supplier': None, 'items': []}
                 supplier_groups[0]['items'].append({
-                    'part': info['part'], 'quantity': info['quantity'], 'sku': None,
+                    'part_id': info['part'].id,
+                    'part_name': info['part'].name,
+                    'part_ipn': info['part'].IPN or '',
+                    'quantity': info['quantity'], 'sku': None,
                 })
 
         orders_created = []
