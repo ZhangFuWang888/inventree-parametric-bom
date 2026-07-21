@@ -2886,25 +2886,15 @@ class ProjectViewSet(viewsets.ModelViewSet):
         self._log(project, 'batch_unlocked', f'已反审解锁批次 "{batch_name}"')
         return Response({'success': True, 'status': 'editing', 'message': f'批次 "{batch_name}" 已解锁'})
 
-    @action(detail=True, methods=['post'], url_path='batch-purchase-orders')
-    def batch_purchase_orders(self, request, pk=None):
-        """Generate purchase orders for a specific batch, then mark it completed."""
+    def _generate_batch_pos(self, project, batch_name, user):
+        """Shared helper: generate POs for a batch, return (orders_created, unassigned, error_msg)."""
         from company.models import Company, SupplierPart
         from order.models import PurchaseOrder, PurchaseOrderLineItem
 
-        project = self.get_object()
-        batch_name = request.data.get('batch_name', '').strip()
-        batch = self._get_or_create_batch(project, batch_name)
-        if not batch:
-            return Response({'error': '不能为未分组生成采购订单'}, status=400)
-        if batch.status == 'completed':
-            return Response({'error': '该批次已完成，不能重复生成'}, status=400)
-
         items = project.items.filter(batch_name=batch_name)
         if not items.exists():
-            return Response({'error': f'批次 "{batch_name}" 无条目'}, status=404)
+            return None, None, f'批次 "{batch_name}" 无条目'
 
-        # Collect parts from this batch's items
         parts_needed = {}
         for item in items:
             if item.bom_snapshot:
@@ -2916,9 +2906,8 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 parts_needed[pid]['quantity'] += item.quantity
 
         if not parts_needed:
-            return Response({'error': f'批次 "{batch_name}" 中没有需要采购的零件'}, status=400)
+            return None, None, f'批次 "{batch_name}" 中没有需要采购的零件'
 
-        # Group by supplier
         supplier_groups = {}
         for pid, info in parts_needed.items():
             supplier_parts = SupplierPart.objects.filter(part=info['part'])
@@ -2943,7 +2932,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 continue
             po = PurchaseOrder.objects.create(
                 supplier=group['supplier'],
-                created_by=request.user,
+                created_by=user,
                 description=f'Auto: {project.project_code} / {batch_name}',
             )
             for item in group['items']:
@@ -2958,37 +2947,56 @@ class ProjectViewSet(viewsets.ModelViewSet):
 
         self._log(project, 'batch_purchase_orders',
                   f'批次 "{batch_name}" 生成 {len(orders_created)} 个采购订单')
+        return orders_created, supplier_groups.get(0, {}).get('items', []), None
+
+    @action(detail=True, methods=['post'], url_path='batch-purchase-orders')
+    def batch_purchase_orders(self, request, pk=None):
+        """Generate purchase orders for a specific batch."""
+        project = self.get_object()
+        batch_name = request.data.get('batch_name', '').strip()
+        batch = self._get_or_create_batch(project, batch_name)
+        if not batch:
+            return Response({'error': '不能为未分组生成采购订单'}, status=400)
+        if batch.status == 'completed':
+            return Response({'error': '该批次已完成，不能重复生成'}, status=400)
+
+        orders, unassigned, err = self._generate_batch_pos(project, batch_name, request.user)
+        if err:
+            return Response({'error': err}, status=400)
 
         return Response({
             'success': True,
-            'orders': orders_created,
-            'unassigned': supplier_groups.get(0, {}).get('items', []),
-            'message': f'已为批次 "{batch_name}" 生成 {len(orders_created)} 个采购订单',
+            'orders': orders,
+            'unassigned': unassigned,
+            'message': f'已为批次 "{batch_name}" 生成 {len(orders)} 个采购订单',
         })
 
     @action(detail=True, methods=['post'], url_path='batch-complete')
     def batch_complete(self, request, pk=None):
         """Complete a batch — generates POs then marks as completed."""
-        # First generate POs
-        po_resp = self.batch_purchase_orders(request, pk)
-        if po_resp.status_code != 200:
-            return po_resp
-
-        # Then mark as completed
         project = self.get_object()
         batch_name = request.data.get('batch_name', '').strip()
-        try:
-            batch = ProjectBatch.objects.get(project=project, name=batch_name)
-        except ProjectBatch.DoesNotExist:
-            return Response({'error': f'批次 "{batch_name}" 不存在'}, status=404)
+        batch = self._get_or_create_batch(project, batch_name)
+        if not batch:
+            return Response({'error': '不能为未分组完成'}, status=400)
+        if batch.status == 'completed':
+            return Response({'error': '该批次已完成'}, status=400)
+
+        orders, unassigned, err = self._generate_batch_pos(project, batch_name, request.user)
+        if err:
+            return Response({'error': err}, status=400)
+
         batch.status = 'completed'
         batch.save(update_fields=['status', 'updated_at'])
         self._log(project, 'batch_completed', f'批次 "{batch_name}" 已完成')
 
-        po_data = po_resp.data
-        po_data['status'] = 'completed'
-        po_data['message'] = f'批次 "{batch_name}" 已完成，生成 {len(po_data.get("orders", []))} 个采购订单'
-        return Response(po_data)
+        return Response({
+            'success': True,
+            'status': 'completed',
+            'orders': orders,
+            'unassigned': unassigned,
+            'message': f'批次 "{batch_name}" 已完成，生成 {len(orders)} 个采购订单',
+        })
 
     def _collect_bom_parts(self, node, parts_dict, multiplier=1):
         """Recursively collect parts from a BOM snapshot tree."""
