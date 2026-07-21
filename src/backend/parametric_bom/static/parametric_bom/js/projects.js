@@ -348,7 +348,7 @@ async function showProjectDetail(projectId) {
               <button class="btn btn-sm btn-secondary text-orange-600" onclick="batchToCart(${p.id}, '${safeBatch}')" title="还原到购物车">
                 🛒
               </button>
-              <button class="btn btn-sm btn-secondary text-red-500" onclick="deleteBatch(${p.id}, '${safeBatch}')" title="删除批次">🗑️</button>
+              ${batchName !== '未分组' ? `<button class="btn btn-sm btn-secondary text-red-500" onclick="deleteBatch(${p.id}, '${safeBatch}')" title="删除批次">🗑️</button>` : ''}
             </div>
           </div>
           <div class="overflow-x-auto">
