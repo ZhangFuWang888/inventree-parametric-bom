@@ -2936,10 +2936,21 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 description=f'Auto: {project.project_code} / {batch_name}',
             )
             for item in group['items']:
-                PurchaseOrderLineItem.objects.create(
-                    order=po, part=item['part'],
-                    quantity=item['quantity'], reference=item.get('sku', ''),
-                )
+                # Use SupplierPart instead of Part for PurchaseOrderLineItem
+                supplier_part = item.get('supplier_part')
+                if not supplier_part:
+                    supplier_part = SupplierPart.objects.filter(part=item['part']).first()
+                if supplier_part:
+                    PurchaseOrderLineItem.objects.create(
+                        order=po, part=supplier_part,
+                        quantity=item['quantity'], reference=item.get('sku', ''),
+                    )
+                else:
+                    # Fallback: try Part directly
+                    PurchaseOrderLineItem.objects.create(
+                        order=po, part=item['part'],
+                        quantity=item['quantity'], reference=item.get('sku', ''),
+                    )
             orders_created.append({
                 'order_id': po.id, 'supplier': group['supplier'].name,
                 'reference': str(po), 'line_items': len(group['items']),
