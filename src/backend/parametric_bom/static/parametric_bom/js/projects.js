@@ -663,58 +663,79 @@ async function loadProjectCost(projectId) {
     ${batches.length > 0 ? `
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-3 mb-3">
       <div class="card">
-        <div class="text-sm font-medium text-gray-700 mb-2">📊 各批次成本/售价对比</div>
-        ${renderBarChart(batches)}
+        <div class="text-sm font-medium text-gray-700 mb-2 cursor-pointer select-none" onclick="toggleCostSection('bar-${c.project_id}')">
+          <span id="cost-toggle-bar-${c.project_id}" class="inline-block w-4 text-center text-gray-400">▶</span> 📊 各批次成本/售价对比
+        </div>
+        <div id="cost-section-bar-${c.project_id}" style="display:none">
+          ${renderBarChart(batches)}
+        </div>
       </div>
       <div class="card">
-        <div class="text-sm font-medium text-gray-700 mb-2">🥧 成本占比</div>
-        ${renderPieChart(batches)}
+        <div class="text-sm font-medium text-gray-700 mb-2 cursor-pointer select-none" onclick="toggleCostSection('pie-${c.project_id}')">
+          <span id="cost-toggle-pie-${c.project_id}" class="inline-block w-4 text-center text-gray-400">▶</span> 🥧 成本占比
+        </div>
+        <div id="cost-section-pie-${c.project_id}" style="display:none">
+          ${renderPieChart(batches)}
+        </div>
       </div>
     </div>
-    ${batchTableHtml}
+    ${batchTableHtml.replace(
+      '<div class="text-sm font-medium text-gray-700 mb-2">📊 按批次统计</div>',
+      `<div class="text-sm font-medium text-gray-700 mb-2 cursor-pointer select-none" onclick="toggleCostSection('batch-${c.project_id}')">
+        <span id="cost-toggle-batch-${c.project_id}" class="inline-block w-4 text-center text-gray-400">▶</span> 📊 按批次统计
+      </div>
+      <div id="cost-section-batch-${c.project_id}" style="display:none">`
+    ) + (batches.length > 0 ? '</div>' : '')}
     ${(() => {
       const cats = c.category_breakdown || [];
       if (!cats.length) return '';
       const colors = ['#3b82f6','#ef4444','#f59e0b','#22c55e','#8b5cf6','#ec4899','#14b8a6','#f97316','#6366f1','#84cc16'];
       return `
     <div class="card mb-3">
-      <div class="text-sm font-medium text-gray-700 mb-2">🏷️ 按物料类别统计</div>
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        ${cats.map((t, i) => {
-          const pct = c.total_cost > 0 ? (t.total_cost / c.total_cost * 100).toFixed(1) : '0';
-          const profit = t.total_price - t.total_cost;
-          const color = colors[i % colors.length];
-          const barW = Math.max(4, parseFloat(pct));
-          return `<div class="border rounded-lg p-3">
-            <div class="flex items-center gap-2 mb-2">
-              <span class="font-medium text-sm">${escHtml(t.category)}</span>
-              <span class="text-xs text-gray-400">${t.count} 条</span>
-            </div>
-            <div class="flex items-center gap-3 mb-1">
-              <span class="text-xs text-gray-500 w-14">成本</span>
-              <div class="flex-1 h-4 bg-gray-100 rounded overflow-hidden">
-                <div style="width:${barW}%;height:100%;background:${color};border-radius:3px;min-width:4px"></div>
+      <div class="text-sm font-medium text-gray-700 mb-2 cursor-pointer select-none" onclick="toggleCostSection('cat-${c.project_id}')">
+        <span id="cost-toggle-cat-${c.project_id}" class="inline-block w-4 text-center text-gray-400">▶</span> 🏷️ 按物料类别统计
+      </div>
+      <div id="cost-section-cat-${c.project_id}" style="display:none">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          ${cats.map((t, i) => {
+            const pct = c.total_cost > 0 ? (t.total_cost / c.total_cost * 100).toFixed(1) : '0';
+            const profit = t.total_price - t.total_cost;
+            const color = colors[i % colors.length];
+            const barW = Math.max(4, parseFloat(pct));
+            return `<div class="border rounded-lg p-3">
+              <div class="flex items-center gap-2 mb-2">
+                <span class="font-medium text-sm">${escHtml(t.category)}</span>
+                <span class="text-xs text-gray-400">${t.count} 条</span>
               </div>
-              <span class="text-xs font-medium text-red-600 w-20 text-right">¥${t.total_cost.toFixed(2)}</span>
-            </div>
-            <div class="flex items-center gap-3 mb-1">
-              <span class="text-xs text-gray-500 w-14">售价</span>
-              <div class="flex-1 h-4 bg-gray-100 rounded overflow-hidden">
-                <div style="width:${c.total_price > 0 ? Math.max(4, t.total_price / c.total_price * 100).toFixed(0) : 0}%;height:100%;background:#22c55e;border-radius:3px;min-width:4px"></div>
+              <div class="flex items-center gap-3 mb-1">
+                <span class="text-xs text-gray-500 w-14">成本</span>
+                <div class="flex-1 h-4 bg-gray-100 rounded overflow-hidden">
+                  <div style="width:${barW}%;height:100%;background:${color};border-radius:3px;min-width:4px"></div>
+                </div>
+                <span class="text-xs font-medium text-red-600 w-20 text-right">¥${t.total_cost.toFixed(2)}</span>
               </div>
-              <span class="text-xs font-medium text-green-600 w-20 text-right">¥${t.total_price.toFixed(2)}</span>
-            </div>
-            <div class="flex items-center gap-3">
-              <span class="text-xs text-gray-500 w-14">利润</span>
-              <span class="text-xs font-medium ${profit >= 0 ? 'text-green-600' : 'text-red-500'}">¥${profit.toFixed(2)}</span>
-            </div>
-          </div>`;
-        }).join('')}
+              <div class="flex items-center gap-3 mb-1">
+                <span class="text-xs text-gray-500 w-14">售价</span>
+                <div class="flex-1 h-4 bg-gray-100 rounded overflow-hidden">
+                  <div style="width:${c.total_price > 0 ? Math.max(4, t.total_price / c.total_price * 100).toFixed(0) : 0}%;height:100%;background:#22c55e;border-radius:3px;min-width:4px"></div>
+                </div>
+                <span class="text-xs font-medium text-green-600 w-20 text-right">¥${t.total_price.toFixed(2)}</span>
+              </div>
+              <div class="flex items-center gap-3">
+                <span class="text-xs text-gray-500 w-14">利润</span>
+                <span class="text-xs font-medium ${profit >= 0 ? 'text-green-600' : 'text-red-500'}">¥${profit.toFixed(2)}</span>
+              </div>
+            </div>`;
+          }).join('')}
+        </div>
       </div>
     </div>`;})()}` : ''}
     ${c.breakdown && c.breakdown.length ? `
     <div class="card">
-      <div class="text-sm font-medium text-gray-700 mb-2">📋 明细清单</div>
+      <div class="text-sm font-medium text-gray-700 mb-2 cursor-pointer select-none" onclick="toggleCostSection('detail-${c.project_id}')">
+        <span id="cost-toggle-detail-${c.project_id}" class="inline-block w-4 text-center text-gray-400">▶</span> 📋 明细清单
+      </div>
+      <div id="cost-section-detail-${c.project_id}" style="display:none">
     <table class="w-full text-xs">
       <thead><tr class="border-b border-gray-200 text-gray-500">
         <th class="p-2 text-left">名称</th>
@@ -734,7 +755,17 @@ async function loadProjectCost(projectId) {
           <td class="p-2 text-right">¥${b.subtotal_price.toFixed(2)}</td>
         </tr>`).join('')}
       </tbody>
-    </table></div>` : '<div class="text-xs text-gray-400 text-center py-2">暂无成本明细</div>'}`;
+    </table></div></div>` : '<div class="text-xs text-gray-400 text-center py-2">暂无成本明细</div>'}`;
+}
+
+\n// ── Toggle cost section ──
+function toggleCostSection(id) {
+  const section = document.getElementById("cost-section-" + id);
+  const toggle = document.getElementById("cost-toggle-" + id);
+  if (!section || !toggle) return;
+  const isHidden = section.style.display === "none";
+  section.style.display = isHidden ? "" : "none";
+  toggle.textContent = isHidden ? "▼" : "▶";
 }
 
 // ── New project dialog ──
