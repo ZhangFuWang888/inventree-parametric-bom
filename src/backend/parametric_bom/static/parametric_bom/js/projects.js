@@ -246,9 +246,14 @@ async function showProjectDetail(projectId) {
   window._currentProjectId = projectId;
   // Update URL so page can be refreshed/bookmarked
   const stateUrl = new URL(window.location);
+  const currentProject = stateUrl.searchParams.get('project');
   stateUrl.searchParams.set('page', 'project-detail');
   stateUrl.searchParams.set('project', projectId);
-  window.history.pushState({page: 'project-detail', projectId}, '', stateUrl);
+  if (currentProject == projectId) {
+    window.history.replaceState({page: 'project-detail', projectId}, '', stateUrl);
+  } else {
+    window.history.pushState({page: 'project-detail', projectId}, '', stateUrl);
+  }
 
   const canEdit = p.user_role === 'owner' || p.user_permissions?.includes('edit_project');
   const canManageMembers = p.user_role === 'owner' || p.user_permissions?.includes('manage_members');

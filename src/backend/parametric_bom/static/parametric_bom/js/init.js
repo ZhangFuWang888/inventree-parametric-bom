@@ -144,6 +144,16 @@ document.addEventListener('DOMContentLoaded', async function() {
     try { switchPage(initialPage); } catch(e) {}
   }
   
+  // Auto-load project detail from ?project=ID query param (refresh/bookmark)
+  const urlParams = new URLSearchParams(window.location.search);
+  const projectFromUrl = urlParams.get('project');
+  if (projectFromUrl && !isNaN(parseInt(projectFromUrl))) {
+    try {
+      // Small delay to let the tab panel render first
+      setTimeout(() => showProjectDetail(parseInt(projectFromUrl)), 100);
+    } catch(e) {}
+  }
+  
   try { await loadConfigList(); } catch(e) {}
 
   // Override goConfigStep(2) to auto-expand BOM

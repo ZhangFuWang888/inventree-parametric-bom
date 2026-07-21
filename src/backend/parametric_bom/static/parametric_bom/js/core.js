@@ -155,12 +155,6 @@ function switchPage(page) {
     const projectId = urlParams.get('project') || window._currentProjectId;
     if (!projectId) {
       switchPage('projects');
-    } else if (!window._currentProjectId || urlParams.get('project')) {
-      // Auto-load project data from URL param (refresh/bookmark/back-nav)
-      window._currentProjectId = parseInt(projectId);
-      if (typeof showProjectDetail === 'function') {
-        showProjectDetail(parseInt(projectId));
-      }
     }
   }
   // Load cart
