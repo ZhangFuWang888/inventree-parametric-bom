@@ -311,7 +311,7 @@ async function showProjectDetail(projectId) {
                 <td class="p-2 font-medium">${escHtml(item.title)}${item.bom_snapshot ? ' <span class="text-[10px] text-gray-400">(含BOM)</span>' : ''}</td>
                 <td class="p-2">${item.item_type === 'configuration' ? '🔧 参数化配置' : '⚙️ 静态零件'}</td>
                 <td class="p-2 text-right">×${item.quantity}</td>
-                <td class="p-2 text-right">¥${(item.unit_price || 0).toFixed(2)}</td>
+                <td class="p-2 text-right">¥${parseFloat(item.unit_price || 0).toFixed(2)}</td>
                 <td class="p-2 text-right font-medium">¥${subtotal}</td>
                 ${canEdit ? `<td class="p-2 text-center"><button class="text-red-500 hover:text-red-700" onclick="removeProjectItem(${p.id}, ${item.id})">✕</button></td>` : ''}
               </tr>`;
