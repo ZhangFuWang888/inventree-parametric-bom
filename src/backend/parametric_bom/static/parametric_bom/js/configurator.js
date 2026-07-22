@@ -15,45 +15,13 @@ function avDestroyCm() {
 }
 
 function openAddVariableModal() {
-  closeModal('modal-add-variable');
-  avDestroyCm();
-  document.getElementById('av-editing-id').value = '';
-  document.querySelector('#modal-add-variable h3').textContent = '📐 新建中间变量';
-  document.querySelector('#modal-add-variable .btn-primary').innerHTML = '创建变量';
-  document.getElementById('av-name').value = '';
-  document.getElementById('av-formula').value = '';
-  document.getElementById('av-description').value = '';
-  document.getElementById('av-formula-status').innerHTML = '';
-  avLoadPillsAndVars(null);
-  openModal('modal-add-variable');
-  setTimeout(() => {
-    const el = document.getElementById('av-formula');
-    if (el && window.CmFormulaEditor) {
-      window.CmFormulaEditor.attachCmToInput(el, { inline: false, minHeight: 64 });
-      avAttachCmListener();
-    }
-  }, 150);
+  // Use unified formula editor in variable mode
+  openFormulaEditorForVariable('add', null);
 }
 
 function openEditVariableModal(vid, name, formula, desc) {
-  closeModal('modal-add-variable');
-  avDestroyCm();
-  document.getElementById('av-editing-id').value = vid;
-  document.querySelector('#modal-add-variable h3').textContent = '✏️ 编辑变量';
-  document.querySelector('#modal-add-variable .btn-primary').innerHTML = '保存修改';
-  document.getElementById('av-name').value = name || '';
-  document.getElementById('av-formula').value = formula || '';
-  document.getElementById('av-description').value = desc || '';
-  document.getElementById('av-formula-status').innerHTML = '';
-  avLoadPillsAndVars(vid);
-  openModal('modal-add-variable');
-  setTimeout(() => {
-    const el = document.getElementById('av-formula');
-    if (el && window.CmFormulaEditor) {
-      window.CmFormulaEditor.attachCmToInput(el, { inline: false, minHeight: 64 });
-      avAttachCmListener();
-    }
-  }, 150);
+  // Use unified formula editor in variable mode
+  openFormulaEditorForVariable('edit', { id: vid, name: name, formula: formula, description: desc });
 }
 
 function avLoadPillsAndVars(editingVid) {

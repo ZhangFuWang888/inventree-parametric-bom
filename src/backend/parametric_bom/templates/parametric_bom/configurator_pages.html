@@ -219,13 +219,26 @@
           <div id="pd-bom-list">
             <div class="flex items-center justify-center py-6"><span class="spinner mr-2"></span><span class="text-sm text-gray-400">加载中...</span></div>
           </div>
-          <!-- Cell Editor Popup -->
+          <!-- Cell Editor Popup (Unified Formula Editor) -->
           <div class="pbs-cell-editor-overlay" id="pbs-ce-overlay" onclick="closeCellEditor(event)">
             <div class="pbs-cell-editor" id="pbs-ce-box">
               <div class="pbs-ce-header">
                 <span class="pbs-ce-title" id="pbs-ce-title">📐 编辑公式</span>
                 <span class="pbs-ce-type-badge" id="pbs-ce-type-badge" style="display:none;font-size:10px;padding:1px 6px;border-radius:4px;background:#e0f2fe;color:#0369a1;margin:0 auto 0 6px;"></span>
                 <button class="pbs-ce-close" onclick="closeCellEditor()">✕</button>
+              </div>
+              <!-- Variable mode fields (hidden by default) -->
+              <div id="pbs-ce-var-fields" style="display:none;margin-bottom:0.75rem">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem">
+                  <div>
+                    <label style="font-size:11px;font-weight:500;color:#6b7280;display:block;margin-bottom:0.25rem">变量名 *</label>
+                    <input id="pbs-ce-var-name" class="input-field" placeholder="例如: 总重量, 板面积" autocomplete="off" style="font-size:0.75rem;padding:0.375rem 0.5rem">
+                  </div>
+                  <div>
+                    <label style="font-size:11px;font-weight:500;color:#6b7280;display:block;margin-bottom:0.25rem">描述 <span style="color:#9ca3af;font-weight:400">(可选)</span></label>
+                    <input id="pbs-ce-var-desc" class="input-field" placeholder="说明此变量的用途" style="font-size:0.75rem;padding:0.375rem 0.5rem">
+                  </div>
+                </div>
               </div>
               <div class="pbs-ce-body">
                 <!-- LEFT: 参数/变量/函数面板 -->
@@ -237,17 +250,17 @@
                       <span class="text-[10px] text-gray-400">加载中...</span>
                     </div>
                   </div>
-                  <!-- 零件属性 -->
+                  <!-- 零件属性 (BOM mode only) -->
                   <div class="pbs-ce-separator"></div>
-                  <div class="pbs-ce-pills-section">
+                  <div class="pbs-ce-pills-section" id="ce-builtin-section">
                     <div class="pbs-ce-section-label">🔗 零件属性</div>
                     <div class="pbs-ce-pills-grid" id="ce-builtin-pills">
                       <span class="text-[10px] text-gray-400">加载中...</span>
                     </div>
                   </div>
-                  <!-- 参考零件参数 -->
+                  <!-- 参考零件参数 (BOM mode only) -->
                   <div class="pbs-ce-separator"></div>
-                  <div class="pbs-ce-pills-section">
+                  <div class="pbs-ce-pills-section" id="ce-refpart-section">
                     <div class="pbs-ce-section-label">🔗 参考零件参数</div>
                     <div class="pbs-ce-pills-grid" id="ce-refpart-pills">
                       <span class="text-[10px] text-gray-400">加载中...</span>
@@ -327,7 +340,7 @@
                   <!-- Actions -->
                   <div class="pbs-ce-actions">
                     <button class="btn btn-sm btn-ghost" onclick="closeCellEditor()">取消</button>
-                    <button class="btn btn-sm btn-primary" onclick="saveCellFormula()">💾 保存</button>
+                    <button class="btn btn-sm btn-primary" id="pbs-ce-save-btn" onclick="saveCellFormula()">💾 保存</button>
                   </div>
                 </div>
               </div>

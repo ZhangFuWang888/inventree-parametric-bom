@@ -6,6 +6,8 @@ let __abModalHtml = null;
 
 // ===== CELL EDITOR =====
 let _ceState = { itemPk: null, field: null };
+let _ceMode = 'bom';        // 'bom' or 'variable'
+let _ceVarEditId = null;    // variable edit mode: the variable ID
 let _cePreviewTimer = null;
 
 function ceTogglePills() {
@@ -440,6 +442,8 @@ window.FormulaTemplates = {
 };
 
 function openCellEditor(itemPk, field, currentVal, isQty, mappingId, expectedType) {
+  _ceMode = 'bom';
+  _ceVarEditId = null;
   _ceState = { itemPk: itemPk, field: field, isQty: !!isQty, staticQty: mappingId || 1, mappingId: mappingId || null, hasError: false, typeError: null, expectedType: expectedType || '' };
   const overlay = document.getElementById('pbs-ce-overlay');
   const input = document.getElementById('pbs-ce-input');
@@ -450,6 +454,16 @@ function openCellEditor(itemPk, field, currentVal, isQty, mappingId, expectedTyp
 
   // Reset save button state
   _ceUpdateSaveButton();
+
+  // Hide variable fields, show BOM-only sections
+  document.getElementById('pbs-ce-var-fields').style.display = 'none';
+  document.getElementById('pbs-ce-var-name').value = '';
+  document.getElementById('pbs-ce-var-desc').value = '';
+  var builtinSec = document.getElementById('ce-builtin-section');
+  var refpartSec = document.getElementById('ce-refpart-section');
+  if (builtinSec) { builtinSec.style.display = ''; builtinSec.previousElementSibling.style.display = ''; }
+  if (refpartSec) { refpartSec.style.display = ''; refpartSec.previousElementSibling.style.display = ''; }
+  document.getElementById('pbs-ce-save-btn').innerHTML = '💾 保存';
 
   if (field === 'variant_name' || field === 'variant_ipn') {
     const labels = {variant_name:'🧬 动态名称模板', variant_ipn:'🧬 动态型号模板'};
@@ -509,6 +523,76 @@ function openCellEditor(itemPk, field, currentVal, isQty, mappingId, expectedTyp
   }, 100);
 }
 
+// ===== UNIFIED FORMULA EDITOR — Variable mode =====
+function openFormulaEditorForVariable(mode, data) {
+  // mode: 'add' | 'edit'
+  // data: { id, name, formula, description } for edit
+  _ceMode = 'variable';
+  _ceState = { itemPk: data && data.id ? data.id : null, field: 'variable' };
+  _ceVarEditId = data && data.id ? data.id : null;
+
+  const overlay = document.getElementById('pbs-ce-overlay');
+  const title = document.getElementById('pbs-ce-title');
+  const statusEl = document.getElementById('pbs-ce-status');
+  const input = document.getElementById('pbs-ce-input');
+  statusEl.innerHTML = '';
+  statusEl.className = 'flex items-center gap-2 text-xs mt-0.5 min-h-[1.5em] text-gray-500';
+
+  // Reset save button
+  _ceUpdateSaveButton();
+
+  // Show variable fields, hide BOM-only sections
+  document.getElementById('pbs-ce-var-fields').style.display = '';
+  document.getElementById('pbs-ce-var-name').value = (data && data.name) || '';
+  document.getElementById('pbs-ce-var-desc').value = (data && data.description) || '';
+  var builtinSec = document.getElementById('ce-builtin-section');
+  var refpartSec = document.getElementById('ce-refpart-section');
+  if (builtinSec) { builtinSec.style.display = 'none'; builtinSec.previousElementSibling.style.display = 'none'; }
+  if (refpartSec) { refpartSec.style.display = 'none'; refpartSec.previousElementSibling.style.display = 'none'; }
+
+  // Title and button
+  if (mode === 'add') {
+    title.textContent = '📐 新建中间变量';
+    document.getElementById('pbs-ce-save-btn').innerHTML = '创建变量';
+  } else {
+    title.textContent = '✏️ 编辑变量';
+    document.getElementById('pbs-ce-save-btn').innerHTML = '保存修改';
+  }
+
+  // Hide type badge
+  var typeBadge = document.getElementById('pbs-ce-type-badge');
+  if (typeBadge) typeBadge.style.display = 'none';
+
+  input.value = (data && data.formula) || '';
+  input.placeholder = '例如: param.长度 * param.宽度 * 7.85 / 1000000';
+
+  overlay.classList.add('open');
+
+  // Load pills
+  const pid = configuratorPartId;
+  ceLoadPills(pid);
+
+  // Attach CodeMirror
+  setTimeout(function() {
+    var el = document.getElementById('pbs-ce-input');
+    if (!el) return;
+    if (el.dataset.cmInit && window.CmFormulaEditor) {
+      var inst = window.CmFormulaEditor.getCmInstance(el);
+      if (inst) {
+        var wrap = inst.editor.getWrapperElement();
+        if (wrap && wrap.parentNode) wrap.parentNode.remove();
+        el.style.display = '';
+        delete el.dataset.cmInit;
+      }
+    }
+    if (window.CmFormulaEditor) {
+      window.CmFormulaEditor.attachCmToInput(el, { inline: false, minHeight: 50 });
+    }
+    el.focus();
+    ceSchedulePreview();
+  }, 100);
+}
+
 function closeCellEditor(evt) {
   if (evt && evt.target !== document.getElementById('pbs-ce-overlay')) {
     const box = document.getElementById('pbs-ce-box');
@@ -516,11 +600,53 @@ function closeCellEditor(evt) {
   }
   document.getElementById('pbs-ce-overlay').classList.remove('open');
   _ceState = { itemPk: null, field: null, hasError: false, typeError: null, expectedType: '' };
+  _ceMode = 'bom';
+  _ceVarEditId = null;
 }
 
 async function saveCellFormula() {
   const st = _ceState;
   if (!st.itemPk || !st.field) return;
+
+  // Variable mode: save via variable API
+  if (_ceMode === 'variable') {
+    const pid = configuratorPartId;
+    if (!pid) { showToast('error', '请先选择一个产品'); return; }
+    const name = (document.getElementById('pbs-ce-var-name').value || '').trim();
+    const formula = (document.getElementById('pbs-ce-input').value || '').trim();
+    const description = (document.getElementById('pbs-ce-var-desc').value || '').trim();
+    if (!name) { showToast('error', '请输入变量名'); return; }
+    if (!formula) { showToast('error', '请输入公式'); return; }
+
+    const statusEl = document.getElementById('pbs-ce-status');
+    statusEl.innerHTML = '<span class="text-gray-400">⏳ 保存中...</span>';
+
+    if (!_ceVarEditId) {
+      // Create mode
+      const checkRes = await apiCall('GET', 'part-variables/?part=' + pid + '&limit=9999');
+      const existing = checkRes.error ? [] : (Array.isArray(checkRes.data) ? checkRes.data : (checkRes.data.results || []));
+      if (existing.some(function(v) { return v.name === name; })) {
+        showToast('error', '变量名「' + name + '」已存在，请使用不同的名称');
+        statusEl.innerHTML = '<span class=\"text-red-500\">❌ 变量名重复</span>';
+        return;
+      }
+      const res = await apiCall('POST', 'part-variables/', { part: pid, name: name, formula: formula, description: description });
+      if (res.error) { showToast('error', '创建失败: ' + res.error); statusEl.innerHTML = '<span class=\"text-red-500\">❌ ' + escHtml(res.error) + '</span>'; return; }
+    } else {
+      // Edit mode
+      const res = await apiCall('PATCH', 'part-variables/' + _ceVarEditId + '/', { name: name, formula: formula, description: description });
+      if (res.error) { showToast('error', '保存失败: ' + res.error); statusEl.innerHTML = '<span class=\"text-red-500\">❌ ' + escHtml(res.error) + '</span>'; return; }
+    }
+    statusEl.innerHTML = '<span class=\"text-green-600\">✅ 已保存</span>';
+    clearAreaDirty('variables');
+    setTimeout(function() {
+      document.getElementById('pbs-ce-overlay').classList.remove('open');
+      loadPdVariables();
+    }, 600);
+    return;
+  }
+
+  // BOM mode below
   if (st.hasError) {
     document.getElementById('pbs-ce-status').innerHTML = '<span class="text-red-500">❌ 公式存在错误，请修正后再保存</span>';
     return;
