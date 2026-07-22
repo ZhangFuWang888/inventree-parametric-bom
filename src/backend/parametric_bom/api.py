@@ -1816,8 +1816,13 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 | django_models.Q(id__in=list(member_project_ids))
                 | django_models.Q(is_public=True)
             ).distinct()
-        if not self.request.query_params.get('inactive'):
-            qs = qs.filter(is_active=True)
+        # 列表模式默认只显示活跃项目，详情/更新/删除等不限制
+        if self.action == 'list':
+            inactive_param = self.request.query_params.get('inactive')
+            if inactive_param == '1':
+                qs = qs.filter(is_active=False)
+            elif not inactive_param:
+                qs = qs.filter(is_active=True)
         return qs
 
     def perform_create(self, serializer):

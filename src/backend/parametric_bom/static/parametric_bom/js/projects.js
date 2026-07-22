@@ -67,10 +67,11 @@ async function renderProjectList() {
 
   const page = window._projectPage || 1;
   const limit = 20;
+  const showArchived = window._projectShowArchived || false;
 
   // Build query params
   const params = new URLSearchParams();
-  params.set('inactive', '0');
+  params.set('inactive', showArchived ? '1' : '0');
   params.set('limit', limit);
   params.set('offset', (page - 1) * limit);
 
@@ -89,7 +90,7 @@ async function renderProjectList() {
   let html = `
   <div class="card mb-3">
     <div class="card-header flex items-center justify-between flex-wrap gap-2">
-      <span>📋 项目管理 <span class="text-xs text-gray-400 font-normal">(共 ${total} 个)</span></span>
+      <span>📋 项目管理 <span class="text-xs text-gray-400 font-normal">(${showArchived ? `已归档 ${total} 个` : `活跃 ${total} 个`})</span></span>
       <button class="btn btn-sm btn-secondary" onclick="showNewProjectDialog()">新建项目</button>
     </div>
     <div class="p-2 border-b border-gray-100 flex items-center gap-2 flex-wrap">
@@ -97,6 +98,10 @@ async function renderProjectList() {
              placeholder="🔍 搜索项目名称/编号..."
              value="${escHtml(search)}"
              oninput="debounceProjectSearch()">
+      <div class="flex items-center gap-0.5 border rounded text-xs">
+        <button class="px-2 py-1 ${showArchived ? 'text-gray-400' : 'bg-blue-600 text-white font-medium rounded'}" onclick="toggleProjectArchive(false)">活跃</button>
+        <button class="px-2 py-1 ${showArchived ? 'bg-blue-600 text-white font-medium rounded' : 'text-gray-400'}" onclick="toggleProjectArchive(true)">已归档</button>
+      </div>
       <select class="input-field w-auto text-xs" id="project-order-select"
               onchange="changeProjectOrder(this.value)">
         <option value="-created_at" ${order === '-created_at' ? 'selected' : ''}>最新创建</option>
@@ -111,7 +116,7 @@ async function renderProjectList() {
     ${projects.length === 0 ? `
     <div class="empty-state p-8 text-center">
       <div class="icon text-3xl mb-2">📦</div>
-      <p class="text-gray-500 text-sm">${search ? '未找到匹配项目' : '暂无项目，点击"新建项目"或从购物车提交项目'}</p>
+      <p class="text-gray-500 text-sm">${search ? '未找到匹配项目' : (showArchived ? '暂无已归档项目' : '暂无项目，点击"新建项目"或从购物车提交项目')}</p>
     </div>` : `
     <div class="overflow-x-auto">
       <table class="w-full text-xs">
@@ -163,11 +168,17 @@ function clearProjectSearch() {
   renderProjectList();
 }
 
+function toggleProjectArchive(show) {
+  window._projectShowArchived = show;
+  window._projectPage = 1;
+  renderProjectList();
+}
+
 function renderProjectRows(projects) {
   return projects.map(p => `
-  <tr class="border-b border-gray-100 hover:bg-gray-50 cursor-pointer" onclick="showProjectDetail(${p.id})">
+  <tr class="border-b border-gray-100 hover:bg-gray-50 cursor-pointer${p.is_active ? '' : ' opacity-60'}" onclick="showProjectDetail(${p.id})">
     <td class="p-2 font-mono text-blue-600">${p.project_code}<button class="copy-btn ml-1" onclick="event.stopPropagation(); copyText('${escHtml(p.project_code)}', '项目编号')" title="复制编号"></button></td>
-    <td class="p-2 font-medium">${escHtml(p.name)}<button class="copy-btn ml-1" onclick="event.stopPropagation(); copyText('${escHtml(p.name)}', '项目名称')" title="复制名称"></button></td>
+    <td class="p-2 font-medium">${p.is_active ? '' : '<span class="mr-1">📦</span>'}${escHtml(p.name)}<button class="copy-btn ml-1" onclick="event.stopPropagation(); copyText('${escHtml(p.name)}', '项目名称')" title="复制名称"></button></td>
     <td class="p-2 text-gray-500">${p.customer_name || '-'}</td>
     <td class="p-2">${projectStatusBadge(p.status)}</td>
     <td class="p-2 text-gray-500">${p.owner_name || '-'}</td>
@@ -233,6 +244,8 @@ function renderPagination(page, totalPages, total) {
 async function showProjectDetail(projectId) {
   const container = document.getElementById('project-detail-content');
   if (!container) { switchPage('project-detail'); await delay(50); return showProjectDetail(projectId); }
+  // Set current project BEFORE switchPage so its handler doesn't redirect back to projects
+  window._currentProjectId = projectId;
   // Show loading state
   switchPage('project-detail');
   container.innerHTML = '<div class="flex items-center justify-center py-12"><div class="text-gray-400 text-sm flex items-center gap-3"><span class="inline-block w-5 h-5 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"></span>加载中...</div></div>';
@@ -255,7 +268,7 @@ async function showProjectDetail(projectId) {
     window.history.pushState({page: 'project-detail', projectId}, '', stateUrl);
   }
 
-  const canEdit = p.user_role === 'owner' || p.user_permissions?.includes('edit_project');
+  const canEdit = (p.user_role === 'owner' || p.user_permissions?.includes('edit_project')) && p.is_active;
   const canManageMembers = p.user_role === 'owner' || p.user_permissions?.includes('manage_members');
 
   let html = `
@@ -266,6 +279,7 @@ async function showProjectDetail(projectId) {
         <span class="text-lg font-semibold">${escHtml(p.project_code)}<button class="copy-btn ml-1" onclick="event.stopPropagation(); copyText('${escHtml(p.project_code)}', '项目编号')" title="复制编号"></button></span>
         <span class="text-base text-gray-700 ml-1">${escHtml(p.name)}<button class="copy-btn ml-1" onclick="event.stopPropagation(); copyText('${escHtml(p.name)}', '项目名称')" title="复制名称"></button></span>
         ${p.is_template ? '<span class="inline-block px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-700">模板</span>' : ''}
+        ${!p.is_active ? '<span class="inline-block px-2 py-0.5 rounded text-xs font-medium bg-gray-200 text-gray-600">📦 已归档</span>' : ''}
         ${projectStatusBadge(p.status)}
       </div>
       <div class="flex items-center gap-2">
@@ -328,7 +342,7 @@ async function showProjectDetail(projectId) {
       let html = '';
       // Add-item button at the top of batches
       html += `<div class="flex items-center gap-2 mb-3 flex-wrap">
-        <button class="btn btn-sm btn-secondary" onclick="showAddItemToProject(${p.id})">添加条目到项目</button>
+        ${canEdit ? `<button class="btn btn-sm btn-secondary" onclick="showAddItemToProject(${p.id})">添加条目到项目</button>` : ''}
       </div>`;
       sortedKeys.forEach(batchName => {
         const items = groups[batchName];

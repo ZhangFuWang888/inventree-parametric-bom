@@ -150,12 +150,7 @@ function switchPage(page) {
     }
   }
   else if (page === 'project-detail') { 
-    // Check URL param first, then fallback to in-memory ID
-    const urlParams = new URLSearchParams(window.location.search);
-    const projectId = urlParams.get('project') || window._currentProjectId;
-    if (!projectId) {
-      switchPage('projects');
-    }
+    // Do nothing - showProjectDetail handles the loading
   }
   // Load cart
   if (page === 'cart') { loadCart(); }
