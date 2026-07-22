@@ -8,7 +8,19 @@ let __abModalHtml = null;
 let _ceState = { itemPk: null, field: null };
 let _ceMode = 'bom';        // 'bom' or 'variable'
 let _ceVarEditId = null;    // variable edit mode: the variable ID
+let _ceOriginalFormula = null;  // snapshot when editor opened, for Ctrl+Z undo
 let _cePreviewTimer = null;
+
+// Ctrl+Z: undo formula to value when editor was opened
+document.addEventListener('keydown', function(e) {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+    var overlay = document.getElementById('pbs-ce-overlay');
+    if (overlay && overlay.classList.contains('open')) {
+      e.preventDefault();
+      undoCellFormula();
+    }
+  }
+});
 
 function ceTogglePills() {
   const area = document.getElementById('ce-pills-area');
@@ -444,6 +456,7 @@ window.FormulaTemplates = {
 function openCellEditor(itemPk, field, currentVal, isQty, mappingId, expectedType) {
   _ceMode = 'bom';
   _ceVarEditId = null;
+  _ceOriginalFormula = currentVal || '';
   _ceState = { itemPk: itemPk, field: field, isQty: !!isQty, staticQty: mappingId || 1, mappingId: mappingId || null, hasError: false, typeError: null, expectedType: expectedType || '' };
   const overlay = document.getElementById('pbs-ce-overlay');
   const input = document.getElementById('pbs-ce-input');
@@ -524,6 +537,7 @@ function openFormulaEditorForVariable(mode, data) {
   // mode: 'add' | 'edit'
   // data: { id, name, formula, description } for edit
   _ceMode = 'variable';
+  _ceOriginalFormula = (data && data.formula) || '';
   _ceState = { itemPk: data && data.id ? data.id : null, field: 'variable' };
   _ceVarEditId = data && data.id ? data.id : null;
 
@@ -584,6 +598,23 @@ function openFormulaEditorForVariable(mode, data) {
     el.focus();
     ceSchedulePreview();
   }, 100);
+}
+
+function undoCellFormula() {
+  if (typeof _ceOriginalFormula === 'undefined' || _ceOriginalFormula === null) return;
+  const input = document.getElementById('pbs-ce-input');
+  if (!input) return;
+  input.value = _ceOriginalFormula;
+  // Update CodeMirror if attached
+  if (input.dataset.cmInit && window.CmFormulaEditor && window.CmFormulaEditor.instance) {
+    try { window.CmFormulaEditor.instance.setValue(_ceOriginalFormula); } catch(e) {}
+  }
+  document.getElementById('pbs-ce-status').innerHTML =
+    '<span class="text-blue-500">↩ 已恢复到打开时的值</span>';
+  setTimeout(function() {
+    var s = document.getElementById('pbs-ce-status');
+    if (s && s.innerHTML.indexOf('已恢复') > -1) s.innerHTML = '';
+  }, 2000);
 }
 
 function closeCellEditor(evt) {
