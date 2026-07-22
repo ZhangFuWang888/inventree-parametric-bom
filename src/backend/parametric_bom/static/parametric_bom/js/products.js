@@ -332,7 +332,6 @@ function switchProductTab(tab) {
   if (tab === 'params') loadPdParams();
   else if (tab === 'bom') loadPdBOMM();
   else if (tab === 'configurator') loadPdConfigurator();
-  else if (tab === 'logs') loadPdLogs();
   else if (tab === 'variables') loadPdVariables();
 }
 
@@ -1355,99 +1354,79 @@ function selectTemplatePart(mappingId, newPartId) {
   });
 }
 
-// ===== PARAMETER OPERATION LOGS =====
+// ===== PARAMETER OPERATION LOGS (MODAL) =====
 
-async function loadPdLogs() {
+async function showLogModal() {
   const pid = configuratorPartId;
-  console.log('[loadPdLogs] START, pid=', pid);
-  if (!pid) {
-    console.warn('[loadPdLogs] NO PART ID');
-    return;
-  }
-  const container = document.getElementById('pd-logs-list');
-  if (!container) { console.error('[loadPdLogs] NO pd-logs-list!'); return; }
-  // 显示加载中
-  container.innerHTML = '<div class="flex items-center justify-center py-8"><span class="spinner mr-2"></span><span class="text-sm text-gray-400">加载中...</span></div>';
-
-  const url = `param-logs/?part=${parseInt(pid)}&ordering=-created_at&limit=200`;
-  console.log('[loadPdLogs] fetching:', url);
-  const res = await apiCall('GET', url);
-  console.log('[loadPdLogs] response:', res);
+  if (!pid) { console.warn('[showLogModal] NO PART ID'); return; }
+  
+  // Create modal overlay
+  var overlay = document.createElement('div');
+  overlay.id = '__log_modal_overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:100;display:flex;align-items:center;justify-content:center';
+  
+  var modal = document.createElement('div');
+  modal.style.cssText = 'background:#fff;border-radius:12px;width:90%;max-width:700px;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 8px 32px rgba(0,0,0,0.2)';
+  
+  modal.innerHTML = '<div style="display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid #e5e7eb">' +
+    '<span style="font-size:14px;font-weight:600;color:#1f2937">📋 参数变更日志</span>' +
+    '<button onclick="document.getElementById(\'__log_modal_overlay\').remove()" style="background:none;border:none;font-size:18px;cursor:pointer;color:#9ca3af;padding:4px 8px">&times;</button>' +
+    '</div>' +
+    '<div id="__log_modal_body" style="flex:1;overflow-y:auto;padding:16px 18px">' +
+    '<div style="text-align:center;padding:40px;color:#9ca3af">⏳ 加载中...</div>' +
+    '</div>';
+  
+  overlay.appendChild(modal);
+  overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
+  document.body.appendChild(overlay);
+  
+  // Fetch logs
+  var url = 'param-logs/?part=' + parseInt(pid) + '&ordering=-created_at&limit=200';
+  var res = await apiCall('GET', url);
+  var body = document.getElementById('__log_modal_body');
+  
   if (res.error) {
-    container.innerHTML = '<div class="text-red-500 text-sm p-4 text-center">❌ 加载日志失败</div>';
+    body.innerHTML = '<div style="text-align:center;padding:40px;color:#ef4444">❌ 加载失败</div>';
     return;
   }
-  const logs = res.data.results || (Array.isArray(res.data) ? res.data : []);
-  console.log('[loadPdLogs] logs count:', logs.length);
+  
+  var logs = res.data.results || (Array.isArray(res.data) ? res.data : []);
   if (!logs.length) {
-    container.innerHTML = '<div class="empty-state" style="padding:2.5rem 1rem"><div class="icon">📋</div><p>暂无操作日志</p><p class="text-xs text-gray-400 mt-1">操作参数后将自动记录日志</p></div>';
+    body.innerHTML = '<div style="text-align:center;padding:40px;color:#9ca3af">📋 暂无操作日志<br><span style="font-size:11px">操作参数后将自动记录</span></div>';
     return;
   }
-
-  // Action type styling
-  const actionTypeMap = {
-    create: {label: '➕ 创建', cls: 'text-green-700 bg-green-50'},
-    update: {label: '✏️ 修改', cls: 'text-blue-700 bg-blue-50'},
-    delete: {label: '🗑️ 删除', cls: 'text-red-700 bg-red-50'},
-    restore: {label: '♻️ 恢复', cls: 'text-purple-700 bg-purple-50'},
+  
+  var amap = {
+    create: {label:'➕ 创建', color:'#15803d', bg:'#f0fdf4'},
+    update: {label:'✏️ 修改', color:'#1d4ed8', bg:'#eff6ff'},
+    delete: {label:'🗑️ 删除', color:'#b91c1c', bg:'#fef2f2'},
+    restore:{label:'♻️ 恢复', color:'#7e22ce', bg:'#faf5ff'}
   };
-
-  // Build log entries
-  let rows = '';
-  logs.forEach(function(log, i) {
-    const am = actionTypeMap[log.action] || {label: log.action, cls: 'text-gray-700 bg-gray-50'};
-    const ts = log.created_at ? new Date(log.created_at.replace(' ','T')).toLocaleString('zh-CN', {hour12: false}) : '—';
-    const valChange = (log.old_value || log.new_value)
+  
+  var rows = '';
+  logs.forEach(function(log) {
+    var a = amap[log.action] || {label:log.action, color:'#374151', bg:'#f9fafb'};
+    var ts = log.created_at ? new Date(log.created_at.replace(' ','T')).toLocaleString('zh-CN',{hour12:false}) : '—';
+    var vc = (log.old_value || log.new_value)
       ? '<div style="margin-top:2px;font-size:10px;color:#6b7280">' +
         (log.old_value ? '<span style="text-decoration:line-through;color:#9ca3af">' + escapeHtml(log.old_value) + '</span>' : '') +
         (log.old_value && log.new_value ? ' <span style="color:#d1d5db">→</span> ' : '') +
         (log.new_value ? '<span style="color:#059669;font-weight:500">' + escapeHtml(log.new_value) + '</span>' : '') +
         '</div>' : '';
-
+    
     rows += '<div style="display:flex;align-items:flex-start;padding:8px 0;border-bottom:1px solid #f3f4f6">' +
-      '<span style="display:inline-block;min-width:52px;padding:1px 6px;border-radius:3px;font-size:10px;font-weight:500;text-align:center;' +
-        am.cls.split(' ').map(function(c) {
-          if (c === 'text-green-700') return 'color:#15803d;background:#f0fdf4';
-          if (c === 'text-blue-700') return 'color:#1d4ed8;background:#eff6ff';
-          if (c === 'text-red-700') return 'color:#b91c1c;background:#fef2f2';
-          if (c === 'text-purple-700') return 'color:#7e22ce;background:#faf5ff';
-          if (c === 'text-gray-700') return 'color:#374151;background:#f9fafb';
-          if (c === 'bg-green-50') return '';
-          if (c === 'bg-blue-50') return '';
-          if (c === 'bg-red-50') return '';
-          if (c === 'bg-purple-50') return '';
-          if (c === 'bg-gray-50') return '';
-          return '';
-        }).join(';') + '">' + am.label + '</span>' +
+      '<span style="display:inline-block;min-width:52px;padding:1px 6px;border-radius:3px;font-size:10px;font-weight:500;text-align:center;color:'+a.color+';background:'+a.bg+'">' + a.label + '</span>' +
       '<div style="flex:1;margin-left:10px;font-size:12px">' +
         '<div style="display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 10px">' +
-          '<span style="color:#1f2937;font-weight:500">' + escapeHtml(log.param_name || '—') + '</span>' +
+          '<span style="color:#1f2937;font-weight:500">' + escapeHtml(log.param_name||'—') + '</span>' +
           (log.field_name ? '<span style="color:#9ca3af;font-size:10px">' + escapeHtml(log.field_name) + '</span>' : '') +
-          '<span style="color:#9ca3af;font-size:10px">' + escapeHtml(log.username || '—') + '</span>' +
+          '<span style="color:#9ca3af;font-size:10px">' + escapeHtml(log.username||'—') + '</span>' +
           '<span style="color:#9ca3af;font-size:10px">' + ts + '</span>' +
-        '</div>' + valChange +
+        '</div>' + vc +
       '</div></div>';
   });
-
-  var html = '<div style="margin-bottom:6px">' +
-    '<div style="font-size:10px;color:#9ca3af;margin-bottom:6px">共 ' + logs.length + ' 条记录</div>' +
-    rows +
-    '</div>';
-
-  try {
-    // Find the .card parent — try multiple paths
-    var card = (container && container.parentElement) || 
-               document.querySelector('#pd-tab-logs .card');
-    if (!card) { console.error('[loadPdLogs] NO card!'); return; }
-    card.innerHTML = '<div id="pd-logs-list" style="padding:0.75rem">' +
-      '<div class="flex items-center justify-between mb-3">' +
-      '<span class="text-xs font-semibold text-slate-600">📋 日志列表</span>' +
-      '<button class="btn btn-sm btn-primary" onclick="loadPdLogs()">🔄 刷新</button>' +
-      '</div>' + html + '</div>';
-    console.log('[loadPdLogs] rendered ' + logs.length + ' logs');
-  } catch(e) {
-    console.error('[loadPdLogs] error:', e);
-  }
+  
+  body.innerHTML = '<div style="font-size:10px;color:#9ca3af;margin-bottom:8px">共 ' + logs.length + ' 条记录</div>' + rows;
 }
 
 // Simple HTML escaping helper

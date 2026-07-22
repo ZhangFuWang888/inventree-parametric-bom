@@ -110,6 +110,7 @@
               <button class="btn btn-sm btn-success" onclick="saveAllParams()" id="btn-save-params">
                 保存修改
               </button>
+              <button class="btn btn-sm btn-outline-secondary" onclick="showLogModal()" title="查看参数变更日志">📋 日志</button>
             </div>
           </div>
         </div>
@@ -120,7 +121,6 @@
           <button class="pd-tab" data-tab="bom" onclick="switchProductTab('bom')">📋 BOM列表</button>
           <!-- 规则 Tab 已移除 -->
           <button class="pd-tab" data-tab="configurator" onclick="switchProductTab('configurator')">🔧 配置器</button>
-          <button class="pd-tab" data-tab="logs" onclick="switchProductTab('logs')">📋 日志列表</button>
         </div>
       </div>
 
@@ -414,20 +414,6 @@
           </div>
         </div>
       </div>
-
-      <!-- ===== TAB: 日志列表 ===== -->
-      <div class="pd-tab-content" id="pd-tab-logs">
-        <div class="card" style="padding:0.75rem">
-          <div class="flex items-center justify-between mb-3">
-            <span class="text-xs font-semibold text-slate-600">📋 日志列表</span>
-            <button class="btn btn-sm btn-primary" onclick="loadPdLogs()">🔄 刷新</button>
-          </div>
-          <div id="pd-logs-list">
-            <div class="empty-state"><div class="icon">⏳</div><p>加载日志列表...</p></div>
-          </div>
-        </div>
-      </div>
-    </div>
     </div>
 
     {% if not standalone %}
