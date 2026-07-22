@@ -753,8 +753,8 @@ async function openAddBomItemModal() {
     });
 
     var box = document.createElement('div');
-    box.className = 'modal-box';
-    box.style.cssText = 'background:#fff!important;border-radius:14px!important;padding:1.5rem!important;max-width:520px!important;width:92%!important;max-height:85vh!important;overflow-y:auto!important;box-shadow:0 20px 60px rgba(0,0,0,0.18)!important';
+    // Plain wrapper — cloned HTML already contains <div class="modal-box">
+    box.style.cssText = 'max-width:520px;width:92%';
     box.innerHTML = __abModalHtml;
 
     overlay.appendChild(box);
