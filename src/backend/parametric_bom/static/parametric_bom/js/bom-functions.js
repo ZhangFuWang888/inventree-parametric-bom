@@ -721,50 +721,29 @@ async function openAddBomItemModal() {
     const pid = configuratorPartId;
     console.log('[AB] configuratorPartId:', pid);
     if (!pid) { setStatus('error', '请先选择产品'); console.log('[AB] NO pid, returning'); return; }
-    // Reset
+
+    // --- Step 1: Reset state (no DOM needed) ---
     _abItemType = 'static';
     _abParamMapping = {};
-    console.log('[AB] reset state done, type=static, mapping={}');
-    const typeBtns = document.querySelectorAll('.ab-type-btn');
-    console.log('[AB] .ab-type-btn found:', typeBtns.length);
-    typeBtns.forEach(function(btn) {
-      btn.classList.toggle('selected', btn.dataset.type === 'static');
-    });
-    var hint = document.getElementById('ab-dynamic-hint');
-    console.log('[AB] ab-dynamic-hint:', hint ? 'found' : 'MISSING');
-    if (hint) hint.classList.add('hidden');
-    var label = document.getElementById('ab-part-label');
-    console.log('[AB] ab-part-label:', label ? 'found' : 'MISSING');
-    if (label) label.textContent = '选择子件';
-    console.log('[AB] calling updateAbMappingCount');
-    updateAbMappingCount();
-
-    const product = parts.find(p => p.pk == pid);
-    console.log('[AB] parts.length:', parts.length, 'product found:', !!product);
-    const nameEl = document.getElementById('ab-product-name');
-    console.log('[AB] ab-product-name:', nameEl ? 'found' : 'MISSING');
-    if (nameEl) nameEl.textContent = product ? (product.name || '#' + pid) : '#' + pid;
     _allPartsCache = null;
     _abAllParts = [];
-    const searchEl = document.getElementById('ab-search');
-    console.log('[AB] ab-search:', searchEl ? 'found' : 'MISSING');
-    if (searchEl) searchEl.value = '';
-    console.log('[AB] calling renderAbPartList');
-    renderAbPartList();
-    console.log('[AB] creating dynamic overlay (testModalDirect pattern)');
+    console.log('[AB] reset state done');
 
-    // Cache modal HTML for reuse (original is removed from DOM)
+    // --- Step 2: Look up product (no DOM needed) ---
+    const product = parts.find(p => p.pk == pid);
+    console.log('[AB] parts.length:', parts.length, 'product found:', !!product);
+
+    // --- Step 3: Cache HTML, create & append overlay FIRST ---
     if (!__abModalHtml) {
       var srcModal = document.getElementById('modal-add-bom');
       __abModalHtml = srcModal ? srcModal.innerHTML : '';
       if (srcModal) srcModal.remove();
       console.log('[AB] cached modal HTML, length:', __abModalHtml.length);
     }
-    var html = __abModalHtml;
 
     // Remove any previous dynamic overlay
-    var old = document.getElementById('__ab_modal_overlay');
-    if (old) old.remove();
+    var oldOverlay = document.getElementById('__ab_modal_overlay');
+    if (oldOverlay) oldOverlay.remove();
 
     var overlay = document.createElement('div');
     overlay.id = '__ab_modal_overlay';
@@ -776,14 +755,38 @@ async function openAddBomItemModal() {
     var box = document.createElement('div');
     box.className = 'modal-box';
     box.style.cssText = 'background:#fff!important;border-radius:14px!important;padding:1.5rem!important;max-width:520px!important;width:92%!important;max-height:85vh!important;overflow-y:auto!important;box-shadow:0 20px 60px rgba(0,0,0,0.18)!important';
-    box.innerHTML = html;
+    box.innerHTML = __abModalHtml;
 
     overlay.appendChild(box);
     document.body.appendChild(overlay);
+    console.log('[AB] overlay appended to body');
+
+    // --- Step 4: NOW query elements inside the new overlay ---
+    const typeBtns = document.querySelectorAll('.ab-type-btn');
+    console.log('[AB] .ab-type-btn found:', typeBtns.length);
+    typeBtns.forEach(function(btn) {
+      btn.classList.toggle('selected', btn.dataset.type === 'static');
+    });
+
+    var hint = document.getElementById('ab-dynamic-hint');
+    if (hint) hint.classList.add('hidden');
+
+    var label = document.getElementById('ab-part-label');
+    if (label) label.textContent = '选择子件';
+
+    updateAbMappingCount();
+
+    var nameEl = document.getElementById('ab-product-name');
+    if (nameEl) nameEl.textContent = product ? (product.name || '#' + pid) : '#' + pid;
+
+    var searchEl = document.getElementById('ab-search');
+    if (searchEl) searchEl.value = '';
+
+    renderAbPartList();
 
     var countEl = document.getElementById('ab-search-count');
-    console.log('[AB] ab-search-count:', countEl ? 'found' : 'MISSING');
     if (countEl) countEl.textContent = '输入关键字搜索零件';
+
     console.log('[AB] ✅ openAddBomItemModal completed successfully');
   } catch(e) {
     console.error('[AB] ❌ ERROR in openAddBomItemModal:', e.message, e.stack);
