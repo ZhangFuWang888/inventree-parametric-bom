@@ -333,6 +333,7 @@ function switchProductTab(tab) {
   else if (tab === 'bom') loadPdBOMM();
   else if (tab === 'configurator') loadPdConfigurator();
   else if (tab === 'variables') loadPdVariables();
+  else if (tab === 'logs') loadPdLogs();
 }
 
 async function loadProductDetail(partId) {
@@ -1354,7 +1355,62 @@ function selectTemplatePart(mappingId, newPartId) {
   });
 }
 
-// ===== PARAMETER OPERATION LOGS (MODAL) =====
+// ===== PARAMETER OPERATION LOGS (TAB + MODAL) =====
+
+async function loadPdLogs() {
+  const pid = configuratorPartId;
+  if (!pid) return;
+
+  const container = document.getElementById('pd-logs-list');
+  if (!container) return;
+  container.innerHTML = '<div style="text-align:center;padding:40px;color:#9ca3af">⏳ 加载中...</div>';
+
+  const res = await apiCall('GET', 'param-logs/?part=' + parseInt(pid) + '&ordering=-created_at&limit=200');
+  if (res.error) {
+    container.innerHTML = '<div style="text-align:center;padding:40px;color:#ef4444">❌ 加载失败</div>';
+    return;
+  }
+
+  const logs = res.data.results || (Array.isArray(res.data) ? res.data : []);
+  const countEl = document.getElementById('pd-logs-count');
+  if (countEl) countEl.textContent = logs.length + ' 条';
+
+  if (!logs.length) {
+    container.innerHTML = '<div style="text-align:center;padding:40px;color:#9ca3af">📋 暂无操作日志<br><span style="font-size:11px">操作参数后将自动记录</span></div>';
+    return;
+  }
+
+  const amap = {
+    create: {label:'➕ 创建', color:'#15803d', bg:'#f0fdf4'},
+    update: {label:'✏️ 修改', color:'#1d4ed8', bg:'#eff6ff'},
+    delete: {label:'🗑️ 删除', color:'#b91c1c', bg:'#fef2f2'},
+    restore:{label:'♻️ 恢复', color:'#7e22ce', bg:'#faf5ff'}
+  };
+
+  var rows = '';
+  logs.forEach(function(log) {
+    var a = amap[log.action] || {label:log.action, color:'#374151', bg:'#f9fafb'};
+    var ts = log.created_at ? new Date(log.created_at.replace(' ','T')).toLocaleString('zh-CN',{hour12:false}) : '—';
+    var vc = (log.old_value || log.new_value)
+      ? '<div style="margin-top:2px;font-size:10px;color:#6b7280">' +
+        (log.old_value ? '<span style="text-decoration:line-through;color:#9ca3af">' + escapeHtml(log.old_value) + '</span>' : '') +
+        (log.old_value && log.new_value ? ' <span style="color:#d1d5db">→</span> ' : '') +
+        (log.new_value ? '<span style="color:#059669;font-weight:500">' + escapeHtml(log.new_value) + '</span>' : '') +
+        '</div>' : '';
+    rows += '<div style="display:flex;align-items:flex-start;padding:8px 0;border-bottom:1px solid #f3f4f6">' +
+      '<span style="display:inline-block;min-width:52px;padding:1px 6px;border-radius:3px;font-size:10px;font-weight:500;text-align:center;color:'+a.color+';background:'+a.bg+'">' + a.label + '</span>' +
+      '<div style="flex:1;margin-left:10px;font-size:12px">' +
+        '<div style="display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 10px">' +
+          '<span style="color:#1f2937;font-weight:500">' + escapeHtml(log.param_name||'—') + '</span>' +
+          (log.field_name ? '<span style="color:#9ca3af;font-size:10px">' + escapeHtml(log.field_name) + '</span>' : '') +
+          '<span style="color:#9ca3af;font-size:10px">' + escapeHtml(log.username||'—') + '</span>' +
+          '<span style="color:#9ca3af;font-size:10px">' + ts + '</span>' +
+        '</div>' + vc +
+      '</div></div>';
+  });
+
+  container.innerHTML = rows;
+}
 
 async function showLogModal() {
   const pid = configuratorPartId;

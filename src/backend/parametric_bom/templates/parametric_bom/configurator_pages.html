@@ -121,6 +121,7 @@
           <button class="pd-tab" data-tab="bom" onclick="switchProductTab('bom')">📋 BOM列表</button>
           <!-- 规则 Tab 已移除 -->
           <button class="pd-tab" data-tab="configurator" onclick="switchProductTab('configurator')">🔧 配置器</button>
+          <button class="pd-tab" data-tab="logs" onclick="switchProductTab('logs')">📋 日志</button>
         </div>
       </div>
 
@@ -298,6 +299,19 @@
                 <div class="cfg-empty"><div class="cfg-empty-icon">📁</div>暂无保存的配置</div>
             </div>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab: 日志 -->
+    <div class="pd-tab-content" id="pd-tab-logs">
+      <div class="card" style="padding:0.75rem">
+        <div class="flex items-center justify-between mb-3">
+          <span class="font-semibold text-sm text-slate-800">📋 参数变更日志</span>
+          <span class="text-[10px] text-slate-400" id="pd-logs-count">—</span>
+        </div>
+        <div id="pd-logs-list">
+          <div style="text-align:center;padding:40px;color:#9ca3af">⏳ 加载中...</div>
         </div>
       </div>
     </div>
