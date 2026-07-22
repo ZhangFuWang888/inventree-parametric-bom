@@ -1383,43 +1383,44 @@ async function loadPdLogs() {
     restore: {label: '♻️ 恢复', cls: 'text-purple-700 bg-purple-50'},
   };
 
-  let html = '<div class="overflow-x-auto"><table class="w-full text-xs border-collapse" style="min-width:600px">';
-  html += '<thead><tr class="bg-gray-100 text-gray-600 uppercase tracking-wider text-[10px]">';
-  html += '<th class="p-2.5 text-left font-semibold border-b border-gray-200">时间</th>';
-  html += '<th class="p-2.5 text-left font-semibold border-b border-gray-200">操作</th>';
-  html += '<th class="p-2.5 text-left font-semibold border-b border-gray-200">参数名</th>';
-  html += '<th class="p-2.5 text-left font-semibold border-b border-gray-200">字段</th>';
-  html += '<th class="p-2.5 text-left font-semibold border-b border-gray-200">旧值 → 新值</th>';
-  html += '<th class="p-2.5 text-left font-semibold border-b border-gray-200">操作人</th>';
-  html += '</tr></thead><tbody>';
-
+  // Simple card-based layout instead of table (more reliable rendering)
+  let html = '';
   logs.forEach(function(log, i) {
     const am = actionTypeMap[log.action] || {label: log.action, cls: 'text-gray-700 bg-gray-50'};
     const ts = log.created_at ? new Date(log.created_at).toLocaleString('zh-CN', {hour12: false}) : '—';
-    const bgClass = i % 2 === 0 ? 'bg-white' : 'bg-gray-50/50';
-    const oldVal = log.old_value ? `<span class="text-gray-400 line-through">${escapeHtml(log.old_value)}</span>` : '';
-    const newVal = log.new_value ? `<span class="text-gray-800 font-medium">${escapeHtml(log.new_value)}</span>` : '';
+    const paramName = escapeHtml(log.param_name || '—');
+    const fieldName = escapeHtml(log.field_name || '—');
+    const username = escapeHtml(log.username || '—');
+    
     let changeStr = '—';
-    if (oldVal && newVal) changeStr = `${oldVal} <span class="text-gray-300 mx-0.5">→</span> ${newVal}`;
-    else if (oldVal) changeStr = oldVal;
-    else if (newVal) changeStr = newVal;
+    if (log.old_value || log.new_value) {
+      const oldV = log.old_value ? `<span style="color:#9ca3af;text-decoration:line-through">${escapeHtml(log.old_value)}</span>` : '';
+      const newV = log.new_value ? `<span style="color:#1f2937;font-weight:500">${escapeHtml(log.new_value)}</span>` : '';
+      if (oldV && newV) changeStr = `${oldV} <span style="color:#d1d5db">→</span> ${newV}`;
+      else changeStr = oldV || newV;
+    }
 
-    html += `<tr class="${bgClass} hover:bg-blue-50/50 transition-colors">`;
-    html += `<td class="p-2.5 text-gray-500 border-b border-gray-100 whitespace-nowrap">${ts}</td>`;
-    html += `<td class="p-2.5 border-b border-gray-100"><span class="inline-block px-1.5 py-0.5 rounded text-[10px] font-medium ${am.cls}">${am.label}</span></td>`;
-    html += `<td class="p-2.5 text-gray-700 border-b border-gray-100 font-medium">${escapeHtml(log.param_name || '—')}</td>`;
-    html += `<td class="p-2.5 text-gray-500 border-b border-gray-100">${escapeHtml(log.field_name || '—')}</td>`;
-    html += `<td class="p-2.5 border-b border-gray-100 text-xs">${changeStr}</td>`;
-    html += `<td class="p-2.5 text-gray-500 border-b border-gray-100">${escapeHtml(log.username || '—')}</td>`;
-    html += '</tr>';
+    html += '<div style="display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border-bottom:1px solid #f3f4f6;' + (i%2===0?'background:#fff':'background:#f9fafb') + '">';
+    // Action badge (left)
+    html += `<div style="flex-shrink:0;min-width:56px"><span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:500" class="${am.cls}">${am.label}</span></div>`;
+    // Content (right)
+    html += '<div style="flex:1;min-width:0;font-size:12px">';
+    html += `<div style="display:flex;flex-wrap:wrap;gap:4px 12px">`;
+    html += `<span style="color:#6b7280;white-space:nowrap">🕐 ${ts}</span>`;
+    html += `<span style="color:#1f2937;font-weight:500">${paramName}</span>`;
+    if (log.field_name) html += `<span style="color:#9ca3af">字段: ${fieldName}</span>`;
+    html += `<span style="color:#9ca3af">${username}</span>`;
+    html += `</div>`;
+    if (changeStr !== '—') {
+      html += `<div style="margin-top:3px;font-size:11px">${changeStr}</div>`;
+    }
+    html += '</div></div>';
   });
 
-  html += '</tbody></table></div>';
-  html += `<div class="flex items-center justify-between mt-2 px-1"><span class="text-[10px] text-gray-400">共 ${logs.length} 条日志</span></div>`;
+  // Footer count
+  html += `<div style="padding:6px 12px"><span style="font-size:10px;color:#9ca3af">共 ${logs.length} 条日志</span></div>`;
 
-  console.log('[loadPdLogs] setting innerHTML, container found:', !!container, 'html length:', html.length);
   container.innerHTML = html;
-  console.log('[loadPdLogs] innerHTML set, rendered length:', container.innerHTML.length);
 }
 
 // Simple HTML escaping helper
