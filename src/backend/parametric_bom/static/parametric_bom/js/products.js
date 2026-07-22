@@ -1365,6 +1365,8 @@ async function loadPdLogs() {
     return;
   }
   const container = document.getElementById('pd-logs-list');
+  if (!container) { console.error('[loadPdLogs] NO pd-logs-list!'); return; }
+  // 显示加载中
   container.innerHTML = '<div class="flex items-center justify-center py-8"><span class="spinner mr-2"></span><span class="text-sm text-gray-400">加载中...</span></div>';
 
   const url = `param-logs/?part=${parseInt(pid)}&ordering=-created_at&limit=200`;
@@ -1411,9 +1413,15 @@ async function loadPdLogs() {
   html += '</div>';
 
   try {
-    // 直接替换整个 #pd-logs-list 容器，避开任何容器级CSS问题
-    container.outerHTML = '<div id="pd-logs-list" style="display:block!important;visibility:visible!important">' + html + '</div>';
-    console.log('[loadPdLogs] container REPLACED, html length:', html.length);
+    // 🔥 直接替换 card 内容 - 跳过 pd-logs-list 容器
+    var card = container.parentElement; // .card
+    if (!card) { console.error('[loadPdLogs] NO card parent!'); return; }
+    card.innerHTML = '<div id="pd-logs-list" style="padding:0.75rem">' +
+      '<div class="flex items-center justify-between mb-3">' +
+      '<span class="text-xs font-semibold text-slate-600">📋 日志列表</span>' +
+      '<button class="btn btn-sm btn-primary" onclick="loadPdLogs()">🔄 刷新</button>' +
+      '</div>' + html + '</div>';
+    console.log('[loadPdLogs] card REPLACED, html length:', html.length);
     // 🔥 核武器
     var bomb = document.createElement('div');
     bomb.innerHTML = '<div style="position:fixed;bottom:20px;right:20px;z-index:99999;background:red;color:#fff;padding:16px 24px;font-size:20px;font-weight:bold;border:4px solid yellow;border-radius:8px;box-shadow:0 4px 20px rgba(0,0,0,0.5)">🔥 日志已加载！(' + logs.length + '条)</div>';
