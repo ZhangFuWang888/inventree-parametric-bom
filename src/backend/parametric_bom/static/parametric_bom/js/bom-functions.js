@@ -597,6 +597,24 @@ function closeCellEditor(evt) {
   _ceVarEditId = null;
 }
 
+async function _preValidateFormula(formula) {
+  if (!formula) return true;  // empty = no validation needed
+  try {
+    const res = await apiCall('POST', 'formula/validate/', { formula: formula });
+    if (res.error) return true;  // validate endpoint failed, let save handle it
+    const data = res.data || res;
+    if (!data.valid && data.errors && data.errors.length) {
+      const errs = Array.isArray(data.errors) ? data.errors.join('; ') : data.errors;
+      document.getElementById('pbs-ce-status').innerHTML =
+        '<span class="text-red-500">❌ ' + escHtml(errs) + '</span>';
+      return false;
+    }
+  } catch(e) {
+    // validation not critical, proceed
+  }
+  return true;
+}
+
 async function saveCellFormula() {
   const st = _ceState;
   if (!st.itemPk || !st.field) return;
@@ -613,6 +631,9 @@ async function saveCellFormula() {
     const varType = (document.getElementById('pbs-ce-var-type').value || 'number');
 
     const statusEl = document.getElementById('pbs-ce-status');
+    statusEl.innerHTML = '<span class="text-gray-400">⏳ 校验公式...</span>';
+    if (!(await _preValidateFormula(formula))) return;
+
     statusEl.innerHTML = '<span class="text-gray-400">⏳ 保存中...</span>';
 
     if (!_ceVarEditId) {
@@ -652,6 +673,12 @@ async function saveCellFormula() {
   const input = document.getElementById('pbs-ce-input');
   const statusEl = document.getElementById('pbs-ce-status');
   const formula = input.value.trim();
+
+  // Pre-validate formula before saving (non-variant fields only)
+  if (st.field !== 'variant_name' && st.field !== 'variant_ipn') {
+    statusEl.innerHTML = '<span class="text-gray-400">⏳ 校验公式...</span>';
+    if (!(await _preValidateFormula(formula))) return;
+  }
 
   statusEl.innerHTML = '<span class="text-gray-400">⏳ 保存中...</span>';
 
