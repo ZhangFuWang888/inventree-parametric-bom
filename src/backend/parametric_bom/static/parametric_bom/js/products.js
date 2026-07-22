@@ -1413,6 +1413,16 @@ async function loadPdLogs() {
   try {
     container.innerHTML = html;
     console.log('[loadPdLogs] rendered OK, html length:', html.length);
+    // 诊断容器可见性
+    var cs = getComputedStyle(container);
+    console.log('[loadPdLogs] container display:', cs.display, 'visibility:', cs.visibility, 'height:', cs.height, 'overflow:', cs.overflow);
+    var tab = document.getElementById('pd-tab-logs');
+    if (tab) console.log('[loadPdLogs] tab display:', getComputedStyle(tab).display);
+    // 强制确保可见
+    container.style.display = 'block';
+    container.style.visibility = 'visible';
+    container.style.height = 'auto';
+    container.style.overflow = 'visible';
   } catch(e) {
     console.error('[loadPdLogs] render error:', e);
     container.innerHTML = '<div style="color:red;padding:20px;font-size:16px;border:3px solid red">❌ 渲染失败: ' + e.message + '</div>';
