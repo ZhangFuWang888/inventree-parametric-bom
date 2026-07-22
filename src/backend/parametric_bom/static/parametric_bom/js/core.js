@@ -108,11 +108,17 @@ function switchPage(page) {
       return;
     }
   }
-  // Hide all pages
-  document.querySelectorAll('.page-panel').forEach(el => el.classList.remove('active'));
+  // Hide all pages (use both class and style for reliability)
+  document.querySelectorAll('.page-panel').forEach(el => {
+    el.classList.remove('active');
+    el.style.display = 'none';
+  });
   // Show target
   const target = document.getElementById('page-' + page);
-  if (target) target.classList.add('active');
+  if (target) {
+    target.classList.add('active');
+    target.style.display = 'block';
+  }
   // Update sidebar
   document.querySelectorAll('.sidebar-item').forEach(el => el.classList.remove('active'));
   const item = document.querySelector(`.sidebar-item[data-page="${page}"]`);
