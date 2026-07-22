@@ -1435,9 +1435,11 @@ async function loadPdLogs() {
     '</div>';
 
   try {
-    var card = container.parentElement;
-    if (!card) { console.error('[loadPdLogs] NO card parent!'); return; }
-    card.innerHTML = '<div style="padding:0.75rem">' +
+    // Find the .card parent — try multiple paths
+    var card = (container && container.parentElement) || 
+               document.querySelector('#pd-tab-logs .card');
+    if (!card) { console.error('[loadPdLogs] NO card!'); return; }
+    card.innerHTML = '<div id="pd-logs-list" style="padding:0.75rem">' +
       '<div class="flex items-center justify-between mb-3">' +
       '<span class="text-xs font-semibold text-slate-600">📋 日志列表</span>' +
       '<button class="btn btn-sm btn-primary" onclick="loadPdLogs()">🔄 刷新</button>' +
