@@ -150,7 +150,13 @@ function switchPage(page) {
     }
   }
   else if (page === 'project-detail') { 
-    // Do nothing - showProjectDetail handles the loading
+    // 无项目ID时跳回列表（例如直接URL访问详情页但没指定项目）
+    const urlParams = new URLSearchParams(window.location.search);
+    const projectId = urlParams.get('project') || window._currentProjectId;
+    if (!projectId) {
+      switchPage('projects');
+      return;
+    }
   }
   // Load cart
   if (page === 'cart') { loadCart(); }
