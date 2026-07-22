@@ -455,14 +455,10 @@ function openCellEditor(itemPk, field, currentVal, isQty, mappingId, expectedTyp
   // Reset save button state
   _ceUpdateSaveButton();
 
-  // Hide variable fields, show BOM-only sections
+  // Hide variable fields
   document.getElementById('pbs-ce-var-fields').style.display = 'none';
   document.getElementById('pbs-ce-var-name').value = '';
   document.getElementById('pbs-ce-var-desc').value = '';
-  var builtinSec = document.getElementById('ce-builtin-section');
-  var refpartSec = document.getElementById('ce-refpart-section');
-  if (builtinSec) { builtinSec.style.display = ''; builtinSec.previousElementSibling.style.display = ''; }
-  if (refpartSec) { refpartSec.style.display = ''; refpartSec.previousElementSibling.style.display = ''; }
   document.getElementById('pbs-ce-save-btn').innerHTML = '💾 保存';
 
   if (field === 'variant_name' || field === 'variant_ipn') {
@@ -541,14 +537,10 @@ function openFormulaEditorForVariable(mode, data) {
   // Reset save button
   _ceUpdateSaveButton();
 
-  // Show variable fields, hide BOM-only sections
+  // Show variable fields
   document.getElementById('pbs-ce-var-fields').style.display = '';
   document.getElementById('pbs-ce-var-name').value = (data && data.name) || '';
   document.getElementById('pbs-ce-var-desc').value = (data && data.description) || '';
-  var builtinSec = document.getElementById('ce-builtin-section');
-  var refpartSec = document.getElementById('ce-refpart-section');
-  if (builtinSec) { builtinSec.style.display = 'none'; builtinSec.previousElementSibling.style.display = 'none'; }
-  if (refpartSec) { refpartSec.style.display = 'none'; refpartSec.previousElementSibling.style.display = 'none'; }
 
   // Title and button
   if (mode === 'add') {
