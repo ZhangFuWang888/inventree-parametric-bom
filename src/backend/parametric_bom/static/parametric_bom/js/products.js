@@ -1385,6 +1385,7 @@ async function loadPdLogs() {
 
   // Simple card-based layout instead of table (more reliable rendering)
   let html = '';
+  try {
   logs.forEach(function(log, i) {
     const am = actionTypeMap[log.action] || {label: log.action, cls: 'text-gray-700 bg-gray-50'};
     const ts = log.created_at ? new Date(log.created_at).toLocaleString('zh-CN', {hour12: false}) : '—';
@@ -1402,25 +1403,32 @@ async function loadPdLogs() {
 
     html += '<div style="display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border-bottom:1px solid #f3f4f6;' + (i%2===0?'background:#fff':'background:#f9fafb') + '">';
     // Action badge (left)
-    html += `<div style="flex-shrink:0;min-width:56px"><span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:500" class="${am.cls}">${am.label}</span></div>`;
+    html += '<div style="flex-shrink:0;min-width:56px"><span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:500;' + am.cls.split(' ').map(c => {
+      if (c.startsWith('text-')) return 'color:' + ({'text-green-700':'#15803d','text-blue-700':'#1d4ed8','text-red-700':'#b91c1c','text-purple-700':'#7e22ce','text-gray-700':'#374151'}[c]||'#374151');
+      if (c.startsWith('bg-')) return 'background:' + ({'bg-green-50':'#f0fdf4','bg-blue-50':'#eff6ff','bg-red-50':'#fef2f2','bg-purple-50':'#faf5ff','bg-gray-50':'#f9fafb'}[c]||'#f9fafb');
+      return '';
+    }).filter(Boolean).join(';') + '">' + am.label + '</span></div>';
     // Content (right)
     html += '<div style="flex:1;min-width:0;font-size:12px">';
-    html += `<div style="display:flex;flex-wrap:wrap;gap:4px 12px">`;
-    html += `<span style="color:#6b7280;white-space:nowrap">🕐 ${ts}</span>`;
-    html += `<span style="color:#1f2937;font-weight:500">${paramName}</span>`;
-    if (log.field_name) html += `<span style="color:#9ca3af">字段: ${fieldName}</span>`;
-    html += `<span style="color:#9ca3af">${username}</span>`;
-    html += `</div>`;
+    html += '<div style="display:flex;flex-wrap:wrap;gap:4px 12px">';
+    html += '<span style="color:#6b7280;white-space:nowrap">🕐 ' + ts + '</span>';
+    html += '<span style="color:#1f2937;font-weight:500">' + paramName + '</span>';
+    if (log.field_name) html += '<span style="color:#9ca3af">字段: ' + fieldName + '</span>';
+    html += '<span style="color:#9ca3af">' + username + '</span>';
+    html += '</div>';
     if (changeStr !== '—') {
-      html += `<div style="margin-top:3px;font-size:11px">${changeStr}</div>`;
+      html += '<div style="margin-top:3px;font-size:11px">' + changeStr + '</div>';
     }
     html += '</div></div>';
   });
+  } catch(e) { console.error('[loadPdLogs] forEach error:', e); container.innerHTML = '<div class="text-red-500 text-sm p-4 text-center">❌ 日志渲染出错: ' + e.message + '</div>'; return; }
 
   // Footer count
-  html += `<div style="padding:6px 12px"><span style="font-size:10px;color:#9ca3af">共 ${logs.length} 条日志</span></div>`;
+  html += '<div style="padding:6px 12px"><span style="font-size:10px;color:#9ca3af">共 ' + logs.length + ' 条日志</span></div>';
 
+  console.log('[loadPdLogs] setting innerHTML, html length:', html.length);
   container.innerHTML = html;
+  console.log('[loadPdLogs] done, rendered length:', container.innerHTML.length);
 }
 
 // Simple HTML escaping helper
