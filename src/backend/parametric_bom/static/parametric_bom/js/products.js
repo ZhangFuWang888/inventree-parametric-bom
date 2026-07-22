@@ -1423,6 +1423,12 @@ async function loadPdLogs() {
     container.style.visibility = 'visible';
     container.style.height = 'auto';
     container.style.overflow = 'visible';
+    // 🔥 核武器：直接加一个元素到页面底部，验证JS执行和渲染能力
+    var bomb = document.createElement('div');
+    bomb.id = '__log_test_bomb';
+    bomb.innerHTML = '<div style="position:fixed;bottom:20px;right:20px;z-index:99999;background:red;color:#fff;padding:16px 24px;font-size:20px;font-weight:bold;border:4px solid yellow;border-radius:8px;box-shadow:0 4px 20px rgba(0,0,0,0.5)">🔥 日志已加载！(' + logs.length + '条)</div>';
+    document.body.appendChild(bomb);
+    console.log('[loadPdLogs] BOMB appended to body');
   } catch(e) {
     console.error('[loadPdLogs] render error:', e);
     container.innerHTML = '<div style="color:red;padding:20px;font-size:16px;border:3px solid red">❌ 渲染失败: ' + e.message + '</div>';
