@@ -219,132 +219,6 @@
           <div id="pd-bom-list">
             <div class="flex items-center justify-center py-6"><span class="spinner mr-2"></span><span class="text-sm text-gray-400">加载中...</span></div>
           </div>
-          <!-- Cell Editor Popup (Unified Formula Editor) -->
-          <div class="pbs-cell-editor-overlay" id="pbs-ce-overlay" onclick="closeCellEditor(event)">
-            <div class="pbs-cell-editor" id="pbs-ce-box">
-              <div class="pbs-ce-header">
-                <span class="pbs-ce-title" id="pbs-ce-title">📐 编辑公式</span>
-                <span class="pbs-ce-type-badge" id="pbs-ce-type-badge" style="display:none;font-size:10px;padding:1px 6px;border-radius:4px;background:#e0f2fe;color:#0369a1;margin:0 auto 0 6px;"></span>
-                <button class="pbs-ce-close" onclick="closeCellEditor()">✕</button>
-              </div>
-              <!-- Variable mode fields (hidden by default) -->
-              <div id="pbs-ce-var-fields" style="display:none;margin-bottom:0.75rem">
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem">
-                  <div>
-                    <label style="font-size:11px;font-weight:500;color:#6b7280;display:block;margin-bottom:0.25rem">变量名 *</label>
-                    <input id="pbs-ce-var-name" class="input-field" placeholder="例如: 总重量, 板面积" autocomplete="off" style="font-size:0.75rem;padding:0.375rem 0.5rem">
-                  </div>
-                  <div>
-                    <label style="font-size:11px;font-weight:500;color:#6b7280;display:block;margin-bottom:0.25rem">描述 <span style="color:#9ca3af;font-weight:400">(可选)</span></label>
-                    <input id="pbs-ce-var-desc" class="input-field" placeholder="说明此变量的用途" style="font-size:0.75rem;padding:0.375rem 0.5rem">
-                  </div>
-                </div>
-              </div>
-              <div class="pbs-ce-body">
-                <!-- LEFT: 参数/变量/函数面板 -->
-                <div class="pbs-ce-left">
-                  <!-- 参数 -->
-                  <div class="pbs-ce-pills-section">
-                    <div class="pbs-ce-section-label">📌 参数</div>
-                    <div class="pbs-ce-pills-grid" id="ce-param-pills">
-                      <span class="text-[10px] text-gray-400">加载中...</span>
-                    </div>
-                  </div>
-                  <!-- 零件属性 (BOM mode only) -->
-                  <div class="pbs-ce-separator"></div>
-                  <div class="pbs-ce-pills-section" id="ce-builtin-section">
-                    <div class="pbs-ce-section-label">🔗 零件属性</div>
-                    <div class="pbs-ce-pills-grid" id="ce-builtin-pills">
-                      <span class="text-[10px] text-gray-400">加载中...</span>
-                    </div>
-                  </div>
-                  <!-- 参考零件参数 (BOM mode only) -->
-                  <div class="pbs-ce-separator"></div>
-                  <div class="pbs-ce-pills-section" id="ce-refpart-section">
-                    <div class="pbs-ce-section-label">🔗 参考零件参数</div>
-                    <div class="pbs-ce-pills-grid" id="ce-refpart-pills">
-                      <span class="text-[10px] text-gray-400">加载中...</span>
-                    </div>
-                  </div>
-                  <!-- 变量 -->
-                  <div class="pbs-ce-separator"></div>
-                  <div class="pbs-ce-pills-section">
-                    <div class="pbs-ce-section-label">📐 变量</div>
-                    <div class="pbs-ce-pills-grid" id="ce-variable-pills">
-                      <span class="text-[10px] text-gray-400">加载中...</span>
-                    </div>
-                  </div>
-                  <!-- 数学函数 -->
-                  <div class="pbs-ce-separator"></div>
-                  <div class="pbs-ce-pills-section">
-                    <div class="pbs-ce-section-label">🔢 数学函数</div>
-                    <div class="pbs-ce-fn-grid">
-                      <span class="pbs-ce-param-pill fn" onclick="ceInsertText('CEIL(')">CEIL</span>
-                      <span class="pbs-ce-param-pill fn" onclick="ceInsertText('FLOOR(')">FLOOR</span>
-                      <span class="pbs-ce-param-pill fn" onclick="ceInsertText('ROUND(')">ROUND</span>
-                      <span class="pbs-ce-param-pill fn" onclick="ceInsertText('IF(')">IF</span>
-                      <span class="pbs-ce-param-pill fn" onclick="ceInsertText('AND(')">AND</span>
-                      <span class="pbs-ce-param-pill fn" onclick="ceInsertText('OR(')">OR</span>
-                      <span class="pbs-ce-param-pill fn" onclick="ceInsertText('NOT(')">NOT</span>
-                      <span class="pbs-ce-param-pill fn" onclick="ceInsertText('MIN(')">MIN</span>
-                      <span class="pbs-ce-param-pill fn" onclick="ceInsertText('MAX(')">MAX</span>
-                      <span class="pbs-ce-param-pill fn" onclick="ceInsertText('ABS(')">ABS</span>
-                      <span class="pbs-ce-param-pill fn" onclick="ceInsertText('SQRT(')">SQRT</span>
-                      <span class="pbs-ce-param-pill fn" onclick="ceInsertText('POW(')">POW</span>
-                      <span class="pbs-ce-param-pill fn" onclick="ceInsertText('MOD(')">MOD</span>
-                      <span class="pbs-ce-param-pill fn" onclick="ceInsertText('SUM(')">SUM</span>
-                      <span class="pbs-ce-param-pill fn" onclick="ceInsertText('AVG(')">AVG</span>
-                      <span class="pbs-ce-param-pill fn" onclick="ceInsertText('COUNT(')">COUNT</span>
-                      <span class="pbs-ce-param-pill fn" onclick="ceInsertText('INT(')">INT</span>
-                      <span class="pbs-ce-param-pill fn" onclick="ceInsertText('FLOAT(')">FLOAT</span>
-                      <span class="pbs-ce-param-pill fn" onclick="ceInsertText('STR(')">STR</span>
-                      <span class="pbs-ce-param-pill fn" onclick="ceInsertText('BOOL(')">BOOL</span>
-                    </div>
-                  </div>
-                  <!-- 字符串/三角函数 -->
-                  <div class="pbs-ce-separator"></div>
-                  <div class="pbs-ce-pills-section">
-                    <div class="pbs-ce-section-label">🔤 字符串</div>
-                    <div class="pbs-ce-fn-grid">
-                      <span class="pbs-ce-param-pill fn" onclick="ceInsertText('CONCAT(')">CONCAT</span>
-                      <span class="pbs-ce-param-pill fn" onclick="ceInsertText('LEFT(')">LEFT</span>
-                      <span class="pbs-ce-param-pill fn" onclick="ceInsertText('RIGHT(')">RIGHT</span>
-                      <span class="pbs-ce-param-pill fn" onclick="ceInsertText('MID(')">MID</span>
-                      <span class="pbs-ce-param-pill fn" onclick="ceInsertText('LEN(')">LEN</span>
-                      <span class="pbs-ce-param-pill fn" onclick="ceInsertText('FIND(')">FIND</span>
-                      <span class="pbs-ce-param-pill fn" onclick="ceInsertText('UPPER(')">UPPER</span>
-                      <span class="pbs-ce-param-pill fn" onclick="ceInsertText('LOWER(')">LOWER</span>
-                      <span class="pbs-ce-param-pill fn" onclick="ceInsertText('TRIM(')">TRIM</span>
-                      <span class="pbs-ce-param-pill fn" onclick="ceInsertText('REPLACE(')">REPLACE</span>
-                    </div>
-                  </div>
-                  <div class="pbs-ce-pills-section">
-                    <div class="pbs-ce-section-label">📐 三角函数</div>
-                    <div class="pbs-ce-fn-grid">
-                      <span class="pbs-ce-param-pill fn" onclick="ceInsertText('SIN(')">SIN</span>
-                      <span class="pbs-ce-param-pill fn" onclick="ceInsertText('COS(')">COS</span>
-                      <span class="pbs-ce-param-pill fn" onclick="ceInsertText('TAN(')">TAN</span>
-                      <span class="pbs-ce-param-pill fn" onclick="ceInsertText('DEGREES(')">DEG</span>
-                      <span class="pbs-ce-param-pill fn" onclick="ceInsertText('RADIANS(')">RAD</span>
-                    </div>
-                  </div>
-                </div>
-                <!-- RIGHT: 公式编辑器 -->
-                <div class="pbs-ce-right">
-                  <div class="pbs-ce-formula-wrap">
-                    <label class="block text-xs font-medium text-gray-500 mb-1">公式</label>
-                    <textarea class="pbs-ce-input" id="pbs-ce-input" rows="4" placeholder="输入公式..." oninput="ceSchedulePreview()"></textarea>
-                  </div>
-                  <!-- Status / Preview -->
-                  <div id="pbs-ce-status" class="flex items-center gap-2 text-xs mt-1 min-h-[1.5em] text-gray-500"></div>
-                  <!-- Actions -->
-                  <div class="pbs-ce-actions">
-                    <button class="btn btn-sm btn-ghost" onclick="closeCellEditor()">取消</button>
-                    <button class="btn btn-sm btn-primary" id="pbs-ce-save-btn" onclick="saveCellFormula()">💾 保存</button>
-                  </div>
-                </div>
-              </div>
-            </div>
           </div>
         </div>
       </div>
@@ -422,6 +296,126 @@
               </div>
               <div id="cfg-configs-list" class="cfg-saved-list">
                 <div class="cfg-empty"><div class="cfg-empty-icon">📁</div>暂无保存的配置</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== UNIFIED FORMULA EDITOR (outside all tabs, inside page-product-detail) ===== -->
+    <div class="pbs-cell-editor-overlay" id="pbs-ce-overlay" onclick="closeCellEditor(event)">
+      <div class="pbs-cell-editor" id="pbs-ce-box">
+        <div class="pbs-ce-header">
+          <span class="pbs-ce-title" id="pbs-ce-title">📐 编辑公式</span>
+          <span class="pbs-ce-type-badge" id="pbs-ce-type-badge" style="display:none;font-size:10px;padding:1px 6px;border-radius:4px;background:#e0f2fe;color:#0369a1;margin:0 auto 0 6px;"></span>
+          <button class="pbs-ce-close" onclick="closeCellEditor()">✕</button>
+        </div>
+        <!-- Variable mode fields (hidden by default) -->
+        <div id="pbs-ce-var-fields" style="display:none;margin-bottom:0.75rem">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem">
+            <div>
+              <label style="font-size:11px;font-weight:500;color:#6b7280;display:block;margin-bottom:0.25rem">变量名 *</label>
+              <input id="pbs-ce-var-name" class="input-field" placeholder="例如: 总重量, 板面积" autocomplete="off" style="font-size:0.75rem;padding:0.375rem 0.5rem">
+            </div>
+            <div>
+              <label style="font-size:11px;font-weight:500;color:#6b7280;display:block;margin-bottom:0.25rem">描述 <span style="color:#9ca3af;font-weight:400">(可选)</span></label>
+              <input id="pbs-ce-var-desc" class="input-field" placeholder="说明此变量的用途" style="font-size:0.75rem;padding:0.375rem 0.5rem">
+            </div>
+          </div>
+        </div>
+        <div class="pbs-ce-body">
+          <!-- LEFT: 参数/变量/函数面板 -->
+          <div class="pbs-ce-left">
+            <div class="pbs-ce-pills-section">
+              <div class="pbs-ce-section-label">📌 参数</div>
+              <div class="pbs-ce-pills-grid" id="ce-param-pills">
+                <span class="text-[10px] text-gray-400">加载中...</span>
+              </div>
+            </div>
+            <div class="pbs-ce-separator"></div>
+            <div class="pbs-ce-pills-section" id="ce-builtin-section">
+              <div class="pbs-ce-section-label">🔗 零件属性</div>
+              <div class="pbs-ce-pills-grid" id="ce-builtin-pills">
+                <span class="text-[10px] text-gray-400">加载中...</span>
+              </div>
+            </div>
+            <div class="pbs-ce-separator"></div>
+            <div class="pbs-ce-pills-section" id="ce-refpart-section">
+              <div class="pbs-ce-section-label">🔗 参考零件参数</div>
+              <div class="pbs-ce-pills-grid" id="ce-refpart-pills">
+                <span class="text-[10px] text-gray-400">加载中...</span>
+              </div>
+            </div>
+            <div class="pbs-ce-separator"></div>
+            <div class="pbs-ce-pills-section">
+              <div class="pbs-ce-section-label">📐 变量</div>
+              <div class="pbs-ce-pills-grid" id="ce-variable-pills">
+                <span class="text-[10px] text-gray-400">加载中...</span>
+              </div>
+            </div>
+            <div class="pbs-ce-separator"></div>
+            <div class="pbs-ce-pills-section">
+              <div class="pbs-ce-section-label">🔢 数学函数</div>
+              <div class="pbs-ce-fn-grid">
+                <span class="pbs-ce-param-pill fn" onclick="ceInsertText('CEIL(')">CEIL</span>
+                <span class="pbs-ce-param-pill fn" onclick="ceInsertText('FLOOR(')">FLOOR</span>
+                <span class="pbs-ce-param-pill fn" onclick="ceInsertText('ROUND(')">ROUND</span>
+                <span class="pbs-ce-param-pill fn" onclick="ceInsertText('IF(')">IF</span>
+                <span class="pbs-ce-param-pill fn" onclick="ceInsertText('AND(')">AND</span>
+                <span class="pbs-ce-param-pill fn" onclick="ceInsertText('OR(')">OR</span>
+                <span class="pbs-ce-param-pill fn" onclick="ceInsertText('NOT(')">NOT</span>
+                <span class="pbs-ce-param-pill fn" onclick="ceInsertText('MIN(')">MIN</span>
+                <span class="pbs-ce-param-pill fn" onclick="ceInsertText('MAX(')">MAX</span>
+                <span class="pbs-ce-param-pill fn" onclick="ceInsertText('ABS(')">ABS</span>
+                <span class="pbs-ce-param-pill fn" onclick="ceInsertText('SQRT(')">SQRT</span>
+                <span class="pbs-ce-param-pill fn" onclick="ceInsertText('POW(')">POW</span>
+                <span class="pbs-ce-param-pill fn" onclick="ceInsertText('MOD(')">MOD</span>
+                <span class="pbs-ce-param-pill fn" onclick="ceInsertText('SUM(')">SUM</span>
+                <span class="pbs-ce-param-pill fn" onclick="ceInsertText('AVG(')">AVG</span>
+                <span class="pbs-ce-param-pill fn" onclick="ceInsertText('COUNT(')">COUNT</span>
+                <span class="pbs-ce-param-pill fn" onclick="ceInsertText('INT(')">INT</span>
+                <span class="pbs-ce-param-pill fn" onclick="ceInsertText('FLOAT(')">FLOAT</span>
+                <span class="pbs-ce-param-pill fn" onclick="ceInsertText('STR(')">STR</span>
+                <span class="pbs-ce-param-pill fn" onclick="ceInsertText('BOOL(')">BOOL</span>
+              </div>
+            </div>
+            <div class="pbs-ce-separator"></div>
+            <div class="pbs-ce-pills-section">
+              <div class="pbs-ce-section-label">🔤 字符串</div>
+              <div class="pbs-ce-fn-grid">
+                <span class="pbs-ce-param-pill fn" onclick="ceInsertText('CONCAT(')">CONCAT</span>
+                <span class="pbs-ce-param-pill fn" onclick="ceInsertText('LEFT(')">LEFT</span>
+                <span class="pbs-ce-param-pill fn" onclick="ceInsertText('RIGHT(')">RIGHT</span>
+                <span class="pbs-ce-param-pill fn" onclick="ceInsertText('MID(')">MID</span>
+                <span class="pbs-ce-param-pill fn" onclick="ceInsertText('LEN(')">LEN</span>
+                <span class="pbs-ce-param-pill fn" onclick="ceInsertText('FIND(')">FIND</span>
+                <span class="pbs-ce-param-pill fn" onclick="ceInsertText('UPPER(')">UPPER</span>
+                <span class="pbs-ce-param-pill fn" onclick="ceInsertText('LOWER(')">LOWER</span>
+                <span class="pbs-ce-param-pill fn" onclick="ceInsertText('TRIM(')">TRIM</span>
+                <span class="pbs-ce-param-pill fn" onclick="ceInsertText('REPLACE(')">REPLACE</span>
+              </div>
+            </div>
+            <div class="pbs-ce-pills-section">
+              <div class="pbs-ce-section-label">📐 三角函数</div>
+              <div class="pbs-ce-fn-grid">
+                <span class="pbs-ce-param-pill fn" onclick="ceInsertText('SIN(')">SIN</span>
+                <span class="pbs-ce-param-pill fn" onclick="ceInsertText('COS(')">COS</span>
+                <span class="pbs-ce-param-pill fn" onclick="ceInsertText('TAN(')">TAN</span>
+                <span class="pbs-ce-param-pill fn" onclick="ceInsertText('DEGREES(')">DEG</span>
+                <span class="pbs-ce-param-pill fn" onclick="ceInsertText('RADIANS(')">RAD</span>
+              </div>
+            </div>
+          </div>
+          <!-- RIGHT: 公式编辑器 -->
+          <div class="pbs-ce-right">
+            <div class="pbs-ce-formula-wrap">
+              <label class="block text-xs font-medium text-gray-500 mb-1">公式</label>
+              <textarea class="pbs-ce-input" id="pbs-ce-input" rows="4" placeholder="输入公式..." oninput="ceSchedulePreview()"></textarea>
+            </div>
+            <div id="pbs-ce-status" class="flex items-center gap-2 text-xs mt-1 min-h-[1.5em] text-gray-500"></div>
+            <div class="pbs-ce-actions">
+              <button class="btn btn-sm btn-ghost" onclick="closeCellEditor()">取消</button>
+              <button class="btn btn-sm btn-primary" id="pbs-ce-save-btn" onclick="saveCellFormula()">💾 保存</button>
             </div>
           </div>
         </div>
