@@ -1107,6 +1107,18 @@ class PartVariable(models.Model):
         verbose_name=_('Description'),
         help_text=_('Optional description of what this variable represents'),
     )
+    var_type = models.CharField(
+        max_length=16,
+        default='number',
+        choices=[
+            ('number', _('数值型')),
+            ('integer', _('整数型')),
+            ('string', _('文本型')),
+            ('boolean', _('布尔型')),
+        ],
+        verbose_name=_('Variable type'),
+        help_text=_('Determines how the formula result is interpreted'),
+    )
     display_order = models.IntegerField(
         default=0,
         verbose_name=_('Display order'),

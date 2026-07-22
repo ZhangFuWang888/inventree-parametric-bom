@@ -19,9 +19,9 @@ function openAddVariableModal() {
   openFormulaEditorForVariable('add', null);
 }
 
-function openEditVariableModal(vid, name, formula, desc) {
+function openEditVariableModal(vid, name, formula, desc, varType) {
   // Use unified formula editor in variable mode
-  openFormulaEditorForVariable('edit', { id: vid, name: name, formula: formula, description: desc });
+  openFormulaEditorForVariable('edit', { id: vid, name: name, formula: formula, description: desc, var_type: varType });
 }
 
 function avLoadPillsAndVars(editingVid) {
@@ -258,7 +258,7 @@ async function pvEditCell(td, field) {
     const res = await apiCall('GET', `part-variables/${vid}/`);
     if (res.error) return;
     const v = res.data;
-    openEditVariableModal(v.id, v.name, v.formula || '', v.description || '');
+    openEditVariableModal(v.id, v.name, v.formula || '', v.description || '', v.var_type || 'number');
     return;
   }
   // Inline editing for name and description

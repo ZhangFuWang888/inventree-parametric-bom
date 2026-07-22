@@ -312,7 +312,7 @@
         </div>
         <!-- Variable mode fields (hidden by default) -->
         <div id="pbs-ce-var-fields" style="display:none;margin-bottom:0.75rem">
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem">
+          <div style="display:grid;grid-template-columns:1fr 1fr 120px;gap:0.75rem">
             <div>
               <label style="font-size:11px;font-weight:500;color:#6b7280;display:block;margin-bottom:0.25rem">变量名 *</label>
               <input id="pbs-ce-var-name" class="input-field" placeholder="例如: 总重量, 板面积" autocomplete="off" style="font-size:0.75rem;padding:0.375rem 0.5rem">
@@ -320,6 +320,15 @@
             <div>
               <label style="font-size:11px;font-weight:500;color:#6b7280;display:block;margin-bottom:0.25rem">描述 <span style="color:#9ca3af;font-weight:400">(可选)</span></label>
               <input id="pbs-ce-var-desc" class="input-field" placeholder="说明此变量的用途" style="font-size:0.75rem;padding:0.375rem 0.5rem">
+            </div>
+            <div>
+              <label style="font-size:11px;font-weight:500;color:#6b7280;display:block;margin-bottom:0.25rem">类型</label>
+              <select id="pbs-ce-var-type" class="input-field" style="font-size:0.75rem;padding:0.375rem 0.5rem">
+                <option value="number">数值型</option>
+                <option value="integer">整数型</option>
+                <option value="string">文本型</option>
+                <option value="boolean">布尔型</option>
+              </select>
             </div>
           </div>
         </div>

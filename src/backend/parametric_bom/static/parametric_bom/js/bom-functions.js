@@ -541,6 +541,7 @@ function openFormulaEditorForVariable(mode, data) {
   document.getElementById('pbs-ce-var-fields').style.display = '';
   document.getElementById('pbs-ce-var-name').value = (data && data.name) || '';
   document.getElementById('pbs-ce-var-desc').value = (data && data.description) || '';
+  document.getElementById('pbs-ce-var-type').value = (data && data.var_type) || 'number';
 
   // Title and button
   if (mode === 'add') {
@@ -609,6 +610,7 @@ async function saveCellFormula() {
     const description = (document.getElementById('pbs-ce-var-desc').value || '').trim();
     if (!name) { showToast('error', '请输入变量名'); return; }
     if (!formula) { showToast('error', '请输入公式'); return; }
+    const varType = (document.getElementById('pbs-ce-var-type').value || 'number');
 
     const statusEl = document.getElementById('pbs-ce-status');
     statusEl.innerHTML = '<span class="text-gray-400">⏳ 保存中...</span>';
@@ -619,17 +621,17 @@ async function saveCellFormula() {
       const existing = checkRes.error ? [] : (Array.isArray(checkRes.data) ? checkRes.data : (checkRes.data.results || []));
       if (existing.some(function(v) { return v.name === name; })) {
         showToast('error', '变量名「' + name + '」已存在，请使用不同的名称');
-        statusEl.innerHTML = '<span class=\"text-red-500\">❌ 变量名重复</span>';
+        statusEl.innerHTML = '<span class="text-red-500">❌ 变量名重复</span>';
         return;
       }
-      const res = await apiCall('POST', 'part-variables/', { part: pid, name: name, formula: formula, description: description });
-      if (res.error) { showToast('error', '创建失败: ' + res.error); statusEl.innerHTML = '<span class=\"text-red-500\">❌ ' + escHtml(res.error) + '</span>'; return; }
+      const res = await apiCall('POST', 'part-variables/', { part: pid, name: name, formula: formula, description: description, var_type: varType });
+      if (res.error) { showToast('error', '创建失败: ' + res.error); statusEl.innerHTML = '<span class="text-red-500">❌ ' + escHtml(res.error) + '</span>'; return; }
     } else {
       // Edit mode
-      const res = await apiCall('PATCH', 'part-variables/' + _ceVarEditId + '/', { name: name, formula: formula, description: description });
-      if (res.error) { showToast('error', '保存失败: ' + res.error); statusEl.innerHTML = '<span class=\"text-red-500\">❌ ' + escHtml(res.error) + '</span>'; return; }
+      const res = await apiCall('PATCH', 'part-variables/' + _ceVarEditId + '/', { name: name, formula: formula, description: description, var_type: varType });
+      if (res.error) { showToast('error', '保存失败: ' + res.error); statusEl.innerHTML = '<span class="text-red-500">❌ ' + escHtml(res.error) + '</span>'; return; }
     }
-    statusEl.innerHTML = '<span class=\"text-green-600\">✅ 已保存</span>';
+    statusEl.innerHTML = '<span class="text-green-600">✅ 已保存</span>';
     clearAreaDirty('variables');
     setTimeout(function() {
       document.getElementById('pbs-ce-overlay').classList.remove('open');

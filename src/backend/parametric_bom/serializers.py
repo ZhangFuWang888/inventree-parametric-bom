@@ -294,7 +294,7 @@ class PartVariableSerializer(serializers.ModelSerializer):
         model = PartVariable
         fields = [
             'id', 'part', 'part_name',
-            'name', 'formula', 'description',
+            'name', 'formula', 'description', 'var_type',
             'display_order', 'created_at', 'updated_at',
             'computed_value',
         ]
