@@ -55,10 +55,10 @@ function cartToggle() {
   if (!open) {
     cartLoad();
     panel.classList.add('open');
-    if (overlay) overlay.classList.add('show');
+    if (overlay) overlay.classList.add('cart-show');
   } else {
     panel.classList.remove('open');
-    if (overlay) overlay.classList.remove('show');
+    if (overlay) overlay.classList.remove('cart-show');
   }
 }
 
@@ -66,7 +66,7 @@ function cartClose() {
   const panel = document.getElementById('cart-panel');
   const overlay = document.getElementById('cart-overlay');
   if (panel) panel.classList.remove('open');
-  if (overlay) overlay.classList.remove('show');
+  if (overlay) overlay.classList.remove('cart-show');
 }
 
 // ===== Load =====

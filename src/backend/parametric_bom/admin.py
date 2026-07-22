@@ -7,6 +7,7 @@ from parametric_bom.models import (
     BomSpecification,
     ConfigParameterValue,
     InheritanceMapping,
+    ParameterChangeLog,
     ParametricBomItem,
     ParametricRule,
     PartAttributeFormula,
@@ -154,3 +155,12 @@ class ProjectMembershipAdmin(admin.ModelAdmin):
     list_display = ['project', 'user', 'role', 'created_at']
     search_fields = ['project__name', 'user__username']
     list_filter = ['role__name']
+
+
+@admin.register(ParameterChangeLog)
+class ParameterChangeLogAdmin(admin.ModelAdmin):
+    """Admin for ParameterChangeLog."""
+    list_display = ['param_name', 'action', 'part', 'user', 'created_at']
+    list_filter = ['action', 'created_at']
+    search_fields = ['param_name', 'part__name', 'user__username']
+    readonly_fields = ['created_at']

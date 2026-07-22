@@ -11,6 +11,7 @@ from parametric_bom.models import (
     CartItem,
     ConfigParameterValue,
     InheritanceMapping,
+    ParameterChangeLog,
     ParametricBomItem,
     ParametricRule,
     PartAttributeFormula,
@@ -49,7 +50,27 @@ class PartParameterConfigSerializer(serializers.ModelSerializer):
             'default_value', 'min_value', 'max_value', 'step_value',
             'is_driving',
             'ui_hint', 'display_order', 'visible_on_config',
+            'is_deleted',
         ]
+        read_only_fields = ['is_deleted']
+
+
+class ParameterChangeLogSerializer(serializers.ModelSerializer):
+    """Serializer for ParameterChangeLog."""
+
+    part_name = serializers.CharField(source='part.name', read_only=True)
+    username = serializers.CharField(source='user.username', read_only=True, default='')
+
+    class Meta:
+        """Meta options."""
+        model = ParameterChangeLog
+        fields = [
+            'id', 'param_config', 'part', 'part_name',
+            'action', 'param_name', 'field_name',
+            'old_value', 'new_value',
+            'user', 'username', 'created_at',
+        ]
+        read_only_fields = fields
 
 
 class ParametricBomItemSerializer(serializers.ModelSerializer):

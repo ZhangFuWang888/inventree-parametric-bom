@@ -325,6 +325,7 @@ function switchProductTab(tab) {
   if (tab === 'params') loadPdParams();
   else if (tab === 'bom') loadPdBOMM();
   else if (tab === 'configurator') loadPdConfigurator();
+  else if (tab === 'logs') loadPdLogs();
   else if (tab === 'variables') loadPdVariables();
 }
 
@@ -372,7 +373,7 @@ function markDirty(cfgId, updates) {
     if (!entries.length) return;
     const btn = document.getElementById('btn-save-params');
     const origText = btn ? btn.textContent : '';
-    if (btn) { btn.disabled = true; btn.textContent = '⏳ 保存中...'; }
+    if (btn) { btn.disabled = true; btn.textContent = '保存中...'; }
     let ok = 0;
     for (const [cid, upd] of entries) {
       const r = await apiCall('PATCH', 'part-config/' + cid + '/', upd);
@@ -466,7 +467,7 @@ async function saveAllParams() {
   }
 
   const btn = document.getElementById('btn-save-params');
-  if (btn) { btn.disabled = true; btn.textContent = '⏳ 保存中...'; }
+  if (btn) { btn.disabled = true; btn.textContent = '保存中...'; }
 
   setStatus('loading', `正在保存 ${entries.length} 项修改...`);
   let success = 0, fail = 0;
@@ -477,7 +478,7 @@ async function saveAllParams() {
     else fail++;
   }
 
-  if (btn) { btn.disabled = false; btn.textContent = '💾 保存修改'; }
+  if (btn) { btn.disabled = false; btn.textContent = '保存修改'; }
 
   if (fail === 0) {
     setStatus('success', `✅ 全部 ${success} 项修改已保存`);
@@ -671,7 +672,7 @@ function renderParamCard(cfg, idx) {
     </div>
     <div class="param-card-footer">
       <div style="flex:1"></div>
-      <button class="pc-action-btn danger" onclick="deleteParamConfig(${cfgId}, '${safeName}')" title="删除">🗑️ 删除</button>
+      <button class="pc-action-btn danger" onclick="deleteParamConfig(${cfgId}, '${safeName}')" title="删除">删除</button>
     </div>
   </div>`;
 }
@@ -1079,8 +1080,8 @@ function renderBOMTable(items, pcfgMap, vmByPbi) {
 
     const escName = subPartName.replace(/'/g,"\\'");
     const escIpn = (subPartRef || '').replace(/'/g,"\\'");
-    rowHtml += '<td class="text-center"><button class="text-gray-400 hover:text-blue-600 text-xs p-1 rounded hover:bg-blue-50" onclick="copyBomItem(' + item.pk + ')" title="复制BOM项">📄</button></td>';
-    rowHtml += '<td class="text-center"><button class="text-red-400 hover:text-red-600 text-xs p-1 rounded hover:bg-red-50" onclick="resetBomConfig(' + item.pk + ",'" + escName + "')" + '" title="从BOM移除">✕</button></td></tr>';
+    rowHtml += '<td class="text-center"><button class="text-gray-400 hover:text-blue-600 text-xs p-1 rounded hover:bg-blue-50" onclick="copyBomItem(' + item.pk + ')" title="复制BOM项">复制</button></td>';
+    rowHtml += '<td class="text-center"><button class="text-red-400 hover:text-red-600 text-xs p-1 rounded hover:bg-red-50" onclick="resetBomConfig(' + item.pk + ",'" + escName + "')" + '" title="从BOM移除">移除</button></td></tr>';
     html += rowHtml;
   }
     html += '</tbody></table>';
@@ -1345,4 +1346,86 @@ function selectTemplatePart(mappingId, newPartId) {
     setStatus('success', '模板零件已更换');
     loadPdBOMM();
   });
+}
+
+// ===== PARAMETER OPERATION LOGS =====
+
+async function loadPdLogs() {
+  const pid = configuratorPartId;
+  console.log('[loadPdLogs] START, pid=', pid);
+  if (!pid) {
+    console.warn('[loadPdLogs] NO PART ID');
+    return;
+  }
+  const container = document.getElementById('pd-logs-list');
+  container.innerHTML = '<div class="flex items-center justify-center py-8"><span class="spinner mr-2"></span><span class="text-sm text-gray-400">加载中...</span></div>';
+
+  const url = `param-logs/?part=${parseInt(pid)}&ordering=-created_at&limit=200`;
+  console.log('[loadPdLogs] fetching:', url);
+  const res = await apiCall('GET', url);
+  console.log('[loadPdLogs] response:', res);
+  if (res.error) {
+    container.innerHTML = '<div class="text-red-500 text-sm p-4 text-center">❌ 加载日志失败</div>';
+    return;
+  }
+  const logs = res.data.results || (Array.isArray(res.data) ? res.data : []);
+  console.log('[loadPdLogs] logs count:', logs.length);
+  if (!logs.length) {
+    container.innerHTML = '<div class="empty-state" style="padding:2.5rem 1rem"><div class="icon">📋</div><p>暂无操作日志</p><p class="text-xs text-gray-400 mt-1">操作参数后将自动记录日志</p></div>';
+    return;
+  }
+
+  // Action type styling
+  const actionTypeMap = {
+    create: {label: '➕ 创建', cls: 'text-green-700 bg-green-50'},
+    update: {label: '✏️ 修改', cls: 'text-blue-700 bg-blue-50'},
+    delete: {label: '🗑️ 删除', cls: 'text-red-700 bg-red-50'},
+    restore: {label: '♻️ 恢复', cls: 'text-purple-700 bg-purple-50'},
+  };
+
+  let html = '<div class="overflow-x-auto"><table class="w-full text-xs border-collapse" style="min-width:600px">';
+  html += '<thead><tr class="bg-gray-100 text-gray-600 uppercase tracking-wider text-[10px]">';
+  html += '<th class="p-2.5 text-left font-semibold border-b border-gray-200">时间</th>';
+  html += '<th class="p-2.5 text-left font-semibold border-b border-gray-200">操作</th>';
+  html += '<th class="p-2.5 text-left font-semibold border-b border-gray-200">参数名</th>';
+  html += '<th class="p-2.5 text-left font-semibold border-b border-gray-200">字段</th>';
+  html += '<th class="p-2.5 text-left font-semibold border-b border-gray-200">旧值 → 新值</th>';
+  html += '<th class="p-2.5 text-left font-semibold border-b border-gray-200">操作人</th>';
+  html += '</tr></thead><tbody>';
+
+  logs.forEach(function(log, i) {
+    const am = actionTypeMap[log.action] || {label: log.action, cls: 'text-gray-700 bg-gray-50'};
+    const ts = log.created_at ? new Date(log.created_at).toLocaleString('zh-CN', {hour12: false}) : '—';
+    const bgClass = i % 2 === 0 ? 'bg-white' : 'bg-gray-50/50';
+    const oldVal = log.old_value ? `<span class="text-gray-400 line-through">${escapeHtml(log.old_value)}</span>` : '';
+    const newVal = log.new_value ? `<span class="text-gray-800 font-medium">${escapeHtml(log.new_value)}</span>` : '';
+    let changeStr = '—';
+    if (oldVal && newVal) changeStr = `${oldVal} <span class="text-gray-300 mx-0.5">→</span> ${newVal}`;
+    else if (oldVal) changeStr = oldVal;
+    else if (newVal) changeStr = newVal;
+
+    html += `<tr class="${bgClass} hover:bg-blue-50/50 transition-colors">`;
+    html += `<td class="p-2.5 text-gray-500 border-b border-gray-100 whitespace-nowrap">${ts}</td>`;
+    html += `<td class="p-2.5 border-b border-gray-100"><span class="inline-block px-1.5 py-0.5 rounded text-[10px] font-medium ${am.cls}">${am.label}</span></td>`;
+    html += `<td class="p-2.5 text-gray-700 border-b border-gray-100 font-medium">${escapeHtml(log.param_name || '—')}</td>`;
+    html += `<td class="p-2.5 text-gray-500 border-b border-gray-100">${escapeHtml(log.field_name || '—')}</td>`;
+    html += `<td class="p-2.5 border-b border-gray-100 text-xs">${changeStr}</td>`;
+    html += `<td class="p-2.5 text-gray-500 border-b border-gray-100">${escapeHtml(log.username || '—')}</td>`;
+    html += '</tr>';
+  });
+
+  html += '</tbody></table></div>';
+  html += `<div class="flex items-center justify-between mt-2 px-1"><span class="text-[10px] text-gray-400">共 ${logs.length} 条日志</span></div>`;
+
+  console.log('[loadPdLogs] setting innerHTML, container found:', !!container, 'html length:', html.length);
+  container.innerHTML = html;
+  console.log('[loadPdLogs] innerHTML set, rendered length:', container.innerHTML.length);
+}
+
+// Simple HTML escaping helper
+function escapeHtml(str) {
+  if (!str) return '';
+  const div = document.createElement('div');
+  div.appendChild(document.createTextNode(str));
+  return div.innerHTML;
 }

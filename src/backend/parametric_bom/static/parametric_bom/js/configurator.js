@@ -19,7 +19,7 @@ function openAddVariableModal() {
   avDestroyCm();
   document.getElementById('av-editing-id').value = '';
   document.querySelector('#modal-add-variable h3').textContent = '📐 新建中间变量';
-  document.querySelector('#modal-add-variable .btn-primary').innerHTML = '✅ 创建变量';
+  document.querySelector('#modal-add-variable .btn-primary').innerHTML = '创建变量';
   document.getElementById('av-name').value = '';
   document.getElementById('av-formula').value = '';
   document.getElementById('av-description').value = '';
@@ -40,7 +40,7 @@ function openEditVariableModal(vid, name, formula, desc) {
   avDestroyCm();
   document.getElementById('av-editing-id').value = vid;
   document.querySelector('#modal-add-variable h3').textContent = '✏️ 编辑变量';
-  document.querySelector('#modal-add-variable .btn-primary').innerHTML = '💾 保存修改';
+  document.querySelector('#modal-add-variable .btn-primary').innerHTML = '保存修改';
   document.getElementById('av-name').value = name || '';
   document.getElementById('av-formula').value = formula || '';
   document.getElementById('av-description').value = desc || '';

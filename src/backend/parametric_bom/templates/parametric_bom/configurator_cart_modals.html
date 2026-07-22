@@ -29,9 +29,9 @@
       <span id="cart-total-amount">¥0.00</span>
     </div>
     <div class="flex gap-2 w-full">
-      <button class="btn btn-secondary flex-1 py-2 text-sm" onclick="cartExportCSV()">📥 导单</button>
-      <button class="btn btn-success flex-1 py-2 text-sm" onclick="submitCartAsProject()">📦 提交项目</button>
-      <button class="btn btn-primary flex-1 py-2 text-sm" onclick="cartCreateOrder()">📋 下单</button>
+      <button class="btn btn-secondary flex-1 py-2 text-sm" onclick="cartExportCSV()">导单</button>
+      <button class="btn btn-success flex-1 py-2 text-sm" onclick="submitCartAsProject()">提交项目</button>
+      <button class="btn btn-primary flex-1 py-2 text-sm" onclick="cartCreateOrder()">下单</button>
     </div>
   </div>
 </div>
@@ -109,7 +109,7 @@
     </div>
     <div class="flex justify-end gap-2 mt-3">
       <button class="btn btn-secondary" onclick="closeModal('modal-add-variable')">取消</button>
-      <button class="btn btn-primary" onclick="confirmAddVariable()">✅ 创建变量</button>
+      <button class="btn btn-primary" onclick="confirmAddVariable()">创建变量</button>
     </div>
   </div>
 </div>
@@ -281,7 +281,7 @@
     </div>
     <div class="mb-3">
       <label class="block text-xs font-medium text-gray-500 mb-1">参数映射</label>
-      <button class="btn btn-sm btn-outline-secondary text-[10px]" onclick="abEditParamMapping()" type="button">📐 编辑参数映射</button>
+      <button class="btn btn-sm btn-outline-secondary text-[10px]" onclick="abEditParamMapping()" type="button">编辑参数映射</button>
       <span class="text-[10px] text-gray-400 ml-2" id="ab-mapping-count">未配置</span>
     </div>
 
@@ -332,6 +332,17 @@
     <div class="flex justify-end gap-2">
       <button class="btn btn-secondary" onclick="closeModal('modal-batch-options')">取消</button>
       <button class="btn btn-primary" id="btn-batch-import" onclick="batchImportOptions()">导入选项</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== TEST MODAL: blank ===== -->
+<div class="modal-overlay" id="modal-test">
+  <div class="modal-box" style="max-width:400px">
+    <h3 class="text-base font-semibold text-gray-800 mb-4">🧪 测试弹窗</h3>
+    <p class="text-sm text-gray-600 mb-4">如果看到这个弹窗，说明弹窗机制正常！</p>
+    <div class="flex justify-end gap-2">
+      <button class="btn btn-secondary" onclick="closeModal('modal-test')">关闭</button>
     </div>
   </div>
 </div>

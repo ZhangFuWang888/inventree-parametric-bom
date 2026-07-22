@@ -8,6 +8,7 @@ from parametric_bom.api import (
     BomSpecificationViewSet,
     ConfigParameterValueViewSet,
     InheritanceMappingViewSet,
+    ParameterChangeLogViewSet,
     ParametricBomItemViewSet,
     ParametricRuleViewSet,
     PartAttributeFormulaViewSet,
@@ -65,6 +66,7 @@ router.register(r'attributes', PartAttributeFormulaViewSet)
 router.register(r'part-variables', PartVariableViewSet)
 router.register(r'projects', ProjectViewSet)
 router.register(r'parts-lite', PartLiteViewSet, basename='part-lite')
+router.register(r'param-logs', ParameterChangeLogViewSet)
 
 urlpatterns = [
     path('api/', include(router.urls)),

@@ -193,6 +193,17 @@ class PartParameterConfig(models.Model):
         verbose_name=_('Visible on configurator'),
         help_text=_('Show this parameter on the product configurator page'),
     )
+    is_deleted = models.BooleanField(
+        default=False,
+        verbose_name=_('Deleted'),
+        help_text=_('Soft-delete flag — parameter is hidden but not removed from DB'),
+    )
+    deleted_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name=_('Deleted at'),
+        help_text=_('When the parameter was soft-deleted'),
+    )
 
     class Meta:
         """Meta options for PartParameterConfig."""
@@ -205,6 +216,90 @@ class PartParameterConfig(models.Model):
     def __str__(self):
         """Human-readable representation."""
         return f'{self.part} → {self.template}'
+
+
+# ──────────────────────────────────────────────
+#  Parameter Operation Audit Log
+# ──────────────────────────────────────────────
+
+class ParameterChangeLog(models.Model):
+    """Audit trail for all parameter operations on a Part.
+
+    Logs every create, update, delete (soft), and restore action
+    on PartParameterConfig records, including which fields changed
+    and what the old/new values were.
+    """
+
+    class ActionChoices(models.TextChoices):
+        CREATE = 'create', _('Create')
+        UPDATE = 'update', _('Update')
+        DELETE = 'delete', _('Delete')
+        RESTORE = 'restore', _('Restore')
+
+    param_config = models.ForeignKey(
+        PartParameterConfig,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='change_logs',
+        verbose_name=_('Parameter config'),
+        help_text=_('The parameter config this log entry relates to'),
+    )
+    part = models.ForeignKey(
+        'part.Part',
+        on_delete=models.CASCADE,
+        related_name='parameter_logs',
+        verbose_name=_('Part'),
+    )
+    action = models.CharField(
+        max_length=16,
+        choices=ActionChoices.choices,
+        verbose_name=_('Action'),
+    )
+    param_name = models.CharField(
+        max_length=128,
+        blank=True,
+        default='',
+        verbose_name=_('Parameter name'),
+        help_text=_('Name of the parameter at the time of the action'),
+    )
+    field_name = models.CharField(
+        max_length=64,
+        blank=True,
+        default='',
+        verbose_name=_('Field name'),
+        help_text=_('Which field was changed (for update actions)'),
+    )
+    old_value = models.TextField(
+        blank=True,
+        default='',
+        verbose_name=_('Old value'),
+    )
+    new_value = models.TextField(
+        blank=True,
+        default='',
+        verbose_name=_('New value'),
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name=_('User'),
+    )
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name=_('Created at'),
+    )
+
+    class Meta:
+        app_label = 'parametric_bom'
+        verbose_name = _('Parameter change log')
+        verbose_name_plural = _('Parameter change logs')
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f'{self.get_action_display()} {self.param_name} on part {self.part_id}'
 
 
 # ──────────────────────────────────────────────

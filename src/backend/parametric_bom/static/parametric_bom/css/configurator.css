@@ -393,6 +393,13 @@ header .text-sm.font-semibold{
 #project-tab-logs .card{flex:1;display:flex;flex-direction:column;min-height:0;padding-bottom:0}
 #project-tab-logs .log-list{flex:1;overflow-y:auto;min-height:0}
 
+/* Product detail logs tab: card styling and height */
+#page-product-detail #pd-tab-logs .card{min-height:200px}
+#page-product-detail #pd-tab-logs .card table{width:100%}
+#pd-logs-list{overflow-x:auto}
+#pd-logs-list table th{white-space:nowrap}
+#pd-logs-list table td{white-space:nowrap;max-width:200px;overflow:hidden;text-overflow:ellipsis}
+
 #page-project-detail .btn-primary,
 #page-projects .btn-success,
 #page-project-detail .btn-success,
@@ -471,7 +478,7 @@ textarea.input-field{resize:vertical;font-family:monospace;font-size:0.75rem}
 
 /* Modal */
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.4);display:none;align-items:center;justify-content:center;z-index:60;backdrop-filter:blur(2px)}
-.modal-overlay.show{display:flex}
+.modal-overlay.modal-show{display:flex}
 .modal-box{background:#fff;border-radius:14px;padding:1.5rem;max-width:600px;width:92%;max-height:85vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.18)}
 
 /* Action result */
@@ -975,7 +982,7 @@ textarea.input-field{resize:vertical;font-family:monospace;font-size:0.75rem}
 .cart-panel-header{display:flex;align-items:center;justify-content:space-between;padding:0.875rem 1rem;border-bottom:2px solid #2563eb;font-size:0.9375rem;font-weight:700;color:#1e293b;background:#f8fafc}
 .cart-panel.open{transform:translateX(0)}
 .cart-panel-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.35);z-index:50;display:none;backdrop-filter:blur(2px)}
-.cart-panel-overlay.show{display:block}
+.cart-panel-overlay.cart-show{display:block}
 .cart-panel{position:fixed;top:0;right:0;width:420px;max-width:92vw;height:100vh;background:#fff;z-index:55;box-shadow:-6px 0 32px rgba(0,0,0,0.15);display:flex;flex-direction:column;transform:translateX(100%);transition:transform 0.3s cubic-bezier(0.25,0.46,0.45,0.94);border-radius:12px 0 0 12px}
 /* Product action buttons */
 /* Sidebar cart badge — removed, cart FAB is the sole entry point */

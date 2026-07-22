@@ -23,6 +23,7 @@ from parametric_bom.models import (
     ConfigParameterValue,
     ConfigStatusChoices,
     InheritanceMapping,
+    ParameterChangeLog,
     ParametricBomItem,
     ParametricRule,
     PartAttributeFormula,
@@ -155,18 +156,104 @@ class PartParameterConfigViewSet(viewsets.ModelViewSet):
     serializer_class = PartParameterConfigSerializer
     permission_classes = [permissions.IsAuthenticated]
     filter_backends = SEARCH_ORDER_FILTER
-    filterset_fields = ['part', 'is_driving']
+    filterset_fields = ['part', 'is_driving', 'is_deleted']
     search_fields = ['name', 'part__name', 'ui_hint']
 
+    def get_queryset(self):
+        """Default: exclude soft-deleted records."""
+        qs = super().get_queryset()
+        # If explicitly filtering by is_deleted, respect that
+        if self.request.query_params.get('is_deleted') is not None:
+            return qs
+        return qs.filter(is_deleted=False)
+
+    def _log(self, instance, action, field_name='', old_value='', new_value=''):
+        """Create a log entry for a parameter operation."""
+        try:
+            user = self.request.user if self.request and hasattr(self.request, 'user') else None
+            ParameterChangeLog.objects.create(
+                param_config=instance,
+                part=instance.part,
+                action=action,
+                param_name=instance.name or (instance.template.name if instance.template else ''),
+                field_name=field_name,
+                old_value=str(old_value) if old_value else '',
+                new_value=str(new_value) if new_value else '',
+                user=user if user and user.is_authenticated else None,
+            )
+        except Exception as e:
+            logger.warning(f'Failed to log parameter change: {e}')
+
+    def perform_create(self, serializer):
+        """Log parameter creation."""
+        instance = serializer.save()
+        self._log(instance, 'create')
+
+    def perform_update(self, serializer):
+        """Log parameter updates with field-level detail."""
+        old = serializer.instance
+        changes = {}
+        for field in ['name', 'parameter_type', 'default_value', 'min_value',
+                       'max_value', 'step_value', 'options', 'is_driving',
+                       'ui_hint', 'display_order', 'visible_on_config']:
+            old_val = getattr(old, field, None)
+            new_val = serializer.validated_data.get(field, old_val)
+            if old_val != new_val:
+                changes[field] = (old_val, new_val)
+
+        instance = serializer.save()
+
+        if changes:
+            for field, (old_v, new_v) in changes.items():
+                self._log(instance, 'update', field_name=field,
+                          old_value=str(old_v) if old_v is not None else '',
+                          new_value=str(new_v) if new_v is not None else '')
+        else:
+            # Still log a generic update if no field-level change detected
+            self._log(instance, 'update')
+
     def perform_destroy(self, instance):
-        """Prevent deletion if parameter is referenced by any formula."""
+        """Soft-delete: set is_deleted flag instead of removing from DB."""
         refs = _find_param_references(
             instance.part_id, instance.name or (instance.template.name if instance.template else '')
         )
         if refs:
             detail = '该参数被以下公式引用，无法删除：\n' + '\n'.join(refs)
             raise PermissionDenied(detail=detail)
-        instance.delete()
+
+        from django.utils import timezone
+        param_name = instance.name or (instance.template.name if instance.template else '')
+        instance.is_deleted = True
+        instance.deleted_at = timezone.now()
+        instance.save(update_fields=['is_deleted', 'deleted_at'])
+        self._log(instance, 'delete', new_value='true')
+
+    @action(detail=True, methods=['post'])
+    def restore(self, request, pk=None):
+        """Restore a soft-deleted parameter."""
+        instance = self.get_object()
+        if not instance.is_deleted:
+            return Response({'detail': '该参数未被删除'}, status=status.HTTP_400_BAD_REQUEST)
+        pname = instance.name or (instance.template.name if instance.template else '')
+        instance.is_deleted = False
+        instance.save(update_fields=['is_deleted'])
+        self._log(instance, 'restore', new_value='false')
+        return Response({'detail': f'参数「{pname}」已恢复', 'id': instance.id})
+
+
+class ParameterChangeLogViewSet(viewsets.ReadOnlyModelViewSet):
+    """API endpoint for viewing parameter change logs."""
+    queryset = ParameterChangeLog.objects.select_related('part', 'user').all()
+    permission_classes = [permissions.IsAuthenticated]
+    filter_backends = SEARCH_ORDER_FILTER
+    filterset_fields = ['part', 'action', 'param_config']
+    search_fields = ['param_name', 'field_name']
+    ordering_fields = ['created_at']
+    ordering = ['-created_at']
+
+    def get_serializer_class(self):
+        from parametric_bom.serializers import ParameterChangeLogSerializer
+        return ParameterChangeLogSerializer
 
 
 class ParametricBomItemViewSet(viewsets.ModelViewSet):

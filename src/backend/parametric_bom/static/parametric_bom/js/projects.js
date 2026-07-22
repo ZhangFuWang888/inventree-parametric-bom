@@ -1463,7 +1463,7 @@ function closeModal(id) {
   if (id) {
     // formula-pages.js style: close by element id
     const el = document.getElementById(id);
-    if (el) { el.classList.remove('show'); document.body.style.overflow = ''; }
+    if (el) { el.style.setProperty('display', 'none', 'important'); document.body.style.overflow = ''; }
     return;
   }
   // projects.js style: close overlay by id
