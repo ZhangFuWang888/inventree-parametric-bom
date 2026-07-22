@@ -147,12 +147,17 @@ function switchPage(page) {
   if (page === 'projects') { 
     window._projectPage = 1; 
     renderProjectList();
-    // Clean up URL
-    const url = new URL(window.location);
-    if (url.searchParams.has('project') || url.searchParams.get('page') === 'project-detail') {
-      url.searchParams.delete('project');
-      url.searchParams.delete('page');
-      window.history.replaceState({page: 'projects'}, '', url);
+    // Clean up URL: if on clean path /parametric-bom/projects/<id>/, go back to /parametric-bom/projects/
+    const currentPath = window.location.pathname;
+    if (currentPath.match(/^\/parametric-bom\/projects\/\d+\/?$/)) {
+      window.history.replaceState({page: 'projects'}, '', '/parametric-bom/projects/');
+    } else {
+      const url = new URL(window.location);
+      if (url.searchParams.has('project') || url.searchParams.get('page') === 'project-detail') {
+        url.searchParams.delete('project');
+        url.searchParams.delete('page');
+        window.history.replaceState({page: 'projects'}, '', url);
+      }
     }
   }
   else if (page === 'project-detail') { 

@@ -52,7 +52,7 @@ admin.site.site_header = get_setting(
 
 
 from parametric_bom.urls import parametric_api_urls
-from parametric_bom.views import configurator_view, product_standalone_view
+from parametric_bom.views import configurator_view, product_standalone_view, project_detail_view
 
 apipatterns = [
     # Global search
@@ -177,6 +177,9 @@ urlpatterns += [
     # Removed: three-step configurator → return 404
     path('parametric-bom/config/', lambda r: HttpResponseNotFound('<h1>404 - 页面不存在</h1>'), name='parametric-config-gone'),
     path('parametric-bom/rules/', configurator_view, {'page': 'rules'}, name='parametric-rules'),
+    # Project pages (independent URLs)
+    path('parametric-bom/projects/', configurator_view, {'page': 'projects'}, name='parametric-projects'),
+    path('parametric-bom/projects/<int:project_id>/', project_detail_view, name='parametric-project-detail'),
     # Legacy redirect
     path('configurator/', RedirectView.as_view(url='/parametric-bom/', permanent=True)),
     # Standalone product configuration (opens in new window)

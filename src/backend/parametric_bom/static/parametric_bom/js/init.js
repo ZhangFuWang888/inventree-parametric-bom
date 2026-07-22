@@ -138,19 +138,35 @@ document.addEventListener('DOMContentLoaded', async function() {
     }
   }
   
-  // Auto-switch to initial page (from URL ?page=...)
+  // Auto-switch to initial page (from URL ?page=... or clean URL path)
   // Only in non-standalone mode, and only if we didn't already switch to a product detail
   if (!standalone && initialPage && initialPage !== 'home' && !initialProductId) {
-    try { switchPage(initialPage); } catch(e) {}
+    // Handle project-detail from clean URL (/parametric-bom/projects/<id>/)
+    if (initialPage === 'project-detail' && initial_product_id) {
+      try {
+        switchPage('project-detail');
+        setTimeout(() => showProjectDetail(parseInt(initial_product_id)), 100);
+      } catch(e) {}
+    } else {
+      try { switchPage(initialPage); } catch(e) {}
+    }
   }
   
-  // Auto-load project detail from ?project=ID query param (refresh/bookmark)
+  // Auto-load project detail from ?project=ID query param (backward compat, refresh/bookmark)
   const urlParams = new URLSearchParams(window.location.search);
   const projectFromUrl = urlParams.get('project');
   if (projectFromUrl && !isNaN(parseInt(projectFromUrl))) {
     try {
       // Small delay to let the tab panel render first
       setTimeout(() => showProjectDetail(parseInt(projectFromUrl)), 100);
+    } catch(e) {}
+  }
+  
+  // Also check path-based URL for project detail (e.g., /parametric-bom/projects/3/)
+  const projectMatch = window.location.pathname.match(/^\/parametric-bom\/projects\/(\d+)\/?$/);
+  if (projectMatch && !projectFromUrl) {
+    try {
+      setTimeout(() => showProjectDetail(parseInt(projectMatch[1])), 100);
     } catch(e) {}
   }
   

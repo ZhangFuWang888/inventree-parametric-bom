@@ -16,6 +16,7 @@ VALID_PAGES = {
     'bom': 'BOM公式',
     'config': '产品配置器',
     'projects': '项目管理',
+    'project-detail': '项目详情',
 }
 
 # Map URL path names to page values
@@ -67,6 +68,22 @@ def configurator_view(request, page='home'):
         except (ValueError, TypeError):
             pass
 
+    return render(request, 'parametric_bom/configurator.html', context)
+
+
+@login_required
+def project_detail_view(request, project_id):
+    """Render project detail page with independent URL.
+
+    Args:
+        request: Django HTTP request
+        project_id: Project primary key
+    """
+    context = {
+        'initial_page': 'project-detail',
+        'page_title': '项目详情',
+        'initial_project_id': int(project_id),
+    }
     return render(request, 'parametric_bom/configurator.html', context)
 
 

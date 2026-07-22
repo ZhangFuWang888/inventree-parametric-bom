@@ -257,15 +257,13 @@ async function showProjectDetail(projectId) {
   }
   const p = result.data;
   window._currentProjectId = projectId;
-  // Update URL so page can be refreshed/bookmarked
-  const stateUrl = new URL(window.location);
-  const currentProject = stateUrl.searchParams.get('project');
-  stateUrl.searchParams.set('page', 'project-detail');
-  stateUrl.searchParams.set('project', projectId);
-  if (currentProject == projectId) {
-    window.history.replaceState({page: 'project-detail', projectId}, '', stateUrl);
+  // Update URL to clean path (/parametric-bom/projects/<id>/)
+  const cleanUrl = '/parametric-bom/projects/' + projectId + '/';
+  const currentUrl = window.location.pathname;
+  if (currentUrl === cleanUrl) {
+    window.history.replaceState({page: 'project-detail', projectId}, '', cleanUrl);
   } else {
-    window.history.pushState({page: 'project-detail', projectId}, '', stateUrl);
+    window.history.pushState({page: 'project-detail', projectId}, '', cleanUrl);
   }
 
   const canEdit = (p.user_role === 'owner' || p.user_permissions?.includes('edit_project')) && p.is_active;
@@ -2311,11 +2309,24 @@ function getHeaders(json) {
 
 // ── Browser back/forward navigation for projects ──
 window.addEventListener('popstate', function(e) {
+  const path = window.location.pathname;
   const params = new URLSearchParams(window.location.search);
   const page = params.get('page');
   const projectId = params.get('project');
   
+  // Handle new clean URL format: /parametric-bom/projects/<id>/
+  const projectMatch = path.match(/^\/parametric-bom\/projects\/(\d+)\/?$/);
+  if (projectMatch) {
+    showProjectDetail(parseInt(projectMatch[1]));
+    return;
+  }
+  
+  // Handle old query param format (backward compatible)
   // Handle returning to project list
+  if (path === '/parametric-bom/projects/' || path === '/parametric-bom/projects') {
+    switchPage('projects');
+    return;
+  }
   if (!page || page === 'projects' || page === 'home') {
     switchPage('projects');
     return;
