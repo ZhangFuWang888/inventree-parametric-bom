@@ -148,6 +148,42 @@ def _find_variable_references(part_id, var_name):
     return results
 
 
+@api_view(['GET'])
+@permission_classes([permissions.IsAuthenticated])
+def param_references(request):
+    """Get all formula references for a parameter or variable on a part.
+
+    Query params:
+        part (int): Part ID.
+        name (str): Parameter name (without param. prefix) or variable name.
+        kind (str): 'param' or 'variable' (default 'param').
+    """
+    part_id = request.query_params.get('part')
+    name = request.query_params.get('name', '').strip()
+    kind = request.query_params.get('kind', 'param')
+
+    if not part_id or not name:
+        return Response({'error': '请提供 part 和 name 参数'}, status=400)
+
+    try:
+        part_id = int(part_id)
+    except (ValueError, TypeError):
+        return Response({'error': 'part 必须是整数'}, status=400)
+
+    if kind == 'variable':
+        refs = _find_variable_references(part_id, name)
+    else:
+        refs = _find_param_references(part_id, name)
+
+    return Response({
+        'part': part_id,
+        'name': name,
+        'kind': kind,
+        'count': len(refs),
+        'references': refs,
+    })
+
+
 class PartParameterConfigViewSet(viewsets.ModelViewSet):
     """API endpoint for PartParameterConfig."""
     queryset = PartParameterConfig.objects.select_related(

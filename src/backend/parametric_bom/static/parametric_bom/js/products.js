@@ -668,6 +668,7 @@ function renderParamCard(cfg, idx) {
       <span class="pc-drag-handle" draggable="true" ondragstart="onCardDragStart(event, ${cfgId})">⠿</span>
       <span class="pc-type-icon type-${type}">${icon}</span>
       <span class="pc-name" id="pc-name-${cfgId}" onclick="startRenameParam(${cfgId})" title="单击重命名">${safeName}</span>
+      <span class="cursor-pointer text-[10px] text-blue-400 hover:text-blue-600 ml-0.5" onclick="event.stopPropagation();showParamReferences(${cfgId},'${safeName}','param')" title="查看引用">🔗</span>
       <span class="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded font-medium">${typeLabel}</span>
     </div>
     <div class="param-card-body">
@@ -682,6 +683,60 @@ function renderParamCard(cfg, idx) {
       <button class="pc-action-btn danger" onclick="deleteParamConfig(${cfgId}, '${safeName}')" title="删除">删除</button>
     </div>
   </div>`;
+}
+
+// ── Dependency references popover ──
+async function showParamReferences(cfgId, paramName, kind) {
+  const pid = configuratorPartId;
+  if (!pid || !paramName) return;
+
+  // Remove any existing popover
+  var existing = document.getElementById('__ref_popover');
+  if (existing) existing.remove();
+
+  // Show loading tooltip
+  var anchor = document.getElementById('pc-name-' + cfgId);
+  if (!anchor) anchor = document.querySelector('[data-var-id="' + cfgId + '"]');
+  if (!anchor) return;
+
+  var pop = document.createElement('div');
+  pop.id = '__ref_popover';
+  pop.style.cssText = 'position:fixed;z-index:100;background:#fff;border:1px solid #e5e7eb;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,0.12);padding:8px 12px;font-size:12px;min-width:200px;max-width:400px';
+  // Position near the anchor
+  var rect = anchor.getBoundingClientRect();
+  pop.style.left = rect.left + 'px';
+  pop.style.top = (rect.bottom + 4) + 'px';
+  pop.innerHTML = '<div style="color:#9ca3af">⏳ 查询引用...</div>';
+  document.body.appendChild(pop);
+
+  var res = await apiCall('GET', 'param-references/?part=' + parseInt(pid) + '&name=' + encodeURIComponent(paramName) + '&kind=' + (kind || 'param'));
+  if (res.error) {
+    pop.innerHTML = '<div style="color:#ef4444">❌ 查询失败</div>';
+    setTimeout(function() { pop.remove(); }, 2000);
+    return;
+  }
+
+  var refs = res.data ? (res.data.references || []) : [];
+  if (!refs.length) {
+    pop.innerHTML = '<div style="color:#9ca3af">📭 未被任何公式引用</div>';
+    setTimeout(function() { pop.remove(); }, 2000);
+    return;
+  }
+
+  pop.style.maxHeight = '300px';
+  pop.style.overflowY = 'auto';
+  pop.innerHTML = '<div style="font-weight:600;color:#374151;margin-bottom:4px">📎 被 ' + refs.length + ' 处引用</div>' +
+    refs.map(function(r) { return '<div style="padding:2px 0;color:#6b7280;border-bottom:1px solid #f3f4f6;font-size:11px">' + escapeHtml(r) + '</div>'; }).join('');
+
+  // Close on click outside
+  setTimeout(function() {
+    document.addEventListener('click', function _closeRef(e) {
+      if (!pop.contains(e.target)) {
+        pop.remove();
+        document.removeEventListener('click', _closeRef);
+      }
+    });
+  }, 50);
 }
 
 // ── Boolean toggle helper ──

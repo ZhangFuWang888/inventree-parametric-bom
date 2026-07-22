@@ -44,6 +44,7 @@ from parametric_bom.api import (
     generate_variant,
     generate_variant_from_params,
     inherit_params,
+    param_references,
     rules_evaluate,
     template_library_auto_sync,
     template_library_bulk_assign,
@@ -88,6 +89,8 @@ parametric_api_urls = [
     # Parameter inheritance
     path('inherit/', inherit_params, name='inherit-params'),
     path('inherit/affected/<int:part_config_id>/', affected_variants, name='affected-variants'),
+    # References
+    path('param-references/', param_references, name='param-references'),
     # Template library
     path('template-library/sync/', template_library_sync, name='template-library-sync'),
     path('template-library/category/<int:category_id>/', template_library_category_detail, name='template-library-category-detail'),

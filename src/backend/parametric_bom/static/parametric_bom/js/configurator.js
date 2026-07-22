@@ -233,7 +233,7 @@ async function loadPdVariables() {
     const computedVal = v.computed_value;
     const fmlaShort = (v.formula || '').length > 30 ? escHtml(v.formula.substring(0, 30) + '…') : escFmla;
     html += `<tr id="pv-row-${v.id}">
-      <td ondblclick="pvEditCell(this, 'name')"><span class="pbs-name">${escName}</span></td>
+      <td ondblclick="pvEditCell(this, 'name')"><span class="pbs-name" data-var-id="${v.id}">${escName}</span> <span class="cursor-pointer text-[10px] text-blue-400 hover:text-blue-600" onclick="event.stopPropagation();showParamReferences(${v.id},'${escName.replace(/'/g, "\\'")}','variable')" title="查看引用">🔗</span></td>
       <td ondblclick="pvEditCell(this, 'formula')" title="双击编辑公式"><div class="pbs-formula-cell">${fmlaShort ? `<span class="fmla-text">${fmlaShort}</span>` : '<span class="fmla-empty">双击编辑公式</span>'}</div></td>
       <td><span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-xs font-mono font-medium ${computedVal != null ? 'bg-green-50 text-green-700 border border-green-200' : 'text-gray-400'}">${computedVal != null ? escHtml(String(computedVal)) : '—'}</span></td>
       <td ondblclick="pvEditCell(this, 'description')"><span class="pbs-ref">${escDesc || '<span class="text-gray-300 italic">—</span>'}</span></td>
