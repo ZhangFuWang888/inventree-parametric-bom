@@ -1411,24 +1411,14 @@ async function loadPdLogs() {
   html += '</div>';
 
   try {
-    container.innerHTML = html;
-    console.log('[loadPdLogs] rendered OK, html length:', html.length);
-    // 诊断容器可见性
-    var cs = getComputedStyle(container);
-    console.log('[loadPdLogs] container display:', cs.display, 'visibility:', cs.visibility, 'height:', cs.height, 'overflow:', cs.overflow);
-    var tab = document.getElementById('pd-tab-logs');
-    if (tab) console.log('[loadPdLogs] tab display:', getComputedStyle(tab).display);
-    // 强制确保可见
-    container.style.display = 'block';
-    container.style.visibility = 'visible';
-    container.style.height = 'auto';
-    container.style.overflow = 'visible';
-    // 🔥 核武器：直接加一个元素到页面底部，验证JS执行和渲染能力
+    // 直接替换整个 #pd-logs-list 容器，避开任何容器级CSS问题
+    container.outerHTML = '<div id="pd-logs-list" style="display:block!important;visibility:visible!important">' + html + '</div>';
+    console.log('[loadPdLogs] container REPLACED, html length:', html.length);
+    // 🔥 核武器
     var bomb = document.createElement('div');
-    bomb.id = '__log_test_bomb';
     bomb.innerHTML = '<div style="position:fixed;bottom:20px;right:20px;z-index:99999;background:red;color:#fff;padding:16px 24px;font-size:20px;font-weight:bold;border:4px solid yellow;border-radius:8px;box-shadow:0 4px 20px rgba(0,0,0,0.5)">🔥 日志已加载！(' + logs.length + '条)</div>';
     document.body.appendChild(bomb);
-    console.log('[loadPdLogs] BOMB appended to body');
+    console.log('[loadPdLogs] BOMB appended');
   } catch(e) {
     console.error('[loadPdLogs] render error:', e);
     container.innerHTML = '<div style="color:red;padding:20px;font-size:16px;border:3px solid red">❌ 渲染失败: ' + e.message + '</div>';
