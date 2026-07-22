@@ -419,23 +419,11 @@
       <div class="pd-tab-content" id="pd-tab-logs">
         <div class="card" style="padding:0.75rem">
           <div class="flex items-center justify-between mb-3">
-            <span class="text-xs font-semibold text-slate-500">📋 参数操作日志</span>
-            <button class="btn btn-sm btn-outline-secondary text-[10px] px-1.5 py-0.5" onclick="loadPdLogs()">🔄 刷新</button>
-          </div>
-          <!-- ✅ 测试标记：日志区域HTML已加载 -->
-          <div style="background:#10b981;color:#fff;padding:6px 12px;border-radius:6px;margin-bottom:8px;font-size:12px;font-weight:600">
-            ✅ 日志区域 HTML 已加载，以下为日志内容：
+            <span class="text-xs font-semibold text-slate-600">📋 操作日志</span>
+            <button class="btn btn-sm btn-primary" onclick="loadPdLogs()">🔄 刷新</button>
           </div>
           <div id="pd-logs-list">
-            <div style="background:#fef3c7;border:2px solid #f59e0b;padding:20px;border-radius:8px;text-align:center;margin-bottom:6px">
-              <div style="font-size:24px;margin-bottom:6px">📦</div>
-              <div style="font-size:13px;font-weight:600;color:#92400e">测试控件：如果你看到这个黄色框，说明 #pd-logs-list 容器正常渲染</div>
-              <div style="font-size:11px;color:#a16207;margin-top:4px">点击上方 🔄刷新 按钮加载日志数据</div>
-            </div>
-          </div>
-          <!-- 底部测试线 -->
-          <div style="border-top:2px dashed #e5e7eb;padding-top:8px;margin-top:8px;font-size:10px;color:#9ca3af;text-align:center">
-            ═══════════ 日志区域底部 ═══════════
+            <div class="empty-state"><div class="icon">⏳</div><p>加载日志列表...</p></div>
           </div>
         </div>
       </div>
