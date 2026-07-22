@@ -24,8 +24,8 @@ from parametric_bom.models import (
 @admin.register(PartParameterConfig)
 class PartParameterConfigAdmin(admin.ModelAdmin):
     """Admin for PartParameterConfig."""
-    list_display = ['part', 'template', 'parameter_type', 'is_driving', 'is_computed']
-    list_filter = ['parameter_type', 'is_driving', 'is_computed']
+    list_display = ['part', 'template', 'parameter_type', 'is_driving']
+    list_filter = ['parameter_type', 'is_driving']
     search_fields = ['part__name', 'template__name']
 
 

@@ -173,21 +173,9 @@ class PartParameterConfig(models.Model):
         verbose_name=_('Driving parameter'),
         help_text=_('User/customer provides this value during configuration'),
     )
-    is_computed = models.BooleanField(
-        default=False,
-        verbose_name=_('Computed parameter'),
-        help_text=_('Calculated automatically by a formula'),
-    )
-    computation_formula = models.CharField(
-        max_length=512,
-        blank=True,
-        default='',
-        verbose_name=_('Computation formula'),
-        help_text=_(
-            'Formula for computing this parameter value. '
-            'Example: param.载重 * param.速度 / 0.85'
-        ),
-    )
+    # Note: is_computed and computation_formula were removed.
+    # All parameters are now driving parameters (user-provided values).
+    # Formula-based computation is handled by PartVariable and BOM item formulas.
     ui_hint = models.CharField(
         max_length=256,
         blank=True,

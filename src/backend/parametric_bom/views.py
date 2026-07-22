@@ -6,6 +6,7 @@ allowing the single-page app to open on the correct tab.
 
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render
+from django.http import HttpResponse
 from django.views.decorators.clickjacking import xframe_options_sameorigin
 
 # Valid page values and their human labels
@@ -29,7 +30,6 @@ PATH_TO_PAGE = {
 }
 
 
-@login_required
 @xframe_options_sameorigin
 def configurator_view(request, page='home'):
     """Render the comprehensive parametric BOM configurator single-page app.
@@ -38,13 +38,15 @@ def configurator_view(request, page='home'):
         request: Django HTTP request
         page: Initial page/tab to display (default: 'home')
 
-    The ``page`` parameter can come from:
-      - URL keyword argument (for named routes)
-      - ``?page=...`` query parameter
-      - Falls back to ``?product=...`` for backward compatibility
-
-    Supports ?product=<id> query parameter to auto-open a product detail page.
+    Note: Does NOT use @login_required (which would 302-redirect in iframe).
+    Returns a minimal placeholder if not authenticated — the SPA handles auth.
     """
+    if not request.user.is_authenticated:
+        return HttpResponse(
+            '<div style="padding:2rem;text-align:center;color:#94a3b8">'
+            '请先登录</div>'
+        )
+
     product_id = request.GET.get('product')
 
     # Allow ?page= override in query string
@@ -71,18 +73,28 @@ def configurator_view(request, page='home'):
     return render(request, 'parametric_bom/configurator.html', context)
 
 
-@login_required
+@xframe_options_sameorigin
 def project_detail_view(request, project_id):
     """Render project detail page with independent URL.
 
     Args:
         request: Django HTTP request
         project_id: Project primary key
+
+    Note: Does NOT use @login_required (which would 302-redirect in iframe).
+    Returns a minimal placeholder if not authenticated — the SPA handles auth.
     """
+    if not request.user.is_authenticated:
+        return HttpResponse(
+            '<div style="padding:2rem;text-align:center;color:#94a3b8">'
+            '请先登录</div>'
+        )
+    embedded = request.GET.get('embedded', '0') == '1'
     context = {
         'initial_page': 'project-detail',
         'page_title': '项目详情',
         'initial_project_id': int(project_id),
+        'embedded': embedded,
     }
     return render(request, 'parametric_bom/configurator.html', context)
 

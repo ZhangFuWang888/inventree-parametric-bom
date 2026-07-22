@@ -840,7 +840,7 @@ function renderCfgParams() {
   const computedList = document.getElementById('cfg-computed-list');
   
   const drivingParams = cfgParams.filter(c => c.is_driving);
-  const computedParams = cfgParams.filter(c => c.is_computed);
+  // computed params removed - all params are driving
   
   if (!drivingParams.length && !computedParams.length) {
     container.innerHTML = '<div class="cfg-empty"><div class="cfg-empty-icon">🔧</div>该产品没有参数，先在参数Tab中添加</div>';
@@ -863,7 +863,7 @@ function renderCfgParams() {
     computedCard.style.display = 'block';
     let ch = '';
     computedParams.forEach(cfg => {
-      const name = cfg.name || '计算参数';
+      const name = cfg.name || '参数';
       const val = cfg.default_value || '—';
       ch += `<div class="cfg-computed-row">
         <span>${name}</span>

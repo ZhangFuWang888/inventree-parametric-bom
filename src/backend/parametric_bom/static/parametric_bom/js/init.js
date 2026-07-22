@@ -142,10 +142,10 @@ document.addEventListener('DOMContentLoaded', async function() {
   // Only in non-standalone mode, and only if we didn't already switch to a product detail
   if (!standalone && initialPage && initialPage !== 'home' && !initialProductId) {
     // Handle project-detail from clean URL (/parametric-bom/projects/<id>/)
-    if (initialPage === 'project-detail' && initial_product_id) {
+    if (initialPage === 'project-detail' && initial_project_id) {
       try {
         switchPage('project-detail');
-        setTimeout(() => showProjectDetail(parseInt(initial_product_id)), 100);
+        setTimeout(() => showProjectDetail(parseInt(initial_project_id)), 100);
       } catch(e) {}
     } else {
       try { switchPage(initialPage); } catch(e) {}
@@ -244,7 +244,7 @@ async function createDemoProduct() {
     for (const p of params) {
       await apiCall('POST', 'part-config/', {
         part: productId, name: p.name, parameter_type: p.type,
-        is_driving: p.driving, is_computed: p.comp,
+        is_driving: p.driving,
         default_value: p.def, display_order: p.order,
         ...p.extra,
       });

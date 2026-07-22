@@ -328,8 +328,6 @@ def auto_sync_for_new_part(part) -> dict[str, Any]:
                     max_value=pcfg.max_value,
                     options=pcfg.options,
                     is_driving=pcfg.is_driving,
-                    is_computed=pcfg.is_computed,
-                    computation_formula=pcfg.computation_formula,
                     ui_hint=pcfg.ui_hint,
                     display_order=pcfg.display_order,
                     visible_on_config=pcfg.visible_on_config,

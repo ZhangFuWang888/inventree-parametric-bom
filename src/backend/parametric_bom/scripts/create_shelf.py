@@ -55,8 +55,7 @@ def upsert_param_config(part, name, param_type, default_value, options=None,
             'max_value': Decimal(str(max_val)) if max_val is not None else None,
             'step_value': Decimal(str(step)),
             'is_driving': driving,
-            'is_computed': False,
-            'computation_formula': '',
+            # is_computed/computation_formula removed
             'ui_hint': hint,
             'display_order': display_order,
             'visible_on_config': True,
@@ -230,7 +229,7 @@ def create_shelf_demo():
         part=parts['货架横梁'], name='W',
         defaults={'parameter_type':'option','options':['400','500','600','800','1000'],
                   'default_value':'600','step_value':Decimal('1'),
-                  'is_driving':True,'is_computed':False,'ui_hint':'横梁长度=货架宽度',
+                  'is_driving':True,'ui_hint':'横梁长度=货架宽度',
                   'display_order':1,'visible_on_config':False})
     for pname, pnames in [('货架层板', ['长度','宽度']), ('货架背板', ['长度','高度'])]:
         for pn in pnames:
@@ -241,14 +240,14 @@ def create_shelf_demo():
                 part=parts[pname], name=pn,
                 defaults={'parameter_type':'option','options':opts[pn],
                           'default_value':opts[pn][0],'step_value':Decimal('1'),
-                          'is_driving':True,'is_computed':False,
+                          'is_driving':True,
                           'ui_hint':f'{pname}{pn}','display_order':1,'visible_on_config':False})
             print(f'  ✅ {pname}: {pn}参数')
     PartParameterConfig.objects.update_or_create(
         part=parts['货架立柱'], name='H',
         defaults={'parameter_type':'option','options':['1000','1200','1400','1600','1800','2000','2500','3000','3500','4000'],
                   'default_value':'2000','step_value':Decimal('1'),
-                  'is_driving':True,'is_computed':False,'ui_hint':'立柱高度',
+                  'is_driving':True,'ui_hint':'立柱高度',
                   'display_order':1,'visible_on_config':False})
     print(f'  ✅ 货架立柱: H参数')
     

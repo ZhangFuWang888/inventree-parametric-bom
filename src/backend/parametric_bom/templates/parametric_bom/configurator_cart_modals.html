@@ -174,23 +174,13 @@
     </div>
     <div class="grid grid-cols-2 gap-3 mb-3">
       <div class="flex items-center gap-3">
-        <label class="flex items-center gap-1.5 text-xs text-gray-600"><input type="checkbox" id="ap-driving" checked> 驱动参数</label>
-        <label class="flex items-center gap-1.5 text-xs text-gray-600"><input type="checkbox" id="ap-computed" onchange="document.getElementById('ap-formula-group').style.display=this.checked?'block':'none'"> 计算参数</label>
+        <label class="flex items-center gap-1.5 text-xs text-gray-600"><input type="checkbox" id="qp-driving" checked> 驱动参数</label>
       </div>
       <div>
         <label class="block text-xs font-medium text-gray-500 mb-1">显示顺序</label>
-        <input class="input-field" id="ap-order" type="number" value="100">
+        <input class="input-field" id="qp-order" type="number" value="100">
       </div>
     </div>
-    <div class="mb-3" id="ap-formula-group" style="display:none">
-      <label class="block text-xs font-medium text-gray-500 mb-1">计算公式</label>
-      <input class="input-field" id="ap-formula" placeholder="例如: param.载重 * param.速度 / 0.85">
-    </div>
-    <div class="flex justify-end gap-2">
-      <button class="btn btn-secondary" onclick="cancelAddParamModal()">取消</button>
-      <button class="btn btn-primary" id="modal-add-param-submit" onclick="createParamConfig()">创建</button>
-    </div>
-  </div>
 </div>
 
 <!-- ===== MODAL: Quick Add Param (双击/拖拽) ===== -->
@@ -245,11 +235,6 @@
     </div>
     <div class="flex items-center gap-3 mb-3">
       <label class="flex items-center gap-1.5 text-xs text-gray-600"><input type="checkbox" id="qp-driving" checked> 驱动参数</label>
-      <label class="flex items-center gap-1.5 text-xs text-gray-600"><input type="checkbox" id="qp-computed" onchange="document.getElementById('qp-formula-group').style.display=this.checked?'block':'none'"> 计算参数</label>
-    </div>
-    <div class="mb-3" id="qp-formula-group" style="display:none">
-      <label class="block text-xs font-medium text-gray-500 mb-1">计算公式</label>
-      <input class="input-field" id="qp-formula" placeholder="例如: param.载重 * param.速度 / 0.85">
     </div>
     <div class="flex justify-end gap-2">
       <button class="btn btn-secondary" onclick="closeModal('modal-quick-param')">取消</button>

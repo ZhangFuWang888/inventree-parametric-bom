@@ -107,9 +107,7 @@ def _collect_formula_fields(part_id):
     # 3. PartParameterConfig computation formulas
     for cfg in PartParameterConfig.objects.filter(part_id=part_id):
         name = cfg.name or (cfg.template.name if cfg.template else f'参数#{cfg.id}')
-        val = (cfg.computation_formula or '').strip()
-        if val:
-            refs.append((f'参数「{name}」', '计算公式', val))
+        # computation_formula removed - all params are driving
 
     # 4. PartVariable formulas
     for var in PartVariable.objects.filter(part_id=part_id):
@@ -157,7 +155,7 @@ class PartParameterConfigViewSet(viewsets.ModelViewSet):
     serializer_class = PartParameterConfigSerializer
     permission_classes = [permissions.IsAuthenticated]
     filter_backends = SEARCH_ORDER_FILTER
-    filterset_fields = ['part', 'is_driving', 'is_computed']
+    filterset_fields = ['part', 'is_driving']
     search_fields = ['name', 'part__name', 'ui_hint']
 
     def perform_destroy(self, instance):

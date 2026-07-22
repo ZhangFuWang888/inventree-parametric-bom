@@ -107,7 +107,9 @@ def compute_parameters(
     if parent_params:
         formula_context['parent'] = parent_params
 
-    # ── 1) Compute formulas for PartParameterConfig ─────────────
+    # ── 1) Fill default values for PartParameterConfig ────────────
+    # All parameters are now driving parameters (user-provided).
+    # If a parameter has no user value, use its default if set.
     configs = PartParameterConfig.objects.filter(
         part=part,
     ).select_related('template').order_by('display_order')
@@ -116,20 +118,8 @@ def compute_parameters(
         param_name = cfg.template.name if cfg.template else (cfg.name or f'param_{cfg.id}')
         if param_name in user_params:
             continue
-        if cfg.is_computed and cfg.computation_formula:
-            try:
-                result = eval_formula(
-                    cfg.computation_formula,
-                    context=formula_context,
-                    timeout_ms=timeout_ms,
-                )
-                all_params[param_name] = result
-            except (ParseError, ReferenceError, EvaluationError, TimeoutError) as e:
-                errors.append(f"{param_name}: {e}")
-                all_params[param_name] = cfg.default_value or None
-        else:
-            if cfg.default_value:
-                all_params[param_name] = cfg.default_value
+        if cfg.default_value:
+            all_params[param_name] = cfg.default_value
 
     # ── 2) Apply InheritanceMapping ────────────────────────────
     if parent_params:

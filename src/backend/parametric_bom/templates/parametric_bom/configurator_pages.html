@@ -338,12 +338,7 @@
               <div id="cfg-params-container"><div class="cfg-empty"><div class="cfg-empty-icon">⏳</div>加载参数中...</div></div>
 
               <!-- Computed values -->
-              <div id="cfg-computed-card" style="display:none;margin-top:0.75rem;padding-top:0.75rem;border-top:1px solid #e2e8f0">
-                <div class="flex items-center gap-1.5 mb-2">
-                  <span class="text-xs font-semibold text-slate-500">📊 计算参数</span>
-                </div>
-                <div class="cfg-computed-summary" id="cfg-computed-list"></div>
-              </div>
+              <!-- computed params card removed - all params are driving -->
             </div>
           </div>
 
@@ -402,7 +397,7 @@
           <span>🔧 参数管理</span>
           <button class="btn btn-primary btn-sm" onclick="openAddParamModal()">➕ 新增配置</button>
         </div>
-        <div class="page-help"><span class="icon">💡</span><span class="text">给具体零件<strong>绑定参数模板</strong>，设置类型/取值范围/默认值，标记为<strong>驱动参数</strong>（用户填）或<strong>计算参数</strong>（公式自动算）。影响场景①~⑫的所有公式引用。</span></div>
+        <div class="page-help"><span class="icon">💡</span><span class="text">给具体零件<strong>绑定参数模板</strong>，设置类型/取值范围/默认值。所有参数均为<strong>驱动参数</strong>——用户在配置器中填写具体值。影响场景①~⑫的所有公式引用。</span></div>
         <div class="form-group mb-3">
           <label class="block text-xs font-medium text-gray-500 mb-1.5">选择产品</label>
           <select class="input-field" id="pm-part-select" onchange="loadParamConfigs(this.value)">

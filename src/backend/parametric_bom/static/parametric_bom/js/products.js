@@ -649,10 +649,7 @@ function renderParamCard(cfg, idx) {
     : `<div class="pc-desc-editor" onclick="startEditDesc(${cfgId}, this)" style="color:#cbd5e1">
         ➕ 添加描述
        </div>`;
-  
-  // ── Footer toggles ──
-  const isDriving = cfg.is_driving;
-  const isComputed = cfg.is_computed;
+
   
   return `<div class="param-card type-${type}"
     data-config-id="${cfgId}" data-display-order="${cfg.display_order||0}"
@@ -673,14 +670,6 @@ function renderParamCard(cfg, idx) {
       ${descHtml}
     </div>
     <div class="param-card-footer">
-      <div class="flex items-center gap-1.5">
-        <div class="toggle-switch ${isDriving ? 'on' : ''}" onclick="this.classList.toggle('on'); markDirty(${cfgId},{is_driving:this.classList.contains('on')}); showDirtyButtons()"><div class="toggle-knob"></div></div>
-        <span class="pc-toggle-label">驱动</span>
-      </div>
-      <div class="flex items-center gap-1.5">
-        <div class="toggle-switch ${isComputed ? 'on' : ''}" onclick="this.classList.toggle('on'); markDirty(${cfgId},{is_computed:this.classList.contains('on')}); showDirtyButtons()"><div class="toggle-knob"></div></div>
-        <span class="pc-toggle-label">计算</span>
-      </div>
       <div style="flex:1"></div>
       <button class="pc-action-btn danger" onclick="deleteParamConfig(${cfgId}, '${safeName}')" title="删除">🗑️ 删除</button>
     </div>

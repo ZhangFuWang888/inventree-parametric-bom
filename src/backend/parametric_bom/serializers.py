@@ -47,7 +47,7 @@ class PartParameterConfigSerializer(serializers.ModelSerializer):
             'id', 'part', 'part_name', 'template', 'template_name',
             'name', 'parameter_type', 'options',
             'default_value', 'min_value', 'max_value', 'step_value',
-            'is_driving', 'is_computed', 'computation_formula',
+            'is_driving',
             'ui_hint', 'display_order', 'visible_on_config',
         ]
 

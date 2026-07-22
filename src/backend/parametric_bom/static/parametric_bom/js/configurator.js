@@ -548,7 +548,7 @@ async function quickAddTemplate(tplId, tplName) {
     template: tplId,
     parameter_type: defaultType,
     is_driving: true,
-    is_computed: false,
+    // is_computed removed - all params are driving
     display_order: 100,
   };
   
@@ -584,8 +584,7 @@ async function quickAddParam() {
     step_value: (type === 'number' && document.getElementById('qp-step').value) ? parseFloat(document.getElementById('qp-step').value) : null,
     options: (type === 'option' || type === 'multi_option') ? document.getElementById('qp-options').value.split(',').map(s=>s.trim()).filter(Boolean) : null,
     is_driving: document.getElementById('qp-driving').checked,
-    is_computed: document.getElementById('qp-computed').checked,
-    computation_formula: document.getElementById('qp-formula').value || '',
+    // is_computed/computation_formula removed - all params are driving
     display_order: 100,
   };
   
@@ -622,7 +621,7 @@ async function addTemplateToProduct(templateId, templateName) {
     template: templateId,
     parameter_type: 'number',
     is_driving: true,
-    is_computed: false,
+    // is_computed removed - all params are driving
     display_order: 100,
   };
   
@@ -850,7 +849,7 @@ async function addIndependentParam(type, insertBeforeId) {
     parameter_type: type,
     default_value: type === 'number' ? '0' : (type === 'boolean' ? 'false' : ''),
     is_driving: true,
-    is_computed: false,
+    // is_computed removed - all params are driving
     display_order: displayOrder,
   };
 
@@ -1178,35 +1177,16 @@ async function loadConfiguratorParams(partId) {
   
   const sorted = (configs || []).sort((a,b) => (a.display_order||0) - (b.display_order||0));
   let drivingHtml = '';
-  let computedHtml = '';
-  let hasDriving = false;
-  let hasComputed = false;
   
   sorted.forEach(cfg => {
     const tplName = cfg.template_name || `param_${cfg.template}`;
     
-    if (cfg.is_computed) {
-      hasComputed = true;
-      const val = cfg.default_value || '';
-      computedHtml += `<div class="computed-item">
-        <div>
-          <span>${tplName}</span>
-          ${cfg.computation_formula ? `<span class="formula">${cfg.computation_formula}</span>` : ''}
-        </div>
-        <span class="value">${val}</span>
-      </div>`;
-      currentParams[tplName] = {value: val, isComputed: true, config: cfg};
-    } else if (cfg.is_driving || cfg.is_driving === undefined) {
-      hasDriving = true;
-      const defVal = cfg.default_value != null ? cfg.default_value : '';
-      
-      // Render type-aware input
-      drivingHtml += renderTypeAwareInput(cfg, tplName, defVal);
-      currentParams[tplName] = {value: defVal, isComputed: false, config: cfg};
-    }
+    const defVal = cfg.default_value != null ? cfg.default_value : '';
+    drivingHtml += renderTypeAwareInput(cfg, tplName, defVal);
+    currentParams[tplName] = {value: defVal, config: cfg};
   });
   
-  if (hasDriving) {
+  if (drivingHtml) {
     document.getElementById('cfg-params-card').style.display = 'block';
     container.innerHTML = drivingHtml;
     document.getElementById('cfg-to-step2').disabled = false;
@@ -1214,14 +1194,6 @@ async function loadConfiguratorParams(partId) {
     document.getElementById('cfg-params-card').style.display = 'block';
     container.innerHTML = '<div class="empty-state"><div class="icon">📝</div><p>该产品没有可配置的驱动参数</p></div>';
     document.getElementById('cfg-to-step2').disabled = true;
-  }
-  
-  if (hasComputed) {
-    computedArea.style.display = 'block';
-    computedArea.innerHTML = `<div class="computed-section">
-      <div class="section-title">🔢 自动计算 <span class="text-xs text-gray-400 font-normal">(只读)</span></div>
-      ${computedHtml}
-    </div>`;
   }
 }
 
@@ -1247,7 +1219,7 @@ async function expandConfigBOM() {
 async function estimateConfigCost(withMarkup) {
   if (!configuratorPartId) { setStatus('error', '请先选择产品'); return; }
   const params = {};
-  Object.entries(currentParams).forEach(([k,v]) => { if (!v.isComputed) params[k] = v.value; });
+  Object.entries(currentParams).forEach(([k,v]) => { params[k] = v.value; });
   const body = {part_id: configuratorPartId, parameters: params};
   if (withMarkup) body.markup_pct = 15;
   const res = await apiCall('POST', 'estimate-cost/', body);
@@ -1316,7 +1288,7 @@ function buildParamSummary() {
   const container = document.getElementById('cfg-param-summary');
   let html = '';
   Object.entries(currentParams).forEach(([k,v]) => {
-    if (!v.isComputed) {
+    {
       html += `<div class="flex justify-between py-1 border-b border-gray-50 last:border-b-0">
         <span class="text-gray-600">${k}</span>
         <span class="font-medium text-gray-800">${v.value}</span>
@@ -1347,7 +1319,7 @@ async function setConfigParams() {
     else { setStatus('error', '请先保存配置'); return; }
   }
   const params = {};
-  Object.entries(currentParams).forEach(([k,v]) => { if (!v.isComputed) params[k] = v.value; });
+  Object.entries(currentParams).forEach(([k,v]) => { params[k] = v.value; });
   const res = await apiCall('POST', `configs/${savedConfigId}/params/`, {parameters: params});
   if (res.error) { showCfgResult(`设置参数失败: ${JSON.stringify(res.data).substring(0,150)}`, false); return; }
   showCfgResult(`✅ 参数已设置到配置 #${savedConfigId}`, true);
@@ -1454,7 +1426,7 @@ async function loadParamConfigs(partId) {
     <span class="text-xs text-gray-300">|</span>
     <span class="text-xs text-gray-400">💡 拖拽行头 <span class="text-gray-300">⠿</span> 可调整排序</span>
   </div>`;
-  html += '<div class="overflow-x-auto"><table class="w-full text-xs border-collapse" id="param-config-table"><thead><tr class="bg-gray-50"><th class="p-2 text-center font-semibold text-gray-600 border-b w-8">#</th><th class="p-2 text-left font-semibold text-gray-600 border-b">参数</th><th class="p-2 text-center font-semibold text-gray-600 border-b">类型</th><th class="p-2 text-center font-semibold text-gray-600 border-b">驱动</th><th class="p-2 text-center font-semibold text-gray-600 border-b">计算</th><th class="p-2 text-right font-semibold text-gray-600 border-b">默认值</th><th class="p-2 text-right font-semibold text-gray-600 border-b">最小</th><th class="p-2 text-right font-semibold text-gray-600 border-b">最大</th><th class="p-2 text-right font-semibold text-gray-600 border-b">步长</th><th class="p-2 text-left font-semibold text-gray-600 border-b">选项</th><th class="p-2 text-left font-semibold text-gray-600 border-b">公式</th><th class="p-2 text-center font-semibold text-gray-600 border-b w-20">操作</th></tr></thead><tbody>';
+  html += '<div class="overflow-x-auto"><table class="w-full text-xs border-collapse" id="param-config-table"><thead><tr class="bg-gray-50"><th class="p-2 text-center font-semibold text-gray-600 border-b w-8">#</th><th class="p-2 text-left font-semibold text-gray-600 border-b">参数</th><th class="p-2 text-center font-semibold text-gray-600 border-b">类型</th><th class="p-2 text-center font-semibold text-gray-600 border-b">驱动</th><th class="p-2 text-right font-semibold text-gray-600 border-b">默认值</th><th class="p-2 text-right font-semibold text-gray-600 border-b">最小</th><th class="p-2 text-right font-semibold text-gray-600 border-b">最大</th><th class="p-2 text-right font-semibold text-gray-600 border-b">步长</th><th class="p-2 text-left font-semibold text-gray-600 border-b">选项</th><th class="p-2 text-left font-semibold text-gray-600 border-b">公式</th><th class="p-2 text-center font-semibold text-gray-600 border-b w-20">操作</th></tr></thead><tbody>';
   const sorted = (configs || []).sort((a,b) => (a.display_order||0) - (b.display_order||0));
   sorted.forEach((cfg, idx) => {
     const type = cfg.parameter_type || 'number';
@@ -1468,14 +1440,12 @@ async function loadParamConfigs(partId) {
       <td class="p-2 text-center cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-500 select-none" title="拖拽排序">⠿</td>
       <td class="p-2 font-medium">${cfg.template_name||''}</td>
       <td class="p-2 text-center">${typeBadge(type)}</td>
-      <td class="p-2 text-center">${cfg.is_driving ? '✅' : '❌'}</td>
-      <td class="p-2 text-center">${cfg.is_computed ? '✅' : '❌'}</td>
-      <td class="p-2 text-right">${cfg.default_value||'-'}</td>
+      <td class="p-2 text-center">-</td>
       <td class="p-2 text-right text-gray-500">${cfg.min_value != null ? cfg.min_value : '-'}</td>
       <td class="p-2 text-right text-gray-500">${cfg.max_value != null ? cfg.max_value : '-'}</td>
       <td class="p-2 text-right text-gray-500">${cfg.step_value != null ? cfg.step_value : '-'}</td>
       <td class="p-2 text-gray-500 max-w-[100px] truncate" title="${optStr}">${optStr}</td>
-      <td class="p-2 text-gray-500 max-w-[120px] truncate" title="${cfg.computation_formula||''}">${cfg.computation_formula||'-'}</td>
+      <td class="p-2 text-gray-400">-</td>
       <td class="p-2 text-center">
         <div class="flex items-center justify-center gap-1">
           <button class="btn btn-sm text-[11px] px-1.5 py-0.5 bg-transparent text-blue-500 hover:text-blue-700 hover:bg-blue-50 border-0" onclick="openEditParamModal(${cfg.id})" title="编辑">✏️</button>
@@ -1711,13 +1681,10 @@ async function openEditParamModal(configId) {
   document.getElementById('ap-step').value = cfg.step_value != null ? cfg.step_value : '';
   document.getElementById('ap-options').value = cfg.options ? (Array.isArray(cfg.options) ? cfg.options.join(', ') : cfg.options) : '';
   document.getElementById('ap-driving').checked = cfg.is_driving;
-  document.getElementById('ap-computed').checked = cfg.is_computed;
-  document.getElementById('ap-formula').value = cfg.computation_formula || '';
-  document.getElementById('ap-order').value = cfg.display_order || 100;
-  
+  document.getElementById('ap-driving').checked = cfg.is_driving;
   // Show/hide conditional sections
   onAddParamTypeChange();
-  document.getElementById('ap-formula-group').style.display = cfg.is_computed ? 'block' : 'none';
+  // ap-formula-group removed - no computed params
   
   // Change modal title and button
   document.querySelector('#modal-add-param h3').textContent = `✏️ 编辑参数: ${cfg.name || cfg.template_name || ''}`;
@@ -1743,8 +1710,7 @@ async function updateParamConfig() {
     step_value: (type === 'number' && document.getElementById('ap-step').value) ? parseFloat(document.getElementById('ap-step').value) : null,
     options: (type === 'option' || type === 'multi_option') ? document.getElementById('ap-options').value.split(',').map(s=>s.trim()).filter(Boolean) : null,
     is_driving: document.getElementById('ap-driving').checked,
-    is_computed: document.getElementById('ap-computed').checked,
-    computation_formula: document.getElementById('ap-formula').value || '',
+    // is_computed/computation_formula removed
     display_order: parseInt(document.getElementById('ap-order').value) || 100,
   };
 
@@ -1787,9 +1753,7 @@ function openAddParamModal() {
   document.getElementById('ap-step').value = '';
   document.getElementById('ap-options').value = '';
   document.getElementById('ap-driving').checked = true;
-  document.getElementById('ap-computed').checked = false;
-  document.getElementById('ap-formula-group').style.display = 'none';
-  document.getElementById('ap-formula').value = '';
+  // ap-computed/formula removed - all params are driving
   document.getElementById('ap-order').value = 100;
   onAddParamTypeChange();
   
@@ -1863,8 +1827,7 @@ async function createParamConfig() {
     step_value: (type === 'number' && document.getElementById('ap-step').value) ? parseFloat(document.getElementById('ap-step').value) : null,
     options: (type === 'option' || type === 'multi_option') ? document.getElementById('ap-options').value.split(',').map(s=>s.trim()).filter(Boolean) : null,
     is_driving: document.getElementById('ap-driving').checked,
-    is_computed: document.getElementById('ap-computed').checked,
-    computation_formula: document.getElementById('ap-formula').value || '',
+    // is_computed/computation_formula removed
     display_order: parseInt(document.getElementById('ap-order').value) || 100,
   };
   

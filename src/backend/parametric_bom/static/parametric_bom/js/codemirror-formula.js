@@ -322,8 +322,7 @@ export function initFormulaEditors(parameters) {
     'textarea#fe-qty-formula',
     'textarea#fe-condition-formula',
     'input#fm-formula',
-    'input#ap-formula',
-    'input#qp-formula',
+    // ap-formula/qp-formula removed - no computed params
     'input#ar-value-formula',
     'input#pd-formula',
     'textarea#av-formula',

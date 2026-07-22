@@ -73,8 +73,6 @@ def inherit_from_template(variant_part) -> Dict[str, int]:
                 'max_value': tpl_cfg.max_value,
                 'options': tpl_cfg.options,
                 'is_driving': tpl_cfg.is_driving,
-                'is_computed': tpl_cfg.is_computed,
-                'computation_formula': tpl_cfg.computation_formula,
                 'ui_hint': tpl_cfg.ui_hint,
                 'display_order': tpl_cfg.display_order,
                 'visible_on_config': tpl_cfg.visible_on_config,

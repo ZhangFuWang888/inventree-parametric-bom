@@ -24,7 +24,7 @@ def _sanitize(s: str) -> str:
 
 FORMULA_CHECK_FIELDS = [
     # PartParameterConfig
-    ('PartParameterConfig', 'computation_formula'),
+    # ('PartParameterConfig', 'computation_formula') - removed
     # ParametricBomItem
     ('ParametricBomItem', 'qty_formula'),
     ('ParametricBomItem', 'name_formula'),
@@ -62,7 +62,7 @@ def _scan_formulas_for_refpart(models_module, model_name, field_name, search_key
         return []
 
     field_label_map = {
-        'computation_formula': '计算公式',
+        # 'computation_formula' - removed
         'qty_formula': '数量公式',
         'name_formula': '名称公式',
         'condition_formula': '条件公式',
