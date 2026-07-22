@@ -317,9 +317,16 @@ function switchProductTab(tab) {
   // Update tab buttons
   document.querySelectorAll('.pd-tab').forEach(el => el.classList.remove('active'));
   document.querySelector(`.pd-tab[data-tab="${tab}"]`)?.classList.add('active');
-  // Update content
-  document.querySelectorAll('.pd-tab-content').forEach(el => el.classList.remove('active'));
-  document.getElementById(`pd-tab-${tab}`)?.classList.add('active');
+  // Update content — use style.display for reliability (same as switchPage)
+  document.querySelectorAll('.pd-tab-content').forEach(el => {
+    el.classList.remove('active');
+    el.style.display = 'none';
+  });
+  const tabEl = document.getElementById(`pd-tab-${tab}`);
+  if (tabEl) {
+    tabEl.classList.add('active');
+    tabEl.style.display = 'block';
+  }
   // Load data for this tab
   if (!configuratorPartId) return;
   if (tab === 'params') loadPdParams();
