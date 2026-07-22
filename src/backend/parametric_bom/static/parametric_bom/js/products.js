@@ -1392,44 +1392,59 @@ async function loadPdLogs() {
     restore: {label: '♻️ 恢复', cls: 'text-purple-700 bg-purple-50'},
   };
 
-  // 🔥 最简渲染测试 - 粗暴纯文本，排除一切CSS干扰
-  let html = '<div style="background:#ffeb3b;padding:16px;border:3px solid red;border-radius:4px">';
-  html += '<div style="font-size:16px;font-weight:bold;color:#d32f2f;margin-bottom:12px">✅ 日志已加载！（共 ' + logs.length + ' 条）</div>';
-  
+  // Build log entries
+  let rows = '';
   logs.forEach(function(log, i) {
-    const am = actionTypeMap[log.action] || {label: log.action, cls: ''};
-    const ts = log.created_at || '—';
-    html += '<div style="background:#fff;border:2px solid #333;padding:8px 12px;margin-bottom:6px;font-size:13px">';
-    html += '<b>#' + (i+1) + '</b> <span style="font-weight:bold">' + am.label + '</span> · ';
-    html += '参数: <b>' + escapeHtml(log.param_name || '—') + '</b> · ';
-    html += '时间: ' + ts + ' · ';
-    html += '操作人: ' + escapeHtml(log.username || '—');
-    if (log.old_value || log.new_value) {
-      html += ' · 值: ' + escapeHtml(log.old_value || '') + ' → ' + escapeHtml(log.new_value || '');
-    }
-    html += '</div>';
+    const am = actionTypeMap[log.action] || {label: log.action, cls: 'text-gray-700 bg-gray-50'};
+    const ts = log.created_at ? new Date(log.created_at.replace(' ','T')).toLocaleString('zh-CN', {hour12: false}) : '—';
+    const valChange = (log.old_value || log.new_value)
+      ? '<div style="margin-top:2px;font-size:10px;color:#6b7280">' +
+        (log.old_value ? '<span style="text-decoration:line-through;color:#9ca3af">' + escapeHtml(log.old_value) + '</span>' : '') +
+        (log.old_value && log.new_value ? ' <span style="color:#d1d5db">→</span> ' : '') +
+        (log.new_value ? '<span style="color:#059669;font-weight:500">' + escapeHtml(log.new_value) + '</span>' : '') +
+        '</div>' : '';
+
+    rows += '<div style="display:flex;align-items:flex-start;padding:8px 0;border-bottom:1px solid #f3f4f6">' +
+      '<span style="display:inline-block;min-width:52px;padding:1px 6px;border-radius:3px;font-size:10px;font-weight:500;text-align:center;' +
+        am.cls.split(' ').map(function(c) {
+          if (c === 'text-green-700') return 'color:#15803d;background:#f0fdf4';
+          if (c === 'text-blue-700') return 'color:#1d4ed8;background:#eff6ff';
+          if (c === 'text-red-700') return 'color:#b91c1c;background:#fef2f2';
+          if (c === 'text-purple-700') return 'color:#7e22ce;background:#faf5ff';
+          if (c === 'text-gray-700') return 'color:#374151;background:#f9fafb';
+          if (c === 'bg-green-50') return '';
+          if (c === 'bg-blue-50') return '';
+          if (c === 'bg-red-50') return '';
+          if (c === 'bg-purple-50') return '';
+          if (c === 'bg-gray-50') return '';
+          return '';
+        }).join(';') + '">' + am.label + '</span>' +
+      '<div style="flex:1;margin-left:10px;font-size:12px">' +
+        '<div style="display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 10px">' +
+          '<span style="color:#1f2937;font-weight:500">' + escapeHtml(log.param_name || '—') + '</span>' +
+          (log.field_name ? '<span style="color:#9ca3af;font-size:10px">' + escapeHtml(log.field_name) + '</span>' : '') +
+          '<span style="color:#9ca3af;font-size:10px">' + escapeHtml(log.username || '—') + '</span>' +
+          '<span style="color:#9ca3af;font-size:10px">' + ts + '</span>' +
+        '</div>' + valChange +
+      '</div></div>';
   });
-  
-  html += '</div>';
+
+  var html = '<div style="margin-bottom:6px">' +
+    '<div style="font-size:10px;color:#9ca3af;margin-bottom:6px">共 ' + logs.length + ' 条记录</div>' +
+    rows +
+    '</div>';
 
   try {
-    // 🔥 直接替换 card 内容 - 跳过 pd-logs-list 容器
-    var card = container.parentElement; // .card
+    var card = container.parentElement;
     if (!card) { console.error('[loadPdLogs] NO card parent!'); return; }
-    card.innerHTML = '<div id="pd-logs-list" style="padding:0.75rem">' +
+    card.innerHTML = '<div style="padding:0.75rem">' +
       '<div class="flex items-center justify-between mb-3">' +
       '<span class="text-xs font-semibold text-slate-600">📋 日志列表</span>' +
       '<button class="btn btn-sm btn-primary" onclick="loadPdLogs()">🔄 刷新</button>' +
       '</div>' + html + '</div>';
-    console.log('[loadPdLogs] card REPLACED, html length:', html.length);
-    // 🔥 核武器
-    var bomb = document.createElement('div');
-    bomb.innerHTML = '<div style="position:fixed;bottom:20px;right:20px;z-index:99999;background:red;color:#fff;padding:16px 24px;font-size:20px;font-weight:bold;border:4px solid yellow;border-radius:8px;box-shadow:0 4px 20px rgba(0,0,0,0.5)">🔥 日志已加载！(' + logs.length + '条)</div>';
-    document.body.appendChild(bomb);
-    console.log('[loadPdLogs] BOMB appended');
+    console.log('[loadPdLogs] rendered ' + logs.length + ' logs');
   } catch(e) {
-    console.error('[loadPdLogs] render error:', e);
-    container.innerHTML = '<div style="color:red;padding:20px;font-size:16px;border:3px solid red">❌ 渲染失败: ' + e.message + '</div>';
+    console.error('[loadPdLogs] error:', e);
   }
 }
 

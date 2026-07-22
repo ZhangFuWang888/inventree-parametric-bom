@@ -393,12 +393,7 @@ header .text-sm.font-semibold{
 #project-tab-logs .card{flex:1;display:flex;flex-direction:column;min-height:0;padding-bottom:0}
 #project-tab-logs .log-list{flex:1;overflow-y:auto;min-height:0}
 
-/* Product detail logs tab: card styling and height */
-#page-product-detail #pd-tab-logs .card{min-height:200px}
-#page-product-detail #pd-tab-logs .card table{width:100%}
-#pd-logs-list{overflow-x:auto}
-#pd-logs-list table th{white-space:nowrap}
-#pd-logs-list table td{white-space:nowrap;max-width:200px;overflow:hidden;text-overflow:ellipsis}
+/* Product detail logs tab */\n#page-product-detail #pd-tab-logs .card{min-height:200px}
 
 #page-project-detail .btn-primary,
 #page-projects .btn-success,
