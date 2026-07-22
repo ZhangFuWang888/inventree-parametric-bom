@@ -269,6 +269,60 @@ class ParametricBomItemViewSet(viewsets.ModelViewSet):
                         'enable_structure']
     search_fields = ['bom_item__part__name', 'qty_formula']
 
+    def _bom_item_name(self, instance):
+        try:
+            sub = instance.bom_item.sub_part if instance.bom_item else None
+            return f'BOM: {sub.name} ({sub.IPN})' if sub and sub.IPN else (f'BOM: {sub.name}' if sub else 'BOM item')
+        except Exception:
+            return 'BOM item'
+
+    def _log(self, instance, action, field_name='', old_value='', new_value=''):
+        try:
+            part = instance.bom_item.part if instance.bom_item else None
+            if not part:
+                return
+            user = self.request.user if self.request and hasattr(self.request, 'user') else None
+            ParameterChangeLog.objects.create(
+                param_config=None,
+                part=part,
+                action=action,
+                param_name=self._bom_item_name(instance),
+                field_name=field_name,
+                old_value=str(old_value) if old_value else '',
+                new_value=str(new_value) if new_value else '',
+                user=user if user and user.is_authenticated else None,
+            )
+        except Exception as e:
+            logger.warning(f'Failed to log BOM change: {e}')
+
+    def perform_create(self, serializer):
+        instance = serializer.save()
+        self._log(instance, 'create')
+
+    def perform_update(self, serializer):
+        old = serializer.instance
+        track_fields = ['qty_formula', 'condition_formula', 'name_formula',
+                        'enable_qty_formula', 'enable_conditional', 'enable_candidate',
+                        'enable_variant', 'enable_specification', 'enable_structure']
+        changes = {}
+        for field in track_fields:
+            old_val = getattr(old, field, None)
+            new_val = serializer.validated_data.get(field, old_val)
+            if old_val != new_val:
+                changes[field] = (old_val, new_val)
+        instance = serializer.save()
+        if changes:
+            for field, (old_v, new_v) in changes.items():
+                self._log(instance, 'update', field_name=field,
+                          old_value=str(old_v) if old_v is not None else '',
+                          new_value=str(new_v) if new_v is not None else '')
+        else:
+            self._log(instance, 'update')
+
+    def perform_destroy(self, instance):
+        self._log(instance, 'delete')
+        instance.delete()
+
 
 class ParametricRuleViewSet(viewsets.ModelViewSet):
     """API endpoint for ParametricRule."""
@@ -373,12 +427,52 @@ class PartVariableViewSet(viewsets.ModelViewSet):
     filterset_fields = ['part']
     search_fields = ['name']
 
+    def _log(self, part, action, param_name='', field_name='', old_value='', new_value=''):
+        try:
+            user = self.request.user if self.request and hasattr(self.request, 'user') else None
+            ParameterChangeLog.objects.create(
+                param_config=None,
+                part=part,
+                action=action,
+                param_name=param_name,
+                field_name=field_name,
+                old_value=str(old_value) if old_value else '',
+                new_value=str(new_value) if new_value else '',
+                user=user if user and user.is_authenticated else None,
+            )
+        except Exception as e:
+            logger.warning(f'Failed to log variable change: {e}')
+
+    def perform_create(self, serializer):
+        instance = serializer.save()
+        self._log(instance.part, 'create', param_name=f'变量: {instance.name}')
+
+    def perform_update(self, serializer):
+        old = serializer.instance
+        track_fields = ['name', 'formula', 'description', 'var_type']
+        changes = {}
+        for field in track_fields:
+            old_val = getattr(old, field, None)
+            new_val = serializer.validated_data.get(field, old_val)
+            if old_val != new_val:
+                changes[field] = (old_val, new_val)
+        instance = serializer.save()
+        if changes:
+            for field, (old_v, new_v) in changes.items():
+                self._log(instance.part, 'update', param_name=f'变量: {instance.name}',
+                          field_name=field,
+                          old_value=str(old_v) if old_v is not None else '',
+                          new_value=str(new_v) if new_v is not None else '')
+        else:
+            self._log(instance.part, 'update', param_name=f'变量: {instance.name}')
+
     def perform_destroy(self, instance):
         """Prevent deletion if variable is referenced by any formula."""
         refs = _find_variable_references(instance.part_id, instance.name)
         if refs:
             detail = '该变量被以下公式引用，无法删除：\n' + '\n'.join(refs)
             raise PermissionDenied(detail=detail)
+        self._log(instance.part, 'delete', param_name=f'变量: {instance.name}')
         instance.delete()
 
 
