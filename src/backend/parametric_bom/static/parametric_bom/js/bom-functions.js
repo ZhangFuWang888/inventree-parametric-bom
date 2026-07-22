@@ -27,6 +27,9 @@ function testModalDirect() {
   return false;
 }
 
+// Cached HTML for add-BOM modal (original element is removed from DOM on first use)
+let __abModalHtml = null;
+
 // ===== CELL EDITOR =====
 let _ceState = { itemPk: null, field: null };
 let _cePreviewTimer = null;
@@ -748,15 +751,37 @@ async function openAddBomItemModal() {
     if (searchEl) searchEl.value = '';
     console.log('[AB] calling renderAbPartList');
     renderAbPartList();
-    console.log('[AB] calling openModal');
-    // Direct test: set styles directly too
-    const testEl = document.getElementById('modal-add-bom');
-    if (testEl) {
-      testEl.style.setProperty('border', '5px solid red', 'important');
-      console.log('[AB] direct border test applied');
+    console.log('[AB] creating dynamic overlay (testModalDirect pattern)');
+
+    // Cache modal HTML for reuse (original is removed from DOM)
+    if (!__abModalHtml) {
+      var srcModal = document.getElementById('modal-add-bom');
+      __abModalHtml = srcModal ? srcModal.innerHTML : '';
+      if (srcModal) srcModal.remove();
+      console.log('[AB] cached modal HTML, length:', __abModalHtml.length);
     }
-    openModal('modal-add-bom');
-    const countEl = document.getElementById('ab-search-count');
+    var html = __abModalHtml;
+
+    // Remove any previous dynamic overlay
+    var old = document.getElementById('__ab_modal_overlay');
+    if (old) old.remove();
+
+    var overlay = document.createElement('div');
+    overlay.id = '__ab_modal_overlay';
+    overlay.style.cssText = 'position:fixed!important;top:0!important;left:0!important;width:100%!important;height:100%!important;background:rgba(0,0,0,0.4)!important;z-index:99999!important;display:flex!important;align-items:center!important;justify-content:center!important';
+    overlay.addEventListener('click', function(e) {
+      if (e.target === overlay) overlay.remove();
+    });
+
+    var box = document.createElement('div');
+    box.className = 'modal-box';
+    box.style.cssText = 'background:#fff!important;border-radius:14px!important;padding:1.5rem!important;max-width:520px!important;width:92%!important;max-height:85vh!important;overflow-y:auto!important;box-shadow:0 20px 60px rgba(0,0,0,0.18)!important';
+    box.innerHTML = html;
+
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+
+    var countEl = document.getElementById('ab-search-count');
     console.log('[AB] ab-search-count:', countEl ? 'found' : 'MISSING');
     if (countEl) countEl.textContent = '输入关键字搜索零件';
     console.log('[AB] ✅ openAddBomItemModal completed successfully');

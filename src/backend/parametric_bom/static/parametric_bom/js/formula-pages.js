@@ -602,6 +602,11 @@ function openModal(id) {
   document.body.style.overflow = 'hidden';
 }
 function closeModal(id) {
+  // Support dynamic overlay (created by openAddBomItemModal)
+  if (id === 'modal-add-bom') {
+    var dynOverlay = document.getElementById('__ab_modal_overlay');
+    if (dynOverlay) { dynOverlay.remove(); document.body.style.overflow = ''; return; }
+  }
   // Support both: with id (modal overlay) and without (hermes overlay)
   const el = id ? document.getElementById(id) : null;
   if (el) {
