@@ -324,7 +324,6 @@ async function doBatchImportExcel() {
   if (!pid || !file) return;
   var btn = document.getElementById('batch-import-btn');
   btn.disabled = true; btn.textContent = '导入中...';
-  setStatus('loading', '正在解析Excel并导入...');
   try {
     var formData = new FormData();
     formData.append('file', file);
@@ -334,9 +333,15 @@ async function doBatchImportExcel() {
       method: 'POST', headers: {'X-CSRFToken': getCsrfToken()}, credentials: 'same-origin',
       body: formData,
     });
-    var data = await resp.json();
+    var text = await resp.text();
+    var data;
+    try { data = JSON.parse(text); } catch(e) {
+      handleBatchResult({success: false, error: '服务器返回非JSON (状态' + resp.status + '): ' + text.substring(0, 200)});
+      btn.disabled = false; btn.textContent = '确认导入';
+      return;
+    }
     handleBatchResult(data);
-  } catch(e) { setStatus('error', '网络错误: ' + e.message); }
+  } catch(e) { handleBatchResult({success: false, error: '网络错误: ' + e.message}); }
   btn.disabled = false; btn.textContent = '确认导入';
 }
 

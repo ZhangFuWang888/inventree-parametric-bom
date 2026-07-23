@@ -1245,11 +1245,13 @@ def create_bom_items_batch(request):
 
     try:
         parent_part = Part.objects.get(pk=parent_part_id)
+        result = _process_batch_bom_items(parent_part, category_id, items)
+        return Response(result)
     except Part.DoesNotExist:
         return Response({'success': False, 'error': 'Parent part not found'}, status=404)
-
-    result = _process_batch_bom_items(parent_part, category_id, items)
-    return Response(result)
+    except Exception as e:
+        logger.exception('批量导入JSON处理失败')
+        return Response({'success': False, 'error': f'处理失败: {str(e)}'}, status=500)
 
 
 @api_view(['POST'])
@@ -1354,7 +1356,12 @@ def create_bom_items_from_excel(request):
     if not items:
         return Response({'success': False, 'error': 'Excel中没有有效数据行'}, status=400)
 
-    result = _process_batch_bom_items(parent_part, category_id, items)
+    try:
+        result = _process_batch_bom_items(parent_part, category_id, items)
+    except Exception as e:
+        logger.exception('批量导入Excel处理失败')
+        return Response({'success': False, 'error': f'处理失败: {str(e)}'}, status=500)
+
     return Response(result)
 
 
