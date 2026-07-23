@@ -1721,10 +1721,16 @@ async function doBatchImport() {
       var created = data.created || [];
       var skipped = data.skipped || [];
       var failed = data.failed || [];
+      var qtyUpdated = created.filter(function(c) { return c.quantity_updated; });
 
-      var msg = '✅ 导入完成！成功 ' + created.length + ' 项';
-      if (skipped.length) msg += '，跳过 ' + skipped.length + ' 项（已在BOM中）';
-      if (failed.length) msg += '，失败 ' + failed.length + ' 项';
+      var msg = '✅ 导入完成！';
+      var parts = [];
+      var newCount = created.filter(function(c) { return !c.quantity_updated; }).length;
+      if (newCount) parts.push('新增 ' + newCount + ' 项');
+      if (qtyUpdated.length) parts.push('叠加 ' + qtyUpdated.length + ' 项');
+      if (skipped.length) parts.push('跳过 ' + skipped.length + ' 项');
+      if (failed.length) parts.push('失败 ' + failed.length + ' 项');
+      msg += parts.join('，');
 
       setStatus(failed.length ? 'error' : 'success', msg);
 

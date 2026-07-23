@@ -377,7 +377,15 @@ function handleBatchResult(data) {
     html += '<div class=\"text-xs font-medium text-gray-600 mb-1\">✅ 成功导入</div>';
     html += '<table style=\"width:100%;font-size:0.7rem;border-collapse:collapse\"><thead style=\"background:#f9fafb\"><tr><th style=\"padding:3px 6px;text-align:left;border-bottom:1px solid #e5e7eb\">#</th><th style=\"padding:3px 6px;text-align:left;border-bottom:1px solid #e5e7eb\">物料名称</th><th style=\"padding:3px 6px;text-align:left;border-bottom:1px solid #e5e7eb\">型号</th><th style=\"padding:3px 6px;text-align:left;border-bottom:1px solid #e5e7eb\">状态</th></tr></thead><tbody>';
     created.forEach(function(c) {
-      html += '<tr style=\"border-bottom:1px solid #f3f4f6\"><td style=\"padding:3px 6px;color:#9ca3af\">' + (c.index + 1) + '</td><td style=\"padding:3px 6px;font-weight:500\">' + escHtml(c.name) + '</td><td style=\"padding:3px 6px;color:#6b7280\">' + escHtml(c.ipn || '—') + '</td><td style=\"padding:3px 6px\">' + (c.new_part ? '<span class=\"text-blue-600\">🆕 新建</span>' : '<span class=\"text-gray-400\">已存在</span>') + '</td></tr>';
+      var statusHtml;
+      if (c.quantity_updated) {
+        statusHtml = '<span class=\"text-amber-600\">📊 已叠加：' + escHtml(c.old_quantity) + ' → ' + escHtml(c.new_quantity) + '</span>';
+      } else if (c.new_part) {
+        statusHtml = '<span class=\"text-blue-600\">🆕 新建</span>';
+      } else {
+        statusHtml = '<span class=\"text-gray-400\">已存在</span>';
+      }
+      html += '<tr style=\"border-bottom:1px solid #f3f4f6\"><td style=\"padding:3px 6px;color:#9ca3af\">' + (c.index + 1) + '</td><td style=\"padding:3px 6px;font-weight:500\">' + escHtml(c.name) + '</td><td style=\"padding:3px 6px;color:#6b7280\">' + escHtml(c.ipn || '—') + '</td><td style=\"padding:3px 6px\">' + statusHtml + '</td></tr>';
     });
     html += '</tbody></table>';
   }

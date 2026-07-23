@@ -1185,15 +1185,31 @@ def _process_batch_bom_items(parent_part, category_id, items):
                 })
                 continue
 
-        # Check duplicate
+        # Check if already in BOM — update quantity instead of skipping
         if sub_part.pk in existing_subs:
-            skipped.append({
-                'index': idx,
-                'name': name,
-                'ipn': ipn,
-                'pk': sub_part.pk,
-                'reason': '已在BOM中',
-            })
+            try:
+                existing_bom = BomItem.objects.get(part=parent_part, sub_part=sub_part)
+                old_qty = existing_bom.quantity
+                existing_bom.quantity = old_qty + qty
+                existing_bom.save()
+                created.append({
+                    'index': idx,
+                    'name': name,
+                    'ipn': ipn,
+                    'pk': sub_part.pk,
+                    'new_part': False,
+                    'status': '已存在（叠加数量）',
+                    'quantity_updated': True,
+                    'old_quantity': str(old_qty),
+                    'new_quantity': str(existing_bom.quantity),
+                })
+            except Exception as e:
+                skipped.append({
+                    'index': idx,
+                    'name': name,
+                    'ipn': ipn,
+                    'reason': f'更新数量失败: {str(e)}',
+                })
             continue
 
         # Create BomItem and ParametricBomItem
@@ -1370,6 +1386,23 @@ def create_bom_items_from_excel(request):
 
     if not items:
         return Response({'success': False, 'error': 'Excel中没有有效数据行'}, status=400)
+
+    # Merge items with same (name, ipn) — sum quantities
+    from decimal import Decimal as D
+    merged = {}
+    for item in items:
+        key = (item['name'], item['ipn'])
+        if key in merged:
+            existing = merged[key]
+            existing['quantity'] = str(D(existing['quantity']) + D(item['quantity']))
+            existing['_merged_count'] = existing.get('_merged_count', 1) + 1
+            # Keep longer description
+            if len(item.get('description', '')) > len(existing.get('description', '')):
+                existing['description'] = item['description']
+        else:
+            item['_merged_count'] = 1
+            merged[key] = item
+    items = list(merged.values())
 
     try:
         result = _process_batch_bom_items(parent_part, category_id, items)
