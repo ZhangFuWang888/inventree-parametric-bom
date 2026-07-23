@@ -1196,17 +1196,32 @@ def _process_batch_bom_items(parent_part, category_id, items):
             })
             continue
 
-        # Create BomItem
-        bom_item = BomItem.objects.create(
-            part=parent_part,
-            sub_part=sub_part,
-            quantity=qty,
-        )
-
-        # Create ParametricBomItem
-        ParametricBomItem.objects.create(
-            bom_item=bom_item,
-        )
+        # Create BomItem and ParametricBomItem
+        try:
+            bom_item = BomItem.objects.create(
+                part=parent_part,
+                sub_part=sub_part,
+                quantity=qty,
+            )
+            ParametricBomItem.objects.create(
+                bom_item=bom_item,
+            )
+        except Exception as e:
+            err_msg = str(e)
+            # Try to extract the first validation error message
+            if hasattr(e, 'message_dict'):
+                for field, msgs in e.message_dict.items():
+                    err_msg = msgs[0] if msgs else str(e)
+                    break
+            elif hasattr(e, 'messages'):
+                err_msg = e.messages[0] if e.messages else str(e)
+            failed.append({
+                'index': idx,
+                'name': name,
+                'ipn': ipn,
+                'error': err_msg,
+            })
+            continue
 
         existing_subs.add(sub_part.pk)
 
