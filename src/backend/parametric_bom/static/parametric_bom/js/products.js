@@ -1778,13 +1778,32 @@ async function collectSnapshot() {
   // Gather all parametric configs for the current part
   var paramsResp = await apiCall('GET', 'part-config/?part=' + configuratorPartId);
   var varsResp = await apiCall('GET', 'part-variables/?part=' + configuratorPartId);
-  var bomResp = await apiCall('GET', 'bom-item-config/?bom_item__part=' + configuratorPartId);
+  var bomCfgResp = await apiCall('GET', 'bom-item-config/?bom_item__part=' + configuratorPartId);
   var vmResp = await apiCall('GET', 'variant-mappings/?limit=9999');
+  // Also collect actual BomItems (sub_part + quantity)
+  var bomRawResp = await fetch('/api/bom/?part=' + configuratorPartId, {
+    headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken()}, credentials: 'same-origin'
+  });
 
   var params = paramsResp.error ? [] : (Array.isArray(paramsResp.data) ? paramsResp.data : (paramsResp.data.results || []));
   var variables = varsResp.error ? [] : (Array.isArray(varsResp.data) ? varsResp.data : (varsResp.data.results || []));
-  var bomItems = bomResp.error ? [] : (Array.isArray(bomResp.data) ? bomResp.data : (bomResp.data.results || []));
+  var bomItems = bomCfgResp.error ? [] : (Array.isArray(bomCfgResp.data) ? bomCfgResp.data : (bomCfgResp.data.results || []));
   var vms = vmResp.error ? [] : (Array.isArray(vmResp.data) ? vmResp.data : (vmResp.data.results || []));
+  var bomEntriesRaw = bomRawResp.ok ? (await bomRawResp.json()) : [];
+  var bomEntries = (Array.isArray(bomEntriesRaw) ? bomEntriesRaw : (bomEntriesRaw.results || [])).map(function(bi) {
+    return { sub_part: bi.sub_part, quantity: bi.quantity };
+  });
+
+  // Build BomItem ID → sub_part mapping for annotating configs
+  var bomIdToSubPart = {};
+  (Array.isArray(bomEntriesRaw) ? bomEntriesRaw : (bomEntriesRaw.results || [])).forEach(function(bi) {
+    bomIdToSubPart[bi.pk] = bi.sub_part;
+  });
+
+  // Annotate bom_items with _sub_part so loadVersion can match after recreation
+  var annotatedBomItems = bomItems.map(function(bi) {
+    return Object.assign({}, bi, { _sub_part: bomIdToSubPart[bi.bom_item] });
+  });
 
   // Filter variant mappings to only those related to this part's BOM items
   var bomPbiIds = bomItems.map(function(b) { return b.id; });
@@ -1793,7 +1812,8 @@ async function collectSnapshot() {
   return {
     parameters: params,
     variables: variables,
-    bom_items: bomItems,
+    bom_items: annotatedBomItems,
+    bom_entries: bomEntries,
     variant_mappings: filteredVms,
     saved_at: new Date().toISOString()
   };
@@ -1860,6 +1880,27 @@ async function loadVersion() {
       }
     }
 
+    // Step 0d: Delete all BomItems IF snapshot has bom_entries (new format)
+    // Old versions without bom_entries will keep existing BomItems
+    if (snap.bom_entries && snap.bom_entries.length > 0) {
+      var oldBomItemsResp = await fetch('/api/bom/?part=' + configuratorPartId, {
+        headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken()}, credentials: 'same-origin'
+      });
+      var oldBomItemsData = oldBomItemsResp.ok ? (await oldBomItemsResp.json()) : [];
+      var oldBomItems = Array.isArray(oldBomItemsData) ? oldBomItemsData : (oldBomItemsData.results || []);
+      for (var dbi = 0; dbi < oldBomItems.length; dbi++) {
+        var delBomResp = await fetch('/api/bom/' + oldBomItems[dbi].pk + '/', {
+          method: 'DELETE',
+          headers: {'X-CSRFToken': getCsrfToken()},
+          credentials: 'same-origin'
+        });
+        if (!delBomResp.ok && delBomResp.status !== 204) {
+          showToast('error', '删除BOM项失败');
+          return;
+        }
+      }
+    }
+
     // ── Step 1: Restore parameters ──
     showToast('loading', '恢复配置中...');
     if (snap.parameters && snap.parameters.length) {
@@ -1897,11 +1938,56 @@ async function loadVersion() {
       }
     }
 
-    // Restore BOM items — PATCH each existing BOM item's config
-    if (snap.bom_items && snap.bom_items.length) {
+    // Step 2b: Create BomItems from snapshot
+    var subPartToNewBomId = {};
+    if (snap.bom_entries && snap.bom_entries.length) {
+      for (var e = 0; e < snap.bom_entries.length; e++) {
+        var entry = snap.bom_entries[e];
+        var createBomResp = await fetch('/api/bom/', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken()},
+          credentials: 'same-origin',
+          body: JSON.stringify({ part: configuratorPartId, sub_part: entry.sub_part, quantity: entry.quantity || 1 }),
+        });
+        if (createBomResp.ok) {
+          var newBomItem = await createBomResp.json();
+          subPartToNewBomId[entry.sub_part] = newBomItem.pk;
+        }
+      }
+    }
+
+    // Step 3: Restore BOM formulas
+    if (snap.bom_entries && snap.bom_entries.length > 0) {
+      // New format: create ParametricBomItem configs for newly created BomItems
+      for (var ni = 0; ni < snap.bom_items.length; ni++) {
+        var biNew = snap.bom_items[ni];
+        var newBomId = subPartToNewBomId[biNew._sub_part];
+        if (!newBomId) continue;
+        var createPbiResp = await apiCall('POST', 'bom-item-config/', { bom_item: newBomId });
+        if (createPbiResp.error) {
+          showToast('error', '创建BOM配置失败');
+          return;
+        }
+        var newPbi = createPbiResp.data;
+        await apiCall('PATCH', 'bom-item-config/' + newPbi.id + '/', {
+          enable_qty_formula: !!biNew.enable_qty_formula,
+          qty_formula: biNew.qty_formula || '',
+          enable_conditional: !!biNew.enable_conditional,
+          condition_formula: biNew.condition_formula || '',
+          enable_candidate: !!biNew.enable_candidate,
+          enable_variant: !!biNew.enable_variant,
+          enable_specification: !!biNew.enable_specification,
+          enable_structure: !!biNew.enable_structure,
+          name_formula: biNew.name_formula || '',
+          reference_formula: biNew.reference_formula || '',
+          price_formula: biNew.price_formula || '',
+          param_mapping: biNew.param_mapping || {},
+        });
+      }
+    } else if (snap.bom_items && snap.bom_items.length) {
+      // Old format: PATCH existing BOM item configs
       for (var k = 0; k < snap.bom_items.length; k++) {
         var bi = snap.bom_items[k];
-        // Try to update existing config for the same bom_item
         var existingResp = await apiCall('GET', 'bom-item-config/?bom_item=' + bi.bom_item);
         var existing = existingResp.error ? [] : (Array.isArray(existingResp.data) ? existingResp.data : (existingResp.data.results || []));
         if (existing.length > 0) {
