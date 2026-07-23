@@ -1811,13 +1811,13 @@ async function createParamConfig() {
 
 // ── 参数导入/导出 ──
 function exportParamsExcel() {
-  var partId = window.__currentPartId;
+  var partId = window.__currentPartId || configuratorPartId;
   if (!partId) { showToast('error', '请先选择产品'); return; }
   window.open('/api/parametric-bom/export-params/?part=' + partId, '_blank');
 }
 
 function openImportParamsModal() {
-  var partId = window.__currentPartId;
+  var partId = window.__currentPartId || configuratorPartId;
   if (!partId) { showToast('error', '请先选择产品'); return; }
 
   var overlay = document.createElement('div');
@@ -1860,7 +1860,7 @@ function onImportParamsFile(file) {
 
 async function doImportParams() {
   var file = window.__importParamsFile;
-  var partId = window.__currentPartId;
+  var partId = window.__currentPartId || configuratorPartId;
   if (!file || !partId) return;
 
   var btn = document.getElementById('import-params-submit-btn');

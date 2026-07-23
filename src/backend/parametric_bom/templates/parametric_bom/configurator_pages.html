@@ -182,6 +182,10 @@
             <div class="card">
               <div class="card-header flex items-center justify-between">
                 <span>🔧 参数编辑画布 <span class="text-xs text-gray-400" id="pd-param-count"></span></span>
+                <div class="flex items-center gap-1">
+                  <button class="btn btn-sm btn-outline-primary text-[10px]" onclick="exportParamsExcel()">📥 导出</button>
+                  <button class="btn btn-sm btn-outline-primary text-[10px]" onclick="openImportParamsModal()">📤 导入</button>
+                </div>
               </div>
               <div id="pd-params-canvas">
                 <div class="empty-state"><div class="icon">🔧</div><p>选择产品后加载参数列表</p></div>
