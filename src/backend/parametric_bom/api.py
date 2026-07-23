@@ -26,6 +26,7 @@ from parametric_bom.models import (
     ParameterChangeLog,
     ParametricBomItem,
     ParametricRule,
+    ParametricSnapshot,
     PartAttributeFormula,
     PartParameterConfig,
     PartVariable,
