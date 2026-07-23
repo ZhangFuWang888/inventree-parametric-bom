@@ -866,6 +866,9 @@ async function batchDeleteBomItems() {
     });
     var data = await resp.json();
     if (data.success) {
+      // Reset batch delete button after successful deletion
+      var btn = document.getElementById('batch-del-bom-btn');
+      if (btn) { btn.style.display = 'none'; btn.textContent = '🗑 批量删除'; }
       showToast('success', '✅ 已删除 ' + data.deleted + ' 项' + (data.failed.length ? '，失败 ' + data.failed.length + ' 项' : ''));
       loadPdBOMM();
     } else {
