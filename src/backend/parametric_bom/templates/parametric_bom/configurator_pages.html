@@ -107,23 +107,22 @@
             <p class="text-xs text-gray-500 truncate" id="pd-product-desc"></p>
           </div>
           <div class="flex items-center gap-2 shrink-0">
+            <!-- 版本管理（与设备名同行） -->
+            <div class="flex items-center gap-1.5" id="version-bar" style="display:none">
+              <select id="version-select" class="text-xs border border-gray-300 rounded px-2 py-1 bg-white min-w-[100px]" onchange="onVersionSelect()">
+                <option value="">— 当前 —</option>
+              </select>
+              <button class="text-[10px] text-blue-500 hover:text-blue-700 px-1 py-0.5 rounded hover:bg-blue-50" onclick="saveVersion()" title="保存当前配置为版本">💾</button>
+              <button class="text-[10px] text-green-600 hover:text-green-800 px-1 py-0.5 rounded hover:bg-green-50" onclick="loadVersion()" title="加载选中版本">📥</button>
+              <button class="text-[10px] text-red-400 hover:text-red-600 px-1 py-0.5 rounded hover:bg-red-50" onclick="deleteVersion()" title="删除选中版本">🗑</button>
+              <span class="text-[9px] text-gray-400 ml-1" id="version-info"></span>
+            </div>
             <div class="flex items-center gap-1.5" id="save-params-bar">
               <button class="btn btn-sm btn-success" onclick="saveAllParams()" id="btn-save-params">
                 保存修改
               </button>
             </div>
           </div>
-        </div>
-        <!-- 版本管理栏 -->
-        <div class="flex items-center gap-2 mb-3 pb-3 border-b border-gray-100" id="version-bar" style="display:none">
-          <span class="text-[10px] text-gray-400 font-medium">版本:</span>
-          <select id="version-select" class="text-xs border border-gray-300 rounded px-2 py-1 bg-white min-w-[120px]" onchange="onVersionSelect()">
-            <option value="">— 当前 —</option>
-          </select>
-          <button class="text-[10px] text-blue-500 hover:text-blue-700 px-1.5 py-0.5 rounded hover:bg-blue-50" onclick="saveVersion()" title="保存当前配置为版本">💾 存为版本</button>
-          <button class="text-[10px] text-green-600 hover:text-green-800 px-1.5 py-0.5 rounded hover:bg-green-50" onclick="loadVersion()" title="加载选中版本">📥 加载</button>
-          <button class="text-[10px] text-red-400 hover:text-red-600 px-1.5 py-0.5 rounded hover:bg-red-50" onclick="deleteVersion()" title="删除选中版本">🗑</button>
-          <span class="text-[9px] text-gray-400 ml-2" id="version-info"></span>
         </div>
         <!-- Tab 导航 -->
         <div class="flex gap-0 border-b border-gray-200 mb-4">
