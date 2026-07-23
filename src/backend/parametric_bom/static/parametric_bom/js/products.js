@@ -1037,7 +1037,7 @@ function filterBOMList() {
     filtered = items.filter(function(item) {
       const subPartDetail = item.sub_part_detail || {};
       const name = (subPartDetail.name || '').toLowerCase();
-      const ipn = (subPartDetail.ipn || '').toLowerCase();
+      const ipn = (subPartDetail.IPN || '').toLowerCase();
       // Also search in variant mapping template names
       const cfg = pcfgMap[item.pk];
       var vm = null;
@@ -1082,7 +1082,7 @@ function renderBOMTable(items, pcfgMap, vmByPbi) {
     const item = items[i];
     const subPartDetail = item.sub_part_detail || {};
     const subPartName = subPartDetail.name || '#' + item.sub_part;
-    const subPartRef = subPartDetail.ipn || '';
+    const subPartRef = subPartDetail.IPN || '';
     const cfg = pcfgMap[item.pk];
     const hasCfg = !!cfg;
     const staticQty = item.quantity;
