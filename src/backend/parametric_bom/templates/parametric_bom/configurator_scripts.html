@@ -245,9 +245,8 @@ async function cartCreateOrder() {
   cartLoad();
 }
 
-// ═══ 批量导入 BOM — 内联（绕过外部JS缓存） ═══
-let _batchParsedItems = [];
-let _batchMode = 'excel'; // 'excel' | 'paste'
+// ═══ 批量导入 BOM — Excel 上传 ═══
+let _batchSelectedFile = null;
 
 function openBatchBomModal() {
   var pid = configuratorPartId;
@@ -272,149 +271,53 @@ function openBatchBomModal() {
       <h3 class="text-base font-semibold text-gray-800">📋 批量导入BOM物料</h3>\
       <button class="text-gray-400 hover:text-gray-600 text-xl leading-none" onclick="document.getElementById(\'__batch_modal_overlay\').remove()">&times;</button>\
     </div>\
-    <div class="page-help mb-3" style="font-size:0.65rem"><span class="icon">💡</span><span class="text">上传Excel或粘贴表格数据导入物料。新零件默认归入产品分类。<strong>' + (catName || '未分类') + '</strong></span></div>\
+    <div class="page-help mb-3" style="font-size:0.65rem"><span class="icon">💡</span><span class="text">上传Excel文件导入物料。新零件默认归入产品分类。<strong>' + (catName || '未分类') + '</strong></span></div>\
 \
-    <!-- Tab switcher -->\
-    <div class="flex border-b border-gray-200 mb-3">\
-      <button class="batch-tab-btn active px-3 py-1.5 text-xs font-medium rounded-t border-b-2 -mb-[1px] transition-colors" data-mode="excel" onclick="switchBatchTab(\'excel\')" style="border-color:#2563eb;color:#2563eb;background:transparent">📄 上传Excel</button>\
-      <button class="batch-tab-btn px-3 py-1.5 text-xs font-medium rounded-t transition-colors" data-mode="paste" onclick="switchBatchTab(\'paste\')" style="border-color:transparent;color:#6b7280;background:transparent">📋 粘贴表格</button>\
+    <div class="flex items-center gap-2 mb-3">\
+      <span class="text-xs text-gray-500">下载模板：</span>\
+      <a href="/api/parametric-bom/bom-import-template/" class="text-xs text-blue-600 hover:text-blue-800 underline font-medium">📥 BOM导入模板.xlsx</a>\
     </div>\
 \
-    <!-- Excel upload panel -->\
-    <div id="batch-excel-panel" class="mb-3">\
-      <div class="flex items-center gap-2 mb-2">\
-        <span class="text-xs text-gray-500">下载模板：</span>\
-        <a href="/api/parametric-bom/bom-import-template/" class="text-xs text-blue-600 hover:text-blue-800 underline font-medium">📥 BOM导入模板.xlsx</a>\
-      </div>\
-      <div id="batch-drop-zone" class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer hover:border-blue-400 hover:bg-blue-50/30 transition-colors" onclick="document.getElementById(\'batch-file-input\').click()">\
-        <div class="text-2xl mb-1">📁</div>\
-        <div class="text-sm text-gray-600 font-medium">点击选择或拖拽上传 Excel 文件</div>\
-        <div class="text-[10px] text-gray-400 mt-0.5">支持 .xlsx 格式，列：物料名称 / 物料型号 / 数量 / 描述</div>\
-      </div>\
-      <input type="file" id="batch-file-input" accept=".xlsx,.xls" style="display:none" onchange="handleBatchFile(this.files[0])">\
-      <div id="batch-file-name" class="text-xs text-blue-600 mt-1.5" style="display:none"></div>\
+    <div id="batch-drop-zone" class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer hover:border-blue-400 hover:bg-blue-50/30 transition-colors mb-3" onclick="document.getElementById(\'batch-file-input\').click()">\
+      <div class="text-2xl mb-1">📁</div>\
+      <div class="text-sm text-gray-600 font-medium">点击选择或拖拽上传 Excel 文件</div>\
+      <div class="text-[10px] text-gray-400 mt-0.5">支持 .xlsx 格式，列：物料名称 / 物料型号 / 数量 / 描述</div>\
     </div>\
-\
-    <!-- Paste panel (hidden by default) -->\
-    <div id="batch-paste-panel" class="mb-3" style="display:none">\
-      <label class="block text-xs font-medium text-gray-500 mb-1">📋 粘贴表格数据（制表符/Tab分隔）</label>\
-      <textarea id="batch-paste-area" rows="6" class="input-field" style="width:100%;font-size:0.75rem;font-family:monospace;resize:vertical" placeholder="物料名称\\t物料型号\\t数量\\t描述\\nФ50滚筒\\tGUN-50\\t4\\t\\n链条\\tCHAIN-08B\\t2\\t" oninput="parseBatchPaste()"></textarea>\
-      <div class="text-[10px] text-gray-400 mt-1">格式: <b>物料名称</b> Tab <b>型号(可选)</b> Tab <b>数量(可选)</b> Tab <b>描述(可选)</b></div>\
-    </div>\
+    <input type="file" id="batch-file-input" accept=".xlsx,.xls" style="display:none" onchange="handleBatchFile(this.files[0])">\
+    <div id="batch-file-name" class="text-xs text-blue-600 mb-3" style="display:none"></div>\
 \
     <div class="flex items-center gap-3 mb-3">\
-      <label class="flex items-center gap-1.5 text-xs text-gray-500 cursor-pointer"><input type="checkbox" id="batch-create-missing" checked onchange="onBatchCreateMissingChange()"> 不存在则新建零件</label>\
+      <label class="flex items-center gap-1.5 text-xs text-gray-500 cursor-pointer"><input type="checkbox" id="batch-create-missing" checked> 不存在则新建零件</label>\
     </div>\
 \
-    <!-- Preview (shared) -->\
-    <div class="mb-3" id="batch-preview-area" style="display:none">\
-      <div class="flex items-center justify-between mb-1">\
-        <span class="text-xs font-medium text-gray-600">预览（<span id="batch-preview-count">0</span> 项）</span>\
-      </div>\
-      <div style="max-height:300px;overflow-y:auto;border:1px solid #e5e7eb;border-radius:6px"><table style="width:100%;font-size:0.7rem;border-collapse:collapse" id="batch-preview-table"><thead style="position:sticky;top:0;background:#f9fafb"><tr><th style="padding:4px 8px;text-align:left;border-bottom:1px solid #e5e7eb">#</th><th style="padding:4px 8px;text-align:left;border-bottom:1px solid #e5e7eb">物料名称</th><th style="padding:4px 8px;text-align:left;border-bottom:1px solid #e5e7eb">型号</th><th style="padding:4px 8px;text-align:right;border-bottom:1px solid #e5e7eb">数量</th><th style="padding:4px 8px;text-align:left;border-bottom:1px solid #e5e7eb">状态</th></tr></thead><tbody id="batch-preview-tbody"></tbody></table></div>\
-    </div>\
     <div class="flex justify-end gap-2 pt-2 border-t border-gray-100">\
       <button class="btn btn-secondary btn-sm" onclick="document.getElementById(\'__batch_modal_overlay\').remove()">取消</button>\
-      <button class="btn btn-primary btn-sm" id="batch-import-btn" onclick="doBatchImport()" disabled>确认导入</button>\
+      <button class="btn btn-primary btn-sm" id="batch-import-btn" onclick="doBatchImportExcel()" disabled>确认导入</button>\
     </div>';
   overlay.appendChild(box);
   document.body.appendChild(overlay);
-  _batchParsedItems = [];
-  _batchMode = 'excel';
-  document.getElementById('batch-preview-area').style.display = 'none';
+  _batchSelectedFile = null;
   document.getElementById('batch-import-btn').disabled = true;
 
-  // Drag & drop for file input
+  // Drag & drop
   var dropZone = document.getElementById('batch-drop-zone');
   dropZone.addEventListener('dragover', function(e) { e.preventDefault(); dropZone.style.borderColor = '#2563eb'; dropZone.style.background = '#f0f7ff'; });
   dropZone.addEventListener('dragleave', function(e) { e.preventDefault(); dropZone.style.borderColor = '#d1d5db'; dropZone.style.background = ''; });
   dropZone.addEventListener('drop', function(e) { e.preventDefault(); dropZone.style.borderColor = '#d1d5db'; dropZone.style.background = ''; handleBatchFile(e.dataTransfer.files[0]); });
 }
 
-function switchBatchTab(mode) {
-  _batchMode = mode;
-  var tabs = document.querySelectorAll('.batch-tab-btn');
-  tabs.forEach(function(t) {
-    t.classList.toggle('active', t.dataset.mode === mode);
-    t.style.borderColor = t.dataset.mode === mode ? '#2563eb' : 'transparent';
-    t.style.color = t.dataset.mode === mode ? '#2563eb' : '#6b7280';
-  });
-  document.getElementById('batch-excel-panel').style.display = (mode === 'excel' ? '' : 'none');
-  document.getElementById('batch-paste-panel').style.display = (mode === 'paste' ? '' : 'none');
-  // Reset when switching
-  _batchParsedItems = [];
-  document.getElementById('batch-preview-area').style.display = 'none';
-  document.getElementById('batch-import-btn').disabled = true;
-  if (mode === 'paste') {
-    document.getElementById('batch-paste-area').value = '';
-  } else {
-    document.getElementById('batch-file-name').style.display = 'none';
-    document.getElementById('batch-file-input').value = '';
-  }
-}
-
 function handleBatchFile(file) {
   if (!file) return;
+  _batchSelectedFile = file;
   var nameEl = document.getElementById('batch-file-name');
   nameEl.textContent = '📎 ' + file.name + ' (' + (file.size/1024).toFixed(0) + ' KB)';
   nameEl.style.display = '';
-  // Start import directly — parse preview on server
-  doBatchImportExcel(file);
+  document.getElementById('batch-import-btn').disabled = false;
 }
 
-function onBatchCreateMissingChange() {
-  if (_batchMode === 'paste') parseBatchPaste();
-}
-
-function parseBatchPaste() {
-  var text = document.getElementById('batch-paste-area').value.trim();
-  var previewArea = document.getElementById('batch-preview-area');
-  var tbody = document.getElementById('batch-preview-tbody');
-  var countEl = document.getElementById('batch-preview-count');
-  var btn = document.getElementById('batch-import-btn');
-  var createMissing = document.getElementById('batch-create-missing').checked;
-  if (!text) { previewArea.style.display = 'none'; btn.disabled = true; _batchParsedItems = []; return; }
-  var lines = text.split('\n').filter(function(l) { return l.trim(); });
-  _batchParsedItems = lines.map(function(line) {
-    var cols = line.split('\t');
-    return { name: (cols[0]||'').trim(), ipn: (cols[1]||'').trim(), quantity: (cols[2]||'').trim()||'1', description: (cols[3]||'').trim(), create_if_missing: createMissing };
-  }).filter(function(item) { return item.name; });
-  if (_batchParsedItems.length === 0) { previewArea.style.display = 'none'; btn.disabled = true; return; }
-  previewArea.style.display = '';
-  countEl.textContent = _batchParsedItems.length;
-  tbody.innerHTML = _batchParsedItems.map(function(item, i) {
-    var s = createMissing ? '🆕 将创建' : '⚠️ 待查';
-    return '<tr style="border-bottom:1px solid #f3f4f6"><td style="padding:3px 8px;color:#9ca3af">'+(i+1)+'</td><td style="padding:3px 8px;font-weight:500">'+item.name.replace(/&/g,'&amp;').replace(/</g,'&lt;')+'</td><td style="padding:3px 8px;color:#6b7280">'+item.ipn.replace(/&/g,'&amp;').replace(/</g,'&lt;')+'</td><td style="padding:3px 8px;text-align:right">'+item.quantity+'</td><td style="padding:3px 8px;font-size:0.65rem">'+s+'</td></tr>';
-  }).join('');
-  btn.disabled = false;
-}
-
-async function doBatchImport() {
+async function doBatchImportExcel() {
   var pid = configuratorPartId;
-  if (!pid) return;
-  if (_batchMode === 'paste') {
-    await doBatchImportPaste(pid);
-  }
-}
-
-async function doBatchImportPaste(pid) {
-  var btn = document.getElementById('batch-import-btn');
-  if (_batchParsedItems.length === 0) return;
-  btn.disabled = true; btn.textContent = '导入中...';
-  setStatus('loading', '正在批量导入 ' + _batchParsedItems.length + ' 项...');
-  try {
-    var resp = await fetch('/api/parametric-bom/create-bom-items-batch/', {
-      method: 'POST', headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken()}, credentials: 'same-origin',
-      body: JSON.stringify({ parent_part_id: pid, items: _batchParsedItems }),
-    });
-    var data = await resp.json();
-    handleBatchResult(data);
-  } catch(e) { setStatus('error', '网络错误: ' + e.message); }
-  btn.disabled = false; btn.textContent = '确认导入';
-}
-
-async function doBatchImportExcel(file) {
-  var pid = configuratorPartId;
+  var file = _batchSelectedFile;
   if (!pid || !file) return;
   var btn = document.getElementById('batch-import-btn');
   btn.disabled = true; btn.textContent = '导入中...';
