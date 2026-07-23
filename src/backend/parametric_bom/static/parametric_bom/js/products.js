@@ -1157,10 +1157,10 @@ async function copyBomItem(bomItemPk) {
   for (var i = 0; i < items.length; i++) {
     if (items[i].pk === bomItemPk || items[i].id === bomItemPk) { item = items[i]; break; }
   }
-  if (!item) { setStatus('error', '未找到BOM项'); return; }
-  if (!configuratorPartId) { setStatus('error', '请先选择产品'); return; }
+  if (!item) { showToast('error', '未找到BOM项'); return; }
+  if (!configuratorPartId) { showToast('error', '请先选择产品'); return; }
 
-  setStatus('loading', '复制中...');
+  showToast('loading', '复制中...');
 
   // ── Step 1: Create new BomItem (copy ALL writable fields) ──
   var bomResp;
@@ -1186,7 +1186,7 @@ async function copyBomItem(bomItemPk) {
       })
     });
   } catch(e) {
-    setStatus('error', '网络错误: ' + e.message);
+    showToast('error', '网络错误: ' + e.message);
     return;
   }
 
@@ -1195,12 +1195,12 @@ async function copyBomItem(bomItemPk) {
 
   if (!bomResp.ok) {
     var errMsg = bomData.error || bomData.detail || JSON.stringify(bomData).substring(0,120);
-    setStatus('error', 'BOM项创建失败: ' + errMsg);
+    showToast('error', 'BOM项创建失败: ' + errMsg);
     return;
   }
 
   var newBomItemId = bomData.pk || bomData.id;
-  if (!newBomItemId) { setStatus('error', 'BOM项创建失败: 未返回ID'); return; }
+  if (!newBomItemId) { showToast('error', 'BOM项创建失败: 未返回ID'); return; }
 
   // ── Step 2: Copy ParametricBomItem (if exists) ──
   var pcfg = window.__bomPcfgMap ? window.__bomPcfgMap[bomItemPk] : null;
@@ -1224,7 +1224,7 @@ async function copyBomItem(bomItemPk) {
     });
 
     if (cfgResp && cfgResp.error) {
-      setStatus('warning', 'BOM已复制，参数配置复制失败，请手动修复');
+      showToast('warning', 'BOM已复制，参数配置复制失败，请手动修复');
     } else {
       // cfgResp = {error: false, data: {id: ...}}
       var newPbiData = cfgResp && cfgResp.data;
@@ -1246,10 +1246,10 @@ async function copyBomItem(bomItemPk) {
         }
       }
 
-      setStatus('success', '已复制（含变体配置）');
+      showToast('success', '已复制（含变体配置）');
     }
   } else {
-    setStatus('success', '已复制');
+    showToast('success', '已复制');
   }
 
   // ── Always refresh list (detect current page) ──

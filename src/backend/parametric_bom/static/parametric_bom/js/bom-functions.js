@@ -784,12 +784,12 @@ async function saveCellFormula() {
 
 async function resetBomConfig(bomItemId, name) {
   if (!confirm(`确认从BOM中移除「${name}」？`)) return;
-  setStatus('loading', '移除中...');
+  showToast('loading', '移除中...');
 
   // 1) Get ParametricBomItem id first
   var cfgRes = await apiCall('GET', 'bom-item-config/?bom_item=' + bomItemId);
   if (cfgRes.error) {
-    setStatus('error', '查询配置失败');
+    showToast('error', '查询配置失败');
     return;
   }
   var configs = Array.isArray(cfgRes.data) ? cfgRes.data : (cfgRes.data.results || []);
@@ -816,15 +816,15 @@ async function resetBomConfig(bomItemId, name) {
       credentials: 'same-origin',
     });
     if (delResp.ok || delResp.status === 204) {
-      setStatus('success', '✅ 已移除「' + name + '」');
+      showToast('success', '已移除「' + name + '」');
       // Refresh list
       var pdBomList = document.getElementById('pd-bom-list');
       if (pdBomList) { loadPdBOMM(); }
     } else {
-      setStatus('error', '删除BOM项失败');
+      showToast('error', '删除BOM项失败');
     }
   } catch(e) {
-    setStatus('error', '网络错误: ' + e.message);
+    showToast('error', '网络错误: ' + e.message);
   }
 }
 

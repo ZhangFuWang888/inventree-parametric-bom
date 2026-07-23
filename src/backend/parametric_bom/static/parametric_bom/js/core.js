@@ -69,7 +69,35 @@ function setStatus(type, msg) {
 }
 
 // Backward compatibility
-function showToast(type, msg) { setStatus(type, msg); }
+function showToast(type, msg) {
+  const icons = { error: '❌', success: '✅', loading: '⏳', info: '💡', warning: '⚠️' };
+  const colors = { error: '#dc2626', success: '#16a34a', loading: '#2563eb', info: '#0284c7', warning: '#d97706' };
+  const bgColors = { error: '#fef2f2', success: '#f0fdf4', loading: '#eff6ff', info: '#f0f9ff', warning: '#fffbeb' };
+
+  var toast = document.createElement('div');
+  toast.style.cssText = 'position:fixed;bottom:24px;right:24px;z-index:9999;padding:10px 18px;border-radius:8px;font-size:13px;'
+    + 'box-shadow:0 4px 12px rgba(0,0,0,0.15);display:flex;align-items:center;gap:8px;'
+    + 'animation:toastIn 0.3s ease;max-width:400px;'
+    + 'color:' + (colors[type] || '#374151') + ';background:' + (bgColors[type] || '#fff') + ';'
+    + 'border:1px solid ' + (colors[type] || '#e5e7eb') + ';';
+  toast.innerHTML = '<span style="font-size:16px">' + (icons[type] || '') + '</span><span>' + msg + '</span>';
+
+  // Auto-dismiss
+  var duration = type === 'error' ? 5000 : 3000;
+  document.body.appendChild(toast);
+  setTimeout(function() {
+    toast.style.opacity = '0';
+    toast.style.transition = 'opacity 0.3s';
+    setTimeout(function() { if (toast.parentNode) toast.remove(); }, 300);
+  }, duration);
+}
+
+// Also call setStatus for compatibility
+var _origShowToast = showToast;
+showToast = function(type, msg) {
+  setStatus(type, msg);
+  _origShowToast(type, msg);
+};
 
 // ===== SIDEBAR NAVIGATION =====
 function toggleSidebar() {
