@@ -1091,6 +1091,7 @@ function renderBOMTable(items, pcfgMap, vmByPbi) {
         + (vm.variant_name_template ? '<span class="fmla-text">' + escHtml(vm.variant_name_template) + '</span>' : '<span class="fmla-empty">—</span>')
         + '<span class="fmla-hint">双击编辑</span>'
         + tplRef
+        + '<button class="text-gray-300 hover:text-blue-500 text-[10px] p-0 ml-1 align-baseline" onclick="event.stopPropagation();changeBomPart(' + item.pk + ',' + item.sub_part + ')\" title=\"更换关联零件\">✏️</button>'
         + '</div></td>';
       ipnCell = '<td class="pbs-ipn"><div class="pbs-formula-cell" ondblclick="openCellEditor(' + item.pk + ",'variant_ipn','" + escIpnVal + "',false," + mappingId + ')" title="双击编辑动态型号">'
         + (vm.variant_ipn_template ? '<span class="fmla-text">' + escHtml(vm.variant_ipn_template) + '</span>' : '<span class="fmla-empty">—</span>')
@@ -1104,16 +1105,17 @@ function renderBOMTable(items, pcfgMap, vmByPbi) {
         nameCell = '<td><div class="pbs-formula-cell" ondblclick="openCellEditor(' + item.pk + ",'name_formula','" + escNfVal + "',false,0,'string')\" title=\"双击编辑名称公式\">"
           + '<span class="fmla-text" title="' + escNfVal + '">' + escHtml(nfVal) + '</span>'
           + '<span class="fmla-hint">双击编辑</span>'
-          + '<div class="text-[9px] text-gray-400 mt-0.5">→ ' + escHtml(subPartName) + '</div>'
+          + '<div class="text-[9px] text-gray-400 mt-0.5">→ ' + escHtml(subPartName) + ' <button class="text-gray-300 hover:text-blue-500 text-[10px] p-0 align-baseline" onclick="event.stopPropagation();changeBomPart(' + item.pk + ',' + item.sub_part + ')" title="更换关联零件">✏️</button></div>'
           + '</div></td>';
       } else if (hasCfg) {
         var escSubName = (subPartName || '').replace(/'/g,"\\'").replace(/"/g,'&quot;');
         nameCell = '<td><div class="pbs-formula-cell" ondblclick="openCellEditor(' + item.pk + ",'name_formula','" + "',false,0,'string')" + '" title="双击添加名称公式">'
           + '<span class="pbs-name clickable-part" onclick="openPartDetail(' + item.sub_part + ')" title="点击查看零件详情">' + subPartName + '</span>'
+          + '<button class="text-gray-300 hover:text-blue-500 text-[10px] p-0 ml-1 align-baseline" onclick="event.stopPropagation();changeBomPart(' + item.pk + ',' + item.sub_part + ')" title="更换关联零件">✏️</button>'
           + '<span class="fmla-hint">双击添加名称公式</span>'
           + '</div></td>';
       } else {
-        nameCell = '<td><span class="pbs-name clickable-part" onclick="openPartDetail(' + item.sub_part + ')" title="点击查看零件详情">' + subPartName + '</span></td>';
+        nameCell = '<td><span class="pbs-name clickable-part" onclick="openPartDetail(' + item.sub_part + ')" title="点击查看零件详情">' + subPartName + '</span> <button class="text-gray-300 hover:text-blue-500 text-[10px] p-0 align-baseline" onclick="event.stopPropagation();changeBomPart(' + item.pk + ',' + item.sub_part + ')" title="更换关联零件">✏️</button></td>';
       }
       ipnCell = '<td class="pbs-ipn">' + (subPartRef || '<span class="text-gray-300">—</span>') + '</td>';
     }
@@ -1152,19 +1154,34 @@ function renderBOMTable(items, pcfgMap, vmByPbi) {
 
 // ── Copy BOM Item — full deep copy (all fields + param config + variant mapping) ──
 async function copyBomItem(bomItemPk) {
+  if (!configuratorPartId) { showToast('error', '请先选择产品'); return; }
+
   var items = window.__bomItems || [];
   var item = null;
   for (var i = 0; i < items.length; i++) {
     if (items[i].pk === bomItemPk || items[i].id === bomItemPk) { item = items[i]; break; }
   }
-  if (!item) { showToast('error', '未找到BOM项'); return; }
-  if (!configuratorPartId) { showToast('error', '请先选择产品'); return; }
+
+  // Fallback: fetch from API if not in local cache
+  if (!item) {
+    try {
+      var detailResp = await fetch('/api/bom/' + bomItemPk + '/?sub_part_detail=True', {
+        headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken()},
+        credentials: 'same-origin'
+      });
+      if (detailResp.ok) { item = await detailResp.json(); }
+    } catch(e) { /* ignore */ }
+  }
+
+  if (!item) { showToast('error', '未找到BOM项（PK=' + bomItemPk + '）'); return; }
 
   showToast('loading', '复制中...');
 
   // ── Step 1: Create new BomItem (copy ALL writable fields) ──
   var bomResp;
   try {
+    // Build reference: append ' 副本' to existing, or auto-generate
+    var newRef = (item.reference || '') + ' 副本';
     bomResp = await fetch('/api/bom/', {
       method: 'POST',
       headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken()},
@@ -1173,7 +1190,7 @@ async function copyBomItem(bomItemPk) {
         part: configuratorPartId,
         sub_part: item.sub_part,
         quantity: item.quantity || 1,
-        reference: item.reference ? (item.reference + ' (副本)') : '副本',
+        reference: newRef,
         optional: !!item.optional,
         consumable: !!item.consumable,
         allow_variants: !!item.allow_variants,
@@ -1226,7 +1243,6 @@ async function copyBomItem(bomItemPk) {
     if (cfgResp && cfgResp.error) {
       showToast('warning', 'BOM已复制，参数配置复制失败，请手动修复');
     } else {
-      // cfgResp = {error: false, data: {id: ...}}
       var newPbiData = cfgResp && cfgResp.data;
       var newPbiId = newPbiData ? (newPbiData.id || 0) : 0;
 
@@ -1261,6 +1277,124 @@ async function copyBomItem(bomItemPk) {
     } else if (formulaList) {
       loadBomFormulaConfigs(configuratorPartId);
     }
+  }
+}
+
+// ── Change BOM Item linked part ──
+function changeBomPart(bomItemPk, currentSubPartPk) {
+  // Find current part name from cache
+  var currentName = '#' + currentSubPartPk;
+  if (window.parts) {
+    var found = window.parts.find(function(p) { return p.pk == currentSubPartPk; });
+    if (found) currentName = found.name || found.full_name || ('#' + found.pk);
+  }
+
+  // Create overlay
+  var overlay = document.createElement('div');
+  overlay.id = 'bp-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:9999;display:flex;align-items:center;justify-content:center;';
+  overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
+
+  var modal = document.createElement('div');
+  modal.style.cssText = 'background:#fff;border-radius:12px;width:560px;max-width:92vw;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 8px 40px rgba(0,0,0,0.18);';
+
+  // Header
+  var header = document.createElement('div');
+  header.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid #e2e8f0;';
+  header.innerHTML = '<span style="font-weight:600;font-size:14px;color:#1e293b;">更换关联零件</span>'
+    + '<span style="font-size:11px;color:#94a3b8;">当前: ' + escHtml(currentName) + '</span>'
+    + '<button onclick="document.getElementById(\'bp-overlay\').remove()" style="background:none;border:none;font-size:18px;cursor:pointer;color:#94a3b8;padding:2px 6px;line-height:1;">&times;</button>';
+  modal.appendChild(header);
+
+  // Search input
+  var searchDiv = document.createElement('div');
+  searchDiv.style.cssText = 'padding:10px 18px;border-bottom:1px solid #e2e8f0;';
+  searchDiv.innerHTML = '<input id="bp-search" type="text" placeholder="搜索零件..." style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;outline:none;box-sizing:border-box;" autofocus>';
+  modal.appendChild(searchDiv);
+
+  // Parts list
+  var listDiv = document.createElement('div');
+  listDiv.style.cssText = 'overflow-y:auto;flex:1;padding:4px 0;';
+  listDiv.id = 'bp-list';
+  listDiv.innerHTML = '<div style="text-align:center;padding:24px;color:#94a3b8;font-size:13px;">输入关键字搜索</div>';
+  modal.appendChild(listDiv);
+
+  overlay.appendChild(modal);
+  document.body.appendChild(overlay);
+
+  // Focus search
+  setTimeout(function() {
+    var inp = document.getElementById('bp-search');
+    if (inp) inp.focus();
+  }, 100);
+
+  var searchTimer = null;
+  document.getElementById('bp-search').addEventListener('input', function() {
+    clearTimeout(searchTimer);
+    var q = this.value.trim();
+    if (!q) {
+      listDiv.innerHTML = '<div style="text-align:center;padding:24px;color:#94a3b8;font-size:13px;">输入关键字搜索</div>';
+      return;
+    }
+    listDiv.innerHTML = '<div style="text-align:center;padding:24px;color:#94a3b8;font-size:13px;">搜索中...</div>';
+    searchTimer = setTimeout(function() {
+      fetch('/api/part/?search=' + encodeURIComponent(q) + '&limit=50', {credentials: 'same-origin'})
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          var results = Array.isArray(data) ? data : (data.results || []);
+          if (!results.length) {
+            listDiv.innerHTML = '<div style="text-align:center;padding:24px;color:#94a3b8;font-size:13px;">未找到</div>';
+            return;
+          }
+          var html = '';
+          for (var i = 0; i < results.length; i++) {
+            var p = results[i];
+            var isCurrent = p.pk == currentSubPartPk;
+            var pName = p.name || p.full_name || ('#' + p.pk);
+            var pIpn = p.ipn || p.IPN || '';
+            html += '<div class="bp-item" data-pk="' + p.pk + '" style="display:flex;align-items:center;gap:10px;padding:8px 18px;cursor:pointer;border-bottom:1px solid #f1f5f9;' + (isCurrent ? 'background:#f0fdf4;' : '') + '"'
+              + ' onmouseover="this.style.background=\'' + (isCurrent ? '#dcfce7' : '#f8fafc') + '\'"'
+              + ' onmouseout="this.style.background=\'' + (isCurrent ? '#f0fdf4' : '') + '\'"'
+              + ' onclick="selectBomPart(' + bomItemPk + ',' + p.pk + ')">'
+              + '<div style="flex:1;min-width:0;"><div style="font-size:13px;font-weight:500;color:#1e293b;">' + (isCurrent ? '✓ ' : '') + escHtml(pName) + '</div>'
+              + (pIpn ? '<div style="font-size:11px;color:#64748b;">型号: ' + escHtml(pIpn) + '</div>' : '')
+              + '</div>'
+              + '<div style="font-size:10px;color:#94a3b8;">ID:' + p.pk + '</div>'
+              + '</div>';
+          }
+          listDiv.innerHTML = html;
+        })
+        .catch(function() {
+          listDiv.innerHTML = '<div style="text-align:center;padding:24px;color:#ef4444;font-size:13px;">搜索失败</div>';
+        });
+    }, 300);
+  });
+}
+
+// ── Select new part for BOM item ──
+async function selectBomPart(bomItemPk, newPartPk) {
+  document.getElementById('bp-overlay').remove();
+
+  showToast('loading', '更换零件中...');
+  try {
+    var resp = await fetch('/api/bom/' + bomItemPk + '/', {
+      method: 'PATCH',
+      headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken()},
+      credentials: 'same-origin',
+      body: JSON.stringify({sub_part: newPartPk})
+    });
+    var data = {};
+    try { data = await resp.json(); } catch(e) {}
+
+    if (!resp.ok) {
+      var err = data.error || data.detail || JSON.stringify(data).substring(0,100);
+      showToast('error', '更换失败: ' + err);
+      return;
+    }
+    showToast('success', '✅ 零件已更换');
+    loadPdBOMM();
+  } catch(e) {
+    showToast('error', '网络错误: ' + e.message);
   }
 }
 

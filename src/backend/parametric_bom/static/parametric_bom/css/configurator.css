@@ -270,6 +270,7 @@ header .text-sm.font-semibold{
 .page-panel{display:none;animation:fadeIn 0.3s ease}
 .page-panel.active{display:block}
 @keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+@keyframes toastIn{from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:translateX(0)}}
 
 /* Sidebar */
 .sidebar-group{margin-bottom:0.25rem}
