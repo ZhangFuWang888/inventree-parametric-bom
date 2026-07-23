@@ -1693,3 +1693,62 @@ class ProjectBatch(models.Model):
 
     def __str__(self):
         return f'{self.project.project_code} / {self.name} [{self.status}]'
+
+
+class ParametricSnapshot(models.Model):
+    """Versioned snapshot of all parametric configurations for a Part.
+
+    Stores a complete JSON snapshot of parameters, variables, BOM formulas,
+    variant mappings, and rules at a point in time. Supports version save/load/
+    diff workflows without modifying existing tables.
+    """
+
+    part = models.ForeignKey(
+        'part.Part',
+        on_delete=models.CASCADE,
+        related_name='parametric_snapshots',
+        verbose_name=_('Part'),
+        help_text=_('The part this snapshot belongs to'),
+    )
+    name = models.CharField(
+        max_length=64,
+        verbose_name=_('Version name'),
+        help_text=_('e.g. "v1.0", "v2.0 优化版"'),
+    )
+    description = models.TextField(
+        blank=True,
+        default='',
+        verbose_name=_('Description'),
+        help_text=_('Optional notes about this version'),
+    )
+    snapshot_data = models.JSONField(
+        default=dict,
+        verbose_name=_('Snapshot data'),
+        help_text=_('Full JSON of all parametric configs at save time'),
+    )
+    is_active = models.BooleanField(
+        default=False,
+        verbose_name=_('Is active'),
+        help_text=_('Whether this version is the currently loaded one'),
+    )
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name=_('Created at'),
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name=_('Created by'),
+    )
+
+    class Meta:
+        app_label = 'parametric_bom'
+        verbose_name = _('Parametric snapshot')
+        verbose_name_plural = _('Parametric snapshots')
+        ordering = ['-created_at']
+        unique_together = [('part', 'name')]
+
+    def __str__(self):
+        return f'{self.part} — {self.name}'

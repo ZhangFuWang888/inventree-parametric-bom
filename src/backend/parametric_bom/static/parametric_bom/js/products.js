@@ -359,6 +359,8 @@ async function loadProductDetail(partId) {
   }
   // Load first tab
   switchProductTab('params');
+  // Load versions
+  loadVersions();
 }
 
 // ── Dirty tracking for Save/Cancel ──
@@ -1635,4 +1637,202 @@ function escapeHtml(str) {
   const div = document.createElement('div');
   div.appendChild(document.createTextNode(str));
   return div.innerHTML;
+}
+
+// ═══════════════════════════════════════════════════
+//  版本管理 (Parametric Snapshot)
+// ═══════════════════════════════════════════════════
+
+var __versions = [];
+var __selectedVersionId = null;
+
+async function loadVersions() {
+  if (!configuratorPartId) return;
+  var resp = await apiCall('GET', 'parametric-snapshots/?part=' + configuratorPartId);
+  __versions = resp.error ? [] : (Array.isArray(resp.data) ? resp.data : (resp.data.results || []));
+
+  var bar = document.getElementById('version-bar');
+  var sel = document.getElementById('version-select');
+  var info = document.getElementById('version-info');
+
+  // Show bar
+  if (bar) bar.style.display = 'flex';
+
+  // Populate dropdown
+  if (!sel) return;
+  sel.innerHTML = '<option value="">— 当前（未保存版本）—</option>';
+  __versions.forEach(function(v) {
+    var activeMark = v.is_active ? ' ✅' : '';
+    var label = v.name + activeMark + ' (' + (v.created_at || '').substring(0, 10) + ')';
+    sel.innerHTML += '<option value="' + v.id + '"' + (v.is_active ? ' selected' : '') + '>' + escHtml(label) + '</option>';
+  });
+
+  // Update info
+  var activeVer = __versions.find(function(v) { return v.is_active; });
+  if (activeVer) {
+    __selectedVersionId = activeVer.id;
+    if (info) info.textContent = '当前版本: ' + activeVer.name;
+  } else {
+    __selectedVersionId = null;
+    if (info) info.textContent = '';
+  }
+}
+
+function onVersionSelect() {
+  var sel = document.getElementById('version-select');
+  __selectedVersionId = sel ? (sel.value || null) : null;
+  // Convert string "null" / "" to actual null
+  if (!__selectedVersionId || __selectedVersionId === 'null') __selectedVersionId = null;
+}
+
+async function saveVersion() {
+  if (!configuratorPartId) { showToast('error', '请先选择产品'); return; }
+  var name = prompt('版本名称（如 v1.0）:', 'v' + (__versions.length + 1) + '.0');
+  if (!name) return;
+
+  // Collect all current config data
+  var snapshot = await collectSnapshot();
+  if (!snapshot) { showToast('error', '收集配置数据失败'); return; }
+
+  showToast('loading', '保存版本中...');
+  var resp = await apiCall('POST', 'parametric-snapshots/', {
+    part: configuratorPartId,
+    name: name,
+    description: '',
+    snapshot_data: snapshot,
+    is_active: true  // New version becomes active
+  });
+
+  if (resp.error) {
+    showToast('error', '保存失败: ' + ((resp.data && resp.data.error) || ''));
+    return;
+  }
+
+  showToast('success', '✅ 版本「' + name + '」已保存');
+  loadVersions();
+}
+
+async function collectSnapshot() {
+  // Gather all parametric configs for the current part
+  var paramsResp = await apiCall('GET', 'part-config/?part=' + configuratorPartId);
+  var varsResp = await apiCall('GET', 'part-variables/?part=' + configuratorPartId);
+  var bomResp = await apiCall('GET', 'bom-item-config/?bom_item__part=' + configuratorPartId);
+  var vmResp = await apiCall('GET', 'variant-mappings/');
+
+  var params = paramsResp.error ? [] : (Array.isArray(paramsResp.data) ? paramsResp.data : (paramsResp.data.results || []));
+  var variables = varsResp.error ? [] : (Array.isArray(varsResp.data) ? varsResp.data : (varsResp.data.results || []));
+  var bomItems = bomResp.error ? [] : (Array.isArray(bomResp.data) ? bomResp.data : (bomResp.data.results || []));
+  var vms = vmResp.error ? [] : (Array.isArray(vmResp.data) ? vmResp.data : (vmResp.data.results || []));
+
+  // Filter variant mappings to only those related to this part's BOM items
+  var bomPbiIds = bomItems.map(function(b) { return b.id; });
+  var filteredVms = vms.filter(function(v) { return bomPbiIds.indexOf(v.parametric_bom_item) >= 0; });
+
+  return {
+    parameters: params,
+    variables: variables,
+    bom_items: bomItems,
+    variant_mappings: filteredVms,
+    saved_at: new Date().toISOString()
+  };
+}
+
+async function loadVersion() {
+  if (!__selectedVersionId) { showToast('error', '请选择一个版本'); return; }
+  var ver = __versions.find(function(v) { return v.id == __selectedVersionId; });
+  if (!ver || !ver.snapshot_data) { showToast('error', '版本数据为空'); return; }
+
+  if (!confirm('加载版本「' + ver.name + '」将覆盖当前所有配置，是否继续？')) return;
+
+  showToast('loading', '加载版本中...');
+  var snap = ver.snapshot_data;
+
+  try {
+    // Restore parameters
+    if (snap.parameters && snap.parameters.length) {
+      for (var i = 0; i < snap.parameters.length; i++) {
+        var p = snap.parameters[i];
+        await apiCall('POST', 'part-config/', {
+          part: configuratorPartId,
+          template: p.template || null,
+          name: p.name || '',
+          parameter_type: p.parameter_type || 'number',
+          default_value: p.default_value || '',
+          min_value: p.min_value,
+          max_value: p.max_value,
+          options: p.options || '',
+          show_in_table: !!p.show_in_table,
+          sort_order: p.sort_order || 0,
+          unit: p.unit || '',
+        });
+      }
+    }
+
+    // Restore variables
+    if (snap.variables && snap.variables.length) {
+      for (var j = 0; j < snap.variables.length; j++) {
+        var vr = snap.variables[j];
+        await apiCall('POST', 'part-variables/', {
+          part: configuratorPartId,
+          name: vr.name || '',
+          formula: vr.formula || '',
+          description: vr.description || '',
+          var_type: vr.var_type || 'number',
+        });
+      }
+    }
+
+    // Restore BOM items — PATCH each existing BOM item's config
+    if (snap.bom_items && snap.bom_items.length) {
+      for (var k = 0; k < snap.bom_items.length; k++) {
+        var bi = snap.bom_items[k];
+        // Try to update existing config for the same bom_item
+        var existingResp = await apiCall('GET', 'bom-item-config/?bom_item=' + bi.bom_item);
+        var existing = existingResp.error ? [] : (Array.isArray(existingResp.data) ? existingResp.data : (existingResp.data.results || []));
+        if (existing.length > 0) {
+          await apiCall('PATCH', 'bom-item-config/' + existing[0].id + '/', {
+            enable_qty_formula: !!bi.enable_qty_formula,
+            qty_formula: bi.qty_formula || '',
+            enable_conditional: !!bi.enable_conditional,
+            condition_formula: bi.condition_formula || '',
+            enable_candidate: !!bi.enable_candidate,
+            enable_variant: !!bi.enable_variant,
+            enable_specification: !!bi.enable_specification,
+            enable_structure: !!bi.enable_structure,
+            name_formula: bi.name_formula || '',
+            reference_formula: bi.reference_formula || '',
+            price_formula: bi.price_formula || '',
+            param_mapping: bi.param_mapping || {},
+          });
+        }
+      }
+    }
+
+    // Set active
+    await apiCall('PATCH', 'parametric-snapshots/' + ver.id + '/', {is_active: true});
+
+    showToast('success', '✅ 版本「' + ver.name + '」已加载');
+    loadVersions();
+    // Refresh all tabs
+    switchProductTab('params');
+    loadPdBOMM();
+  } catch(e) {
+    showToast('error', '加载版本出错: ' + e.message);
+  }
+}
+
+async function deleteVersion() {
+  if (!__selectedVersionId) { showToast('error', '请选择一个版本'); return; }
+  var ver = __versions.find(function(v) { return v.id == __selectedVersionId; });
+  if (!ver) return;
+  if (!confirm('确定删除版本「' + ver.name + '」？此操作不可撤销。')) return;
+
+  var resp = await apiCall('DELETE', 'parametric-snapshots/' + ver.id + '/');
+  if (resp.error) {
+    showToast('error', '删除失败');
+    return;
+  }
+  showToast('success', '已删除');
+  __selectedVersionId = null;
+  loadVersions();
 }

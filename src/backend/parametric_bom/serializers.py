@@ -584,3 +584,24 @@ class ProjectMembershipSerializer(serializers.ModelSerializer):
 
     def get_permissions(self, obj):
         return obj.role.permissions
+
+
+class ParametricSnapshotSerializer(serializers.ModelSerializer):
+    """Serializer for ParametricSnapshot."""
+
+    part_name = serializers.CharField(source='part.name', read_only=True)
+    created_by_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ParametricSnapshot
+        fields = [
+            'id', 'part', 'part_name', 'name', 'description',
+            'snapshot_data', 'is_active', 'created_at',
+            'created_by', 'created_by_name',
+        ]
+        read_only_fields = ['created_at', 'created_by']
+
+    def get_created_by_name(self, obj):
+        if obj.created_by:
+            return obj.created_by.get_full_name() or obj.created_by.username
+        return ''

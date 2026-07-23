@@ -57,6 +57,7 @@ from parametric_bom.serializers import (
     InheritanceMappingSerializer,
     ParametricBomItemSerializer,
     ParametricRuleSerializer,
+    ParametricSnapshotSerializer,
     PartAttributeFormulaSerializer,
     PartParameterConfigSerializer,
     PartVariableSerializer,
@@ -513,6 +514,36 @@ class PartVariableViewSet(viewsets.ModelViewSet):
             raise PermissionDenied(detail=detail)
         self._log(instance.part, 'delete', param_name=f'变量: {instance.name}')
         instance.delete()
+
+
+class ParametricSnapshotViewSet(viewsets.ModelViewSet):
+    """API endpoint for ParametricSnapshot — version save/load for parametric configs."""
+
+    queryset = ParametricSnapshot.objects.select_related('part', 'created_by').all()
+    serializer_class = ParametricSnapshotSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    filter_backends = SEARCH_ORDER_FILTER
+    filterset_fields = ['part', 'is_active']
+    search_fields = ['name', 'description']
+    ordering_fields = ['created_at']
+    ordering = ['-created_at']
+
+    def perform_create(self, serializer):
+        user = self.request.user if self.request.user.is_authenticated else None
+        instance = serializer.save(created_by=user)
+
+        # Deactivate other versions for same part if this one is active
+        if instance.is_active:
+            ParametricSnapshot.objects.filter(
+                part=instance.part, is_active=True
+            ).exclude(pk=instance.pk).update(is_active=False)
+
+    def perform_update(self, serializer):
+        instance = serializer.save()
+        if instance.is_active:
+            ParametricSnapshot.objects.filter(
+                part=instance.part, is_active=True
+            ).exclude(pk=instance.pk).update(is_active=False)
 
 
 # ── Existing Function Endpoints ─────────────
