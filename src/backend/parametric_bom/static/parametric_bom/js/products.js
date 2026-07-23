@@ -1685,7 +1685,7 @@ function onVersionSelect() {
   if (!__selectedVersionId || __selectedVersionId === 'null') __selectedVersionId = null;
 }
 
-async function saveVersion() {
+async function saveVersionAs() {
   if (!configuratorPartId) { showToast('error', '请先选择产品'); return; }
   var name = prompt('版本名称（如 v1.0）:', 'v' + (__versions.length + 1) + '.0');
   if (!name) return;
@@ -1694,13 +1694,13 @@ async function saveVersion() {
   var snapshot = await collectSnapshot();
   if (!snapshot) { showToast('error', '收集配置数据失败'); return; }
 
-  showToast('loading', '保存版本中...');
+  showToast('loading', '另存版本中...');
   var resp = await apiCall('POST', 'parametric-snapshots/', {
     part: configuratorPartId,
     name: name,
     description: '',
     snapshot_data: snapshot,
-    is_active: true  // New version becomes active
+    is_active: true
   });
 
   if (resp.error) {
@@ -1709,6 +1709,33 @@ async function saveVersion() {
   }
 
   showToast('success', '✅ 版本「' + name + '」已保存');
+  loadVersions();
+}
+
+async function saveCurrentVersion() {
+  if (!configuratorPartId) { showToast('error', '请先选择产品'); return; }
+  if (!__selectedVersionId) { showToast('error', '请先选择一个版本，或使用「另存」创建新版本'); return; }
+
+  var ver = __versions.find(function(v) { return v.id == __selectedVersionId; });
+  if (!ver) { showToast('error', '未找到选中版本'); return; }
+
+  if (!confirm('覆盖版本「' + ver.name + '」？当前配置将写入此版本。')) return;
+
+  var snapshot = await collectSnapshot();
+  if (!snapshot) { showToast('error', '收集配置数据失败'); return; }
+
+  showToast('loading', '保存中...');
+  var resp = await apiCall('PATCH', 'parametric-snapshots/' + ver.id + '/', {
+    snapshot_data: snapshot,
+    is_active: true
+  });
+
+  if (resp.error) {
+    showToast('error', '保存失败: ' + ((resp.data && resp.data.error) || ''));
+    return;
+  }
+
+  showToast('success', '✅ 版本「' + ver.name + '」已更新');
   loadVersions();
 }
 
