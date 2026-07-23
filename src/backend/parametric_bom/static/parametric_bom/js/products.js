@@ -1142,8 +1142,8 @@ function renderBOMTable(items, pcfgMap, vmByPbi) {
 
     const escName = subPartName.replace(/'/g,"\\'");
     const escIpn = (subPartRef || '').replace(/'/g,"\\'");
-    rowHtml += '<td class="text-center"><button class="text-gray-400 hover:text-blue-600 text-xs p-1 rounded hover:bg-blue-50" onclick="copyBomItem(' + item.pk + ')" title="复制BOM项">复制</button></td>';
-    rowHtml += '<td class="text-center"><button class="text-red-400 hover:text-red-600 text-xs p-1 rounded hover:bg-red-50" onclick="resetBomConfig(' + item.pk + ",'" + escName + "')" + '" title="从BOM移除">移除</button></td></tr>';
+    rowHtml += '<td class="text-center"><button class="text-gray-400 hover:text-blue-600 text-xs p-1 rounded hover:bg-blue-50" onclick="copyBomItem(' + item.pk + ')" title="复制BOM项">📄</button></td>';
+    rowHtml += '<td class="text-center"><button class="text-red-400 hover:text-red-600 text-xs p-1 rounded hover:bg-red-50" onclick="resetBomConfig(' + item.pk + ",'" + escName + "')" + '" title="从BOM移除">✕</button></td></tr>';
     html += rowHtml;
   }
     html += '</tbody></table>';
@@ -1173,7 +1173,7 @@ async function copyBomItem(bomItemPk) {
         part: configuratorPartId,
         sub_part: item.sub_part,
         quantity: item.quantity || 1,
-        reference: (item.reference || '') + ' (副本)',
+        reference: item.reference ? (item.reference + ' (副本)') : '副本',
         optional: !!item.optional,
         consumable: !!item.consumable,
         allow_variants: !!item.allow_variants,
