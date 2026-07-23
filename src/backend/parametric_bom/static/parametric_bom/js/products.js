@@ -1375,6 +1375,19 @@ function changeBomPart(bomItemPk, currentSubPartPk) {
 async function selectBomPart(bomItemPk, newPartPk) {
   document.getElementById('bp-overlay').remove();
 
+  // Get old part name before change
+  var oldPartName = '#' + newPartPk;
+  var oldSubPartPk = 0;
+  var items = window.__bomItems || [];
+  for (var i = 0; i < items.length; i++) {
+    if (items[i].pk === bomItemPk || items[i].id === bomItemPk) {
+      oldSubPartPk = items[i].sub_part;
+      var detail = items[i].sub_part_detail || {};
+      oldPartName = detail.name || detail.full_name || ('#' + oldSubPartPk);
+      break;
+    }
+  }
+
   showToast('loading', '更换零件中...');
   try {
     var resp = await fetch('/api/bom/' + bomItemPk + '/', {
@@ -1391,7 +1404,22 @@ async function selectBomPart(bomItemPk, newPartPk) {
       showToast('error', '更换失败: ' + err);
       return;
     }
-    showToast('success', '✅ 零件已更换');
+
+    // Get new part name from response
+    var newDetail = (data && data.sub_part_detail) || {};
+    var newPartName = newDetail.name || newDetail.full_name || ('#' + newPartPk);
+
+    // ── Create operation log ──
+    apiCall('POST', 'param-logs/', {
+      part: configuratorPartId,
+      action: 'update',
+      param_name: 'BOM:' + (oldPartName) + ' → ' + escHtml(newPartName),
+      field_name: 'sub_part',
+      old_value: String(oldSubPartPk),
+      new_value: String(newPartPk)
+    });
+
+    showToast('success', '✅ 已更换为 ' + newPartName);
     loadPdBOMM();
   } catch(e) {
     showToast('error', '网络错误: ' + e.message);

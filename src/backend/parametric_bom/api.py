@@ -277,8 +277,8 @@ class PartParameterConfigViewSet(viewsets.ModelViewSet):
         return Response({'detail': f'参数「{pname}」已恢复', 'id': instance.id})
 
 
-class ParameterChangeLogViewSet(viewsets.ReadOnlyModelViewSet):
-    """API endpoint for viewing parameter change logs."""
+class ParameterChangeLogViewSet(viewsets.ModelViewSet):
+    """API endpoint for viewing and creating parameter change logs."""
     queryset = ParameterChangeLog.objects.select_related('part', 'user').all()
     permission_classes = [permissions.IsAuthenticated]
     filter_backends = SEARCH_ORDER_FILTER
@@ -290,6 +290,9 @@ class ParameterChangeLogViewSet(viewsets.ReadOnlyModelViewSet):
     def get_serializer_class(self):
         from parametric_bom.serializers import ParameterChangeLogSerializer
         return ParameterChangeLogSerializer
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user if self.request.user.is_authenticated else None)
 
 
 class ParametricBomItemViewSet(viewsets.ModelViewSet):
