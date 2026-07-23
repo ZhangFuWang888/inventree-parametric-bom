@@ -384,10 +384,10 @@ function handleBatchResult(data) {
 
   // Skipped items
   if (skipped.length) {
-    html += '<div class=\"text-xs font-medium text-yellow-600 mt-2 mb-1\">⏭ 跳过（已在BOM中）</div>';
-    html += '<table style=\"width:100%;font-size:0.7rem;border-collapse:collapse\"><thead style=\"background:#f9fafb\"><tr><th style=\"padding:3px 6px;text-align:left;border-bottom:1px solid #e5e7eb\">#</th><th style=\"padding:3px 6px;text-align:left;border-bottom:1px solid #e5e7eb\">物料名称</th><th style=\"padding:3px 6px;text-align:left;border-bottom:1px solid #e5e7eb\">型号</th></tr></thead><tbody>';
+    html += '<div class=\"text-xs font-medium text-yellow-600 mt-2 mb-1\">⏭ 跳过 ' + skipped.length + ' 项</div>';
+    html += '<table style=\"width:100%;font-size:0.7rem;border-collapse:collapse\"><thead style=\"background:#f9fafb\"><tr><th style=\"padding:3px 6px;text-align:left;border-bottom:1px solid #e5e7eb\">#</th><th style=\"padding:3px 6px;text-align:left;border-bottom:1px solid #e5e7eb\">物料名称</th><th style=\"padding:3px 6px;text-align:left;border-bottom:1px solid #e5e7eb\">型号</th><th style=\"padding:3px 6px;text-align:left;border-bottom:1px solid #e5e7eb\">跳过原因</th></tr></thead><tbody>';
     skipped.forEach(function(s) {
-      html += '<tr style=\"border-bottom:1px solid #f3f4f6\"><td style=\"padding:3px 6px;color:#9ca3af\">' + (s.index + 1) + '</td><td style=\"padding:3px 6px\">' + escHtml(s.name) + '</td><td style=\"padding:3px 6px;color:#6b7280\">' + escHtml(s.ipn || '—') + '</td></tr>';
+      html += '<tr style=\"border-bottom:1px solid #f3f4f6\"><td style=\"padding:3px 6px;color:#9ca3af\">' + (s.index + 1) + '</td><td style=\"padding:3px 6px\">' + escHtml(s.name) + '</td><td style=\"padding:3px 6px;color:#6b7280\">' + escHtml(s.ipn || '—') + '</td><td style=\"padding:3px 6px;color:#b45309;font-size:0.65rem\">' + escHtml(s.reason || '已跳过') + '</td></tr>';
     });
     html += '</tbody></table>';
   }
