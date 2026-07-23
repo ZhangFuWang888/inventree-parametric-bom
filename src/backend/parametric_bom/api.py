@@ -1290,14 +1290,18 @@ def create_bom_items_from_excel(request):
     if len(rows) < 2:
         return Response({'success': False, 'error': 'Excel至少需要表头+1行数据'}, status=400)
 
-    # Detect header row — skip instruction row if present
-    # Row 0 is instruction/description, row 1 is header: 物料名称, 物料型号, 数量, 描述
-    header_row_idx = 0
-    if rows[0] and rows[0][0]:
-        first_cell = str(rows[0][0]).strip()
-        if '物料名称' not in first_cell and '物料型号' not in first_cell:
-            # Likely an instruction row, skip it
-            header_row_idx = 1 if len(rows) > 1 else 0
+    # Scan all rows to find the header row (first column = "物料名称" or "物料名称*")
+    header_row_idx = None
+    for i, row in enumerate(rows):
+        if row and row[0]:
+            first = str(row[0]).strip()
+            # Strict match: only treat as header if first cell IS exactly the name header
+            if first in ('物料名称', '物料名称*') or first.startswith('物料名称'):
+                header_row_idx = i
+                break
+
+    if header_row_idx is None:
+        return Response({'success': False, 'error': 'Excel中未找到"物料名称"列，请使用模板格式'}, status=400)
 
     header = [str(c or '').strip() for c in (rows[header_row_idx] or [])]
 
@@ -1385,7 +1389,7 @@ def download_bom_import_template(request):
 
     # Row 1: Instruction
     ws.merge_cells('A1:D1')
-    ws['A1'] = '📋 填写说明：第2行为导入示例，请删除后填写实际数据。物料名称必填，型号/数量/描述可选。'
+    ws['A1'] = '📋 填写说明：请删除示例行后填写实际数据。第1列（名称）必填，型号/数量/描述可选。'
     ws['A1'].font = instruction_font
     ws['A1'].alignment = Alignment(horizontal='left', vertical='center')
     ws.row_dimensions[1].height = 22
