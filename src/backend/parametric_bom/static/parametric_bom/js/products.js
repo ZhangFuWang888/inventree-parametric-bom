@@ -1679,6 +1679,11 @@ async function loadVersions() {
     __selectedVersionId = null;
     if (info) info.textContent = '';
   }
+
+  // Safety: re-sync from select value in case async onchange fired
+  if (sel && sel.value) {
+    __selectedVersionId = sel.value;
+  }
 }
 
 function onVersionSelect() {
@@ -1695,7 +1700,14 @@ function onVersionSelect() {
 
 async function saveVersionAs() {
   if (!configuratorPartId) { showToast('error', '请先选择产品'); return; }
-  var name = prompt('版本名称（如 v1.0）:', 'v' + (__versions.length + 1) + '.0');
+  // Find max version number to avoid collision after deletions
+  var maxNum = 0;
+  __versions.forEach(function(v) {
+    var m = v.name.match(/^v(\d+)/);
+    if (m) { var n = parseInt(m[1], 10); if (n > maxNum) maxNum = n; }
+  });
+  var defaultName = 'v' + (maxNum + 1) + '.0';
+  var name = prompt('版本名称（如 v1.0）:', defaultName);
   if (!name) return;
 
   // Collect all current config data
@@ -1752,7 +1764,7 @@ async function collectSnapshot() {
   var paramsResp = await apiCall('GET', 'part-config/?part=' + configuratorPartId);
   var varsResp = await apiCall('GET', 'part-variables/?part=' + configuratorPartId);
   var bomResp = await apiCall('GET', 'bom-item-config/?bom_item__part=' + configuratorPartId);
-  var vmResp = await apiCall('GET', 'variant-mappings/');
+  var vmResp = await apiCall('GET', 'variant-mappings/?limit=9999');
 
   var params = paramsResp.error ? [] : (Array.isArray(paramsResp.data) ? paramsResp.data : (paramsResp.data.results || []));
   var variables = varsResp.error ? [] : (Array.isArray(varsResp.data) ? varsResp.data : (varsResp.data.results || []));
@@ -1784,6 +1796,8 @@ async function loadVersion() {
 
   try {
     // ── Step 0: Clear existing configs for this part ──
+    // Order matters: reset BOM formulas FIRST (so params/vars aren't locked
+    // by formula references), then delete variables, then delete parameters.
     showToast('loading', '清空旧配置...');
     var [oldParams, oldVars, oldBomCfgs] = await Promise.all([
       apiCall('GET', 'part-config/?part=' + configuratorPartId),
@@ -1791,20 +1805,13 @@ async function loadVersion() {
       apiCall('GET', 'bom-item-config/?bom_item__part=' + configuratorPartId),
     ]);
 
-    var toDelete = [];
     var oldParamList = oldParams.error ? [] : (Array.isArray(oldParams.data) ? oldParams.data : (oldParams.data.results || []));
     var oldVarList = oldVars.error ? [] : (Array.isArray(oldVars.data) ? oldVars.data : (oldVars.data.results || []));
     var oldBomCfgList = oldBomCfgs.error ? [] : (Array.isArray(oldBomCfgs.data) ? oldBomCfgs.data : (oldBomCfgs.data.results || []));
 
-    for (var d = 0; d < oldParamList.length; d++) {
-      await apiCall('DELETE', 'part-config/' + oldParamList[d].id + '/');
-    }
-    for (var dv = 0; dv < oldVarList.length; dv++) {
-      await apiCall('DELETE', 'part-variables/' + oldVarList[dv].id + '/');
-    }
-    // Reset BOM configs (don't delete BOM items, just reset formulas)
+    // Step 0a: Reset BOM formulas FIRST — clears param.xxx references so params can be deleted
     for (var db = 0; db < oldBomCfgList.length; db++) {
-      await apiCall('PATCH', 'bom-item-config/' + oldBomCfgList[db].id + '/', {
+      var resetResp = await apiCall('PATCH', 'bom-item-config/' + oldBomCfgList[db].id + '/', {
         enable_qty_formula: false, qty_formula: '',
         enable_conditional: false, condition_formula: '',
         enable_candidate: false,
@@ -1814,6 +1821,28 @@ async function loadVersion() {
         name_formula: '', reference_formula: '', price_formula: '',
         param_mapping: {},
       });
+      if (resetResp.error) {
+        showToast('error', '重置BOM公式失败 (id=' + oldBomCfgList[db].id + ')');
+        return;
+      }
+    }
+
+    // Step 0b: Delete variables (BOM refs already cleared)
+    for (var dv = 0; dv < oldVarList.length; dv++) {
+      var delVarResp = await apiCall('DELETE', 'part-variables/' + oldVarList[dv].id + '/');
+      if (delVarResp.error) {
+        showToast('error', '删除变量失败: ' + (delVarResp.data && (delVarResp.data.detail || delVarResp.data.error || '') || ''));
+        return;
+      }
+    }
+
+    // Step 0c: Delete parameters LAST (formula refs already cleared in 0a)
+    for (var d = 0; d < oldParamList.length; d++) {
+      var delResp = await apiCall('DELETE', 'part-config/' + oldParamList[d].id + '/');
+      if (delResp.error) {
+        showToast('error', '删除参数失败: ' + (delResp.data && (delResp.data.detail || delResp.data.error || '') || ''));
+        return;
+      }
     }
 
     // ── Step 1: Restore parameters ──
@@ -1829,10 +1858,12 @@ async function loadVersion() {
           default_value: p.default_value || '',
           min_value: p.min_value,
           max_value: p.max_value,
+          step_value: p.step_value || 1.0,
           options: p.options || '',
-          show_in_table: !!p.show_in_table,
-          sort_order: p.sort_order || 0,
-          unit: p.unit || '',
+          is_driving: p.is_driving !== undefined ? !!p.is_driving : true,
+          display_order: p.display_order || 0,
+          visible_on_config: p.visible_on_config !== undefined ? !!p.visible_on_config : true,
+          ui_hint: p.ui_hint || '',
         });
       }
     }
@@ -1883,7 +1914,6 @@ async function loadVersion() {
     showToast('success', '✅ 版本「' + ver.name + '」已加载');
     loadVersions();
     // Refresh all tabs
-    switchProductTab('params');
     loadPdBOMM();
   } catch(e) {
     showToast('error', '加载版本出错: ' + e.message);
