@@ -3,6 +3,15 @@
 # 参数导入/导出 (Excel)
 # ═══════════════════════════════════════════
 
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework import permissions
+from rest_framework.response import Response
+from django.http import HttpResponse
+from parametric_bom.models import PartParameterConfig
+import logging
+
+logger = logging.getLogger(__name__)
+
 @api_view(['GET'])
 @permission_classes([permissions.IsAuthenticated])
 def export_params_excel(request):
@@ -24,7 +33,7 @@ def export_params_excel(request):
     except Part.DoesNotExist:
         return Response({'success': False, 'error': 'Part not found'}, status=404)
 
-    configs = PartConfiguration.objects.filter(part=part).order_by('display_order', 'id')
+    configs = PartParameterConfig.objects.filter(part=part).order_by('display_order', 'id')
 
     wb = openpyxl.Workbook()
     ws = wb.active
@@ -245,7 +254,7 @@ def import_params_excel(request):
             continue
 
         # Find existing config by name
-        existing = PartConfiguration.objects.filter(part=part, name=name).first()
+        existing = PartParameterConfig.objects.filter(part=part, name=name).first()
 
         if existing:
             if not create_if_missing:
@@ -268,7 +277,7 @@ def import_params_excel(request):
         else:
             # Create new
             try:
-                PartConfiguration.objects.create(
+                PartParameterConfig.objects.create(
                     part=part,
                     name=name,
                     parameter_type=ptype,
