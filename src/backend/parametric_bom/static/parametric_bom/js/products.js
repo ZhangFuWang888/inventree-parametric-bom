@@ -1070,7 +1070,7 @@ function renderBOMTable(items, pcfgMap, vmByPbi) {
     {key:'price_formula', icon:'💰', label:'价格公式', expectedType:'number'},
   ];
 
-  let colHeaders = '<th style="width:15%">物料名称</th><th style="width:12%">产品型号</th>';
+  let colHeaders = '<th style="width:15%">物料名称</th><th style="width:12%">物料型号</th>';
   formulaCols.forEach(function(c) {
     colHeaders += '<th style="width:13%"><span class="col-icon">' + c.icon + '</span>' + c.label + '</th>';
   });
