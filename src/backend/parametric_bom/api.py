@@ -1150,15 +1150,18 @@ def _process_batch_bom_items(parent_part, category_id, items):
         except (ValueError, TypeError):
             qty = Decimal('1')
 
-        # Look up sub-part by IPN first (more precise), then by name
+        # Match sub-part by name+IPN together: both must match exactly
+        # "名称相同+型号相同"才视为同一物料
         sub_part = None
         created_new = False
 
-        if ipn:
-            sub_part = Part.objects.filter(IPN=ipn).first()
-
-        if not sub_part:
-            sub_part = Part.objects.filter(name=name).first()
+        if name and ipn:
+            # Both name and IPN specified → exact match on both
+            sub_part = Part.objects.filter(name=name, IPN=ipn).first()
+        elif name and not ipn:
+            # Only name, no IPN → match part with same name and empty IPN
+            sub_part = Part.objects.filter(name=name, IPN='').first()
+        # If IPN only (no name), won't get here since name is required above
 
         if not sub_part:
             if create_if_missing:
