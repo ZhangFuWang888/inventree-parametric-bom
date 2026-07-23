@@ -1645,6 +1645,7 @@ function escapeHtml(str) {
 
 var __versions = [];
 var __selectedVersionId = null;
+var __loadingVersions = false;
 
 async function loadVersions() {
   if (!configuratorPartId) return;
@@ -1660,12 +1661,14 @@ async function loadVersions() {
 
   // Populate dropdown
   if (!sel) return;
+  __loadingVersions = true;
   sel.innerHTML = '<option value="">— 当前（未保存版本）—</option>';
   __versions.forEach(function(v) {
     var activeMark = v.is_active ? ' ✅' : '';
     var label = v.name + activeMark + ' (' + (v.created_at || '').substring(0, 10) + ')';
     sel.innerHTML += '<option value="' + v.id + '"' + (v.is_active ? ' selected' : '') + '>' + escHtml(label) + '</option>';
   });
+  __loadingVersions = false;
 
   // Update info
   var activeVer = __versions.find(function(v) { return v.is_active; });
@@ -1679,10 +1682,15 @@ async function loadVersions() {
 }
 
 function onVersionSelect() {
+  if (__loadingVersions) return;  // Don't trigger during initial population
   var sel = document.getElementById('version-select');
   __selectedVersionId = sel ? (sel.value || null) : null;
-  // Convert string "null" / "" to actual null
   if (!__selectedVersionId || __selectedVersionId === 'null') __selectedVersionId = null;
+
+  // Auto-load when selecting a version (not "当前")
+  if (__selectedVersionId) {
+    loadVersion();
+  }
 }
 
 async function saveVersionAs() {
