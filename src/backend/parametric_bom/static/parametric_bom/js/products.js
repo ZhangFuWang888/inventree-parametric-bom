@@ -1748,7 +1748,41 @@ async function loadVersion() {
   var snap = ver.snapshot_data;
 
   try {
-    // Restore parameters
+    // ── Step 0: Clear existing configs for this part ──
+    showToast('loading', '清空旧配置...');
+    var [oldParams, oldVars, oldBomCfgs] = await Promise.all([
+      apiCall('GET', 'part-config/?part=' + configuratorPartId),
+      apiCall('GET', 'part-variables/?part=' + configuratorPartId),
+      apiCall('GET', 'bom-item-config/?bom_item__part=' + configuratorPartId),
+    ]);
+
+    var toDelete = [];
+    var oldParamList = oldParams.error ? [] : (Array.isArray(oldParams.data) ? oldParams.data : (oldParams.data.results || []));
+    var oldVarList = oldVars.error ? [] : (Array.isArray(oldVars.data) ? oldVars.data : (oldVars.data.results || []));
+    var oldBomCfgList = oldBomCfgs.error ? [] : (Array.isArray(oldBomCfgs.data) ? oldBomCfgs.data : (oldBomCfgs.data.results || []));
+
+    for (var d = 0; d < oldParamList.length; d++) {
+      await apiCall('DELETE', 'part-config/' + oldParamList[d].id + '/');
+    }
+    for (var dv = 0; dv < oldVarList.length; dv++) {
+      await apiCall('DELETE', 'part-variables/' + oldVarList[dv].id + '/');
+    }
+    // Reset BOM configs (don't delete BOM items, just reset formulas)
+    for (var db = 0; db < oldBomCfgList.length; db++) {
+      await apiCall('PATCH', 'bom-item-config/' + oldBomCfgList[db].id + '/', {
+        enable_qty_formula: false, qty_formula: '',
+        enable_conditional: false, condition_formula: '',
+        enable_candidate: false,
+        enable_variant: false,
+        enable_specification: false,
+        enable_structure: false,
+        name_formula: '', reference_formula: '', price_formula: '',
+        param_mapping: {},
+      });
+    }
+
+    // ── Step 1: Restore parameters ──
+    showToast('loading', '恢复配置中...');
     if (snap.parameters && snap.parameters.length) {
       for (var i = 0; i < snap.parameters.length; i++) {
         var p = snap.parameters[i];
