@@ -989,8 +989,10 @@ async function loadPdBOMM() {
   if (!pid) return;
   const container = document.getElementById('pd-bom-list');
   const countBadge = document.getElementById('bom-count-badge');
+  if (!container) return;
   container.innerHTML = '<div class="flex items-center justify-center py-6"><span class="spinner mr-2"></span><span class="text-sm text-gray-400">加载中...</span></div>';
   
+  try {
   const [bomRes, pcfgRes, vmRes] = await Promise.all([
     fetch('/api/bom/?part=' + pid + '&sub_part_detail=True&part_detail=True', {headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken()}, credentials: 'same-origin'}),
     apiCall('GET', 'bom-item-config/?bom_item__part=' + pid),
@@ -1019,6 +1021,10 @@ async function loadPdBOMM() {
 
   renderBOMTable(items, pcfgMap, vmByPbi);
   if (countBadge) countBadge.textContent = '共 ' + items.length + ' 项';
+  } catch(e) {
+    container.innerHTML = '<div class="text-red-500 text-sm p-3">❌ 加载BOM失败: ' + (e.message || '网络错误') + '</div>';
+    console.error('loadPdBOMM error:', e);
+  }
 }
 
 function filterBOMList() {
@@ -1922,9 +1928,9 @@ async function loadVersion() {
 
     showToast('success', '✅ 版本「' + ver.name + '」已加载');
     loadVersions();
-    // Refresh all tabs
-    loadPdBOMM();
-    loadConfiguratorParams(configuratorPartId);
+    // Refresh all tabs (with error handling)
+    try { await loadPdBOMM(); } catch(e) { console.error('BOM refresh error:', e); }
+    try { await loadConfiguratorParams(configuratorPartId); } catch(e) { console.error('Params refresh error:', e); }
   } catch(e) {
     showToast('error', '加载版本出错: ' + e.message);
   }
