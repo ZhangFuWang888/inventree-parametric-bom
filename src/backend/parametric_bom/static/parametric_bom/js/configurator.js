@@ -1127,11 +1127,11 @@ async function onConfigPartChange(partId) {
 }
 
 async function loadConfiguratorParams(partId) {
-  const container = document.getElementById('cfg-param-fields');
+  const container = document.getElementById('cfg-params-container');
+  if (!container) return;
   const computedArea = document.getElementById('cfg-computed-area');
   container.innerHTML = '<div class="flex items-center justify-center py-6"><span class="spinner mr-2"></span><span class="text-sm text-gray-400">加载参数中...</span></div>';
-  computedArea.style.display = 'none';
-  computedArea.innerHTML = '';
+  if (computedArea) { computedArea.style.display = 'none'; computedArea.innerHTML = ''; }
   
   const res = await apiCall('GET', `part-config/?part=${partId}`);
   if (res.error) {
@@ -1155,13 +1155,17 @@ async function loadConfiguratorParams(partId) {
   });
   
   if (drivingHtml) {
-    document.getElementById('cfg-params-card').style.display = 'block';
+    var paramsCard = document.getElementById('cfg-params-card');
+    if (paramsCard) paramsCard.style.display = 'block';
     container.innerHTML = drivingHtml;
-    document.getElementById('cfg-to-step2').disabled = false;
+    var step2Btn = document.getElementById('cfg-to-step2');
+    if (step2Btn) step2Btn.disabled = false;
   } else {
-    document.getElementById('cfg-params-card').style.display = 'block';
+    var paramsCard2 = document.getElementById('cfg-params-card');
+    if (paramsCard2) paramsCard2.style.display = 'block';
     container.innerHTML = '<div class="empty-state"><div class="icon">📝</div><p>该产品没有可配置的驱动参数</p></div>';
-    document.getElementById('cfg-to-step2').disabled = true;
+    var step2Btn2 = document.getElementById('cfg-to-step2');
+    if (step2Btn2) step2Btn2.disabled = true;
   }
 }
 
