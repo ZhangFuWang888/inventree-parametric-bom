@@ -1393,11 +1393,7 @@ async function loadParamConfigs(partId) {
   const res = await apiCall('GET', `part-config/?part=${parseInt(partId)}`);
   if (res.error) { container.innerHTML = '<div class="text-red-500 text-sm">加载失败</div>'; return; }
   const configs = res.data.results || (Array.isArray(res.data) ? res.data : []);
-  let html = `<div class="flex items-center gap-2 mb-2">
-    <span class="text-xs text-gray-400">共 ${configs.length} 个参数</span>
-    <span class="text-xs text-gray-300">|</span>
-    <span class="text-xs text-gray-400">💡 拖拽行头 <span class="text-gray-300">⠿</span> 可调整排序</span>
-  </div>`;
+  let html = `<div class="flex items-center gap-2 mb-2">\n    <button class="btn btn-sm btn-outline-primary text-[10px]" onclick="exportParamsExcel()">📥 导出</button>\n    <button class="btn btn-sm btn-outline-primary text-[10px]" onclick="openImportParamsModal()">📤 导入</button>\n    <span class="text-xs text-gray-400">共 ${configs.length} 个参数</span>\n    <span class="text-xs text-gray-300">|</span>\n    <span class="text-xs text-gray-400">💡 拖拽行头 <span class="text-gray-300">⠿</span> 可调整排序</span>\n  </div>`;
   html += '<div class="overflow-x-auto"><table class="w-full text-xs border-collapse" id="param-config-table"><thead><tr class="bg-gray-50"><th class="p-2 text-center font-semibold text-gray-600 border-b w-8">#</th><th class="p-2 text-left font-semibold text-gray-600 border-b">参数</th><th class="p-2 text-center font-semibold text-gray-600 border-b">类型</th><th class="p-2 text-center font-semibold text-gray-600 border-b">驱动</th><th class="p-2 text-right font-semibold text-gray-600 border-b">默认值</th><th class="p-2 text-right font-semibold text-gray-600 border-b">最小</th><th class="p-2 text-right font-semibold text-gray-600 border-b">最大</th><th class="p-2 text-right font-semibold text-gray-600 border-b">步长</th><th class="p-2 text-left font-semibold text-gray-600 border-b">选项</th><th class="p-2 text-left font-semibold text-gray-600 border-b">公式</th><th class="p-2 text-center font-semibold text-gray-600 border-b w-20">操作</th></tr></thead><tbody>';
   const sorted = (configs || []).sort((a,b) => (a.display_order||0) - (b.display_order||0));
   sorted.forEach((cfg, idx) => {
@@ -1811,4 +1807,115 @@ async function createParamConfig() {
     const partSelect = document.getElementById('pm-part-select');
     if (partSelect.value) loadParamConfigs(partSelect.value);
   }
+}
+
+// ── 参数导入/导出 ──
+function exportParamsExcel() {
+  var partId = window.__currentPartId;
+  if (!partId) { showToast('error', '请先选择产品'); return; }
+  window.open('/api/parametric-bom/export-params/?part=' + partId, '_blank');
+}
+
+function openImportParamsModal() {
+  var partId = window.__currentPartId;
+  if (!partId) { showToast('error', '请先选择产品'); return; }
+
+  var overlay = document.createElement('div');
+  overlay.id = '__import_params_overlay';
+  overlay.style.cssText = 'position:fixed!important;top:0!important;left:0!important;width:100%!important;height:100%!important;background:rgba(0,0,0,0.4)!important;z-index:99999!important;display:flex!important;align-items:center!important;justify-content:center!important';
+  overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
+
+  var box = document.createElement('div');
+  box.className = 'modal-box';
+  box.style.cssText = 'max-width:520px;width:94%;background:#fff;border-radius:12px;padding:1.25rem;box-shadow:0 20px 60px rgba(0,0,0,0.3)';
+
+  box.innerHTML = '<div class="flex items-center justify-between mb-3">' +
+    '<h3 class="text-base font-semibold text-gray-800">📤 导入参数配置</h3>' +
+    '<button class="text-gray-400 hover:text-gray-600 text-xl leading-none" onclick="document.getElementById(\'__import_params_overlay\').remove()">&times;</button>' +
+    '</div>' +
+    '<div class="page-help mb-3" style="font-size:0.65rem"><span class="icon">💡</span><span class="text">上传从「导出」下载的 Excel 文件。已存在的参数将<strong>覆盖更新</strong>。</span></div>' +
+    '<div class="mb-3 flex items-center gap-2">' +
+    '<button class="btn btn-sm btn-outline-primary text-[10px]" id="import-params-file-btn" onclick="document.getElementById(\'import-params-file-input\').click()">📁 选择文件</button>' +
+    '<span class="text-xs text-gray-400" id="import-params-file-name">未选择文件</span>' +
+    '</div>' +
+    '<input type="file" id="import-params-file-input" accept=".xlsx,.xls" style="display:none" onchange="onImportParamsFile(this.files[0])">' +
+    '<label class="flex items-center gap-1.5 text-xs text-gray-500 mb-3 cursor-pointer">' +
+    '<input type="checkbox" id="import-params-overwrite" checked> 已存在参数时覆盖更新</label>' +
+    '<div id="import-params-report" style="display:none" class="mb-3 p-3 bg-gray-50 rounded-lg text-xs max-h-[300px] overflow-y-auto"></div>' +
+    '<div class="flex justify-end gap-2 pt-2 border-t border-gray-100">' +
+    '<button class="btn btn-secondary btn-sm" onclick="document.getElementById(\'__import_params_overlay\').remove()">关闭</button>' +
+    '<button class="btn btn-primary btn-sm" id="import-params-submit-btn" onclick="doImportParams()" disabled>确认导入</button>' +
+    '</div>';
+
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
+  window.__importParamsFile = null;
+}
+
+function onImportParamsFile(file) {
+  window.__importParamsFile = file;
+  document.getElementById('import-params-file-name').textContent = file.name;
+  document.getElementById('import-params-submit-btn').disabled = false;
+}
+
+async function doImportParams() {
+  var file = window.__importParamsFile;
+  var partId = window.__currentPartId;
+  if (!file || !partId) return;
+
+  var btn = document.getElementById('import-params-submit-btn');
+  btn.disabled = true;
+  btn.textContent = '导入中...';
+
+  var formData = new FormData();
+  formData.append('file', file);
+  formData.append('part_id', partId);
+  formData.append('create_if_missing', document.getElementById('import-params-overwrite').checked);
+
+  try {
+    var resp = await fetch('/api/parametric-bom/import-params/', {
+      method: 'POST',
+      headers: {'X-CSRFToken': getCsrfToken()},
+      credentials: 'same-origin',
+      body: formData,
+    });
+    var data = await resp.json();
+
+    var reportEl = document.getElementById('import-params-report');
+    if (!data.success) {
+      reportEl.innerHTML = '<div class="text-red-600 font-medium">❌ 导入失败</div><div class="text-red-500 mt-1">' + (data.error || '未知错误') + '</div>';
+      reportEl.style.display = '';
+    } else {
+      var html = '<div class="text-sm font-semibold mb-2">📊 导入报告</div>';
+      html += '<div class="flex gap-3 mb-2 text-[11px]">';
+      if (data.created.length) html += '<span class="px-2 py-0.5 rounded bg-green-50 text-green-700">✅ 新建 ' + data.created.length + ' 项</span>';
+      if (data.updated.length) html += '<span class="px-2 py-0.5 rounded bg-blue-50 text-blue-700">🔄 更新 ' + data.updated.length + ' 项</span>';
+      if (data.skipped.length) html += '<span class="px-2 py-0.5 rounded bg-yellow-50 text-yellow-700">⏭ 跳过 ' + data.skipped.length + ' 项</span>';
+      if (data.failed.length) html += '<span class="px-2 py-0.5 rounded bg-red-50 text-red-700">❌ 失败 ' + data.failed.length + ' 项</span>';
+      html += '</div>';
+
+      if (data.created.length || data.updated.length) {
+        html += '<table style="width:100%;font-size:0.65rem;border-collapse:collapse"><thead style="background:#f9fafb"><tr><th style="padding:2px 4px;text-align:left;border-bottom:1px solid #e5e7eb">参数名称</th><th style="padding:2px 4px;text-align:left;border-bottom:1px solid #e5e7eb">状态</th></tr></thead><tbody>';
+        var allOk = [].concat(data.created, data.updated);
+        allOk.forEach(function(c) { html += '<tr style="border-bottom:1px solid #f3f4f6"><td style="padding:2px 4px">' + c.name + '</td><td style="padding:2px 4px">' + (c.status || '') + '</td></tr>'; });
+        html += '</tbody></table>';
+      }
+
+      if (data.failed.length) {
+        html += '<div class="text-[11px] font-medium text-red-600 mt-2 mb-1">失败项</div>';
+        html += '<table style="width:100%;font-size:0.65rem;border-collapse:collapse"><tbody>';
+        data.failed.forEach(function(f) { html += '<tr style="border-bottom:1px solid #f3f4f6"><td style="padding:2px 4px">' + (f.name||'') + '</td><td style="padding:2px 4px;color:#ef4444">' + (f.error||'') + '</td></tr>'; });
+        html += '</tbody></table>';
+      }
+
+      reportEl.innerHTML = html;
+      reportEl.style.display = '';
+      loadParamConfigs(partId);
+    }
+  } catch(e) {
+    showToast('error', '网络错误: ' + e.message);
+  }
+
+  btn.disabled = false;
+  btn.textContent = '确认导入';
 }

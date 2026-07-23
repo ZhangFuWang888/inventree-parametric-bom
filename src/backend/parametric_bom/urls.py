@@ -57,6 +57,7 @@ from parametric_bom.api import (
     template_library_category_detail,
     template_library_sync,
 )
+from parametric_bom.api_params_io import export_params_excel, import_params_excel
 
 router = DefaultRouter()
 router.register(r'part-config', PartParameterConfigViewSet)
@@ -117,6 +118,9 @@ parametric_api_urls = [
     path('export/bom-csv/', export_bom_csv, name='export-bom-csv'),
     path('export/attachment-zip/', export_attachment_zip, name='export-attachment-zip'),
     path('export/bundle-zip/', export_bundle_zip, name='export-bundle-zip'),
+    # Parameter import/export
+    path('export-params/', export_params_excel, name='export-params'),
+    path('import-params/', import_params_excel, name='import-params'),
     # Cart
     path('cart/', cart_list, name='cart-list'),
     path('cart/add/', cart_add, name='cart-add'),
