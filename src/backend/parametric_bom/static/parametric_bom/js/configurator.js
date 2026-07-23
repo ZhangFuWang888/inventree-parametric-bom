@@ -1813,7 +1813,12 @@ async function createParamConfig() {
 function exportParamsExcel() {
   var partId = window.__currentPartId || configuratorPartId;
   if (!partId) { showToast('error', '请先选择产品'); return; }
-  window.open('/api/parametric-bom/export-params/?part=' + partId, '_blank');
+  var a = document.createElement('a');
+  a.href = '/api/parametric-bom/export-params/?part=' + partId;
+  a.download = '';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
 }
 
 function openImportParamsModal() {
