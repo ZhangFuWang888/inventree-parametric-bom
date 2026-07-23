@@ -291,9 +291,12 @@ function openBatchBomModal() {
     </div>\
 \
     <div class="flex justify-end gap-2 pt-2 border-t border-gray-100">\
-      <button class="btn btn-secondary btn-sm" onclick="document.getElementById(\'__batch_modal_overlay\').remove()">取消</button>\
+      <button class="btn btn-secondary btn-sm" id="batch-cancel-btn" onclick="document.getElementById(\'__batch_modal_overlay\').remove()">取消</button>\
       <button class="btn btn-primary btn-sm" id="batch-import-btn" onclick="doBatchImportExcel()" disabled>确认导入</button>\
-    </div>';
+    </div>\
+\
+    <!-- Import report (shown after import) -->\
+    <div id="batch-report" style="display:none" class="mt-3 pt-3 border-t border-gray-100"></div>';
   overlay.appendChild(box);
   document.body.appendChild(overlay);
   _batchSelectedFile = null;
@@ -338,19 +341,65 @@ async function doBatchImportExcel() {
 }
 
 function handleBatchResult(data) {
-  if (data.success) {
-    var created = data.created || [], skipped = data.skipped || [], failed = data.failed || [];
-    var msg = '✅ 导入完成！成功 ' + created.length + ' 项';
-    if (created.length > 0) {
-      var newParts = created.filter(function(c) { return c.new_part; });
-      if (newParts.length) msg += '（其中新建 ' + newParts.length + ' 个零件）';
-    }
-    if (skipped.length) msg += '，跳过 ' + skipped.length + ' 项（已在BOM中）';
-    if (failed.length) msg += '，失败 ' + failed.length + ' 项';
-    setStatus(failed.length ? 'error' : 'success', msg);
-    var overlay = document.getElementById('__batch_modal_overlay');
-    if (overlay) overlay.remove();
-    loadPdBOMM();
-  } else { setStatus('error', '导入失败: ' + (data.error || '未知错误')); }
+  var btn = document.getElementById('batch-import-btn');
+  var cancelBtn = document.getElementById('batch-cancel-btn');
+  var reportEl = document.getElementById('batch-report');
+  btn.disabled = false; btn.textContent = '确认导入';
+
+  if (!data.success) {
+    reportEl.style.display = '';
+    reportEl.innerHTML = '<div class=\"text-sm text-red-600 font-medium\">❌ 导入失败</div><div class=\"text-xs text-red-500 mt-1\">' + (data.error || '未知错误') + '</div>';
+    cancelBtn.textContent = '关闭';
+    return;
+  }
+
+  var created = data.created || [], skipped = data.skipped || [], failed = data.failed || [];
+  var newParts = created.filter(function(c) { return c.new_part; });
+  var existingParts = created.filter(function(c) { return !c.new_part; });
+  var hasIssues = failed.length > 0 || skipped.length > 0;
+
+  var html = '<div class=\"text-sm font-semibold mb-2\">📊 导入报告</div>';
+
+  // Summary bar
+  html += '<div class=\"flex gap-3 mb-3 text-xs\">';
+  html += '<span class=\"px-2 py-0.5 rounded bg-green-50 text-green-700\">✅ 成功 ' + created.length + ' 项' + (newParts.length ? '（新建' + newParts.length + '）' : '') + '</span>';
+  if (skipped.length) html += '<span class=\"px-2 py-0.5 rounded bg-yellow-50 text-yellow-700\">⏭ 跳过 ' + skipped.length + ' 项</span>';
+  if (failed.length) html += '<span class=\"px-2 py-0.5 rounded bg-red-50 text-red-700\">❌ 失败 ' + failed.length + ' 项</span>';
+  html += '</div>';
+
+  // Created items table
+  if (created.length) {
+    html += '<div class=\"text-xs font-medium text-gray-600 mb-1\">✅ 成功导入</div>';
+    html += '<table style=\"width:100%;font-size:0.7rem;border-collapse:collapse\"><thead style=\"background:#f9fafb\"><tr><th style=\"padding:3px 6px;text-align:left;border-bottom:1px solid #e5e7eb\">#</th><th style=\"padding:3px 6px;text-align:left;border-bottom:1px solid #e5e7eb\">物料名称</th><th style=\"padding:3px 6px;text-align:left;border-bottom:1px solid #e5e7eb\">型号</th><th style=\"padding:3px 6px;text-align:left;border-bottom:1px solid #e5e7eb\">状态</th></tr></thead><tbody>';
+    created.forEach(function(c) {
+      html += '<tr style=\"border-bottom:1px solid #f3f4f6\"><td style=\"padding:3px 6px;color:#9ca3af\">' + (c.index + 1) + '</td><td style=\"padding:3px 6px;font-weight:500\">' + escHtml(c.name) + '</td><td style=\"padding:3px 6px;color:#6b7280\">' + escHtml(c.ipn || '—') + '</td><td style=\"padding:3px 6px\">' + (c.new_part ? '<span class=\"text-blue-600\">🆕 新建</span>' : '<span class=\"text-gray-400\">已存在</span>') + '</td></tr>';
+    });
+    html += '</tbody></table>';
+  }
+
+  // Skipped items
+  if (skipped.length) {
+    html += '<div class=\"text-xs font-medium text-yellow-600 mt-2 mb-1\">⏭ 跳过（已在BOM中）</div>';
+    html += '<table style=\"width:100%;font-size:0.7rem;border-collapse:collapse\"><thead style=\"background:#f9fafb\"><tr><th style=\"padding:3px 6px;text-align:left;border-bottom:1px solid #e5e7eb\">#</th><th style=\"padding:3px 6px;text-align:left;border-bottom:1px solid #e5e7eb\">物料名称</th><th style=\"padding:3px 6px;text-align:left;border-bottom:1px solid #e5e7eb\">型号</th></tr></thead><tbody>';
+    skipped.forEach(function(s) {
+      html += '<tr style=\"border-bottom:1px solid #f3f4f6\"><td style=\"padding:3px 6px;color:#9ca3af\">' + (s.index + 1) + '</td><td style=\"padding:3px 6px\">' + escHtml(s.name) + '</td><td style=\"padding:3px 6px;color:#6b7280\">' + escHtml(s.ipn || '—') + '</td></tr>';
+    });
+    html += '</tbody></table>';
+  }
+
+  // Failed items
+  if (failed.length) {
+    html += '<div class=\"text-xs font-medium text-red-600 mt-2 mb-1\">❌ 失败</div>';
+    html += '<table style=\"width:100%;font-size:0.7rem;border-collapse:collapse\"><thead style=\"background:#f9fafb\"><tr><th style=\"padding:3px 6px;text-align:left;border-bottom:1px solid #e5e7eb\">#</th><th style=\"padding:3px 6px;text-align:left;border-bottom:1px solid #e5e7eb\">物料名称</th><th style=\"padding:3px 6px;text-align:left;border-bottom:1px solid #e5e7eb\">失败原因</th></tr></thead><tbody>';
+    failed.forEach(function(f) {
+      html += '<tr style=\"border-bottom:1px solid #f3f4f6\"><td style=\"padding:3px 6px;color:#9ca3af\">' + (f.index + 1) + '</td><td style=\"padding:3px 6px\">' + escHtml(f.name || '—') + '</td><td style=\"padding:3px 6px;color:#ef4444;font-size:0.65rem\">' + escHtml(f.error) + '</td></tr>';
+    });
+    html += '</tbody></table>';
+  }
+
+  reportEl.innerHTML = html;
+  reportEl.style.display = '';
+  cancelBtn.textContent = '关闭';
+  loadPdBOMM();
 }
 </script>
