@@ -1070,7 +1070,7 @@ function renderBOMTable(items, pcfgMap, vmByPbi) {
     {key:'price_formula', icon:'💰', label:'价格公式', expectedType:'number'},
   ];
 
-  let colHeaders = '<th style="width:15%">物料名称</th><th style="width:12%">物料型号</th>';
+  let colHeaders = '<th style="width:2rem"><input type="checkbox" id="bom-select-all" onchange="toggleSelectAllBom(this)" title="全选/取消"></th><th style="width:15%">物料名称</th><th style="width:12%">物料型号</th>';
   formulaCols.forEach(function(c) {
     colHeaders += '<th style="width:13%"><span class="col-icon">' + c.icon + '</span>' + c.label + '</th>';
   });
@@ -1130,7 +1130,7 @@ function renderBOMTable(items, pcfgMap, vmByPbi) {
       }
       ipnCell = '<td class="pbs-ipn">' + (subPartRef || '<span class="text-gray-300">—</span>') + '</td>';
     }
-    let rowHtml = '<tr' + rowBgClass + '>' + nameCell + ipnCell;
+    let rowHtml = '<tr' + rowBgClass + '><td class="text-center" style="padding:2px"><input type="checkbox" class="bom-checkbox" value="' + item.pk + '" onchange="updateBatchDeleteBtn()"></td>' + nameCell + ipnCell;
 
     for (let j = 0; j < formulaCols.length; j++) {
       const c = formulaCols[j];

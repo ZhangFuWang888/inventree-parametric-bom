@@ -40,6 +40,7 @@ from parametric_bom.api import (
     create_bom_items_batch,
     create_bom_items_from_excel,
     download_bom_import_template,
+    batch_delete_bom_items,
     estimate_cost,
     export_attachment_zip,
     export_bom_csv,
@@ -96,6 +97,7 @@ parametric_api_urls = [
     path('create-bom-items-batch/', create_bom_items_batch, name='create-bom-items-batch'),
     path('create-bom-items-excel/', create_bom_items_from_excel, name='create-bom-items-excel'),
     path('bom-import-template/', download_bom_import_template, name='bom-import-template'),
+    path('batch-delete-bom-items/', batch_delete_bom_items, name='batch-delete-bom-items'),
     # Parameter inheritance
     path('inherit/', inherit_params, name='inherit-params'),
     path('inherit/affected/<int:part_config_id>/', affected_variants, name='affected-variants'),

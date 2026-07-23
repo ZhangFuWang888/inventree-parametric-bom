@@ -828,6 +828,54 @@ async function resetBomConfig(bomItemId, name) {
   }
 }
 
+// ── 批量删除 BOM ──
+function toggleSelectAllBom(el) {
+  document.querySelectorAll('.bom-checkbox').forEach(function(cb) {
+    cb.checked = el.checked;
+  });
+  updateBatchDeleteBtn();
+}
+
+function updateBatchDeleteBtn() {
+  var checked = document.querySelectorAll('.bom-checkbox:checked');
+  var btn = document.getElementById('batch-del-bom-btn');
+  if (btn) {
+    btn.style.display = checked.length ? '' : 'none';
+    btn.textContent = '🗑 批量删除（' + checked.length + '）';
+  }
+}
+
+async function batchDeleteBomItems() {
+  var checked = document.querySelectorAll('.bom-checkbox:checked');
+  if (!checked.length) return;
+  var ids = Array.from(checked).map(function(cb) { return parseInt(cb.value); });
+  var names = Array.from(checked).map(function(cb) {
+    var row = cb.closest('tr');
+    var nameCell = row ? row.querySelector('.pbs-name') : null;
+    return nameCell ? nameCell.textContent.trim() : '#' + cb.value;
+  });
+  var preview = names.length <= 5 ? names.join('、') : names.slice(0, 5).join('、') + ' 等' + names.length + '项';
+  if (!confirm('确认删除以下 ' + names.length + ' 个BOM项？\n\n' + preview + '\n\n此操作不可撤销！')) return;
+
+  try {
+    var resp = await fetch('/api/parametric-bom/batch-delete-bom-items/', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken()},
+      credentials: 'same-origin',
+      body: JSON.stringify({ids: ids}),
+    });
+    var data = await resp.json();
+    if (data.success) {
+      showToast('success', '✅ 已删除 ' + data.deleted + ' 项' + (data.failed.length ? '，失败 ' + data.failed.length + ' 项' : ''));
+      loadPdBOMM();
+    } else {
+      showToast('error', '删除失败: ' + (data.error || '未知错误'));
+    }
+  } catch(e) {
+    showToast('error', '网络错误: ' + e.message);
+  }
+}
+
 // ── Add BOM Item ──
 let _allPartsCache = null;
 let _abAllParts = []; // full list for filtering

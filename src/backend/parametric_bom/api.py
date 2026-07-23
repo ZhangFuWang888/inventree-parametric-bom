@@ -1462,6 +1462,51 @@ def download_bom_import_template(request):
 
 @api_view(['POST'])
 @permission_classes([permissions.IsAuthenticated])
+def batch_delete_bom_items(request):
+    """Delete multiple BOM items (including their ParametricBomItem + VariantMapping).
+
+    Input: {ids: [bom_item_pk, ...]}
+
+    Returns: {success, deleted: N, failed: [{pk, error}]}
+    """
+    from part.models import BomItem
+    from .models import ParametricBomItem, VariantMapping
+
+    ids = request.data.get('ids', [])
+    if not ids:
+        return Response({'success': False, 'error': 'Provide ids array'}, status=400)
+
+    deleted = 0
+    failed = []
+
+    for bom_id in ids:
+        try:
+            bom_item = BomItem.objects.get(pk=bom_id)
+        except BomItem.DoesNotExist:
+            failed.append({'pk': bom_id, 'error': 'BOM项不存在'})
+            continue
+
+        try:
+            # Delete VariantMapping
+            VariantMapping.objects.filter(parametric_bom_item__bom_item=bom_item).delete()
+            # Delete ParametricBomItem
+            ParametricBomItem.objects.filter(bom_item=bom_item).delete()
+            # Delete BomItem
+            bom_item.delete()
+            deleted += 1
+        except Exception as e:
+            failed.append({'pk': bom_id, 'error': str(e)})
+
+    return Response({
+        'success': True,
+        'deleted': deleted,
+        'failed': failed,
+        'total': len(ids),
+    })
+
+
+@api_view(['POST'])
+@permission_classes([permissions.IsAuthenticated])
 def inherit_params(request):
     """Trigger parameter inheritance for a configuration or part."""
     from parametric_bom.param_inheritance import inherit_params_for_config, inherit_params_for_part
