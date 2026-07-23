@@ -1198,7 +1198,7 @@ def _process_batch_bom_items(parent_part, category_id, items):
                     'ipn': ipn,
                     'pk': sub_part.pk,
                     'new_part': False,
-                    'status': '已存在（叠加数量）',
+                    'status': '已导入（叠加数量）',
                     'quantity_updated': True,
                     'old_quantity': str(old_qty),
                     'new_quantity': str(existing_bom.quantity),
@@ -1247,7 +1247,7 @@ def _process_batch_bom_items(parent_part, category_id, items):
             'ipn': ipn,
             'pk': sub_part.pk,
             'new_part': created_new,
-            'status': '新建物料' if created_new else '已存在',
+            'status': '新建物料' if created_new else '已导入',
         })
 
     return {

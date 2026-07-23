@@ -383,7 +383,7 @@ function handleBatchResult(data) {
       } else if (c.new_part) {
         statusHtml = '<span class=\"text-blue-600\">🆕 新建</span>';
       } else {
-        statusHtml = '<span class=\"text-gray-400\">已存在</span>';
+        statusHtml = '<span class=\"text-green-600\">已导入</span>';
       }
       html += '<tr style=\"border-bottom:1px solid #f3f4f6\"><td style=\"padding:3px 6px;color:#9ca3af\">' + (c.index + 1) + '</td><td style=\"padding:3px 6px;font-weight:500\">' + escHtml(c.name) + '</td><td style=\"padding:3px 6px;color:#6b7280\">' + escHtml(c.ipn || '—') + '</td><td style=\"padding:3px 6px\">' + statusHtml + '</td></tr>';
     });
