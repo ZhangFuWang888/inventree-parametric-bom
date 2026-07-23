@@ -1105,6 +1105,332 @@ def create_bom_item(request):
     })
 
 
+def _process_batch_bom_items(parent_part, category_id, items):
+    """Shared helper: process a list of items to add as BOM entries.
+
+    Returns: {success, created, skipped, failed, total}
+    """
+    from part.models import BomItem, Part
+    from .models import ParametricBomItem
+    from decimal import Decimal
+
+    # Default category: use parent's category if not specified
+    category = None
+    if category_id:
+        from part.models import PartCategory
+        try:
+            category = PartCategory.objects.get(pk=category_id)
+        except PartCategory.DoesNotExist:
+            pass
+    if not category and parent_part.category:
+        category = parent_part.category
+
+    # Get existing BOM sub-parts to prevent duplicates
+    existing_subs = set(
+        BomItem.objects.filter(part=parent_part).values_list('sub_part_id', flat=True)
+    )
+
+    created = []
+    skipped = []
+    failed = []
+
+    for idx, item in enumerate(items):
+        name = (item.get('name') or '').strip()
+        ipn = (item.get('ipn') or '').strip()
+        qty_str = str(item.get('quantity', '1'))
+        description = (item.get('description') or '').strip()
+        create_if_missing = item.get('create_if_missing', False)
+
+        if not name:
+            failed.append({'index': idx, 'error': '物料名称不能为空'})
+            continue
+
+        try:
+            qty = Decimal(qty_str)
+        except (ValueError, TypeError):
+            qty = Decimal('1')
+
+        # Look up sub-part by IPN first (more precise), then by name
+        sub_part = None
+        created_new = False
+
+        if ipn:
+            sub_part = Part.objects.filter(IPN=ipn).first()
+
+        if not sub_part:
+            sub_part = Part.objects.filter(name=name).first()
+
+        if not sub_part:
+            if create_if_missing:
+                # Create new part
+                sub_part = Part.objects.create(
+                    name=name,
+                    IPN=ipn or '',
+                    description=description,
+                    category=category,
+                    component=True,
+                    assembly=False,
+                    active=True,
+                )
+                created_new = True
+            else:
+                failed.append({
+                    'index': idx,
+                    'name': name,
+                    'ipn': ipn,
+                    'error': '物料不存在（可勾选"新建"自动创建）',
+                })
+                continue
+
+        # Check duplicate
+        if sub_part.pk in existing_subs:
+            skipped.append({
+                'index': idx,
+                'name': name,
+                'ipn': ipn,
+                'pk': sub_part.pk,
+                'reason': '已在BOM中',
+            })
+            continue
+
+        # Create BomItem
+        bom_item = BomItem.objects.create(
+            part=parent_part,
+            sub_part=sub_part,
+            quantity=qty,
+        )
+
+        # Create ParametricBomItem
+        ParametricBomItem.objects.create(
+            bom_item=bom_item,
+        )
+
+        existing_subs.add(sub_part.pk)
+
+        created.append({
+            'index': idx,
+            'name': name,
+            'ipn': ipn,
+            'pk': sub_part.pk,
+            'new_part': created_new,
+            'status': '新建物料' if created_new else '已存在',
+        })
+
+    return {
+        'success': True,
+        'created': created,
+        'skipped': skipped,
+        'failed': failed,
+        'total': len(items),
+    }
+
+
+@api_view(['POST'])
+@permission_classes([permissions.IsAuthenticated])
+def create_bom_items_batch(request):
+    """Batch create BOM items from JSON table data."""
+    from part.models import Part
+
+    parent_part_id = request.data.get('parent_part_id')
+    category_id = request.data.get('category_id')
+    items = request.data.get('items', [])
+
+    if not parent_part_id:
+        return Response({'success': False, 'error': 'Provide parent_part_id'}, status=400)
+    if not items:
+        return Response({'success': False, 'error': 'Provide items array'}, status=400)
+
+    try:
+        parent_part = Part.objects.get(pk=parent_part_id)
+    except Part.DoesNotExist:
+        return Response({'success': False, 'error': 'Parent part not found'}, status=404)
+
+    result = _process_batch_bom_items(parent_part, category_id, items)
+    return Response(result)
+
+
+@api_view(['POST'])
+@permission_classes([permissions.IsAuthenticated])
+def create_bom_items_from_excel(request):
+    """Batch create BOM items from uploaded Excel file.
+
+    Accepts: multipart/form-data with 'file' field (.xlsx)
+    Columns: 物料名称, 物料型号, 数量, 描述
+
+    Returns:
+        {success, created: [...], skipped: [...], failed: [...]}
+    """
+    from part.models import Part
+    import openpyxl
+    import io
+
+    parent_part_id = request.data.get('parent_part_id')
+    category_id = request.data.get('category_id')
+    create_if_missing = request.data.get('create_if_missing', 'true').lower() in ('true', '1', 'yes')
+    uploaded_file = request.FILES.get('file')
+
+    if not parent_part_id:
+        return Response({'success': False, 'error': 'Provide parent_part_id'}, status=400)
+    if not uploaded_file:
+        return Response({'success': False, 'error': 'Provide file (.xlsx)'}, status=400)
+
+    try:
+        parent_part = Part.objects.get(pk=parent_part_id)
+    except Part.DoesNotExist:
+        return Response({'success': False, 'error': 'Parent part not found'}, status=404)
+
+    # Read Excel
+    try:
+        wb = openpyxl.load_workbook(io.BytesIO(uploaded_file.read()), read_only=True)
+        ws = wb.active
+        rows = list(ws.iter_rows(min_row=1, values_only=True))
+    except Exception as e:
+        return Response({'success': False, 'error': f'读取Excel失败: {str(e)}'}, status=400)
+
+    if len(rows) < 2:
+        return Response({'success': False, 'error': 'Excel至少需要表头+1行数据'}, status=400)
+
+    # Detect header row — skip instruction row if present
+    # Row 0 is instruction/description, row 1 is header: 物料名称, 物料型号, 数量, 描述
+    header_row_idx = 0
+    if rows[0] and rows[0][0]:
+        first_cell = str(rows[0][0]).strip()
+        if '物料名称' not in first_cell and '物料型号' not in first_cell:
+            # Likely an instruction row, skip it
+            header_row_idx = 1 if len(rows) > 1 else 0
+
+    header = [str(c or '').strip() for c in (rows[header_row_idx] or [])]
+
+    # Map Chinese column names to indices
+    col_map = {}
+    for i, h in enumerate(header):
+        h_clean = h.replace(' ', '').replace('*', '')
+        if '物料名称' in h_clean:
+            col_map['name'] = i
+        elif '物料型号' in h_clean or '型号' in h_clean or 'IPN' in h_clean.upper():
+            col_map['ipn'] = i
+        elif '数量' in h_clean or '用量' in h_clean:
+            col_map['quantity'] = i
+        elif '描述' in h_clean or '备注' in h_clean:
+            col_map['description'] = i
+
+    if 'name' not in col_map:
+        return Response({'success': False, 'error': 'Excel缺少"物料名称"列'}, status=400)
+
+    # Parse data rows (skip header row)
+    items = []
+    for row_idx in range(header_row_idx + 1, len(rows)):
+        row = rows[row_idx]
+        if not row or all(c is None or str(c).strip() == '' for c in row):
+            continue
+        name = str(row[col_map['name']]).strip() if col_map['name'] < len(row) and row[col_map['name']] else ''
+        if not name or name == 'None':
+            continue
+        ipn = str(row[col_map['ipn']]).strip() if 'ipn' in col_map and col_map['ipn'] < len(row) and row[col_map['ipn']] else ''
+        if ipn == 'None':
+            ipn = ''
+        qty = str(row[col_map['quantity']]).strip() if 'quantity' in col_map and col_map['quantity'] < len(row) and row[col_map['quantity']] else '1'
+        if qty == 'None':
+            qty = '1'
+        description = str(row[col_map['description']]).strip() if 'description' in col_map and col_map['description'] < len(row) and row[col_map['description']] else ''
+        if description == 'None':
+            description = ''
+
+        items.append({
+            'name': name,
+            'ipn': ipn,
+            'quantity': qty,
+            'description': description,
+            'create_if_missing': create_if_missing,
+        })
+
+    if not items:
+        return Response({'success': False, 'error': 'Excel中没有有效数据行'}, status=400)
+
+    result = _process_batch_bom_items(parent_part, category_id, items)
+    return Response(result)
+
+
+@api_view(['GET'])
+@permission_classes([permissions.IsAuthenticated])
+def download_bom_import_template(request):
+    """Download BOM import Excel template (4 columns: 物料名称/物料型号/数量/描述)."""
+    import openpyxl
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    import io
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = 'BOM导入模板'
+
+    # Column widths
+    ws.column_dimensions['A'].width = 25
+    ws.column_dimensions['B'].width = 25
+    ws.column_dimensions['C'].width = 12
+    ws.column_dimensions['D'].width = 30
+
+    # Styles
+    header_font = Font(name='微软雅黑', bold=True, size=11, color='FFFFFF')
+    header_fill = PatternFill(start_color='2563EB', end_color='2563EB', fill_type='solid')
+    header_align = Alignment(horizontal='center', vertical='center')
+    thin_border = Border(
+        left=Side(style='thin', color='D1D5DB'),
+        right=Side(style='thin', color='D1D5DB'),
+        top=Side(style='thin', color='D1D5DB'),
+        bottom=Side(style='thin', color='D1D5DB'),
+    )
+    instruction_font = Font(name='微软雅黑', size=9, color='6B7280', italic=True)
+    example_font = Font(name='微软雅黑', size=10)
+    example_fill = PatternFill(start_color='F0FDF4', end_color='F0FDF4', fill_type='solid')
+
+    # Row 1: Instruction
+    ws.merge_cells('A1:D1')
+    ws['A1'] = '📋 填写说明：第2行为导入示例，请删除后填写实际数据。物料名称必填，型号/数量/描述可选。'
+    ws['A1'].font = instruction_font
+    ws['A1'].alignment = Alignment(horizontal='left', vertical='center')
+    ws.row_dimensions[1].height = 22
+
+    # Row 2: Headers
+    headers = ['物料名称*', '物料型号', '数量', '描述']
+    for col_idx, h in enumerate(headers, 1):
+        cell = ws.cell(row=2, column=col_idx, value=h)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = header_align
+        cell.border = thin_border
+    ws.row_dimensions[2].height = 28
+
+    # Row 3-5: Example data
+    examples = [
+        ['Ф50不锈钢滚筒', 'GUN-50-SS', '4', '直径50mm不锈钢滚筒'],
+        ['08B-1链条', 'CHAIN-08B-1', '2', ''],
+        ['电机减速机', 'MOTOR-0.75KW', '1', '0.75kW 4极'],
+    ]
+    for row_idx, data in enumerate(examples, 3):
+        for col_idx, val in enumerate(data, 1):
+            cell = ws.cell(row=row_idx, column=col_idx, value=val)
+            cell.font = example_font
+            cell.fill = example_fill
+            cell.border = thin_border
+            cell.alignment = Alignment(vertical='center')
+        ws.row_dimensions[row_idx].height = 22
+
+    # Freeze panes (header row always visible)
+    ws.freeze_panes = 'A3'
+
+    # Save to buffer
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+
+    response = FileResponse(
+        buf,
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    )
+    response['Content-Disposition'] = 'attachment; filename="BOM导入模板.xlsx"'
+    return response
+
+
 @api_view(['POST'])
 @permission_classes([permissions.IsAuthenticated])
 def inherit_params(request):
@@ -3500,6 +3826,28 @@ class PartLiteViewSet(viewsets.ReadOnlyModelViewSet):
 
     def list(self, request, *args, **kwargs):
         qs = self.get_queryset()
-        data = [{'pk': p.pk, 'name': p.name, 'full_name': p.full_name, 'IPN': p.IPN}
+        data = [{'pk': p.pk, 'name': p.name, 'full_name': p.full_name, 'IPN': p.IPN,
+                 'image_url': f'/api/parametric-bom/part-image/{p.pk}/' if p.image else None,
+                 'category_name': p.category.name if p.category else None}
                 for p in qs]
         return Response(data)
+
+
+class PartImageViewSet(viewsets.ViewSet):
+    """Serve part image file (proxied through API for auth compatibility)."""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def retrieve(self, request, pk=None):
+        from part.models import Part
+        from django.http import FileResponse
+        from django.shortcuts import get_object_or_404
+        part = get_object_or_404(Part, pk=pk)
+        if not part.image:
+            from django.http import Http404
+            raise Http404("No image")
+        try:
+            return FileResponse(part.image.open('rb'), content_type='image/png')
+        except FileNotFoundError:
+            from django.http import Http404
+            raise Http404("Image file not found")

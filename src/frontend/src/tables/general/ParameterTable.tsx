@@ -176,7 +176,7 @@ export function ParameterTable({
     url: ApiEndpoints.parameter_list,
     pk: selectedParameter?.pk,
     title: t`Edit Parameter`,
-    fields: useParameterFields({ modelType, modelId, initialData: selectedParameter }),
+    fields: useParameterFields({ modelType, modelId }),
     table: table
   });
 

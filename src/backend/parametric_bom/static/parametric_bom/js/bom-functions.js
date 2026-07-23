@@ -1502,3 +1502,192 @@ function updateCfgBomQty(input, partId, depth) {
 function updateCfgTotalPrice(input) {
   updateCfgBomQty(input, null, 0);
 }
+
+// ═══════════════════════════════════════════
+// 批量导入 BOM 项
+// ═══════════════════════════════════════════
+let _batchParsedItems = [];
+
+function openBatchBomModal() {
+  const pid = configuratorPartId;
+  if (!pid) { setStatus('error', '请先选择产品'); return; }
+
+  // Close existing add modal if open
+  var oldOverlay = document.getElementById('__ab_modal_overlay');
+  if (oldOverlay) oldOverlay.remove();
+
+  var overlay = document.createElement('div');
+  overlay.id = '__batch_modal_overlay';
+  overlay.style.cssText = 'position:fixed!important;top:0!important;left:0!important;width:100%!important;height:100%!important;background:rgba(0,0,0,0.4)!important;z-index:99999!important;display:flex!important;align-items:center!important;justify-content:center!important';
+  overlay.addEventListener('click', function(e) {
+    if (e.target === overlay) overlay.remove();
+  });
+
+  var box = document.createElement('div');
+  box.className = 'modal-box';
+  box.style.cssText = 'max-width:680px;width:94%;max-height:90vh;overflow-y:auto;background:#fff;border-radius:12px;padding:1.25rem;box-shadow:0 20px 60px rgba(0,0,0,0.3)';
+
+  box.innerHTML = `
+    <div class="flex items-center justify-between mb-3">
+      <h3 class="text-base font-semibold text-gray-800">📋 批量导入BOM物料</h3>
+      <button class="text-gray-400 hover:text-gray-600 text-xl leading-none" onclick="document.getElementById('__batch_modal_overlay').remove()">&times;</button>
+    </div>
+    <div class="page-help mb-3" style="font-size:0.65rem">
+      <span class="icon">💡</span>
+      <span class="text">粘贴表格数据（从Excel复制），每行一个物料。不存在物料可勾选"新建"自动创建。</span>
+    </div>
+
+    <!-- Paste area -->
+    <div class="mb-3">
+      <label class="block text-xs font-medium text-gray-500 mb-1">📋 粘贴表格数据（制表符/Tab分隔）</label>
+      <textarea id="batch-paste-area" rows="6" class="input-field"
+        style="width:100%;font-size:0.75rem;font-family:monospace;resize:vertical"
+        placeholder="物料名称&#9;物料型号&#9;数量&#9;描述&#10;Ф50滚筒&#9;GUN-50&#9;4&#9;&#10;链条&#9;CHAIN-08B&#9;2&#9;"
+        oninput="parseBatchPaste()"></textarea>
+      <div class="text-[10px] text-gray-400 mt-1">
+        格式: <b>物料名称</b> Tab <b>型号(可选)</b> Tab <b>数量(可选)</b> Tab <b>描述(可选)</b>
+      </div>
+    </div>
+
+    <!-- Preview table -->
+    <div class="mb-3" id="batch-preview-area" style="display:none">
+      <div class="flex items-center justify-between mb-1">
+        <span class="text-xs font-medium text-gray-600">预览（<span id="batch-preview-count">0</span> 项）</span>
+        <label class="flex items-center gap-1 text-[10px] text-gray-500 cursor-pointer">
+          <input type="checkbox" id="batch-create-missing" checked onchange="parseBatchPaste()">
+          不存在则新建
+        </label>
+      </div>
+      <div style="max-height:300px;overflow-y:auto;border:1px solid #e5e7eb;border-radius:6px">
+        <table style="width:100%;font-size:0.7rem;border-collapse:collapse" id="batch-preview-table">
+          <thead style="position:sticky;top:0;background:#f9fafb">
+            <tr>
+              <th style="padding:4px 8px;text-align:left;border-bottom:1px solid #e5e7eb">#</th>
+              <th style="padding:4px 8px;text-align:left;border-bottom:1px solid #e5e7eb">物料名称</th>
+              <th style="padding:4px 8px;text-align:left;border-bottom:1px solid #e5e7eb">型号</th>
+              <th style="padding:4px 8px;text-align:right;border-bottom:1px solid #e5e7eb">数量</th>
+              <th style="padding:4px 8px;text-align:left;border-bottom:1px solid #e5e7eb">状态</th>
+            </tr>
+          </thead>
+          <tbody id="batch-preview-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="flex justify-end gap-2 pt-2 border-t border-gray-100">
+      <button class="btn btn-secondary btn-sm" onclick="document.getElementById('__batch_modal_overlay').remove()">取消</button>
+      <button class="btn btn-primary btn-sm" id="batch-import-btn" onclick="doBatchImport()" disabled>确认导入</button>
+    </div>
+  `;
+
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
+
+  // Reset state
+  _batchParsedItems = [];
+  document.getElementById('batch-preview-area').style.display = 'none';
+  document.getElementById('batch-import-btn').disabled = true;
+}
+
+function parseBatchPaste() {
+  var text = document.getElementById('batch-paste-area').value.trim();
+  var previewArea = document.getElementById('batch-preview-area');
+  var tbody = document.getElementById('batch-preview-tbody');
+  var countEl = document.getElementById('batch-preview-count');
+  var btn = document.getElementById('batch-import-btn');
+  var createMissing = document.getElementById('batch-create-missing').checked;
+
+  if (!text) {
+    previewArea.style.display = 'none';
+    btn.disabled = true;
+    _batchParsedItems = [];
+    return;
+  }
+
+  var lines = text.split('\n').filter(function(l) { return l.trim(); });
+  _batchParsedItems = lines.map(function(line, i) {
+    var cols = line.split('\t');
+    return {
+      name: (cols[0] || '').trim(),
+      ipn: (cols[1] || '').trim(),
+      quantity: (cols[2] || '').trim() || '1',
+      description: (cols[3] || '').trim(),
+      create_if_missing: createMissing,
+    };
+  }).filter(function(item) { return item.name; });
+
+  if (_batchParsedItems.length === 0) {
+    previewArea.style.display = 'none';
+    btn.disabled = true;
+    return;
+  }
+
+  previewArea.style.display = '';
+  countEl.textContent = _batchParsedItems.length;
+
+  tbody.innerHTML = _batchParsedItems.map(function(item, i) {
+    var statusHtml = createMissing ? '🆕 将创建' : '⚠️ 待查';
+    return '<tr style="border-bottom:1px solid #f3f4f6">' +
+      '<td style="padding:3px 8px;color:#9ca3af">' + (i+1) + '</td>' +
+      '<td style="padding:3px 8px;font-weight:500">' + escHtml(item.name) + '</td>' +
+      '<td style="padding:3px 8px;color:#6b7280">' + escHtml(item.ipn) + '</td>' +
+      '<td style="padding:3px 8px;text-align:right">' + escHtml(item.quantity) + '</td>' +
+      '<td style="padding:3px 8px;font-size:0.65rem">' + statusHtml + '</td>' +
+      '</tr>';
+  }).join('');
+
+  btn.disabled = false;
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+async function doBatchImport() {
+  var pid = configuratorPartId;
+  var btn = document.getElementById('batch-import-btn');
+  if (!pid || _batchParsedItems.length === 0) return;
+
+  btn.disabled = true;
+  btn.textContent = '导入中...';
+  setStatus('loading', '正在批量导入 ' + _batchParsedItems.length + ' 项...');
+
+  try {
+    var resp = await fetch('/api/parametric-bom/create-bom-items-batch/', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken()},
+      credentials: 'same-origin',
+      body: JSON.stringify({
+        parent_part_id: pid,
+        items: _batchParsedItems,
+      }),
+    });
+
+    var data = await resp.json();
+
+    if (data.success) {
+      var created = data.created || [];
+      var skipped = data.skipped || [];
+      var failed = data.failed || [];
+
+      var msg = '✅ 导入完成！成功 ' + created.length + ' 项';
+      if (skipped.length) msg += '，跳过 ' + skipped.length + ' 项（已在BOM中）';
+      if (failed.length) msg += '，失败 ' + failed.length + ' 项';
+
+      setStatus(failed.length ? 'error' : 'success', msg);
+
+      // Close modal and refresh BOM list
+      var overlay = document.getElementById('__batch_modal_overlay');
+      if (overlay) overlay.remove();
+      loadPdBOMM();
+    } else {
+      setStatus('error', '导入失败: ' + (data.error || '未知错误'));
+    }
+  } catch(e) {
+    setStatus('error', '网络错误: ' + e.message);
+  }
+
+  btn.disabled = false;
+  btn.textContent = '确认导入';
+}

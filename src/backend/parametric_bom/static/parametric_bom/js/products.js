@@ -343,6 +343,15 @@ async function loadProductDetail(partId) {
     document.getElementById('pd-product-name').textContent = part.name || part.full_name || '—';
     document.getElementById('pd-product-ipn').textContent = part.IPN || part.ipn || '';
     document.getElementById('pd-product-desc').textContent = part.description || '';
+    // Show product image if available
+    const imgBox = document.getElementById('pd-product-image');
+    const imgEl = document.getElementById('pd-product-img');
+    if (imgBox && imgEl && part.image_url) {
+      imgEl.src = part.image_url;
+      imgBox.style.display = '';
+    } else if (imgBox) {
+      imgBox.style.display = 'none';
+    }
   }
   // Try to load computed product name from attribute formulas
   if (partId) {

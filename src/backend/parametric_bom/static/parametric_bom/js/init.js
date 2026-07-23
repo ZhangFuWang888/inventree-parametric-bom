@@ -122,7 +122,11 @@ document.addEventListener('DOMContentLoaded', async function() {
       const resp = await fetch('/api/part/' + initialProductId + '/', {credentials: 'same-origin'});
       if (resp.ok) {
         const data = await resp.json();
-        parts = [data];  // parts array with just this one product
+        // Map InvenTree image field to parametric-bom image_url (proxy through API for auth)
+        data.image_url = data.image ? '/api/parametric-bom/part-image/' + data.pk + '/' : null;
+        // Map category_detail to category_name
+        data.category_name = data.category_detail ? data.category_detail.name : null;
+        parts = [data];
       }
     } catch(e) {}
   } else {

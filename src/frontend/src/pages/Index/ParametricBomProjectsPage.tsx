@@ -26,7 +26,7 @@ export default function ParametricBomProjectPage() {
 
     function patchIframeNavigation() {
       try {
-        const win = iframe.contentWindow as any;
+        const win = (iframe as HTMLIFrameElement).contentWindow as any;
         if (!win || typeof win.showProjectDetail !== 'function') return;
 
         // 重写 iframe 内的 showProjectDetail 函数

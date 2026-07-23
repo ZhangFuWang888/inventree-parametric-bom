@@ -99,6 +99,13 @@
       <div class="card">
         <div class="text-[10px] text-gray-400 uppercase tracking-wide mb-1">产品参数化设置页</div>
         <div class="flex items-center gap-3 mb-3">
+          <div id="pd-product-image" style="width:80px;height:80px;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;background:#f9fafb;flex-shrink:0{% if not product_image_url %} display:none{% endif %}">
+            {% if product_image_url %}
+            <img id="pd-product-img" src="{{ product_image_url }}" alt="产品图片" style="width:100%;height:100%;object-fit:contain">
+            {% else %}
+            <img id="pd-product-img" src="" alt="产品图片" style="width:100%;height:100%;object-fit:contain" onerror="this.parentElement.style.display='none'">
+            {% endif %}
+          </div>
           <div class="flex-1 min-w-0">
             <div class="flex items-center gap-2">
               <h2 class="text-base font-semibold text-gray-800 truncate" id="pd-product-name">—</h2>
@@ -208,6 +215,7 @@
             </div>
             <div class="flex items-center gap-2">
               <button class="btn btn-sm btn-primary text-[10px]" onclick="openAddBomItemModal()">添加BOM项</button>
+              <button class="btn btn-sm btn-outline-primary text-[10px]" onclick="openBatchBomModal()">📋 批量导入</button>
               <button class="btn btn-sm btn-outline-primary text-[10px]" onclick="downloadBomCsv()">📥 BOM清单</button>
               <button class="btn btn-sm btn-outline-primary text-[10px]" onclick="downloadAttachmentsZip()">📎 附件打包</button>
               <button class="btn btn-sm btn-success text-[10px]" onclick="downloadBundleZip()">📦 完整打包</button>

@@ -196,9 +196,9 @@ IMPORT_TEMPLATES = {
     'part': {
         'label': '物料导入模板',
         'fields': [
-            ('name', '物料名称', '必填'),
-            ('description', '描述', ''),
-            ('IPN', '内部编号', ''),
+            ('name', '物料名称', '物料名称'),
+            ('IPN', '物料型号', '物料型号'),
+            ('description', '描述', '描述'),
             ('category', '分类ID或路径', '例如 5 或 CatA/CatB'),
             ('keywords', '关键词', '逗号分隔'),
             ('units', '单位', '个/件/m/kg'),
@@ -269,64 +269,65 @@ class DataImportTemplateView(APIView):
         ws = wb.active
         ws.title = template['label']
 
-        # Header style
-        header_font = Font(name='微软雅黑', bold=True, color='FFFFFF', size=11)
-        header_fill = PatternFill(start_color='4472C4', end_color='4472C4', fill_type='solid')
-        header_align = Alignment(horizontal='center', vertical='center')
+        # ── Styles ──
         thin_border = Border(
             left=Side(style='thin'),
             right=Side(style='thin'),
             top=Side(style='thin'),
             bottom=Side(style='thin'),
         )
+        header_fill = PatternFill(start_color='4472C4', end_color='4472C4', fill_type='solid')
+        header_font = Font(name='微软雅黑', bold=True, color='FFFFFF', size=11)
+        header_align = Alignment(horizontal='center', vertical='center', wrap_text=True)
 
-        # Write header row
-        headers = ['字段名', '字段说明', '填写说明']
-        for col_idx, header in enumerate(headers, 1):
-            cell = ws.cell(row=1, column=col_idx, value=header)
-            cell.font = header_font
-            cell.fill = header_fill
-            cell.alignment = header_align
-            cell.border = thin_border
+        hint_fill = PatternFill(start_color='F2F2F2', end_color='F2F2F2', fill_type='solid')
+        hint_font = Font(name='微软雅黑', size=9, color='888888')
+        hint_align = Alignment(horizontal='center', vertical='center', wrap_text=True)
 
-        # Write field rows
         data_font = Font(name='微软雅黑', size=10)
-        data_align = Alignment(vertical='center')
-        hint_font = Font(name='微软雅黑', size=10, color='888888')
+        data_align = Alignment(vertical='center', wrap_text=True)
 
-        for row_idx, (field_name, desc, hint) in enumerate(template['fields'], 2):
-            # Field name
-            cell1 = ws.cell(row=row_idx, column=1, value=field_name)
-            cell1.font = Font(name='微软雅黑', size=10, bold=True)
-            cell1.alignment = data_align
-            cell1.border = thin_border
+        # ── Build template: Row 1 = hints, Row 2 = field names, Row 3+ = data ──
+        fields = template['fields']
+        num_cols = len(fields)
 
-            # Field description
-            cell2 = ws.cell(row=row_idx, column=2, value=desc)
-            cell2.font = data_font
-            cell2.alignment = data_align
-            cell2.border = thin_border
+        # Row 1: Fill instructions (hints for each field)
+        for col_idx, (field_name, desc, hint) in enumerate(fields, 1):
+            hint_text = hint if hint else (f'[{desc}]' if desc else '')
+            cell_hint = ws.cell(row=1, column=col_idx, value=hint_text)
+            cell_hint.font = hint_font
+            cell_hint.fill = hint_fill
+            cell_hint.alignment = hint_align
+            cell_hint.border = thin_border
 
-            # Hint
-            cell3 = ws.cell(row=row_idx, column=3, value=hint)
-            cell3.font = hint_font
-            cell3.alignment = data_align
-            cell3.border = thin_border
+        # Row 2: Field names (headers recognized by import)
+        for col_idx, (field_name, desc, hint) in enumerate(fields, 1):
+            cell_fname = ws.cell(row=2, column=col_idx, value=field_name)
+            cell_fname.font = header_font
+            cell_fname.fill = header_fill
+            cell_fname.alignment = header_align
+            cell_fname.border = thin_border
 
-        # Add a data example row
-        example_row = len(template['fields']) + 3
-        ws.cell(row=example_row, column=1, value='').font = data_font
-        ws.cell(row=example_row, column=2, value='↓ 从第2行开始填入数据，删除说明行 ↓').font = Font(
-            name='微软雅黑', size=10, color='999999', italic=True,
-        )
+        # Row 3: Empty example row (data starts here)
+        for col_idx in range(1, num_cols + 1):
+            cell_data = ws.cell(row=3, column=col_idx, value='')
+            cell_data.font = data_font
+            cell_data.border = thin_border
 
-        # Column widths
-        ws.column_dimensions['A'].width = 22
-        ws.column_dimensions['B'].width = 20
-        ws.column_dimensions['C'].width = 30
+        # ── Column widths ──
+        for col_idx, (field_name, desc, hint) in enumerate(fields, 1):
+            width = max(len(field_name) * 2 + 4, 14)
+            ws.column_dimensions[openpyxl.utils.get_column_letter(col_idx)].width = width
 
-        # Freeze header row
-        ws.freeze_panes = 'A2'
+        # ── Note at bottom ──
+        note_row = 5
+        note_cell = ws.cell(row=note_row, column=1, value='📌 导入步骤：从第3行开始填入数据，保存后直接上传即可（第1行说明和空白行会自动跳过）')
+        note_cell.font = Font(name='微软雅黑', size=10, color='FF6600', italic=True)
+        ws.merge_cells(start_row=note_row, start_column=1, end_row=note_row, end_column=num_cols)
+
+        # ── Freeze ──
+        ws.freeze_panes = 'A3'
+        ws.auto_filter.ref = f'A2:{openpyxl.utils.get_column_letter(num_cols)}2'
 
         # Save to response
         response = HttpResponse(

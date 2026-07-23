@@ -13,11 +13,12 @@ from parametric_bom.api import (
     ParametricRuleViewSet,
     ParametricSnapshotViewSet,
     PartAttributeFormulaViewSet,
+    PartImageViewSet,
+    PartLiteViewSet,
     PartParameterConfigViewSet,
     PartVariableViewSet,
     ProductConfigurationViewSet,
     ProjectViewSet,
-    PartLiteViewSet,
     VariantMappingViewSet,
     affected_variants,
     bom_evaluate,
@@ -36,6 +37,9 @@ from parametric_bom.api import (
     config_snapshot,
     config_transition,
     create_bom_item,
+    create_bom_items_batch,
+    create_bom_items_from_excel,
+    download_bom_import_template,
     estimate_cost,
     export_attachment_zip,
     export_bom_csv,
@@ -68,6 +72,7 @@ router.register(r'attributes', PartAttributeFormulaViewSet)
 router.register(r'part-variables', PartVariableViewSet)
 router.register(r'projects', ProjectViewSet)
 router.register(r'parts-lite', PartLiteViewSet, basename='part-lite')
+router.register(r'part-image', PartImageViewSet, basename='part-image')
 router.register(r'param-logs', ParameterChangeLogViewSet)
 router.register(r'parametric-snapshots', ParametricSnapshotViewSet)
 
@@ -88,6 +93,9 @@ parametric_api_urls = [
     path('generate-variant/', generate_variant, name='generate-variant'),
     path('generate-variant-from-params/', generate_variant_from_params, name='generate-variant-from-params'),
     path('create-bom-item/', create_bom_item, name='create-bom-item'),
+    path('create-bom-items-batch/', create_bom_items_batch, name='create-bom-items-batch'),
+    path('create-bom-items-excel/', create_bom_items_from_excel, name='create-bom-items-excel'),
+    path('bom-import-template/', download_bom_import_template, name='bom-import-template'),
     # Parameter inheritance
     path('inherit/', inherit_params, name='inherit-params'),
     path('inherit/affected/<int:part_config_id>/', affected_variants, name='affected-variants'),

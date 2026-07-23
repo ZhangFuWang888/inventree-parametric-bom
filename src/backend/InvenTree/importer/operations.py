@@ -11,12 +11,13 @@ import tablib.core
 import InvenTree.helpers
 
 
-def load_data_file(data_file, file_format=None):
+def load_data_file(data_file, file_format=None, skip_hint_row=True):
     """Load data file into a tablib dataset.
 
     Arguments:
         data_file: django file object containing data to import (should be already opened!)
         file_format: Format specifier for the data file
+        skip_hint_row: If True, skip the first row (hint/instruction row) and use row 2 as headers
     """
     # Introspect the file format based on the provided file
     if not file_format:
@@ -38,16 +39,41 @@ def load_data_file(data_file, file_format=None):
     file_object.seek(0)
 
     try:
-        data = file_object.read()
+        raw_data = file_object.read()
     except OSError:
         raise ValidationError(_('Failed to open data file'))
 
-    # Excel formats expect binary data
-    if file_format not in ['xls', 'xlsx']:
-        data = data.decode()
+    # For Excel formats, handle hint row via openpyxl
+    if skip_hint_row and file_format in ['xls', 'xlsx']:
+        import io
+        import openpyxl
+        wb = openpyxl.load_workbook(io.BytesIO(raw_data), data_only=True)
+        ws = wb.active
+
+        # Row 2 = headers, Row 3+ = data
+        headers = [str(cell.value).strip() if cell.value is not None else f'Column {idx + 1}'
+                   for idx, cell in enumerate(ws[2])]
+        data_rows = []
+        for row in ws.iter_rows(min_row=3, values_only=True):
+            # Stop at first fully empty row
+            if all(cell is None for cell in row):
+                break
+            data_rows.append(list(row))
+
+        data = tablib.Dataset(*data_rows, headers=headers)
+        return data
+
+    # Non-Excel formats: decode and skip first line
+    raw_data = raw_data.decode()
+
+    if skip_hint_row:
+        # Skip the first line (hint row)
+        lines = raw_data.splitlines()
+        if len(lines) > 1:
+            raw_data = '\n'.join(lines[1:])
 
     try:
-        data = tablib.Dataset().load(data, headers=True, format=file_format)
+        data = tablib.Dataset().load(raw_data, headers=True, format=file_format)
     except tablib.core.UnsupportedFormat:
         raise ValidationError(_('Unsupported data file format'))
     except tablib.core.InvalidDimensions:

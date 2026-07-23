@@ -109,11 +109,15 @@ def product_standalone_view(request, pk):
         request: Django HTTP request
         pk: Product (Part) primary key
     """
+    from part.models import Part
+    from django.shortcuts import get_object_or_404
+    part = get_object_or_404(Part, pk=pk)
     context = {
         'initial_page': 'products',
         'page_title': '产品配置',
         'initial_product_id': int(pk),
         'standalone': True,
+        'product_image_url': '/api/parametric-bom/part-image/' + str(pk) + '/' if part.image else None,
     }
     return render(request, 'parametric_bom/configurator.html', context)
 

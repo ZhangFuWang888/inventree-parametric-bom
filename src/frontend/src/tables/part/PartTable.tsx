@@ -12,7 +12,7 @@ import type { ApiFormFieldSet } from '@lib/types/Forms';
 import type { TableColumn } from '@lib/types/Tables';
 import type { InvenTreeTableProps } from '@lib/types/Tables';
 import { t } from '@lingui/core/macro';
-import { ActionIcon, Group, Text, Tooltip } from '@mantine/core';
+import { ActionIcon, Anchor, Group, Text, Tooltip } from '@mantine/core';
 import {
   IconBolt,
   IconExclamationCircle,
@@ -316,6 +316,19 @@ export function PartListTable({
     url: ApiEndpoints.import_session_list,
     title: t`Import Parts`,
     fields: importSessionFields,
+    preFormContent: (
+      <Text size='sm' c='dimmed'>
+        也可以先{' '}
+        <Anchor
+          href={`/api/importer/template/?model=${ModelType.part}`}
+          target='_blank'
+          style={{ textDecoration: 'underline' }}
+        >
+          📥 下载导入模板
+        </Anchor>
+        {' '}填写后再上传。
+      </Text>
+    ),
     onFormSuccess: (response: any) => {
       openImporter(response.pk, {
         onClose: table.refreshTable
