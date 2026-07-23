@@ -1924,6 +1924,7 @@ async function loadVersion() {
     loadVersions();
     // Refresh all tabs
     loadPdBOMM();
+    loadConfiguratorParams(configuratorPartId);
   } catch(e) {
     showToast('error', '加载版本出错: ' + e.message);
   }
