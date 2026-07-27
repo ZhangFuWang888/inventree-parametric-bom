@@ -678,8 +678,7 @@ function renderParamCard(cfg, idx) {
     <div class="param-card-header">
       <span class="pc-drag-handle" draggable="true" ondragstart="onCardDragStart(event, ${cfgId})">⠿</span>
       <span class="pc-type-icon type-${type}">${icon}</span>
-      <span class="pc-name" id="pc-name-${cfgId}" onclick="startRenameParam(${cfgId})" title="单击重命名">${safeName}</span>
-      <span id="pc-ref-count-${cfgId}" class="text-[10px] ml-0.5" style="cursor:default">${cfg.reference_count > 0 ? '<span class="cursor-pointer text-blue-500 hover:text-blue-700 font-medium" onclick="event.stopPropagation();showParamReferences(' + cfgId + ',\'' + safeName + '\',\'param\')" title="' + cfg.reference_count + '处引用，点击查看">📎' + cfg.reference_count + '</span>' : '<span class="text-gray-300" title="未被引用">📎0</span>'}</span>
+      <span class="pc-name" id="pc-name-${cfgId}" onclick="startRenameParam(${cfgId})" title="单击重命名">${safeName} <span id="pc-ref-count-${cfgId}" class="text-[10px]" style="font-weight:400">${cfg.reference_count > 0 ? '<span class="cursor-pointer text-blue-500 hover:text-blue-700 font-medium" onclick="event.stopPropagation();showParamReferences(' + cfgId + ',\'' + safeName + '\',\'param\')" title="' + cfg.reference_count + '处引用，点击查看">📎' + cfg.reference_count + '</span>' : '<span class="text-gray-300" title="未被引用">📎0</span>'}</span></span>
       <span class="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded font-medium">${typeLabel}</span>
     </div>
     <div class="param-card-body">
