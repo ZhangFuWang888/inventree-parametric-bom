@@ -46,6 +46,13 @@ class PartParameterConfigSerializer(serializers.ModelSerializer):
 
     reference_count = serializers.SerializerMethodField()
 
+    def get_reference_count(self, obj):
+        """Count how many formulas reference this parameter."""
+        param_name = obj.name or (obj.template.name if obj.template else '')
+        if not param_name or not obj.part_id:
+            return 0
+        return _count_param_refs(obj.part_id, param_name)
+
     class Meta:
         """Meta options."""
         model = PartParameterConfig
