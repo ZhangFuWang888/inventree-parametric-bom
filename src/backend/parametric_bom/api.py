@@ -165,6 +165,8 @@ def _find_variable_references(part_id, var_name):
             results.append({'label': f'{prefix} → {label}', 'url': url, 'tab': tab})
     return results
 
+@api_view(["GET"])
+@permission_classes([permissions.IsAuthenticated])
 def param_references(request):
     """Get all formula references for a parameter or variable on a part.
 
