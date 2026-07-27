@@ -1662,15 +1662,29 @@ def template_library_auto_sync(request):
 
 def _build_bom_xlsx(result):
     """Build a mechanical-design BOM XLSX from evaluate result.
-    
+
     Returns (BytesIO, part_name).
     Columns: 序号, 图号/代号, 名称, 数量, 单位, 备注
+
+    Accepts three result formats:
+      1. {'bom_tree': {tree dict}}  — evaluate_part / evaluate_configuration
+      2. {'bom_tree': [flat list]}  — legacy bom_snapshot
+      3. {tree dict}                — expand_bom_level stored directly
     """
     import openpyxl, io
     from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
     from openpyxl.utils import get_column_letter
 
-    bom_tree = result.get('bom_tree', {})
+    # ── Normalise bom_tree to a dict with 'children' ──
+    bom_tree = result.get('bom_tree')
+    if bom_tree is None:
+        # Format ③: result itself *is* the tree dict (from expand_bom_level)
+        bom_tree = result if isinstance(result, dict) and 'children' in result else {}
+    elif isinstance(bom_tree, list):
+        # Format ②: flat list → wrap in dict
+        bom_tree = {'children': bom_tree}
+    # else Format ①: bom_tree is already a dict — use as-is
+
     part_name = result.get('part_name', 'BOM')
 
     wb = openpyxl.Workbook()
