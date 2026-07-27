@@ -1673,6 +1673,18 @@ class ProjectBatch(models.Model):
         ('completed', '✅ 已完成'),
     ]
 
+    STORAGE_DEST_CHOICES = [
+        ('入仓库', '入仓库'),
+        ('车间领用', '车间领用'),
+        ('现场安装', '现场安装'),
+    ]
+
+    MAKE_BUY_CHOICES = [
+        ('采购', '采购'),
+        ('自制', '自制'),
+        ('外协', '外协'),
+    ]
+
     project = models.ForeignKey(
         Project, on_delete=models.CASCADE, related_name='batches',
         verbose_name=_('Project'),
@@ -1681,6 +1693,21 @@ class ProjectBatch(models.Model):
     status = models.CharField(
         max_length=20, choices=BATCH_STATUS_CHOICES,
         default='editing', verbose_name=_('Status'),
+    )
+    storage_dest = models.CharField(
+        max_length=32, choices=STORAGE_DEST_CHOICES,
+        default='入仓库', verbose_name=_('Storage destination'),
+        help_text=_('入库去向'),
+    )
+    make_buy = models.CharField(
+        max_length=32, choices=MAKE_BUY_CHOICES,
+        default='采购', verbose_name=_('Make/Buy category'),
+        help_text=_('制购类别'),
+    )
+    reason = models.CharField(
+        max_length=256, default='按合同下单',
+        blank=True, verbose_name=_('Application reason'),
+        help_text=_('申请理由'),
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

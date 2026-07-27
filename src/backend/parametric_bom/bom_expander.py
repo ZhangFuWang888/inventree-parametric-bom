@@ -46,7 +46,7 @@ BomTreeNode = Dict[str, Any]
 
 def _part_display(part) -> str:
     """Get a display string for a Part instance."""
-    return getattr(part, 'full_name', None) or getattr(part, 'name', str(part))
+    return getattr(part, 'name', str(part))
 
 
 def _part_pk(part) -> int:

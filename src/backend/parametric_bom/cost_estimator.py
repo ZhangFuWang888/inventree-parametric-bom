@@ -200,7 +200,7 @@ def estimate_from_bom_tree(
         'labor_cost': 0.0,
         'total_cost_before_markup': float(total_cost),
         'markup_pct': markup_pct,
-        'currency': currency or 'USD',
+        'currency': str(currency) if currency else 'USD',
         'items': cost_items,
         'errors': errors,
         'item_count': len(cost_items),

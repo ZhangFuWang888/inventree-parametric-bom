@@ -123,7 +123,7 @@ def _collect_formula_fields(part_id):
     from parametric_bom.models import VariantMapping
     for vm in VariantMapping.objects.filter(
         parametric_bom_item__bom_item__part_id=part_id
-    ).select_related('parametric_bom_item__bom_item'):
+    ).select_related('parametric_bom_item__bom_item', 'template_part'):
         bom_item_id = vm.parametric_bom_item.bom_item_id
         url = f'{base_url}#bom-item-{bom_item_id}'
         for field, label in [
@@ -132,7 +132,7 @@ def _collect_formula_fields(part_id):
         ]:
             val = getattr(vm, field, '') or ''
             if val.strip():
-                prefix = f'变体「{vm.template_part_name or vm.template_part_id}」'
+                prefix = f'变体「{vm.template_part.name if vm.template_part else vm.template_part_id}」'
                 refs.append((prefix, label, val, url, 'bom'))
 
     return refs
@@ -3611,6 +3611,25 @@ class ProjectViewSet(viewsets.ModelViewSet):
         for b in ProjectBatch.objects.filter(project=project):
             statuses[b.name] = b.status
         return Response(statuses)
+
+    @action(detail=True, methods=['post'], url_path='batch-update-meta')
+    def batch_update_meta(self, request, pk=None):
+        """Update batch metadata: storage_dest, make_buy, reason."""
+        project = self.get_object()
+        batch_name = request.data.get('batch_name', '').strip()
+        batch = self._get_or_create_batch(project, batch_name)
+        if not batch:
+            return Response({'error': '无效的批次名称'}, status=400)
+        for field in ['storage_dest', 'make_buy', 'reason']:
+            if field in request.data:
+                setattr(batch, field, request.data[field])
+        batch.save(update_fields=[f for f in ['storage_dest', 'make_buy', 'reason', 'updated_at'] if f in request.data] + ['updated_at'])
+        return Response({
+            'message': '批次元数据已更新',
+            'storage_dest': batch.storage_dest,
+            'make_buy': batch.make_buy,
+            'reason': batch.reason,
+        })
 
     def _get_or_create_batch(self, project, batch_name):
         """Get or create a ProjectBatch record."""

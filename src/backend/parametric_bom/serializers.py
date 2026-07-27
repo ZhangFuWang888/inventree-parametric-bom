@@ -493,6 +493,7 @@ class ProjectDetailSerializer(serializers.ModelSerializer):
     created_by_name = serializers.SerializerMethodField()
     items = ProjectItemSerializer(many=True, read_only=True)
     batch_statuses = serializers.SerializerMethodField()
+    batch_meta = serializers.SerializerMethodField()
     user_role = serializers.SerializerMethodField()
     user_permissions = serializers.SerializerMethodField()
 
@@ -515,6 +516,21 @@ class ProjectDetailSerializer(serializers.ModelSerializer):
             pass
         return statuses
 
+    def get_batch_meta(self, obj):
+        """Return per-batch metadata: storage_dest, make_buy, reason."""
+        meta = {}
+        try:
+            from parametric_bom.models import ProjectBatch
+            for b in ProjectBatch.objects.filter(project=obj):
+                meta[b.name] = {
+                    'storage_dest': b.storage_dest,
+                    'make_buy': b.make_buy,
+                    'reason': b.reason,
+                }
+        except Exception:
+            pass
+        return meta
+
     def get_user_role(self, obj):
         request = self.context.get('request')
         if not request or not request.user:
@@ -536,7 +552,7 @@ class ProjectDetailSerializer(serializers.ModelSerializer):
             'manager', 'manager_name', 'deadline',
             'created_by', 'created_by_name',
             'created_at', 'updated_at', 'is_active',
-            'items', 'batch_statuses', 'user_role', 'user_permissions',
+            'items', 'batch_statuses', 'batch_meta', 'user_role', 'user_permissions',
         ]
         read_only_fields = [
             'project_code', 'created_by', 'created_at',

@@ -351,6 +351,10 @@ async function showProjectDetail(projectId) {
         const batchTime = times.length ? new Date(times[0]).toLocaleString('zh-CN', {year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}) : '';
         const creator = items.find(it => it.created_by_name)?.created_by_name || '';
         const status = (batchName === '未分组') ? 'editing' : ((p.batch_statuses && p.batch_statuses[batchName]) || 'editing');
+        const meta = (p.batch_meta && p.batch_meta[batchName]) || {};
+        const storageDest = meta.storage_dest || '入仓库';
+        const makeBuy = meta.make_buy || '采购';
+        const reason = meta.reason || '按合同下单';
         const safeBatch = encodeURIComponent(batchName);
         const statusBadge = batchName === '未分组' ? '' :
           (status === 'editing' ? '<span class="inline-block px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-50 text-blue-600 border border-blue-100">✏️ 编辑中</span>' :
@@ -368,6 +372,12 @@ async function showProjectDetail(projectId) {
               <span class="text-xs text-gray-400">${items.length} 项 · ${totalQty} 件 · ¥${totalAmt.toFixed(2)}</span>
               ${batchTime ? `<span class="text-xs text-gray-400">🕐 ${batchTime}</span>` : ''}
               ${creator ? `<span class="text-xs text-gray-400">👤 ${escHtml(creator)}</span>` : ''}
+            </div>
+            <div class="flex items-center gap-1.5">${batchName === '未分组' ? '' : `
+              <span class="text-[10px] bg-purple-50 text-purple-600 px-1.5 py-0.5 rounded border border-purple-100 cursor-pointer" onclick="editBatchMeta(${p.id}, '${safeBatch}', 'storage_dest', '${escHtml(storageDest)}')" title="入库去向">📥 ${escHtml(storageDest)}</span>
+              <span class="text-[10px] bg-amber-50 text-amber-600 px-1.5 py-0.5 rounded border border-amber-100 cursor-pointer" onclick="editBatchMeta(${p.id}, '${safeBatch}', 'make_buy', '${escHtml(makeBuy)}')" title="制购类别">🏭 ${escHtml(makeBuy)}</span>
+              <span class="text-[10px] bg-green-50 text-green-600 px-1.5 py-0.5 rounded border border-green-100 cursor-pointer" onclick="editBatchMeta(${p.id}, '${safeBatch}', 'reason', '${escHtml(reason)}')" title="申请理由">📝 ${escHtml(reason)}</span>
+            `}
             </div>
             <div class="flex items-center gap-1.5">
               ${canEditBatch ? `<button class="btn btn-sm btn-secondary" onclick="showAddItemDialog(${p.id}, '${escHtml(batchName)}')">添加</button>` : ''}
@@ -1510,6 +1520,32 @@ async function batchToCart(projectId, batchName) {
     showProjectDetail(projectId);
   } else {
     setStatus('error', result.data?.error || '还原失败');
+  }
+}
+
+async function editBatchMeta(projectId, batchName, field, currentValue) {
+  const name = decodeURIComponent(batchName);
+  let newValue;
+  
+  if (field === 'storage_dest') {
+    newValue = prompt(`批次「${name}」- 入库去向：\n可选: 入仓库 / 车间领用 / 现场安装`, currentValue);
+  } else if (field === 'make_buy') {
+    newValue = prompt(`批次「${name}」- 制购类别：\n可选: 采购 / 自制 / 外协`, currentValue);
+  } else {
+    newValue = prompt(`批次「${name}」- 申请理由：`, currentValue);
+  }
+  
+  if (newValue === null || newValue === currentValue) return;
+  
+  const body = { batch_name: name };
+  body[field] = newValue.trim();
+  const result = await projectApi('POST', `/${projectId}/batch-update-meta/`, body);
+  if (result.error) {
+    setStatus('error', result.error);
+  } else {
+    setStatus('success', `${field === 'storage_dest' ? '入库去向' : field === 'make_buy' ? '制购类别' : '申请理由'} 已更新`);
+    // Refresh the page
+    setTimeout(() => loadProjectDetail(projectId), 800);
   }
 }
 
