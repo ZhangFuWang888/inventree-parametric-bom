@@ -706,7 +706,7 @@ async function showParamReferences(cfgId, paramName, kind) {
   if (existing) existing.remove();
 
   // Show loading tooltip
-  var anchor = document.getElementById('pc-name-' + cfgId);
+  var anchor = document.getElementById('pc-ref-count-' + cfgId) || document.getElementById('pc-name-' + cfgId);
   if (!anchor) anchor = document.querySelector('[data-var-id="' + cfgId + '"]');
   if (!anchor) return;
 
