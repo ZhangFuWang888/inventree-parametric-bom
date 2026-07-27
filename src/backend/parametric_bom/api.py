@@ -1738,6 +1738,10 @@ def _build_bom_xlsx(result):
             _collect_pids(child)
     _collect_pids(bom_tree)
 
+    # If root_pid is None (flat-list format), fall back to first available part
+    if not root_pid and part_ids:
+        root_pid = next(iter(part_ids))
+
     # Bulk fetch Parts for IPN + units
     from part.models import Part
     part_map = {}
