@@ -258,7 +258,7 @@ async function loadPdVariables() {
     const computedVal = v.computed_value;
     const fmlaShort = (v.formula || '').length > 30 ? escHtml(v.formula.substring(0, 30) + '…') : escFmla;
     html += `<tr id="pv-row-${v.id}">
-      <td ondblclick="pvEditCell(this, 'name')"><span class="pbs-name" data-var-id="${v.id}">${escName}</span> <span class="cursor-pointer text-[10px] text-blue-400 hover:text-blue-600" onclick="event.stopPropagation();showParamReferences(${v.id},'${escName.replace(/'/g, "\\'")}','variable')" title="查看引用">🔗</span></td>
+      <td ondblclick="pvEditCell(this, 'name')"><span class="pbs-name" data-var-id="${v.id}">${escName}</span> ${v.reference_count > 0 ? '<span class="cursor-pointer text-[10px] text-blue-500 hover:text-blue-700 font-medium ml-0.5" onclick="event.stopPropagation();showParamReferences(' + v.id + ',\'' + escName.replace(/'/g, "\\'") + '\',\'variable\')" title="' + v.reference_count + '处引用">📎' + v.reference_count + '</span>' : '<span class="text-[10px] text-gray-300 ml-0.5" title="未被引用">📎0</span>'}</td>
       <td ondblclick="pvEditCell(this, 'formula')" title="双击编辑公式"><div class="pbs-formula-cell">${fmlaShort ? `<span class="fmla-text">${fmlaShort}</span>` : '<span class="fmla-empty">双击编辑公式</span>'}</div></td>
       <td><span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-xs font-mono font-medium ${computedVal != null ? 'bg-green-50 text-green-700 border border-green-200' : 'text-gray-400'}">${computedVal != null ? escHtml(String(computedVal)) : '—'}</span></td>
       <td ondblclick="pvEditCell(this, 'description')"><span class="pbs-ref">${escDesc || '<span class="text-gray-300 italic">—</span>'}</span></td>

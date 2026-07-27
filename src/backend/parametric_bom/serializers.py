@@ -1,5 +1,7 @@
 """API serializers for Parametric BOM models."""
 
+import re
+
 from rest_framework import serializers
 
 from parametric_bom.formula_engine import evaluate as evaluate_formula
@@ -42,11 +44,14 @@ class PartParameterConfigSerializer(serializers.ModelSerializer):
             return obj.template.name
         return ''
 
+    reference_count = serializers.SerializerMethodField()
+
     class Meta:
         """Meta options."""
         model = PartParameterConfig
         fields = [
             'id', 'part', 'part_name', 'template', 'template_name',
+            'reference_count',
             'name', 'parameter_type', 'options',
             'default_value', 'min_value', 'max_value', 'step_value',
             'is_driving',
@@ -287,6 +292,7 @@ class PartAttributeFormulaSerializer(serializers.ModelSerializer):
 class PartVariableSerializer(serializers.ModelSerializer):
     """Serializer for PartVariable."""
 
+    reference_count = serializers.SerializerMethodField()
     part_name = serializers.CharField(source='part.name', read_only=True)
     computed_value = serializers.SerializerMethodField()
 
@@ -298,6 +304,7 @@ class PartVariableSerializer(serializers.ModelSerializer):
             'name', 'formula', 'description', 'var_type',
             'display_order', 'created_at', 'updated_at',
             'computed_value',
+            'reference_count',
         ]
 
     def get_computed_value(self, obj):
@@ -325,6 +332,12 @@ class PartVariableSerializer(serializers.ModelSerializer):
             return str(result) if result is not None else None
         except (EvaluationError, ParseError, ReferenceError, Exception):
             return None
+
+    def get_reference_count(self, obj):
+        """Count how many formulas reference this variable."""
+        if not obj.name or not obj.part_id:
+            return 0
+        return _count_variable_refs(obj.part_id, obj.name)
 
 
 # ── Cart Serializers ─────────────────────────
@@ -606,3 +619,59 @@ class ParametricSnapshotSerializer(serializers.ModelSerializer):
         if obj.created_by:
             return obj.created_by.get_full_name() or obj.created_by.username
         return ''
+
+
+# ── Reference counting helpers (used by serializers) ──
+
+def _collect_formula_texts(part_id):
+    """Collect all formula text strings for a given part.
+    Returns list of formula strings (without labels)."""
+    refs = []
+    for item in ParametricBomItem.objects.filter(
+        bom_item__part_id=part_id
+    ):
+        for field in ['qty_formula', 'condition_formula', 'reference_formula']:
+            val = getattr(item, field, '') or ''
+            if val.strip():
+                refs.append(val)
+    for rule in ParametricRule.objects.filter(product_part_id=part_id):
+        for field in ['condition_formula', 'value_formula']:
+            val = getattr(rule, field, '') or ''
+            if val.strip():
+                refs.append(val)
+    for var in PartVariable.objects.filter(part_id=part_id):
+        val = (var.formula or '').strip()
+        if val:
+            refs.append(val)
+    # Also check VariantMapping templates
+    from parametric_bom.models import VariantMapping
+    for vm in VariantMapping.objects.filter(
+        parametric_bom_item__bom_item__part_id=part_id
+    ).select_related('parametric_bom_item__bom_item'):
+        for field in ['variant_name_template', 'variant_ipn_template']:
+            val = getattr(vm, field, '') or ''
+            if val.strip():
+                refs.append(val)
+    return refs
+
+
+def _count_param_refs(part_id, param_name):
+    """Count how many formulas reference param.param_name."""
+    import re
+    pattern = re.compile(r'param\.\s*' + re.escape(param_name) + r'\b')
+    count = 0
+    for formula in _collect_formula_texts(part_id):
+        if pattern.search(formula):
+            count += 1
+    return count
+
+
+def _count_variable_refs(part_id, var_name):
+    """Count how many formulas reference var_name (bare name, not param.xxx)."""
+    import re
+    pattern = re.compile(r'(?<!param\.)\b' + re.escape(var_name) + r'\b')
+    count = 0
+    for formula in _collect_formula_texts(part_id):
+        if pattern.search(formula):
+            count += 1
+    return count
