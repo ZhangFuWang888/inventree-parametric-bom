@@ -3370,6 +3370,25 @@ class ProjectViewSet(viewsets.ModelViewSet):
         for item in items:
             snap = item.bom_snapshot
             if not snap or not snap.get('bom_tree'):
+                # No BOM — add a simple info sheet so the user still gets a file
+                base = (item.title or f'Item_{item.pk}')[:31].replace('/', '_').replace('\\', '_')
+                safe_title = base
+                counter = 1
+                while safe_title in used_titles:
+                    safe_title = f'{base[:28]}_{counter}'
+                    counter += 1
+                used_titles.add(safe_title)
+
+                if first:
+                    ws = wb.active
+                    ws.title = safe_title
+                    first = False
+                else:
+                    ws = wb.create_sheet(title=safe_title)
+                ws.append(['名称', item.title])
+                ws.append(['类型', item.get_item_type_display()])
+                ws.append(['数量', item.quantity])
+                ws.append(['备注', '无BOM数据'])
                 continue
 
             # Delegate to shared _build_bom_xlsx for consistent format
@@ -3406,9 +3425,6 @@ class ProjectViewSet(viewsets.ModelViewSet):
             # Copy column widths
             for col_letter, dim in temp_ws.column_dimensions.items():
                 ws.column_dimensions[col_letter].width = dim.width
-
-        if first:
-            return Response({'error': f'批次 "{batch_name}" 无BOM条目'}, status=404)
 
         safe = batch_name.replace(' ', '_').replace('-', '_')
         from django.http import HttpResponse
