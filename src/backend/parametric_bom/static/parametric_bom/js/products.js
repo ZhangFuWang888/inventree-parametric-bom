@@ -695,6 +695,23 @@ function renderParamCard(cfg, idx) {
   </div>`;
 }
 
+// ── Navigate to a referenced item ──
+function navigateToRef(url, tab) {
+  if (tab === 'variables') switchProductTab('variables');
+  else if (tab === 'bom') switchProductTab('bom');
+  setTimeout(function() {
+    var hash = url.split('#')[1];
+    if (!hash) return;
+    var el = document.getElementById(hash);
+    if (el) {
+      el.scrollIntoView({behavior: 'smooth', block: 'center'});
+      el.style.transition = 'background 0.3s';
+      el.style.background = '#fef3c7';
+      setTimeout(function() { el.style.background = ''; }, 1500);
+    }
+  }, 300);
+}
+
 // ── Dependency references popover ──
 async function showParamReferences(cfgId, paramName, kind) {
   const pid = configuratorPartId;
@@ -1148,7 +1165,7 @@ function renderBOMTable(items, pcfgMap, vmByPbi, paramCtx) {
       }
       ipnCell = '<td class="pbs-ipn">' + (subPartRef || '<span class="text-gray-300">—</span>') + '</td>';
     }
-    let rowHtml = '<tr' + rowBgClass + '><td class="text-center" style="padding:2px"><input type="checkbox" class="bom-checkbox" value="' + item.pk + '" onchange="updateBatchDeleteBtn()"></td>' + nameCell + ipnCell;
+    let rowHtml = '<tr id="bom-item-' + item.pk + '"' + rowBgClass + '><td class="text-center" style="padding:2px"><input type="checkbox" class="bom-checkbox" value="' + item.pk + '" onchange="updateBatchDeleteBtn()"></td>' + nameCell + ipnCell;
 
     for (let j = 0; j < formulaCols.length; j++) {
       const c = formulaCols[j];

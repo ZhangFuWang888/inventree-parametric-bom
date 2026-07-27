@@ -75,18 +75,20 @@ from parametric_bom.serializers import (
 def _collect_formula_fields(part_id):
     """Collect all formula text fields for a given part.
     
-    Returns a list of (model_label, field_label, formula_text) tuples.
+    Returns a list of (prefix, label, formula, url, tab) tuples.
     """
     from parametric_bom.models import (
         ParametricBomItem, ParametricRule, PartParameterConfig, PartVariable,
     )
     refs = []
+    base_url = f'/parametric-bom/product/{part_id}/'
 
     # 1. ParametricBomItem formulas (via bom_item.part)
     for item in ParametricBomItem.objects.filter(
         bom_item__part_id=part_id
     ).select_related('bom_item'):
         prefix = f'BOM「{item.bom_item.sub_part.name or item.bom_item.sub_part_id}」'
+        url = f'{base_url}#bom-item-{item.bom_item_id}'
         for field, label in [
             ('qty_formula', '数量公式'),
             ('condition_formula', '条件公式'),
@@ -94,43 +96,57 @@ def _collect_formula_fields(part_id):
         ]:
             val = getattr(item, field, '') or ''
             if val.strip():
-                refs.append((prefix, label, val))
+                refs.append((prefix, label, val, url, 'bom'))
 
     # 2. ParametricRule formulas
     for rule in ParametricRule.objects.filter(product_part_id=part_id):
         prefix = f'规则#{rule.id}'
+        url = f'{base_url}#rule-{rule.id}'
         for field, label in [
             ('condition_formula', '条件'),
             ('value_formula', '值公式'),
         ]:
             val = getattr(rule, field, '') or ''
             if val.strip():
-                refs.append((prefix, label, val))
+                refs.append((prefix, label, val, url, 'bom'))
 
-    # 3. PartParameterConfig computation formulas
-    for cfg in PartParameterConfig.objects.filter(part_id=part_id):
-        name = cfg.name or (cfg.template.name if cfg.template else f'参数#{cfg.id}')
-        # computation_formula removed - all params are driving
+    # 3. PartParameterConfig - skip (no computation formula)
 
     # 4. PartVariable formulas
     for var in PartVariable.objects.filter(part_id=part_id):
         name = var.name
         val = (var.formula or '').strip()
         if val:
-            refs.append((f'变量「{name}」', '公式', val))
+            refs.append((f'变量「{name}」', '公式', val, f'{base_url}#pv-row-{var.id}', 'variables'))
+
+    # 5. VariantMapping templates
+    from parametric_bom.models import VariantMapping
+    for vm in VariantMapping.objects.filter(
+        parametric_bom_item__bom_item__part_id=part_id
+    ).select_related('parametric_bom_item__bom_item'):
+        bom_item_id = vm.parametric_bom_item.bom_item_id
+        url = f'{base_url}#bom-item-{bom_item_id}'
+        for field, label in [
+            ('variant_name_template', '变体名称模板'),
+            ('variant_ipn_template', '变体型号模板'),
+        ]:
+            val = getattr(vm, field, '') or ''
+            if val.strip():
+                prefix = f'变体「{vm.template_part_name or vm.template_part_id}」'
+                refs.append((prefix, label, val, url, 'bom'))
 
     return refs
 
 
 def _find_param_references(part_id, param_name):
-    """Check if param_name (referenced as param.xxx) is used in any formula."""
+    """Check if param_name (referenced as param.xxx) is used in any formula.
+    Returns list of {label, url, tab} dicts."""
     results = []
-    for prefix, label, formula in _collect_formula_fields(part_id):
-        # Match: param.参数名 or param."参数名"
+    for prefix, label, formula, url, tab in _collect_formula_fields(part_id):
         import re
         pattern = re.compile(r'param\.\s*' + re.escape(param_name) + r'\b')
         if pattern.search(formula):
-            results.append(f'{prefix} → {label}')
+            results.append({'label': f'{prefix} → {label}', 'url': url, 'tab': tab})
     return results
 
 
@@ -138,20 +154,17 @@ def _find_variable_references(part_id, var_name):
     """Check if var_name is referenced in any formula.
     
     Variables are referenced by bare name (not as param.xxx).
-    We check for word-boundary matches of the variable name.
+    Returns list of {label, url, tab} dicts.
     """
     results = []
-    for prefix, label, formula in _collect_formula_fields(part_id):
+    for prefix, label, formula, url, tab in _collect_formula_fields(part_id):
         import re
         # Match variable name as a whole word, but NOT preceded by "param."
         pattern = re.compile(r'(?<!param\.)\b' + re.escape(var_name) + r'\b')
         if pattern.search(formula):
-            results.append(f'{prefix} → {label}')
+            results.append({'label': f'{prefix} → {label}', 'url': url, 'tab': tab})
     return results
 
-
-@api_view(['GET'])
-@permission_classes([permissions.IsAuthenticated])
 def param_references(request):
     """Get all formula references for a parameter or variable on a part.
 
