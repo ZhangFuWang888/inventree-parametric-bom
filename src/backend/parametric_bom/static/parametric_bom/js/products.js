@@ -1118,13 +1118,13 @@ function renderBOMTable(items, pcfgMap, vmByPbi, paramCtx) {
       var tplName = vm.template_part_name || '#部件';
       tplRef = '<div class=\"text-[9px] text-purple-400 mt-0.5\">🧬参考: <span class=\"cursor-pointer hover:text-purple-600 underline decoration-dotted\" onclick=\"changeTemplatePart(' + mappingId + ',' + tplId + ')\" title=\"点击更换模板零件\">' + tplName + '</span></div>';
       nameCell = '<td><div class="pbs-formula-cell" ondblclick="openCellEditor(' + item.pk + ",'variant_name','" + escNameVal + "',false," + mappingId + ')" title="双击编辑动态名称">'
-        + (vm.variant_name_template ? '<span class="fmla-text">' + escHtml(vm.variant_name_template) + '</span>' : '<span class="fmla-empty">—</span>')
+        + (vm.variant_name_template ? '<span class="fmla-text" title="' + escNameVal + '">' + escHtml(vm.variant_name_template) + '</span><span class="fmla-result hidden" id="bom-cell-' + item.pk + '-variant_name-res"></span>' : '<span class="fmla-empty">—</span>')
         + '<span class="fmla-hint">双击编辑</span>'
         + tplRef
         + '<button class="text-gray-300 hover:text-blue-500 text-[10px] p-0 ml-1 align-baseline" onclick="event.stopPropagation();changeBomPart(' + item.pk + ',' + item.sub_part + ')\" title=\"更换关联零件\">✏️</button>'
         + '</div></td>';
       ipnCell = '<td class="pbs-ipn"><div class="pbs-formula-cell" ondblclick="openCellEditor(' + item.pk + ",'variant_ipn','" + escIpnVal + "',false," + mappingId + ')" title="双击编辑动态型号">'
-        + (vm.variant_ipn_template ? '<span class="fmla-text">' + escHtml(vm.variant_ipn_template) + '</span>' : '<span class="fmla-empty">—</span>')
+        + (vm.variant_ipn_template ? '<span class="fmla-text" title="' + escIpnVal + '">' + escHtml(vm.variant_ipn_template) + '</span><span class="fmla-result hidden" id="bom-cell-' + item.pk + '-variant_ipn-res"></span>' : '<span class="fmla-empty">—</span>')
         + '<span class="fmla-hint">双击编辑</span>'
         + tplIpn
         + '</div></td>';
@@ -1133,7 +1133,7 @@ function renderBOMTable(items, pcfgMap, vmByPbi, paramCtx) {
       if (nfVal) {
         var escNfVal = nfVal.replace(/'/g,"\\'").replace(/"/g,'&quot;');
         nameCell = '<td><div class="pbs-formula-cell" ondblclick="openCellEditor(' + item.pk + ",'name_formula','" + escNfVal + "',false,0,'string')\" title=\"双击编辑名称公式\">"
-          + '<span class="fmla-text" title="' + escNfVal + '">' + escHtml(nfVal) + '</span>'
+          + '<span class="fmla-text" title="' + escNfVal + '">' + escHtml(nfVal) + '</span><span class="fmla-result hidden" id="bom-cell-' + item.pk + '-name_formula-res"></span>'
           + '<span class="fmla-hint">双击编辑</span>'
           + '<div class="text-[9px] text-gray-400 mt-0.5">→ ' + escHtml(subPartName) + ' <button class="text-gray-300 hover:text-blue-500 text-[10px] p-0 align-baseline" onclick="event.stopPropagation();changeBomPart(' + item.pk + ',' + item.sub_part + ')" title="更换关联零件">✏️</button></div>'
           + '</div></td>';
@@ -1187,7 +1187,9 @@ function renderBOMTable(items, pcfgMap, vmByPbi, paramCtx) {
 
 // ── Evaluate BOM formulas and show computed results ──
 async function evaluateBomFormulas(paramCtx) {
+  console.warn('[evalBomFormulas] START');
   var cells = document.querySelectorAll('#pd-bom-list .fmla-result');
+  console.warn('[evalBomFormulas] cells found:', cells.length);
   if (!cells.length) return;
   
   // Build batch requests: collect unique formulas
