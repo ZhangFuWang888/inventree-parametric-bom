@@ -3339,7 +3339,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['get'], url_path='export-batch-csv')
     def export_batch_csv(self, request, pk=None):
-        """Export items of a specific batch as XLSX."""
+        """Export batch items as one multi-sheet XLSX (configurator _build_bom_xlsx format)."""
         project = self.get_object()
         batch_name = request.query_params.get('batch_name', '').strip()
         items = project.items.filter(batch_name=batch_name).order_by('id')
@@ -3347,66 +3347,54 @@ class ProjectViewSet(viewsets.ModelViewSet):
         if not items.exists():
             return Response({'error': f'批次 "{batch_name}" 无条目'}, status=404)
 
-        from openpyxl import Workbook
-        from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
+        import openpyxl, io, copy
 
-        wb = Workbook()
-        ws = wb.active
-        ws.title = batch_name[:31]
+        wb = openpyxl.Workbook()
+        first = True
+        used_titles = set()
 
-        thin = Side(style='thin', color='d0d5dd')
-        border = Border(left=thin, right=thin, top=thin, bottom=thin)
-        header_font = Font(bold=True, size=11)
-        header_fill = PatternFill(start_color='f0f4ff', end_color='f0f4ff', fill_type='solid')
-        total_fill = PatternFill(start_color='f8fafc', end_color='f8fafc', fill_type='solid')
+        for item in items:
+            snap = item.bom_snapshot
+            if not snap or not snap.get('bom_tree'):
+                continue
 
-        ws.append(['项目', project.project_code, project.name])
-        ws.append(['批次', batch_name])
-        ws.append([])
-        headers = ['名称', '类型', 'IPN', '数量', '单价', '小计', '含BOM', '备注']
-        ws.append(headers)
-        for col in range(1, len(headers) + 1):
-            cell = ws.cell(row=4, column=col)
-            cell.font = header_font
-            cell.fill = header_fill
-            cell.border = border
-            cell.alignment = Alignment(horizontal='center')
+            # Delegate to shared _build_bom_xlsx for consistent format
+            xlsx_buf, _ = _build_bom_xlsx(snap)
+            temp_wb = openpyxl.load_workbook(xlsx_buf)
+            temp_ws = temp_wb.active
 
-        total_price = 0
-        for i, item in enumerate(items):
-            price = float(item.unit_price or 0) * item.quantity
-            total_price += price
-            row = [
-                item.title, item.get_item_type_display(),
-                item.part.IPN if item.part else '',
-                item.quantity, float(item.unit_price or 0),
-                round(price, 2), '是' if item.bom_snapshot else '',
-                item.notes or '',
-            ]
-            ws.append(row)
-            r = i + 5
-            for col in range(1, len(row) + 1):
-                cell = ws.cell(row=r, column=col)
-                cell.border = border
+            part_name = snap.get('part_name') or item.title or 'BOM'
+            safe_title = part_name[:31].replace('/', '_').replace('\\', '_')
+            base_title = safe_title
+            counter = 1
+            while safe_title in used_titles:
+                safe_title = f'{base_title[:28]}_{counter}'
+                counter += 1
+            used_titles.add(safe_title)
 
-        ws.append([])
-        summary_row = ['合计', '', '', '', '', round(total_price, 2)]
-        ws.append(summary_row)
-        r += 3
-        for col in range(1, len(summary_row) + 1):
-            cell = ws.cell(row=r, column=col)
-            cell.fill = total_fill
-            cell.font = Font(bold=True)
+            if first:
+                ws = wb.active
+                ws.title = safe_title
+                first = False
+            else:
+                ws = wb.create_sheet(title=safe_title)
 
-        # Column widths
-        ws.column_dimensions['A'].width = 30
-        ws.column_dimensions['B'].width = 14
-        ws.column_dimensions['C'].width = 18
-        ws.column_dimensions['D'].width = 8
-        ws.column_dimensions['E'].width = 10
-        ws.column_dimensions['F'].width = 12
-        ws.column_dimensions['G'].width = 8
-        ws.column_dimensions['H'].width = 20
+            # Copy rows + styles from temp sheet
+            for row in temp_ws.iter_rows():
+                for cell in row:
+                    new_cell = ws.cell(row=cell.row, column=cell.column, value=cell.value)
+                    if cell.has_style:
+                        new_cell.font = copy.copy(cell.font)
+                        new_cell.fill = copy.copy(cell.fill)
+                        new_cell.alignment = copy.copy(cell.alignment)
+                        new_cell.border = copy.copy(cell.border)
+                        new_cell.number_format = cell.number_format
+            # Copy column widths
+            for col_letter, dim in temp_ws.column_dimensions.items():
+                ws.column_dimensions[col_letter].width = dim.width
+
+        if first:
+            return Response({'error': f'批次 "{batch_name}" 无BOM条目'}, status=404)
 
         safe = batch_name.replace(' ', '_').replace('-', '_')
         from django.http import HttpResponse
@@ -3419,7 +3407,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['get'], url_path='export-batch-zip')
     def export_batch_zip(self, request, pk=None):
-        """Export items of a batch as ZIP: XLSX order table + individual BOM CSVs."""
+        """Export batch items as ZIP: each item has its own BOM XLSX via _build_bom_xlsx."""
         import zipfile, io
 
         project = self.get_object()
@@ -3432,87 +3420,22 @@ class ProjectViewSet(viewsets.ModelViewSet):
         buf = io.BytesIO()
         safe = batch_name.replace(' ', '_').replace('-', '_')
 
-        from openpyxl import Workbook
-        from openpyxl.styles import Font, PatternFill, Border, Side, Alignment
-
         with zipfile.ZipFile(buf, 'w', zipfile.ZIP_DEFLATED) as zf:
-            # 1. Main order XLSX
-            wb = Workbook()
-            ws = wb.active
-            ws.title = '订单表'
-            thin = Side(style='thin', color='d0d5dd')
-            border = Border(left=thin, right=thin, top=thin, bottom=thin)
-            hf = Font(bold=True, size=11)
-            hfill = PatternFill(start_color='f0f4ff', end_color='f0f4ff', fill_type='solid')
-            tfill = PatternFill(start_color='f8fafc', end_color='f8fafc', fill_type='solid')
-
-            ws.append(['项目', project.project_code, project.name])
-            ws.append(['批次', batch_name])
-            ws.append([])
-            headers = ['名称', '类型', 'IPN', '数量', '单价', '小计', '含BOM', '备注']
-            ws.append(headers)
-            for col in range(1, len(headers) + 1):
-                c = ws.cell(row=4, column=col)
-                c.font = hf; c.fill = hfill; c.border = border; c.alignment = Alignment(horizontal='center')
-
-            total_price = 0
-            for i, item in enumerate(items):
-                price = float(item.unit_price or 0) * item.quantity
-                total_price += price
-                row = [item.title, item.get_item_type_display(),
-                       item.part.IPN if item.part else '',
-                       item.quantity, float(item.unit_price or 0),
-                       round(price, 2), '是' if item.bom_snapshot else '', item.notes or '']
-                ws.append(row)
-                r = i + 5
-                for col in range(1, len(row) + 1):
-                    ws.cell(row=r, column=col).border = border
-
-            ws.append([])
-            ws.append(['合计', '', '', '', '', round(total_price, 2)])
-            r += 3
-            for col in range(1, 7):
-                ws.cell(row=r, column=col).fill = tfill
-
-            for letter, w in [('A',30),('B',14),('C',18),('D',8),('E',10),('F',12),('G',8),('H',20)]:
-                ws.column_dimensions[letter].width = w
-
-            xlsx_buf = io.BytesIO()
-            wb.save(xlsx_buf)
-            zf.writestr(f'{safe}_订单表.xlsx', xlsx_buf.getvalue())
-
-            # 2. Individual BOM CSVs for items with bom_snapshot
             for item in items:
-                if not item.bom_snapshot or not item.bom_snapshot.get('bom_tree'):
+                snap = item.bom_snapshot
+                if not snap or not snap.get('bom_tree'):
                     continue
-                bom_items = item.bom_snapshot['bom_tree']
-                bom_buf = io.StringIO()
-                bw = csv.writer(bom_buf)
-                part_name = item.bom_snapshot.get('part_name', item.title)
-                bw.writerow([f'BOM — {part_name}'])
-                bw.writerow(['子件名称', 'IPN', '数量', '单价', '单位'])
 
-                def write_tree(tree, level=0):
-                    for n in tree:
-                        indent = '  ' * level
-                        bw.writerow([
-                            f'{indent}{n["part_name"]}',
-                            n.get('IPN', ''),
-                            n.get('quantity', 1),
-                            f'{n.get("unit_price", 0):.2f}',
-                            n.get('unit', ''),
-                        ])
-                        if 'children' in n:
-                            write_tree(n['children'], level + 1)
+                # Use shared _build_bom_xlsx — identical to configurator export
+                xlsx_buf, part_name = _build_bom_xlsx(snap)
+                safe_title = part_name[:50].replace('/', '_').replace('\\', '_').replace(' ', '_')
+                zf.writestr(f'{safe_title}_BOM清单.xlsx', xlsx_buf.getvalue())
 
-                write_tree(bom_items)
-                safe_title = item.title.replace(' ', '_').replace('/', '_')
-                zf.writestr(f'{safe}/BOM_{safe_title}.csv', bom_buf.getvalue().encode('utf-8-sig'))
-
+        buf.seek(0)
         from django.http import HttpResponse
-        resp = HttpResponse(buf.getvalue(), content_type='application/zip')
-        resp['Content-Disposition'] = f'attachment; filename="{project.project_code}_{safe}.zip"'
-        return resp
+        response = HttpResponse(buf, content_type='application/zip')
+        response['Content-Disposition'] = f'attachment; filename="{project.project_code}_{safe}.zip"'
+        return response
 
     @action(detail=True, methods=['post'], url_path='batch-to-cart')
     def batch_to_cart(self, request, pk=None):
