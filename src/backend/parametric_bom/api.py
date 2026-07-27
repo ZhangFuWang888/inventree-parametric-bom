@@ -1804,10 +1804,18 @@ def _build_bom_xlsx(result):
                 or child.get('part_name')
                 or ''
             )
-            ipn = child.get('calculated_ipn') or child.get('variant_ipn', '') or ''
-            qty = child.get('calculated_quantity', 1) * parent_qty
+            ipn = (
+                child.get('calculated_ipn')
+                or child.get('variant_ipn', '')
+                or child.get('IPN', '')  # flat-list format
+                or ''
+            )
+            qty = (
+                child.get('calculated_quantity')
+                or child.get('quantity', 1)  # flat-list format
+            ) * parent_qty
             ref = str(child.get('reference', '') or child.get('reference_formula', '') or '')
-            units = ''
+            units = child.get('unit', '')  # flat-list format may carry unit directly
 
             # Look up Part for IPN + units
             if pid and pid in part_map:
