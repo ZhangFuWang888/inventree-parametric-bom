@@ -221,6 +221,12 @@ def _check_type(actual_type: str, expected_type: str):
     expected = expected_type.lower().strip()
     actual = actual_type.lower().strip()
 
+    # 'unknown' means static inference can't determine the type
+    # (e.g., formula references param.xxx which has no static type info).
+    # This is NOT a type error — accept it and let runtime evaluation decide.
+    if actual == 'unknown':
+        return True, None
+
     # Exact match
     if actual == expected:
         return True, None

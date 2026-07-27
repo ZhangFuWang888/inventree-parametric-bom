@@ -435,18 +435,22 @@ class FormulaParser:
             }
             return prefix_map[prefix](name)
 
-        # Function call: IDENTIFIER(...)
+        # Function call: IDENTIFIER(expr, ...) or bare parameter/variable reference
         if token.type == IDENTIFIER:
             name = self._advance().value
-            self._expect(LPAREN)
-            args = []
-            if not self._check(RPAREN):
-                args.append(self._expression())
-                while self._check(COMMA):
-                    self._advance()
+            # Peek ahead: if followed by '(', it's a function call
+            if self._check(LPAREN):
+                self._advance()  # consume '('
+                args = []
+                if not self._check(RPAREN):
                     args.append(self._expression())
-            self._expect(RPAREN)
-            return FuncCallNode(name.upper(), args)
+                    while self._check(COMMA):
+                        self._advance()
+                        args.append(self._expression())
+                self._expect(RPAREN)
+                return FuncCallNode(name.upper(), args)
+            # Otherwise, treat as bare parameter/variable reference (resolved as param.xxx)
+            return ParamNode(name)
 
         raise ParseError(
             f'Unexpected token {token.value!r} at position {token.pos}'

@@ -189,6 +189,8 @@ header .text-sm.font-semibold{
 .pd-bom-spreadsheet .pbs-formula-cell .fmla-empty{color:#cbd5e1;font-style:italic;font-size:0.65rem}
 .pd-bom-spreadsheet .pbs-formula-cell .fmla-hint{display:none;font-size:0.55rem;color:#94a3b8;position:absolute;top:-0.75rem;right:0.25rem;background:#fff;padding:0 0.25rem}
 .pd-bom-spreadsheet .pbs-formula-cell:hover .fmla-hint{display:block}
+.pd-bom-spreadsheet .pbs-formula-cell .fmla-result{font-size:0.65rem;display:block;margin-top:1px}
+.pd-bom-spreadsheet .pbs-formula-cell .fmla-result.hidden{display:none}
 /* Variable table row hover */
 .pd-bom-spreadsheet tbody tr{cursor:default}
 .pd-bom-spreadsheet tbody tr:hover td{background:#f0f7ff}

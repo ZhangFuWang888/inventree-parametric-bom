@@ -105,8 +105,20 @@ function ceInsertText(text) {
   const start = ta.selectionStart;
   const end = ta.selectionEnd;
   ta.value = ta.value.substring(0, start) + text + ta.value.substring(end);
-  const newPos = start + text.length;
-  ta.selectionStart = ta.selectionEnd = newPos;
+  // Cursor positioning: select placeholder args if present
+  var argsMatch = text.match(/^[A-Z]+\((.+)\)$/);
+  if (argsMatch) {
+    // e.g., "ROUND(x, n)" → select "x, n"
+    var argStart = start + text.indexOf('(') + 1;
+    var argEnd = start + text.length - 1;
+    ta.selectionStart = argStart;
+    ta.selectionEnd = argEnd;
+  } else if (text.endsWith('()')) {
+    var pos = start + text.length - 1;
+    ta.selectionStart = ta.selectionEnd = pos;
+  } else {
+    ta.selectionStart = ta.selectionEnd = start + text.length;
+  }
   ta.focus();
   ceSchedulePreview();
 }
@@ -226,7 +238,15 @@ function ceLoadPills(pid) {
         const paramName = c.name || c.template_name || 'unknown';
         const defVal = c.default_value;
         ctx[paramName] = defVal;
-        pHtml += `<span class="pbs-ce-param-pill param" onclick="ceInsertText('param.${paramName.replace(/'/g, "\\'")}')">${paramName}${defVal ? '<span class="text-gray-400 ml-0.5">=' + escHtml(String(defVal)) + '</span>' : ''}</span>`;
+        // Build tooltip: name + type + default + description
+        var ptParts = ['参数: ' + paramName];
+        var ptType = c.var_type || '';
+        if (ptType) ptParts.push('类型: ' + ptType);
+        if (defVal != null && String(defVal).trim() !== '') ptParts.push('默认: ' + String(defVal));
+        var ptDesc = c.description || '';
+        if (ptDesc) ptParts.push(ptDesc);
+        var ptTitle = ptParts.join('\n');
+        pHtml += `<span class="pbs-ce-param-pill param" onclick="ceInsertText('param.${paramName.replace(/'/g, "\\'")}')" title="${escHtml(ptTitle)}">${paramName}${defVal ? '<span class="text-gray-400 ml-0.5">=' + escHtml(String(defVal)) + '</span>' : ''}</span>`;
       });
       paramsEl.innerHTML = pHtml;
     } else {
@@ -261,7 +281,17 @@ function ceLoadPills(pid) {
           const vName = v.name || 'unknown';
           const vVal = v.computed_value;
           if (vVal != null) ctx[vName] = vVal;
-          vHtml += `<span class="pbs-ce-param-pill variable" onclick="ceInsertText('${vName.replace(/'/g, "\\'")}')" title="${escHtml(vName)}${vVal != null ? '=' + escHtml(String(vVal)) : ''}">${escHtml(vName)}${vVal != null ? '<span class="text-gray-400 ml-0.5">=' + escHtml(String(vVal)) + '</span>' : ''}</span>`;
+          // Build tooltip: name + type + formula + computed value + description
+          var vtParts = ['变量: ' + vName];
+          var vtType = v.var_type || '';
+          if (vtType) vtParts.push('类型: ' + vtType);
+          var vtFormula = v.formula || '';
+          if (vtFormula) vtParts.push('公式: ' + vtFormula);
+          if (vVal != null) vtParts.push('当前值: ' + String(vVal));
+          var vtDesc = v.description || '';
+          if (vtDesc) vtParts.push(vtDesc);
+          var vtTitle = vtParts.join('\n');
+          vHtml += `<span class="pbs-ce-param-pill variable" onclick="ceInsertText('${vName.replace(/'/g, "\\'")}')" title="${escHtml(vtTitle)}">${escHtml(vName)}${vVal != null ? '<span class="text-gray-400 ml-0.5">=' + escHtml(String(vVal)) + '</span>' : ''}</span>`;
         });
         varEl.innerHTML = vHtml;
       } else {
@@ -648,7 +678,9 @@ async function _preValidateFormula(formula) {
 
 async function saveCellFormula() {
   const st = _ceState;
-  if (!st.itemPk || !st.field) return;
+  // Variable mode: itemPk can be null for new variables
+  if (_ceMode !== 'variable' && (!st.itemPk || !st.field)) return;
+  if (!st.field) return;
 
   // Variable mode: save via variable API
   if (_ceMode === 'variable') {

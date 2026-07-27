@@ -993,10 +993,11 @@ async function loadPdBOMM() {
   container.innerHTML = '<div class="flex items-center justify-center py-6"><span class="spinner mr-2"></span><span class="text-sm text-gray-400">加载中...</span></div>';
   
   try {
-  const [bomRes, pcfgRes, vmRes] = await Promise.all([
+  const [bomRes, pcfgRes, vmRes, paramRes] = await Promise.all([
     fetch('/api/bom/?part=' + pid + '&sub_part_detail=True&part_detail=True', {headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken()}, credentials: 'same-origin'}),
     apiCall('GET', 'bom-item-config/?bom_item__part=' + pid),
     apiCall('GET', 'variant-mappings/'),
+    apiCall('GET', 'part-config/?part=' + pid),
   ]);
   
   const bomItems = bomRes.ok ? (await bomRes.json()) : [];
@@ -1004,6 +1005,17 @@ async function loadPdBOMM() {
   const pcfgs = pcfgRes.error ? [] : (Array.isArray(pcfgRes.data) ? pcfgRes.data : (pcfgRes.data.results || []));
   const pcfgMap = {};
   pcfgs.forEach(function(c) { pcfgMap[c.bom_item] = c; });
+  
+  // Build parameter context from part-config
+  var paramCtx = {};
+  var paramConfigs = paramRes.error ? [] : (Array.isArray(paramRes.data) ? paramRes.data : (paramRes.data.results || []));
+  paramConfigs.forEach(function(pc) {
+    var pn = pc.name || pc.template_name || '';
+    var dv = pc.default_value;
+    if (pn && dv != null && String(dv).trim() !== '') {
+      paramCtx[pn] = dv;
+    }
+  });
   
   // Build variant mapping lookup by parametric_bom_item
   var vmData = vmRes.error ? [] : (Array.isArray(vmRes.data) ? vmRes.data : (vmRes.data.results || []));
@@ -1014,12 +1026,13 @@ async function loadPdBOMM() {
   window.__bomItems = items;
   window.__bomPcfgMap = pcfgMap;
   window.__bomVmByPbi = vmByPbi;
+  window.__bomParamCtx = paramCtx;
 
   // Clear search input on fresh load
   const searchInput = document.getElementById('bom-search-input');
   if (searchInput) searchInput.value = '';
 
-  renderBOMTable(items, pcfgMap, vmByPbi);
+  renderBOMTable(items, pcfgMap, vmByPbi, paramCtx);
   if (countBadge) countBadge.textContent = '共 ' + items.length + ' 项';
   } catch(e) {
     container.innerHTML = '<div class="text-red-500 text-sm p-3">❌ 加载BOM失败: ' + (e.message || '网络错误') + '</div>';
@@ -1055,11 +1068,11 @@ function filterBOMList() {
     if (filterCount) filterCount.textContent = filtered.length + '/' + items.length;
   }
   
-  renderBOMTable(filtered, pcfgMap, vmByPbi);
+  renderBOMTable(filtered, pcfgMap, vmByPbi, window.__bomParamCtx || {});
   if (countBadge) countBadge.textContent = '共 ' + items.length + ' 项' + (q ? '（显示 ' + filtered.length + ' 项）' : '');
 }
 
-function renderBOMTable(items, pcfgMap, vmByPbi) {
+function renderBOMTable(items, pcfgMap, vmByPbi, paramCtx) {
   const container = document.getElementById('pd-bom-list');
   if (!items.length) {
     const q = (document.getElementById('bom-search-input').value || '').trim();
@@ -1141,21 +1154,22 @@ function renderBOMTable(items, pcfgMap, vmByPbi) {
     for (let j = 0; j < formulaCols.length; j++) {
       const c = formulaCols[j];
       const val = hasCfg ? (cfg[c.key] || '') : '';
+      const cellId = 'bom-cell-' + item.pk + '-' + c.key;
       let display;
       if (c.isQty) {
         if (val) {
-          display = '<span class="fmla-text" title="' + val.replace(/"/g,'&quot;') + '">\u00d7' + staticQty + ' \u2192 \ud83d\udcd0 ' + val + '</span>';
+          display = '<span class="fmla-text" title="' + val.replace(/"/g,'&quot;') + '">×' + staticQty + ' → 📐 ' + val + '</span><span class="fmla-result hidden" id="' + cellId + '-res"></span>';
         } else {
-          display = '<span class="pbs-qty">\u00d7' + staticQty + '</span>';
+          display = '<span class="pbs-qty">×' + staticQty + '</span>';
         }
       } else if (c.key === 'condition_formula') {
-        display = val ? '<span class="fmla-text" title="' + val.replace(/\"/g,'&quot;') + '">' + val + '</span>' : '<span class="fmla-empty">\u2014</span>';
+        display = val ? '<span class="fmla-text" title="' + val.replace(/"/g,'&quot;') + '">' + val + '</span><span class="fmla-result hidden" id="' + cellId + '-res"></span>' : '<span class="fmla-empty">—</span>';
       } else {
-        display = val ? '<span class="fmla-text" title="' + val.replace(/\"/g,'&quot;') + '">' + val + '</span>' : '<span class="fmla-empty">\u2014</span>';
+        display = val ? '<span class="fmla-text" title="' + val.replace(/"/g,'&quot;') + '">' + val + '</span><span class="fmla-result hidden" id="' + cellId + '-res"></span>' : '<span class="fmla-empty">—</span>';
       }
       const hint = val ? '双击编辑' : '双击添加公式';
       const escVal = val.replace(/'/g,"\\'").replace(/"/g,'&quot;');
-      var cellAttrs = ' class="pbs-formula-cell" ondblclick="openCellEditor(' + item.pk + ",'" + c.key + "','" + escVal + "'," + (c.isQty ? 'true' : 'false') + ',' + (c.isQty ? staticQty : '0') + ",'" + (c.expectedType || '') + "'" + ')"';
+      var cellAttrs = ' class="pbs-formula-cell" ondblclick="openCellEditor(' + item.pk + ",'" + c.key + "','" + escVal + "'," + (c.isQty ? 'true' : 'false') + ',' + (c.isQty ? staticQty : '0') + ",'" + (c.expectedType || '') + "'" + ')';
       rowHtml += '<td><div' + cellAttrs + ' title="' + hint + '">' + display + '<span class="fmla-hint">' + hint + '</span></div></td>';
     }
 
@@ -1167,6 +1181,63 @@ function renderBOMTable(items, pcfgMap, vmByPbi) {
   }
     html += '</tbody></table>';
   container.innerHTML = html;
+  // Evaluate formulas and show results
+  setTimeout(function() { evaluateBomFormulas(paramCtx); }, 50);
+}
+
+// ── Evaluate BOM formulas and show computed results ──
+async function evaluateBomFormulas(paramCtx) {
+  var cells = document.querySelectorAll('#pd-bom-list .fmla-result');
+  if (!cells.length) return;
+  
+  // Build batch requests: collect unique formulas
+  var formulaMap = {};  // formula -> [{cellId, staticQty}, ...]
+  cells.forEach(function(el) {
+    if (!el.id) return;
+    var cellDiv = el.parentElement;
+    var fmlaSpan = cellDiv.querySelector('.fmla-text');
+    if (!fmlaSpan) return;
+    var formula = fmlaSpan.getAttribute('title') || '';
+    if (!formula) return;
+    if (!formulaMap[formula]) formulaMap[formula] = [];
+    formulaMap[formula].push(el);
+  });
+  
+  var formulas = Object.keys(formulaMap);
+  if (!formulas.length) return;
+  
+  // Evaluate all formulas in parallel
+  var ctx = { param: paramCtx, parent: {}, sys: {} };
+  var promises = formulas.map(function(f) {
+    return apiCall('POST', 'formula/preview/', { formula: f, context: ctx }).then(function(res) {
+      if (res.error) return { formula: f, error: res.error };
+      return { formula: f, result: res.data?.result, result_type: res.data?.result_type };
+    }).catch(function(e) {
+      return { formula: f, error: e.message };
+    });
+  });
+  
+  var results = await Promise.all(promises);
+  var resultMap = {};
+  results.forEach(function(r) { resultMap[r.formula] = r; });
+  
+  // Update DOM
+  formulas.forEach(function(f) {
+    var els = formulaMap[f];
+    var r = resultMap[f];
+    var displayVal = '';
+    if (r.error) {
+      displayVal = ' <span class="text-red-400 text-[10px]">⚠</span>';
+    } else if (r.result !== undefined && r.result !== null) {
+      var v = String(r.result);
+      if (v.length > 20) v = v.substring(0, 20) + '...';
+      displayVal = ' → <span class="text-green-600 font-semibold text-[11px]">' + v + '</span>';
+    }
+    els.forEach(function(el) {
+      el.className = 'fmla-result';
+      el.innerHTML = displayVal;
+    });
+  });
 }
 
 // ── Copy BOM Item — full deep copy (all fields + param config + variant mapping) ──

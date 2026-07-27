@@ -46,7 +46,13 @@ function avLoadPillsAndVars(editingVid) {
         const defVal = c.default_value;
         ctx[paramName] = defVal;
         const display = defVal ? `${paramName} <span class="text-[9px] text-gray-400 ml-0.5">=${defVal}</span>` : paramName;
-        html += `<span class="fe-param-pill" onclick="avInsertText('param.${paramName.replace(/'/g, "\\'")}')">${display}</span>`;
+        var avPtParts = ['参数: ' + paramName];
+        var avPtType = c.var_type || '';
+        if (avPtType) avPtParts.push('类型: ' + avPtType);
+        if (defVal != null && String(defVal).trim() !== '') avPtParts.push('默认: ' + String(defVal));
+        var avPtDesc = c.description || '';
+        if (avPtDesc) avPtParts.push(avPtDesc);
+        html += `<span class="fe-param-pill" onclick="avInsertText('param.${paramName.replace(/'/g, "\\'")}')" title="${escHtml(avPtParts.join('\n'))}">${display}</span>`;
       });
       html += '</div></div>';
     }
@@ -59,7 +65,15 @@ function avLoadPillsAndVars(editingVid) {
         const vVal = v.computed_value;
         if (vVal != null) ctx[vName] = vVal;
         const display = vVal != null ? `${vName} <span class="text-[9px] text-gray-400 ml-0.5">=${escHtml(String(vVal))}</span>` : vName;
-        html += `<span class="fe-param-pill" style="background:#eff6ff;border-color:#bfdbfe;color:#1d4ed8" onclick="avInsertText('param.${vName.replace(/'/g, "\\'")}')">${display}</span>`;
+        var avVtParts = ['变量: ' + vName];
+        var avVtType = v.var_type || '';
+        if (avVtType) avVtParts.push('类型: ' + avVtType);
+        var avVtFormula = v.formula || '';
+        if (avVtFormula) avVtParts.push('公式: ' + avVtFormula);
+        if (vVal != null) avVtParts.push('当前值: ' + String(vVal));
+        var avVtDesc = v.description || '';
+        if (avVtDesc) avVtParts.push(avVtDesc);
+        html += `<span class="fe-param-pill" style="background:#eff6ff;border-color:#bfdbfe;color:#1d4ed8" onclick="avInsertText('param.${vName.replace(/'/g, "\\'")}')" title="${escHtml(avVtParts.join('\n'))}">${display}</span>`;
       });
       html += '</div></div>';
     }
@@ -126,8 +140,19 @@ function avInsertText(text) {
   const end = ta.selectionEnd;
   const val = ta.value;
   ta.value = val.substring(0, start) + text + val.substring(end);
-  const newPos = start + text.length;
-  ta.selectionStart = ta.selectionEnd = newPos;
+  // Cursor positioning: select placeholder args if present
+  var argsMatch = text.match(/^[A-Z]+\((.+)\)$/);
+  if (argsMatch) {
+    var argStart = start + text.indexOf('(') + 1;
+    var argEnd = start + text.length - 1;
+    ta.selectionStart = argStart;
+    ta.selectionEnd = argEnd;
+  } else if (text.endsWith('()')) {
+    var pos = start + text.length - 1;
+    ta.selectionStart = ta.selectionEnd = pos;
+  } else {
+    ta.selectionStart = ta.selectionEnd = start + text.length;
+  }
   ta.focus();
   avSchedulePreview();
 }
