@@ -1464,10 +1464,11 @@ async function cfgDownloadBom() {
       body: JSON.stringify({part_id: pid, parameters: ctx}),
     });
     if (!res.ok) { setStatus('error', '导出失败'); return; }
+    const fname = decodeURIComponent(res.headers.get('X-Filename') || 'BOM清单.xlsx');
     const blob = await res.blob();
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = 'BOM清单.xlsx';
+    a.download = fname;
     a.click();
     URL.revokeObjectURL(a.href);
     setStatus('success', 'BOM清单已下载');
@@ -1490,10 +1491,11 @@ async function cfgDownloadAttachments() {
       setStatus('error', errData.error || '打包失败');
       return;
     }
+    const fname = decodeURIComponent(res.headers.get('X-Filename') || 'attachments.zip');
     const blob = await res.blob();
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = 'attachments.zip';
+    a.download = fname;
     a.click();
     URL.revokeObjectURL(a.href);
     setStatus('success', '附件包已下载');
@@ -1512,10 +1514,11 @@ async function cfgDownloadBundle() {
       body: JSON.stringify({part_id: pid, parameters: ctx}),
     });
     if (!res.ok) { setStatus('error', '打包失败'); return; }
+    const fname = decodeURIComponent(res.headers.get('X-Filename') || 'BOM完整包.zip');
     const blob = await res.blob();
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = 'BOM完整包.zip';
+    a.download = fname;
     a.click();
     URL.revokeObjectURL(a.href);
     setStatus('success', '完整包已下载');
