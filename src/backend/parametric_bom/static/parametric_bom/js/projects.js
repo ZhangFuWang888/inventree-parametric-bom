@@ -1530,7 +1530,7 @@ async function editBatchMeta(projectId, batchName, field, currentValue) {
   if (field === 'storage_dest') {
     newValue = prompt(`批次「${name}」- 入库去向：\n可选: 入仓库 / 车间领用 / 入仓库，车间领用 / 现场安装`, currentValue);
   } else if (field === 'make_buy') {
-    newValue = prompt(`批次「${name}」- 制购类别：\n可选: 采购 / 自制 / 外协`, currentValue);
+    newValue = prompt(`批次「${name}」- 制购类别：\n可选: 采购 / 自制 / 外协 / 利旧`, currentValue);
   } else {
     newValue = prompt(`批次「${name}」- 申请理由：`, currentValue);
   }
@@ -1544,8 +1544,8 @@ async function editBatchMeta(projectId, batchName, field, currentValue) {
     setStatus('error', result.error);
   } else {
     setStatus('success', `${field === 'storage_dest' ? '入库去向' : field === 'make_buy' ? '制购类别' : '申请理由'} 已更新`);
-    // Refresh the page
-    setTimeout(() => loadProjectDetail(projectId), 800);
+    // Auto-refresh
+    setTimeout(() => showProjectDetail(projectId), 500);
   }
 }
 

@@ -1684,6 +1684,7 @@ class ProjectBatch(models.Model):
         ('采购', '采购'),
         ('自制', '自制'),
         ('外协', '外协'),
+        ('利旧', '利旧'),
     ]
 
     project = models.ForeignKey(
