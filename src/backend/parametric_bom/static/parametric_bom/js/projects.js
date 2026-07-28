@@ -1447,8 +1447,8 @@ async function submitCartAsProject() {
         // Reload cart (should be empty now)
         if (typeof cartLoad === 'function') cartLoad();
         if (typeof loadCartCount === 'function') loadCartCount();
-        renderProjectList();
-        switchPage('projects');
+        // Navigate to project detail
+        showProjectDetail(projectId);
       } else {
         setStatus('error', result.data?.error || '提交失败');
       }

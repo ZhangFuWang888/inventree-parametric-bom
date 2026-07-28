@@ -2988,6 +2988,26 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 owner=request.user,
             )
 
+        # ── Compute next batch name: \"第N次\" ──
+        import re
+        existing_batches = set(
+            ProjectItem.objects.filter(project=project)
+            .exclude(batch_name__isnull=True).exclude(batch_name='')
+            .values_list('batch_name', flat=True)
+        )
+        max_n = 0
+        for bn in existing_batches:
+            m = re.match(r'^第(\d+)次$', bn)
+            if m:
+                max_n = max(max_n, int(m.group(1)))
+        batch_name = f'第{max_n + 1}次'
+
+        # Ensure ProjectBatch record exists
+        ProjectBatch.objects.get_or_create(
+            project=project, name=batch_name,
+            defaults={'storage_dest': '入仓库，车间领用', 'make_buy': '采购', 'reason': '按合同下单'},
+        )
+
         # Create ProjectItems from CartItems
         item_count = 0
         for ci in cart_items:
@@ -2995,6 +3015,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 'project': project,
                 'title': ci.title or ci.product_part.name if ci.product_part else ci.part.name if ci.part else '',
                 'quantity': ci.quantity,
+                'batch_name': batch_name,
             }
             if ci.item_type == 'parametric' and ci.product_part:
                 item_kwargs['item_type'] = 'configuration'
