@@ -1382,28 +1382,51 @@ async function submitCartAsProject() {
     projects = pRes.ok ? (pRes.data.results || pRes.data || []) : [];
   } catch(e) { console.warn('Failed to load projects:', e); }
 
+  // Store for filter access
+  window._cpProjects = projects;
+
+  const renderProjectRows = function(filter) {
+    const q = (filter || '').toLowerCase();
+    const filtered = window._cpProjects.filter(function(p) {
+      if (!q) return true;
+      const code = (p.project_code || '').toLowerCase();
+      const name = (p.name || '').toLowerCase();
+      return code.includes(q) || name.includes(q);
+    });
+    const el = document.getElementById('cp-project-list');
+    if (!el) return;
+    if (filtered.length === 0) {
+      el.innerHTML = '<p class="text-sm text-gray-400 text-center py-6">' + (q ? '无匹配项目' : '暂无活跃项目，请先在项目管理中创建') + '</p>';
+      return;
+    }
+    let html = '';
+    filtered.forEach(function(p, i) {
+      const code = p.project_code || 'P-' + p.id;
+      const name = escHtml(p.name || '未命名');
+      const items = p.item_count != null ? p.item_count : (p.items_count || '-');
+      html += '<label class="flex items-center gap-2 px-3 py-2 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0">' +
+        '<input type="radio" name="cp-project" value="' + p.id + '" ' + (i === 0 ? 'checked' : '') + '>' +
+        '<span class="text-xs font-mono text-gray-500">' + code + '</span>' +
+        '<span class="text-sm flex-1">' + name + '</span>' +
+        '<span class="text-xs text-gray-400">' + items + ' 条</span>' +
+        '</label>';
+    });
+    el.innerHTML = html;
+  };
+
   let rowsHtml = '';
   if (projects.length === 0) {
     rowsHtml = '<p class="text-sm text-gray-400 text-center py-6">暂无活跃项目，请先在项目管理中创建</p>';
   } else {
-    rowsHtml = '<div class="max-h-60 overflow-y-auto border rounded">';
-    rowsHtml += projects.map((p, i) => {
-      const code = p.project_code || 'P-' + p.id;
-      const name = escHtml(p.name || '未命名');
-      const items = p.item_count != null ? p.item_count : (p.items_count || '-');
-      return `<label class="flex items-center gap-2 px-3 py-2 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0">
-        <input type="radio" name="cp-project" value="${p.id}" ${i === 0 ? 'checked' : ''}>
-        <span class="text-xs font-mono text-gray-500">${code}</span>
-        <span class="text-sm flex-1">${name}</span>
-        <span class="text-xs text-gray-400">${items} 条</span>
-      </label>`;
-    }).join('');
-    rowsHtml += '</div>';
+    rowsHtml = '<div class="max-h-60 overflow-y-auto border rounded" id="cp-project-list"></div>';
   }
 
   showModal('选择项目 · 购物车共 ' + ids.length + ' 条', `
     <div class="flex flex-col gap-3">
       <p class="text-xs text-gray-500">选择要将购物车条目添加到的项目：</p>
+      <input class="input-field w-full" id="cp-project-search" type="text"
+        placeholder="🔍 搜索项目名称或编号..."
+        oninput="var q=this.value;(window._cpRender||function(){})(q)">
       <div class="border rounded" style="min-height:80px">
         ${rowsHtml}
       </div>
@@ -1431,6 +1454,10 @@ async function submitCartAsProject() {
       }
     }},
   ]);
+
+  // Render and wire up filter
+  window._cpRender = renderProjectRows;
+  renderProjectRows('');
 }
 
 // ── Helper ──
