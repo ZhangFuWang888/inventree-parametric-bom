@@ -113,9 +113,11 @@ function renderCartItem(item) {
   const bomInfo = bomCount ? ` · BOM: ${bomCount}项物料` : '';
   const unitPrice = item.unit_price != null ? parseFloat(item.unit_price) : null;
   const lineTotal = item.total_cost != null ? parseFloat(item.total_cost) : (unitPrice != null ? unitPrice * (item.quantity || 1) : null);
-  const priceHtml = unitPrice != null
-    ? `<div class="ci-price">¥${unitPrice.toFixed(2)} × ${item.quantity || 1} = <strong>¥${lineTotal.toFixed(2)}</strong></div>`
-    : '';
+  const priceHtml = lineTotal != null
+    ? `<div class="ci-price" style="color:#16a34a">¥${lineTotal.toFixed(2)} <span class="text-xs text-gray-400">× ${item.quantity || 1}</span></div>`
+    : (unitPrice != null
+      ? `<div class="ci-price" style="color:#16a34a">¥${(unitPrice * (item.quantity || 1)).toFixed(2)} <span class="text-xs text-gray-400">× ${item.quantity || 1}</span></div>`
+      : '');
   return `<div class="cart-item" data-id="${item.id}">
     <div class="ci-icon">${icon}</div>
     <div class="ci-body">

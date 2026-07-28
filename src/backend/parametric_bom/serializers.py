@@ -564,13 +564,15 @@ class ProjectDetailSerializer(serializers.ModelSerializer):
 class FromCartSerializer(serializers.Serializer):
     """Serializer for converting cart items into a project."""
 
-    name = serializers.CharField(max_length=256)
+    name = serializers.CharField(max_length=256, required=False)
     customer_id = serializers.IntegerField(required=False, allow_null=True)
     description = serializers.CharField(required=False, allow_blank=True, default='')
     cart_item_ids = serializers.ListField(
         child=serializers.IntegerField(), allow_empty=False
     )
     deadline = serializers.DateField(required=False, allow_null=True)
+    project_id = serializers.IntegerField(required=False, allow_null=True,
+        help_text='Existing project ID to add items to (instead of creating a new project)')
 
 
 # ── RBAC Serializers ─────────────────────────

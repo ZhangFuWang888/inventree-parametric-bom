@@ -1375,46 +1375,59 @@ async function submitCartAsProject() {
     return;
   }
 
-  showModal('提交项目', `
+  // Fetch active projects
+  let projects = [];
+  try {
+    const pRes = await projectApi('GET', '/?status=draft,active,purchasing,production,delivery&limit=100');
+    projects = pRes.ok ? (pRes.data.results || pRes.data || []) : [];
+  } catch(e) { console.warn('Failed to load projects:', e); }
+
+  let rowsHtml = '';
+  if (projects.length === 0) {
+    rowsHtml = '<p class="text-sm text-gray-400 text-center py-6">暂无活跃项目，请先在项目管理中创建</p>';
+  } else {
+    rowsHtml = '<div class="max-h-60 overflow-y-auto border rounded">';
+    rowsHtml += projects.map((p, i) => {
+      const code = p.project_code || 'P-' + p.id;
+      const name = escHtml(p.name || '未命名');
+      const items = p.item_count != null ? p.item_count : (p.items_count || '-');
+      return `<label class="flex items-center gap-2 px-3 py-2 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0">
+        <input type="radio" name="cp-project" value="${p.id}" ${i === 0 ? 'checked' : ''}>
+        <span class="text-xs font-mono text-gray-500">${code}</span>
+        <span class="text-sm flex-1">${name}</span>
+        <span class="text-xs text-gray-400">${items} 条</span>
+      </label>`;
+    }).join('');
+    rowsHtml += '</div>';
+  }
+
+  showModal('选择项目 · 购物车共 ' + ids.length + ' 条', `
     <div class="flex flex-col gap-3">
-      <p class="text-xs text-gray-500">将 ${ids.length} 个购物车条目打包为项目</p>
-      <div>
-        <label class="text-xs text-gray-500">项目名称 *</label>
-        <input class="input-field w-full" id="cp-name" placeholder="如：XX客户货架项目">
+      <p class="text-xs text-gray-500">选择要将购物车条目添加到的项目：</p>
+      <div class="border rounded" style="min-height:80px">
+        ${rowsHtml}
       </div>
-      <div>
-        <label class="text-xs text-gray-500">客户</label>
-        <input class="input-field w-full" id="cp-customer" placeholder="客户公司名称">
-      </div>
-      <div>
-        <label class="text-xs text-gray-500">截止日期</label>
-        <input class="input-field w-full" id="cp-deadline" type="date">
-      </div>
-      <div>
-        <label class="text-xs text-gray-500">描述</label>
-        <textarea class="input-field w-full" id="cp-desc" rows="2" placeholder="项目描述"></textarea>
-      </div>
+      <div class="text-xs text-gray-400">所选项目的物料将合并到该项目中</div>
     </div>`, [
     { text: '取消', cls: 'btn btn-sm btn-secondary', action: closeModal },
-    { text: '提交项目', cls: 'btn btn-sm btn-success', action: async () => {
-      const name = document.getElementById('cp-name').value.trim();
-      if (!name) { setStatus('error', '请输入项目名称'); return; }
+    { text: '提交到项目', cls: 'btn btn-sm btn-success', action: async () => {
+      const sel = document.querySelector('input[name="cp-project"]:checked');
+      if (!sel) { setStatus('error', '请选择一个项目'); return; }
+      const projectId = parseInt(sel.value);
       const result = await projectApi('POST', '/from_cart/', {
-        name,
-        description: document.getElementById('cp-desc').value,
-        deadline: document.getElementById('cp-deadline').value || null,
+        project_id: projectId,
         cart_item_ids: ids,
       });
       if (result.ok) {
         closeModal();
-        setStatus('success', `项目 ${result.data.project_code} 创建成功`);
+        setStatus('success', `已添加 ${ids.length} 条到项目 ${result.data.project_code || result.data.name}`);
         // Reload cart (should be empty now)
-        const cartEvt = new CustomEvent('cart-changed');
-        document.dispatchEvent(cartEvt);
+        if (typeof cartLoad === 'function') cartLoad();
+        if (typeof loadCartCount === 'function') loadCartCount();
         renderProjectList();
         switchPage('projects');
       } else {
-        setStatus('error', result.data?.error || '创建项目失败');
+        setStatus('error', result.data?.error || '提交失败');
       }
     }},
   ]);

@@ -2289,7 +2289,12 @@ def _flatten_bom_subtree(children, depth=0):
 @api_view(['POST'])
 @permission_classes([permissions.AllowAny])
 def cart_add(request):
-    """Add an item to the cart."""
+    """Add an item to the cart.
+
+    Deduplication: if an existing cart item has the same product_part +
+    parameters (for parametric) or same part (for static), quantity is
+    incremented instead of creating a new row.
+    """
     data = request.data.copy()
 
     # Compute unit_price at add time
@@ -2341,6 +2346,43 @@ def cart_add(request):
     if unit_price is not None:
         data['unit_price'] = str(unit_price)
 
+    # ── Deduplication ──
+    qs = CartItem.objects
+    if request.user.is_authenticated:
+        qs = qs.filter(user=request.user)
+    else:
+        if not request.session.session_key:
+            request.session.create()
+        qs = qs.filter(session_key=request.session.session_key)
+
+    if item_type == 'parametric' and product_part_id:
+        # Find existing item with same product_part and same parameters
+        candidates = qs.filter(item_type='parametric', product_part_id=int(product_part_id))
+        new_params = data.get('parameters', {}) or {}
+        for existing in candidates:
+            existing_params = existing.parameters or {}
+            if existing_params == new_params:
+                # Same config → increment quantity
+                new_qty = (existing.quantity or 1) + int(data.get('quantity', 1))
+                serializer = CartItemSerializer(
+                    existing, data={'quantity': new_qty, 'unit_price': data.get('unit_price')}, partial=True
+                )
+                if serializer.is_valid():
+                    serializer.save()
+                    return Response(serializer.data, status=200)
+                break
+    elif item_type == 'static' and part_id:
+        existing = qs.filter(item_type='static', part_id=int(part_id)).first()
+        if existing:
+            new_qty = (existing.quantity or 1) + int(data.get('quantity', 1))
+            serializer = CartItemSerializer(
+                existing, data={'quantity': new_qty, 'unit_price': data.get('unit_price')}, partial=True
+            )
+            if serializer.is_valid():
+                serializer.save()
+                return Response(serializer.data, status=200)
+
+    # ── Create new item ──
     if request.user.is_authenticated:
         serializer = CartItemSerializer(data=data)
         if serializer.is_valid():
@@ -2348,8 +2390,6 @@ def cart_add(request):
             return Response(serializer.data, status=201)
         return Response(serializer.errors, status=400)
     else:
-        if not request.session.session_key:
-            request.session.create()
         data['session_key'] = request.session.session_key
         serializer = CartItemSerializer(data=data)
         if serializer.is_valid():
@@ -2904,7 +2944,11 @@ class ProjectViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['post'])
     def from_cart(self, request):
-        """Convert cart items into a project."""
+        """Convert cart items into a project (new or existing).
+
+        - If 'project_id' is provided, add items to that existing project.
+        - Otherwise, create a new project (requires 'name').
+        """
         serializer = FromCartSerializer(data=request.data)
         if not serializer.is_valid():
             return Response(serializer.errors, status=400)
@@ -2915,23 +2959,34 @@ class ProjectViewSet(viewsets.ModelViewSet):
         if not cart_items.exists():
             return Response({'error': '购物车中未找到指定条目'}, status=400)
 
-        # Create the project
-        customer = None
-        if data.get('customer_id'):
-            from company.models import Company
+        project_id = data.get('project_id')
+        if project_id:
+            # ── Add to existing project ──
             try:
-                customer = Company.objects.get(id=data['customer_id'])
-            except Company.DoesNotExist:
-                return Response({'error': '指定客户不存在'}, status=404)
+                project = Project.objects.get(pk=project_id)
+            except Project.DoesNotExist:
+                return Response({'error': '指定项目不存在'}, status=404)
+        else:
+            # ── Create new project ──
+            if not data.get('name'):
+                return Response({'error': '项目名称不能为空'}, status=400)
 
-        project = Project.objects.create(
-            name=data['name'],
-            customer=customer,
-            description=data.get('description', ''),
-            deadline=data.get('deadline'),
-            created_by=request.user,
-            owner=request.user,
-        )
+            customer = None
+            if data.get('customer_id'):
+                from company.models import Company
+                try:
+                    customer = Company.objects.get(id=data['customer_id'])
+                except Company.DoesNotExist:
+                    return Response({'error': '指定客户不存在'}, status=404)
+
+            project = Project.objects.create(
+                name=data['name'],
+                customer=customer,
+                description=data.get('description', ''),
+                deadline=data.get('deadline'),
+                created_by=request.user,
+                owner=request.user,
+            )
 
         # Create ProjectItems from CartItems
         item_count = 0
@@ -2972,8 +3027,12 @@ class ProjectViewSet(viewsets.ModelViewSet):
         # Clear the converted cart items
         cart_items.delete()
 
-        self._log(project, 'from_cart',
-                  f'从购物车创建项目，包含 {item_count} 个条目')
+        if project_id:
+            self._log(project, 'from_cart',
+                      f'从购物车添加 {item_count} 个条目到项目')
+        else:
+            self._log(project, 'from_cart',
+                      f'从购物车创建项目，包含 {item_count} 个条目')
 
         return Response(
             ProjectDetailSerializer(project, context={'request': request}).data,
