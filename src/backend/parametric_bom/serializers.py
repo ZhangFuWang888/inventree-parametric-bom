@@ -434,7 +434,7 @@ class ProjectItemSerializer(serializers.ModelSerializer):
             'id', 'project', 'item_type',
             'product_config', 'config_title',
             'part', 'part_name', 'part_ipn',
-            'title', 'quantity', 'bom_snapshot',
+            'title', 'quantity', 'bom_snapshot', 'part_snapshot',
             'unit_cost', 'unit_price', 'notes',
             'sort_order', 'batch_name', 'created_by_name',
             'created_at', 'user_role',

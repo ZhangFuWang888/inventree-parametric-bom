@@ -1466,6 +1466,12 @@ class ProjectItem(models.Model):
         verbose_name=_('BOM snapshot'),
         help_text=_('Expanded BOM result cached at add-to-project time'),
     )
+    part_snapshot = models.JSONField(
+        null=True,
+        blank=True,
+        verbose_name=_('Part snapshot'),
+        help_text=_('Part parameters, attachments, and description cached at add-to-project time'),
+    )
     unit_cost = models.DecimalField(
         max_digits=19, decimal_places=4,
         null=True, blank=True,

@@ -374,9 +374,9 @@ async function showProjectDetail(projectId) {
               ${creator ? `<span class="text-xs text-gray-400">👤 ${escHtml(creator)}</span>` : ''}
             </div>
             <div class="flex items-center gap-1.5">${batchName === '未分组' ? '' : `
-              <span class="text-[10px] bg-purple-50 text-purple-600 px-1.5 py-0.5 rounded border border-purple-100 ${isEditable ? 'cursor-pointer' : 'opacity-60'}" ${isEditable ? `onclick="editBatchMeta(${p.id}, '${safeBatch}', 'storage_dest', '${escHtml(storageDest)}', this)" title="入库去向">📥 ${escHtml(storageDest)}</span>
-              <span class="text-[10px] bg-amber-50 text-amber-600 px-1.5 py-0.5 rounded border border-amber-100 ${isEditable ? 'cursor-pointer' : 'opacity-60'}" ${isEditable ? `onclick="editBatchMeta(${p.id}, '${safeBatch}', 'make_buy', '${escHtml(makeBuy)}', this)" title="制购类别">🏭 ${escHtml(makeBuy)}</span>
-              <span class="text-[10px] bg-green-50 text-green-600 px-1.5 py-0.5 rounded border border-green-100 ${isEditable ? 'cursor-pointer' : 'opacity-60'}" ${isEditable ? `onclick="editBatchMeta(${p.id}, '${safeBatch}', 'reason', '${escHtml(reason)}', this)" title="申请理由">📝 ${escHtml(reason)}</span>
+              <span class="text-[10px] bg-purple-50 text-purple-600 px-1.5 py-0.5 rounded border border-purple-100 ${isEditable ? 'cursor-pointer' : 'opacity-60'}" ${isEditable ? `onclick="editBatchMeta(${p.id}, '${safeBatch}', 'storage_dest', '${escHtml(storageDest)}', this)" title="入库去向"` : ''}>📥 ${escHtml(storageDest)}</span>
+              <span class="text-[10px] bg-amber-50 text-amber-600 px-1.5 py-0.5 rounded border border-amber-100 ${isEditable ? 'cursor-pointer' : 'opacity-60'}" ${isEditable ? `onclick="editBatchMeta(${p.id}, '${safeBatch}', 'make_buy', '${escHtml(makeBuy)}', this)" title="制购类别"` : ''}>🏭 ${escHtml(makeBuy)}</span>
+              <span class="text-[10px] bg-green-50 text-green-600 px-1.5 py-0.5 rounded border border-green-100 ${isEditable ? 'cursor-pointer' : 'opacity-60'}" ${isEditable ? `onclick="editBatchMeta(${p.id}, '${safeBatch}', 'reason', '${escHtml(reason)}', this)" title="申请理由"` : ''}>📝 ${escHtml(reason)}</span>
             `}
             </div>
             <div class="flex items-center gap-1.5">
@@ -399,13 +399,16 @@ async function showProjectDetail(projectId) {
           <div class="overflow-x-auto">
             <table class="w-full text-xs batch-table">
               <colgroup>
-                <col style="width:22%">
-                <col style="width:14%">
-                <col style="width:14%">
-                <col style="width:10%">
-                <col style="width:12%">
-                <col style="width:12%">
-                ${isEditable ? '<col style="width:16%">' : ''}
+                <col style="width:18%">
+                <col style="width:11%">
+                <col style="width:11%">
+                <col style="width:7%">
+                <col style="width:9%">
+                <col style="width:9%">
+                <col style="width:7%">
+                <col style="width:7%">
+                <col style="width:6%">
+                ${isEditable ? '<col style="width:15%">' : ''}
               </colgroup>
               <thead>
                 <tr class="border-b border-gray-200 text-gray-500">
@@ -415,6 +418,9 @@ async function showProjectDetail(projectId) {
                   <th class="p-2 text-right">数量</th>
                   <th class="p-2 text-right">单价</th>
                   <th class="p-2 text-right">小计</th>
+                  <th class="p-2 text-center">📎附件</th>
+                  <th class="p-2 text-center">📊参数</th>
+                  <th class="p-2 text-left">📝备注</th>
                   ${isEditable ? '<th class="p-2 text-center">操作</th>' : ''}
                 </tr>
               </thead>
@@ -422,7 +428,14 @@ async function showProjectDetail(projectId) {
                 ${items.map(item => {
                   const subtotal = (parseFloat(item.unit_price || 0) * item.quantity).toFixed(2);
                   const hasBom = !!item.bom_snapshot;
-                  const colCount = isEditable ? 7 : 6;
+                  const snapParams = item.part_snapshot?.parameters || [];
+                  const snapAtts = item.part_snapshot?.attachments || [];
+                  const snapDesc = item.part_snapshot?.description || '';
+                  const hasPartSnap = !!(snapParams.length || snapAtts.length || snapDesc);
+                  const snapAttrCount = snapAtts.length;
+                  const snapParamCount = snapParams.length;
+                  const colCount = isEditable ? 10 : 9;
+                  const baseTotalCols = 9;
                   return `<tr class="border-b border-gray-100${hasBom ? ' bom-parent-row' : ''}">
                     <td class="p-2 font-medium">
                       ${hasBom ? `<span id="bom-toggle-${item.id}" class="bom-toggle-icon" onclick="toggleBomTree(${item.id})">▶</span> ` : ''}
@@ -434,6 +447,13 @@ async function showProjectDetail(projectId) {
                     <td class="p-2 text-right">×${item.quantity}</td>
                     <td class="p-2 text-right">¥${parseFloat(item.unit_price || 0).toFixed(2)}</td>
                     <td class="p-2 text-right font-medium">¥${subtotal}</td>
+                    <td class="p-2 text-center">
+                      ${snapAttrCount ? `<span class="cursor-pointer text-blue-500 hover:underline text-[11px]" onclick="togglePartSnapshot(${item.id})" title="查看附件详情">${snapAttrCount}</span>` : '<span class="text-gray-300">—</span>'}
+                    </td>
+                    <td class="p-2 text-center">
+                      ${snapParamCount ? `<span class="cursor-pointer text-blue-500 hover:underline text-[11px]" onclick="togglePartSnapshot(${item.id})" title="查看参数详情">${snapParamCount}</span>` : '<span class="text-gray-300">—</span>'}
+                    </td>
+                    <td class="p-2 text-gray-500 text-[11px] max-w-[80px] truncate" title="${escHtml(snapDesc)}">${snapDesc ? escHtml(snapDesc).substring(0, 12) + (snapDesc.length > 12 ? '…' : '') : '<span class="text-gray-300">—</span>'}</td>
                     ${isEditable ? `<td class="p-2 text-center whitespace-nowrap">
                       <input type="checkbox" class="batch-item-cb" data-item-id="${item.id}" onchange="updateBatchActions()" style="vertical-align:middle;cursor:pointer">
                       <button class="text-blue-500 hover:text-blue-700 ml-1" onclick="event.stopPropagation(); editProjectItem(${p.id}, ${item.id})" title="编辑">✏️</button>
@@ -441,7 +461,7 @@ async function showProjectDetail(projectId) {
                     </td>` : ''}
                   </tr>
                   ${hasBom ? `<tr id="bom-tree-${item.id}" class="bom-tree-container" style="display:none">
-                    <td colspan="${colCount}" style="padding:0;background:#fafafa">
+                    <td colspan="${baseTotalCols}" style="padding:0;background:#fafafa">
                       <table class="w-full bom-sub-table">
                         <thead>
                           <tr class="text-gray-400 text-[10px]">
@@ -457,6 +477,11 @@ async function showProjectDetail(projectId) {
                         </tbody>
                       </table>
                     </td>
+                  </tr>` : ''}
+                  ${hasPartSnap ? `<tr id="snap-tree-${item.id}" class="bom-tree-container" style="display:none">
+                    <td colspan="${baseTotalCols}" style="padding:0;background:#f0fdf4">
+                      ${renderPartSnapshot(item.part_snapshot)}
+                    </td>
                   </tr>` : ''}`;
                 }).join('')}
               </tbody>
@@ -466,6 +491,9 @@ async function showProjectDetail(projectId) {
                   <td class="p-2 text-right">×${totalQty}</td>
                   <td class="p-2 text-right"></td>
                   <td class="p-2 text-right font-semibold text-blue-600">¥${totalAmt.toFixed(2)}</td>
+                  <td class="p-2"></td>
+                  <td class="p-2"></td>
+                  <td class="p-2"></td>
                   ${isEditable ? '<td class="p-2"></td>' : ''}
                 </tr>
               </tfoot>
@@ -1439,6 +1467,67 @@ function toggleBomSubTree(childId) {
   const expanded = tbody.style.display !== 'none';
   tbody.style.display = expanded ? 'none' : '';
   if (toggle) toggle.textContent = expanded ? '▶' : '▼';
+}
+
+function togglePartSnapshot(itemId) {
+  const row = document.getElementById('snap-tree-' + itemId);
+  const toggle = document.getElementById('snap-toggle-' + itemId);
+  if (!row) return;
+  const expanded = row.style.display !== 'none';
+  row.style.display = expanded ? 'none' : '';
+  if (toggle) toggle.textContent = expanded ? '📋' : '📋';
+}
+
+function renderPartSnapshot(snapshot) {
+  if (!snapshot) return '';
+
+  let html = '<div style="padding:8px 12px;font-size:11px">';
+
+  // Description
+  if (snapshot.description) {
+    html += '<div class="mb-2"><span class="text-gray-400 text-[10px]">📝 备注：</span>';
+    html += '<span class="text-gray-700">' + escHtml(snapshot.description) + '</span></div>';
+  }
+
+  // Parameters table
+  if (snapshot.parameters && snapshot.parameters.length) {
+    html += '<div class="mb-2"><span class="text-gray-400 text-[10px] font-medium">📊 参数（快照）：</span>';
+    html += '<table class="w-full text-[11px] mt-1" style="border-collapse:collapse">';
+    html += '<thead><tr class="text-gray-400 text-[10px]">';
+    html += '<th style="padding:2px 6px;text-align:left;border-bottom:1px solid #d1fae5">名称</th>';
+    html += '<th style="padding:2px 6px;text-align:left;border-bottom:1px solid #d1fae5">值</th>';
+    html += '<th style="padding:2px 6px;text-align:left;border-bottom:1px solid #d1fae5">单位</th>';
+    html += '</tr></thead><tbody>';
+    snapshot.parameters.forEach(p => {
+      html += '<tr>';
+      html += '<td style="padding:2px 6px;border-bottom:1px solid #ecfdf5">' + escHtml(p.name) + '</td>';
+      html += '<td style="padding:2px 6px;border-bottom:1px solid #ecfdf5;font-medium">' + escHtml(p.value) + '</td>';
+      html += '<td style="padding:2px 6px;border-bottom:1px solid #ecfdf5;color:#9ca3af">' + escHtml(p.unit || '—') + '</td>';
+      html += '</tr>';
+    });
+    html += '</tbody></table></div>';
+  }
+
+  // Attachments list
+  if (snapshot.attachments && snapshot.attachments.length) {
+    html += '<div><span class="text-gray-400 text-[10px] font-medium">📎 附件（快照）：</span>';
+    html += '<div class="mt-1">';
+    snapshot.attachments.forEach(att => {
+      html += '<div class="flex items-center gap-2 py-1 text-[11px]">';
+      html += '<span class="text-gray-600">📄 ' + escHtml(att.filename) + '</span>';
+      if (att.comment) {
+        html += '<span class="text-gray-400 text-[10px]">' + escHtml(att.comment) + '</span>';
+      }
+      if (att.url) {
+        html += '<a href="' + att.url + '" target="_blank" class="text-blue-500 hover:underline text-[10px]">查看</a>';
+      }
+      html += '</div>';
+    });
+    html += '</div></div>';
+  }
+
+  html += '</div>';
+  return html;
 }
 
 // ── Modal utils ──

@@ -80,7 +80,12 @@ export function AttachmentLink({
       return '-';
     }
 
-    return external ? attachment : (attachment.split('/').pop() ?? '-');
+    const raw = attachment.split('/').pop() ?? '-';
+    try {
+      return decodeURIComponent(raw);
+    } catch {
+      return raw;
+    }
   }, [attachment, external]);
 
   return (

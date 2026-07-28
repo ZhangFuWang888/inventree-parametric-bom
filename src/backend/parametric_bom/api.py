@@ -138,6 +138,61 @@ def _collect_formula_fields(part_id):
     return refs
 
 
+def _capture_part_snapshot(part):
+    """Capture a snapshot of a Part's parameters, attachments, and description.
+    
+    Returns a dict:
+    {
+        'description': str,
+        'parameters': [{'name': str, 'value': str, 'unit': str}, ...],
+        'attachments': [{'filename': str, 'comment': str, 'url': str}, ...],
+    }
+    """
+    if part is None:
+        return None
+    
+    # Part description
+    description = getattr(part, 'description', '') or ''
+    
+    # Part parameters (via GenericRelation)
+    parameters = []
+    try:
+        for param in part.parameters_list.select_related('template').all():
+            template = param.template
+            value = param.data if hasattr(param, 'data') else str(param)
+            parameters.append({
+                'name': template.name if template else '',
+                'value': str(value) if value is not None else '',
+                'unit': getattr(template, 'units', '') or '',
+            })
+    except Exception:
+        pass
+    
+    # Part attachments (via GenericRelation from InvenTreeAttachmentMixin)
+    attachments = []
+    try:
+        for att in part.attachments.all():
+            url = ''
+            if hasattr(att, 'attachment') and att.attachment:
+                try:
+                    url = att.attachment.url
+                except Exception:
+                    pass
+            attachments.append({
+                'filename': getattr(att, 'filename', '') or getattr(att, 'basename', '') or '',
+                'comment': getattr(att, 'comment', '') or '',
+                'url': url,
+            })
+    except Exception:
+        pass
+    
+    return {
+        'description': description,
+        'parameters': parameters,
+        'attachments': attachments,
+    }
+
+
 def _find_param_references(part_id, param_name):
     """Check if param_name (referenced as param.xxx) is used in any formula.
     Returns list of {label, url, tab} dicts."""
@@ -2654,6 +2709,16 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 except Exception:
                     pass
 
+        # Capture part snapshot for part-type items
+        part_id_for_snapshot = data.get('part')
+        if part_id_for_snapshot and data.get('item_type') == 'part':
+            try:
+                from part.models import Part
+                part = Part.objects.get(pk=int(part_id_for_snapshot))
+                data['part_snapshot'] = _capture_part_snapshot(part)
+            except Exception:
+                pass
+
         serializer = ProjectItemSerializer(
             data=data,
             context={'request': request},
@@ -2684,6 +2749,14 @@ class ProjectViewSet(viewsets.ModelViewSet):
                     for bi in bom_items:
                         qty = bi.get('calculated_quantity', bi.get('quantity', 1))
                         up = bi.get('unit_price')
+                        part_snap = None
+                        if bi.get('part_id'):
+                            try:
+                                from part.models import Part
+                                part = Part.objects.get(pk=int(bi['part_id']))
+                                part_snap = _capture_part_snapshot(part)
+                            except Exception:
+                                pass
                         child = ProjectItem.objects.create(
                             project=project,
                             item_type='part',
@@ -2692,6 +2765,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
                             quantity=int(qty) if qty == int(qty) else qty,
                             unit_price=str(round(float(up), 4)) if up else None,
                             batch_name=batch_name,
+                            part_snapshot=part_snap,
                             created_by=request.user,
                         )
                         child_ser = ProjectItemSerializer(child, context={'request': request})
@@ -2785,6 +2859,12 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 item_kwargs['item_type'] = 'part'
                 item_kwargs['part'] = ci.part
                 item_kwargs['unit_price'] = ci.unit_price
+                # Capture part snapshot
+                if ci.part:
+                    try:
+                        item_kwargs['part_snapshot'] = _capture_part_snapshot(ci.part)
+                    except Exception:
+                        pass
             item_kwargs['created_by'] = request.user
             ProjectItem.objects.create(**item_kwargs)
             item_count += 1
