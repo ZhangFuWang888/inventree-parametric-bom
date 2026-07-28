@@ -3745,10 +3745,14 @@ class ProjectViewSet(viewsets.ModelViewSet):
     def batch_update_meta(self, request, pk=None):
         """Update batch metadata: storage_dest, make_buy, reason."""
         project = self.get_object()
+        if not project.is_active:
+            return Response({'error': '项目已归档，不能修改批次信息'}, status=400)
         batch_name = request.data.get('batch_name', '').strip()
         batch = self._get_or_create_batch(project, batch_name)
         if not batch:
             return Response({'error': '无效的批次名称'}, status=400)
+        if batch.status in ('completed', 'locked'):
+            return Response({'error': '批次已锁定或已完成，不能修改'}, status=400)
         for field in ['storage_dest', 'make_buy', 'reason']:
             if field in request.data:
                 setattr(batch, field, request.data[field])

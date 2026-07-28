@@ -374,9 +374,9 @@ async function showProjectDetail(projectId) {
               ${creator ? `<span class="text-xs text-gray-400">👤 ${escHtml(creator)}</span>` : ''}
             </div>
             <div class="flex items-center gap-1.5">${batchName === '未分组' ? '' : `
-              <span class="text-[10px] bg-purple-50 text-purple-600 px-1.5 py-0.5 rounded border border-purple-100 cursor-pointer" onclick="editBatchMeta(${p.id}, '${safeBatch}', 'storage_dest', '${escHtml(storageDest)}', this)" title="入库去向">📥 ${escHtml(storageDest)}</span>
-              <span class="text-[10px] bg-amber-50 text-amber-600 px-1.5 py-0.5 rounded border border-amber-100 cursor-pointer" onclick="editBatchMeta(${p.id}, '${safeBatch}', 'make_buy', '${escHtml(makeBuy)}', this)" title="制购类别">🏭 ${escHtml(makeBuy)}</span>
-              <span class="text-[10px] bg-green-50 text-green-600 px-1.5 py-0.5 rounded border border-green-100 cursor-pointer" onclick="editBatchMeta(${p.id}, '${safeBatch}', 'reason', '${escHtml(reason)}', this)" title="申请理由">📝 ${escHtml(reason)}</span>
+              <span class="text-[10px] bg-purple-50 text-purple-600 px-1.5 py-0.5 rounded border border-purple-100 ${isEditable ? 'cursor-pointer' : 'opacity-60'}" ${isEditable ? `onclick="editBatchMeta(${p.id}, '${safeBatch}', 'storage_dest', '${escHtml(storageDest)}', this)" title="入库去向">📥 ${escHtml(storageDest)}</span>
+              <span class="text-[10px] bg-amber-50 text-amber-600 px-1.5 py-0.5 rounded border border-amber-100 ${isEditable ? 'cursor-pointer' : 'opacity-60'}" ${isEditable ? `onclick="editBatchMeta(${p.id}, '${safeBatch}', 'make_buy', '${escHtml(makeBuy)}', this)" title="制购类别">🏭 ${escHtml(makeBuy)}</span>
+              <span class="text-[10px] bg-green-50 text-green-600 px-1.5 py-0.5 rounded border border-green-100 ${isEditable ? 'cursor-pointer' : 'opacity-60'}" ${isEditable ? `onclick="editBatchMeta(${p.id}, '${safeBatch}', 'reason', '${escHtml(reason)}', this)" title="申请理由">📝 ${escHtml(reason)}</span>
             `}
             </div>
             <div class="flex items-center gap-1.5">
