@@ -374,9 +374,9 @@ async function showProjectDetail(projectId) {
               ${creator ? `<span class="text-xs text-gray-400">👤 ${escHtml(creator)}</span>` : ''}
             </div>
             <div class="flex items-center gap-1.5">${batchName === '未分组' ? '' : `
-              <span class="text-[10px] bg-purple-50 text-purple-600 px-1.5 py-0.5 rounded border border-purple-100 cursor-pointer" onclick="editBatchMeta(${p.id}, '${safeBatch}', 'storage_dest', '${escHtml(storageDest)}')" title="入库去向">📥 ${escHtml(storageDest)}</span>
-              <span class="text-[10px] bg-amber-50 text-amber-600 px-1.5 py-0.5 rounded border border-amber-100 cursor-pointer" onclick="editBatchMeta(${p.id}, '${safeBatch}', 'make_buy', '${escHtml(makeBuy)}')" title="制购类别">🏭 ${escHtml(makeBuy)}</span>
-              <span class="text-[10px] bg-green-50 text-green-600 px-1.5 py-0.5 rounded border border-green-100 cursor-pointer" onclick="editBatchMeta(${p.id}, '${safeBatch}', 'reason', '${escHtml(reason)}')" title="申请理由">📝 ${escHtml(reason)}</span>
+              <span class="text-[10px] bg-purple-50 text-purple-600 px-1.5 py-0.5 rounded border border-purple-100 cursor-pointer" onclick="editBatchMeta(${p.id}, '${safeBatch}', 'storage_dest', '${escHtml(storageDest)}', this)" title="入库去向">📥 ${escHtml(storageDest)}</span>
+              <span class="text-[10px] bg-amber-50 text-amber-600 px-1.5 py-0.5 rounded border border-amber-100 cursor-pointer" onclick="editBatchMeta(${p.id}, '${safeBatch}', 'make_buy', '${escHtml(makeBuy)}', this)" title="制购类别">🏭 ${escHtml(makeBuy)}</span>
+              <span class="text-[10px] bg-green-50 text-green-600 px-1.5 py-0.5 rounded border border-green-100 cursor-pointer" onclick="editBatchMeta(${p.id}, '${safeBatch}', 'reason', '${escHtml(reason)}', this)" title="申请理由">📝 ${escHtml(reason)}</span>
             `}
             </div>
             <div class="flex items-center gap-1.5">
@@ -1580,7 +1580,7 @@ function showSelectDialog(title, options, currentValue) {
   });
 }
 
-async function editBatchMeta(projectId, batchName, field, currentValue) {
+async function editBatchMeta(projectId, batchName, field, currentValue, el) {
   const name = decodeURIComponent(batchName);
   let newValue;
   
@@ -1609,17 +1609,10 @@ async function editBatchMeta(projectId, batchName, field, currentValue) {
     setStatus('error', result.error);
   } else {
     setStatus('success', `${field === 'storage_dest' ? '入库去向' : field === 'make_buy' ? '制购类别' : '申请理由'} 已更新`);
-    // Update DOM in-place: find the clicked span and replace its text
-    if (result.data) {
-      const newVal = result.data[field] || newValue;
+    // Update the clicked span directly
+    if (el) {
       const emojiMap = {storage_dest:'📥', make_buy:'🏭', reason:'📝'};
-      const emoji = emojiMap[field] || '';
-      const allSpans = document.querySelectorAll('span[onclick*="editBatchMeta"]');
-      allSpans.forEach(span => {
-        if (span.getAttribute('onclick').includes(`'${field}'`) && span.getAttribute('onclick').includes(batchName)) {
-          span.textContent = emoji + ' ' + newVal;
-        }
-      });
+      el.textContent = (emojiMap[field] || '') + ' ' + newValue;
     }
   }
 }
