@@ -3624,7 +3624,6 @@ class ProjectViewSet(viewsets.ModelViewSet):
 
         # ── Batch metadata (入库去向 / 制购类别 / 申请理由) ──
         from parametric_bom.models import ProjectBatch
-        batch_meta = {}
         try:
             pb = ProjectBatch.objects.get(project=project, name=batch_name)
             batch_meta = {
@@ -3633,7 +3632,11 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 'reason': pb.reason or '按合同下单',
             }
         except ProjectBatch.DoesNotExist:
-            pass
+            batch_meta = {
+                'storage_dest': '入仓库，车间领用',
+                'make_buy': '采购',
+                'reason': '按合同下单',
+            }
 
         # ── Write data rows ──
         row_num = 1
