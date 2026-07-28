@@ -1803,7 +1803,7 @@ def _build_bom_xlsx(result):
     # 根产品分类 — 所有行的"设备（大类）"共用此值
     root_category_name = ''
     if part_ids:
-        for p in Part.objects.filter(pk__in=part_ids).select_related('category').only('pk', 'IPN', 'units', 'name', 'category'):
+        for p in Part.objects.filter(pk__in=part_ids).select_related('category').only('pk', 'IPN', 'units', 'name', 'category', 'notes'):
             part_map[p.pk] = p
             # 记录根产品的分类
             if root_pid and p.pk == root_pid and p.category:
@@ -1896,6 +1896,9 @@ def _build_bom_xlsx(result):
                     ipn = p.IPN or ''
                 if not units:
                     units = p.units or ''
+                part_notes = (p.notes or '').strip()
+            else:
+                part_notes = ''
 
             # Look up part parameters (材质, 表面处理, 颜色, 重量)
             p_material = ''
@@ -1923,7 +1926,7 @@ def _build_bom_xlsx(result):
                 p_finish,  # 表面处理方式
                 p_color,  # 处理颜色
                 p_weight,  # 重量
-                ref,  # 备注
+                part_notes,  # 备注
                 '',  # 采购员
                 '',  # 入库去向
                 '',  # 制购类别
@@ -3586,7 +3589,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
         part_map = {}
         if all_part_ids:
             for p in Part.objects.filter(pk__in=all_part_ids).select_related('category').only(
-                'pk', 'IPN', 'units', 'name', 'category',
+                'pk', 'IPN', 'units', 'name', 'category', 'notes',
             ):
                 part_map[p.pk] = p
 
@@ -3676,6 +3679,9 @@ class ProjectViewSet(viewsets.ModelViewSet):
                             ipn = p.IPN or ''
                         if not units:
                             units = p.units or ''
+                        part_notes = (p.notes or '').strip()
+                    else:
+                        part_notes = ''
 
                     p_material = ''
                     p_finish = ''
@@ -3691,7 +3697,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
                     vals = [
                         seq, root_cat, '', ipn, pname,
                         '', units, round(qty, 2), '', '',
-                        p_material, p_finish, p_color, p_weight, ref,
+                        p_material, p_finish, p_color, p_weight, part_notes,
                         '',
                         batch_meta.get('storage_dest', ''),
                         batch_meta.get('make_buy', ''),
