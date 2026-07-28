@@ -1442,13 +1442,14 @@ async function submitCartAsProject() {
         cart_item_ids: ids,
       });
       if (result.ok) {
-        closeModal();
         setStatus('success', `已添加 ${ids.length} 条到项目 ${result.data.project_code || result.data.name}`);
-        // Reload cart (should be empty now)
+        // Navigate first, then close modal — closeModal() removes DOM including this button's parent
+        var targetUrl = '/parametric-bom/projects/' + projectId + '/';
+        setTimeout(function() { window.location.href = targetUrl; }, 50);
+        closeModal();
+        // Reload cart in background (page is navigating away, but keep for robustness)
         if (typeof cartLoad === 'function') cartLoad();
         if (typeof loadCartCount === 'function') loadCartCount();
-        // Navigate to project detail — use URL redirect (works in both SPA and standalone modes)
-        window.location.href = '/parametric-bom/projects/' + projectId + '/';
       } else {
         setStatus('error', result.data?.error || '提交失败');
       }
