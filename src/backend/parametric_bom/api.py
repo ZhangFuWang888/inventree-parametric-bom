@@ -3365,7 +3365,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['get'], url_path='export-batch-csv')
     def export_batch_csv(self, request, pk=None):
-        """Export batch items as one multi-sheet XLSX (configurator _build_bom_xlsx format)."""
+        """Export batch items as a single-sheet XLSX — same format as configurator."""
         project = self.get_object()
         batch_name = request.query_params.get('batch_name', '').strip()
         items = project.items.filter(batch_name=batch_name).order_by('id')
@@ -3373,70 +3373,192 @@ class ProjectViewSet(viewsets.ModelViewSet):
         if not items.exists():
             return Response({'error': f'批次 "{batch_name}" 无条目'}, status=404)
 
-        import openpyxl, io, copy
+        import openpyxl, io
+        from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
+        from openpyxl.utils import get_column_letter
 
         wb = openpyxl.Workbook()
-        first = True
-        used_titles = set()
+        ws = wb.active
+        ws.title = 'BOM清单'
 
+        # ── Styles (same as _build_bom_xlsx) ──
+        style_header_font = Font(name='微软雅黑', bold=True, size=10, color='FFFFFF')
+        style_header_fill = PatternFill(start_color='2563EB', end_color='2563EB', fill_type='solid')
+        style_header_align = Alignment(horizontal='center', vertical='center', wrap_text=True)
+        style_cell_font = Font(name='微软雅黑', size=9)
+        style_center = Alignment(horizontal='center', vertical='center')
+        style_border = Border(
+            left=Side(style='thin', color='D1D5DB'),
+            right=Side(style='thin', color='D1D5DB'),
+            top=Side(style='thin', color='D1D5DB'),
+            bottom=Side(style='thin', color='D1D5DB'),
+        )
+
+        headers = [
+            '序号', '设备（大类）', '部装', '规格型号', '品名',
+            '品牌', '单位', '应需数量', '预期到货', '类别',
+            '材质（牌号）', '表面处理方式', '处理颜色', '重量', '备注',
+            '采购员', '入库去向', '制购类别', '申请理由', '附图',
+            '总数量', '问题环节', '技改原因分类',
+        ]
+        col_widths = [6, 14, 14, 16, 22, 8, 6, 10, 12, 8, 14, 14, 10, 8, 18, 8, 10, 10, 14, 8, 8, 10, 14]
+
+        for col, (h, w) in enumerate(zip(headers, col_widths), 1):
+            cell = ws.cell(row=1, column=col, value=h)
+            cell.font = style_header_font
+            cell.fill = style_header_fill
+            cell.alignment = style_header_align
+            cell.border = style_border
+            ws.column_dimensions[get_column_letter(col)].width = w
+
+        # ── Collect all part IDs + BOM trees ──
+        all_part_ids = set()
+        trees = []  # (root_category_name, bom_tree)
+
+        from part.models import Part
         for item in items:
             snap = item.bom_snapshot
             if not snap or not snap.get('bom_tree'):
-                # No BOM — add a simple info sheet so the user still gets a file
-                base = (item.title or f'Item_{item.pk}')[:31].replace('/', '_').replace('\\', '_')
-                safe_title = base
-                counter = 1
-                while safe_title in used_titles:
-                    safe_title = f'{base[:28]}_{counter}'
-                    counter += 1
-                used_titles.add(safe_title)
-
-                if first:
-                    ws = wb.active
-                    ws.title = safe_title
-                    first = False
-                else:
-                    ws = wb.create_sheet(title=safe_title)
-                ws.append(['名称', item.title])
-                ws.append(['类型', item.get_item_type_display()])
-                ws.append(['数量', item.quantity])
-                ws.append(['备注', '无BOM数据'])
+                continue
+            # Normalise tree
+            bom_tree = snap.get('bom_tree')
+            if isinstance(bom_tree, list):
+                bom_tree = {'children': bom_tree}
+            elif not isinstance(bom_tree, dict) or 'children' not in bom_tree:
                 continue
 
-            # Delegate to shared _build_bom_xlsx for consistent format
-            xlsx_buf, _ = _build_bom_xlsx(snap)
-            temp_wb = openpyxl.load_workbook(xlsx_buf)
-            temp_ws = temp_wb.active
+            # Collect part IDs
+            def _collect(node):
+                for child in node.get('children', []):
+                    if child.get('excluded'):
+                        continue
+                    pid = child.get('actual_part_id') or child.get('part_id')
+                    if pid:
+                        all_part_ids.add(int(pid))
+                    _collect(child)
+            _collect(bom_tree)
 
-            part_name = snap.get('part_name') or item.title or 'BOM'
-            safe_title = part_name[:31].replace('/', '_').replace('\\', '_')
-            base_title = safe_title
-            counter = 1
-            while safe_title in used_titles:
-                safe_title = f'{base_title[:28]}_{counter}'
-                counter += 1
-            used_titles.add(safe_title)
+            # Determine root category
+            root_pid = bom_tree.get('actual_part_id') or bom_tree.get('part_id')
+            root_cat = ''
+            if not root_pid and all_part_ids:
+                root_pid = next(iter(all_part_ids))
+            if root_pid:
+                try:
+                    p = Part.objects.only('category__name').select_related('category').get(pk=root_pid)
+                    root_cat = (p.category and p.category.name) or ''
+                except Part.DoesNotExist:
+                    pass
 
-            if first:
-                ws = wb.active
-                ws.title = safe_title
-                first = False
-            else:
-                ws = wb.create_sheet(title=safe_title)
+            trees.append((root_cat, bom_tree, item.quantity or 1))
 
-            # Copy rows + styles from temp sheet
-            for row in temp_ws.iter_rows():
-                for cell in row:
-                    new_cell = ws.cell(row=cell.row, column=cell.column, value=cell.value)
-                    if cell.has_style:
-                        new_cell.font = copy.copy(cell.font)
-                        new_cell.fill = copy.copy(cell.fill)
-                        new_cell.alignment = copy.copy(cell.alignment)
-                        new_cell.border = copy.copy(cell.border)
-                        new_cell.number_format = cell.number_format
-            # Copy column widths
-            for col_letter, dim in temp_ws.column_dimensions.items():
-                ws.column_dimensions[col_letter].width = dim.width
+        if not trees:
+            # All items lack BOM — produce a minimal file
+            ws.append(['备注', f'批次 "{batch_name}" 的所有条目均无BOM数据'])
+            safe = batch_name.replace(' ', '_').replace('-', '_')
+            from django.http import HttpResponse
+            response = HttpResponse(
+                content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            )
+            response['Content-Disposition'] = f'attachment; filename="{project.project_code}_{safe}.xlsx"'
+            wb.save(response)
+            return response
+
+        # ── Bulk Part lookup ──
+        part_map = {}
+        if all_part_ids:
+            for p in Part.objects.filter(pk__in=all_part_ids).select_related('category').only(
+                'pk', 'IPN', 'units', 'name', 'category',
+            ):
+                part_map[p.pk] = p
+
+        # ── Bulk param lookup (same as _build_bom_xlsx) ──
+        from common.models import Parameter, ParameterTemplate
+        from django.contrib.contenttypes.models import ContentType
+        ct_part = ContentType.objects.get_for_model(Part)
+        param_names = ['材质（牌号）', '表面处理方式', '处理颜色', '重量']
+        param_tpl_map = {}
+        for pn in param_names:
+            try:
+                param_tpl_map[pn] = ParameterTemplate.objects.get(name=pn)
+            except ParameterTemplate.DoesNotExist:
+                pass
+        param_data = {}  # {part_id: {param_name: value}}
+        if param_tpl_map and all_part_ids:
+            for par in Parameter.objects.filter(
+                model_type=ct_part, model_id__in=all_part_ids,
+                template__in=list(param_tpl_map.values()),
+            ).select_related('template'):
+                param_data.setdefault(par.model_id, {})[par.template.name] = par.data
+
+        # ── Write data rows ──
+        row_num = 1
+        seq = 0
+
+        for root_cat, tree, batch_qty in trees:
+            def flatten(node, parent_qty=1.0):
+                nonlocal row_num, seq
+                for child in node.get('children', []):
+                    if child.get('excluded'):
+                        continue
+                    seq += 1
+                    pid = child.get('actual_part_id') or child.get('part_id')
+                    pname = (
+                        child.get('calculated_name')
+                        or child.get('variant_name')
+                        or child.get('actual_part_name')
+                        or child.get('part_name')
+                        or ''
+                    )
+                    ipn = (
+                        child.get('calculated_ipn')
+                        or child.get('variant_ipn', '')
+                        or child.get('IPN', '')
+                        or ''
+                    )
+                    qty = (
+                        child.get('calculated_quantity')
+                        or child.get('quantity', 1)
+                    ) * parent_qty
+                    ref = str(child.get('reference', '') or child.get('reference_formula', '') or '')
+                    units = child.get('unit', '')
+
+                    if pid and pid in part_map:
+                        p = part_map[pid]
+                        if not ipn:
+                            ipn = p.IPN or ''
+                        if not units:
+                            units = p.units or ''
+
+                    p_material = ''
+                    p_finish = ''
+                    p_color = ''
+                    p_weight = ''
+                    if pid and pid in param_data:
+                        p_material = param_data[pid].get('材质（牌号）', '')
+                        p_finish = param_data[pid].get('表面处理方式', '')
+                        p_color = param_data[pid].get('处理颜色', '')
+                        p_weight = param_data[pid].get('重量', '')
+
+                    row_num += 1
+                    vals = [
+                        seq, root_cat, '', ipn, pname,
+                        '', units, round(qty, 2), '', '',
+                        p_material, p_finish, p_color, p_weight, ref,
+                        '', '', '', '', '',
+                        round(qty, 2), '', '',
+                    ]
+                    for col, v in enumerate(vals, 1):
+                        cell = ws.cell(row=row_num, column=col, value=v)
+                        cell.font = style_cell_font
+                        cell.border = style_border
+                        if col in (8, 21):
+                            cell.number_format = '#,##0'
+                        cell.alignment = style_center
+
+                    flatten(child, qty)
+
+            flatten(tree, batch_qty)
 
         safe = batch_name.replace(' ', '_').replace('-', '_')
         from django.http import HttpResponse
