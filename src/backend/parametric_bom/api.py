@@ -3418,13 +3418,34 @@ class ProjectViewSet(viewsets.ModelViewSet):
         from part.models import Part
         for item in items:
             snap = item.bom_snapshot
-            if not snap or not snap.get('bom_tree'):
-                continue
-            # Normalise tree
-            bom_tree = snap.get('bom_tree')
-            if isinstance(bom_tree, list):
-                bom_tree = {'children': bom_tree}
-            elif not isinstance(bom_tree, dict) or 'children' not in bom_tree:
+            if snap and snap.get('bom_tree'):
+                # Normalise tree from bom_snapshot
+                bom_tree = snap.get('bom_tree')
+                if isinstance(bom_tree, list):
+                    bom_tree = {'children': bom_tree}
+                elif not isinstance(bom_tree, dict) or 'children' not in bom_tree:
+                    continue
+                root_pid = bom_tree.get('actual_part_id') or bom_tree.get('part_id')
+            elif item.part_id:
+                # Part-type item — expand native InvenTree BOM
+                try:
+                    part = Part.objects.select_related('category').get(pk=item.part_id)
+                except Part.DoesNotExist:
+                    continue
+                children = []
+                for bi in part.bom_items.all().select_related('sub_part'):
+                    children.append({
+                        'part_id': bi.sub_part_id,
+                        'part_name': str(bi.sub_part),
+                        'IPN': bi.sub_part.IPN or '',
+                        'unit': bi.sub_part.units or '',
+                        'quantity': float(bi.quantity),
+                        'reference': bi.reference or '',
+                        'children': [],
+                    })
+                bom_tree = {'children': children}
+                root_pid = item.part_id
+            else:
                 continue
 
             # Collect part IDs
@@ -3439,7 +3460,6 @@ class ProjectViewSet(viewsets.ModelViewSet):
             _collect(bom_tree)
 
             # Determine root category
-            root_pid = bom_tree.get('actual_part_id') or bom_tree.get('part_id')
             root_cat = ''
             if not root_pid and all_part_ids:
                 root_pid = next(iter(all_part_ids))
