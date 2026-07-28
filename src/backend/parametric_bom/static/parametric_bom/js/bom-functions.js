@@ -65,7 +65,24 @@ function ceToggleTemplates() {
 async function downloadBomCsv() {
   const pid = configuratorPartId;
   if (!pid) { setStatus('error', '请先选择产品'); return; }
-  window.open('/api/parametric-bom/export/bom-csv/?part_id=' + pid, '_blank');
+  setStatus('loading', '正在生成BOM清单...');
+  const url = '/api/parametric-bom/export/bom-csv/?part_id=' + pid;
+  try {
+    const r = await fetch(url, { credentials: 'include' });
+    if (!r.ok) throw new Error('下载失败 (HTTP ' + r.status + ')');
+    const fname = decodeURIComponent(r.headers.get('X-Filename') || 'BOM清单.xlsx');
+    const blob = await r.blob();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = fname;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(a.href);
+    setStatus('success', 'BOM清单下载完成');
+  } catch (e) {
+    setStatus('error', '导出失败: ' + e.message);
+  }
 }
 
 // ===== DOWNLOAD: Attachment ZIP =====
@@ -73,12 +90,20 @@ async function downloadAttachmentsZip() {
   const pid = configuratorPartId;
   if (!pid) { setStatus('error', '请先选择产品'); return; }
   setStatus('loading', '正在打包附件...');
+  const url = '/api/parametric-bom/export/attachment-zip/?part_id=' + pid;
   try {
+    const r = await fetch(url, { credentials: 'include' });
+    if (!r.ok) throw new Error('下载失败 (HTTP ' + r.status + ')');
+    const fname = decodeURIComponent(r.headers.get('X-Filename') || '附件.zip');
+    const blob = await r.blob();
     const a = document.createElement('a');
-    a.href = '/api/parametric-bom/export/attachment-zip/?part_id=' + pid;
-    a.download = '';
+    a.href = URL.createObjectURL(blob);
+    a.download = fname;
+    document.body.appendChild(a);
     a.click();
-    setStatus('success', '附件下载已开始');
+    document.body.removeChild(a);
+    URL.revokeObjectURL(a.href);
+    setStatus('success', '附件下载完成');
   } catch (e) {
     setStatus('error', '下载失败: ' + e.message);
   }
@@ -88,7 +113,24 @@ async function downloadAttachmentsZip() {
 async function downloadBundleZip() {
   const pid = configuratorPartId;
   if (!pid) { setStatus('error', '请先选择产品'); return; }
-  window.open('/api/parametric-bom/export/bundle-zip/?part_id=' + pid, '_blank');
+  setStatus('loading', '正在打包BOM完整包...');
+  const url = '/api/parametric-bom/export/bundle-zip/?part_id=' + pid;
+  try {
+    const r = await fetch(url, { credentials: 'include' });
+    if (!r.ok) throw new Error('下载失败 (HTTP ' + r.status + ')');
+    const fname = decodeURIComponent(r.headers.get('X-Filename') || 'BOM完整包.zip');
+    const blob = await r.blob();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = fname;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(a.href);
+    setStatus('success', 'BOM完整包下载完成');
+  } catch (e) {
+    setStatus('error', '下载失败: ' + e.message);
+  }
 }
 
 function ceInsertText(text) {

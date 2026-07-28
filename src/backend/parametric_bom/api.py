@@ -1841,6 +1841,25 @@ def _build_bom_xlsx(result):
             if name.lower().endswith(('.dwg', '.dxf')):
                 dwg_parts.add(a.model_id)
 
+    # Bulk supplier name lookup for 品牌 column
+    part_supplier_map = {}  # {part_id: brand_name}
+    if part_ids:
+        from company.models import SupplierPart
+        for sp in SupplierPart.objects.filter(part_id__in=part_ids, primary=True).select_related(
+            'supplier', 'manufacturer_part__manufacturer'
+        ):
+            mp = sp.manufacturer_part
+            name = (mp.manufacturer.name if mp and mp.manufacturer else '') or sp.supplier.name
+            part_supplier_map[sp.part_id] = name
+        # Fallback: if no primary, pick first for each part
+        for sp in SupplierPart.objects.filter(part_id__in=part_ids).exclude(
+            part_id__in=part_supplier_map.keys()
+        ).select_related('supplier', 'manufacturer_part__manufacturer'):
+            if sp.part_id not in part_supplier_map:
+                mp = sp.manufacturer_part
+                name = (mp.manufacturer.name if mp and mp.manufacturer else '') or sp.supplier.name
+                part_supplier_map[sp.part_id] = name
+
     # Try to get material from PartParameterConfig (if a "材料" parameter exists)
     from parametric_bom.models import PartParameterConfig
     from common.models import ParameterTemplate
@@ -1930,26 +1949,32 @@ def _build_bom_xlsx(result):
                 p_color = param_data[pid].get('处理颜色', '')
                 p_weight = param_data[pid].get('重量', '')
 
+            brand_name = part_supplier_map.get(pid, '') or '无'
+            part_cat = ''
+            if pid and pid in part_map:
+                p = part_map[pid]
+                part_cat = (p.category and p.category.name) or ''
+
             vals = [
                 seq,
-                root_category_name,  # 设备（大类）— 配置产品的直接分类
+                root_category_name,  # 设备（大类）
                 '',  # 部装
                 ipn,  # 规格型号
                 pname,  # 品名
-                '',  # 品牌
+                brand_name,  # 品牌
                 units,  # 单位
                 qty,  # 应需数量
                 '',  # 预期到货
-                '',  # 类别
+                part_cat,  # 类别
                 p_material,  # 材质（牌号）
                 p_finish,  # 表面处理方式
                 p_color,  # 处理颜色
                 p_weight,  # 重量
                 part_notes,  # 备注
                 '',  # 采购员
-                '',  # 入库去向
-                '',  # 制购类别
-                '',  # 申请理由
+                '入仓库，车间领用',  # 入库去向
+                '采购',  # 制购类别
+                '按合同下单',  # 申请理由
                 '有图' if pid in dwg_parts else '无图',  # 附图
                 qty,  # 总数量
                 '',  # 问题环节
@@ -2014,14 +2039,21 @@ def export_bom_csv(request):
         return Response({'error': str(exc)}, status=500)
 
     buf, part_name = _build_bom_xlsx(result)
+    # Build filename: 产品名称 + 参数值
+    params = result.get('parameters', {}) or {}
+    param_str = '_'.join(str(v) for v in params.values() if v)
     safe_name = part_name.replace(' ', '_').replace('/', '_')
+    if param_str:
+        safe_name = f'{safe_name}_{param_str}'
+    safe_name = safe_name[:180]  # Prevent overly long filenames
+    fname = f'{safe_name}_BOM清单.xlsx'
     response = FileResponse(
         buf, content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        filename=f'{safe_name}_BOM清单.xlsx',
+        filename=fname,
     )
-    response['Content-Disposition'] = (
-        f'attachment; filename="{safe_name}_BOM清单.xlsx"'
-    )
+    response['Content-Disposition'] = f'attachment; filename="{fname}"'
+    from urllib.parse import quote
+    response['X-Filename'] = quote(fname)
     return response
 
 
@@ -2104,13 +2136,14 @@ def export_attachment_zip(request):
     buf.seek(0)
 
     safe_name = part_name.replace(' ', '_').replace('/', '_')
+    fname = f'{safe_name}_attachments.zip'
     response = FileResponse(
         buf, content_type='application/zip',
-        filename=f'{safe_name}_attachments.zip',
+        filename=fname,
     )
-    response['Content-Disposition'] = (
-        f'attachment; filename="{safe_name}_attachments.zip"'
-    )
+    response['Content-Disposition'] = f'attachment; filename="{fname}"'
+    from urllib.parse import quote
+    response['X-Filename'] = quote(fname)
     return response
 
 
@@ -2131,6 +2164,7 @@ def export_bundle_zip(request):
     POST: JSON body {part_id, parameters:{}, config_id}
     """
     import zipfile, io, os
+    from urllib.parse import quote
 
     from parametric_bom.bom_expander import evaluate_configuration, evaluate_part, _flatten_bom
     from parametric_bom.models import ProductConfiguration
@@ -2199,13 +2233,13 @@ def export_bundle_zip(request):
     buf.seek(0)
 
     safe_name = part_name.replace(' ', '_').replace('/', '_')
+    fname = f'{safe_name}_BOM完整包.zip'
     response = FileResponse(
         buf, content_type='application/zip',
-        filename=f'{safe_name}_BOM完整包.zip',
+        filename=fname,
     )
-    response['Content-Disposition'] = (
-        f'attachment; filename="{safe_name}_BOM完整包.zip"'
-    )
+    response['Content-Disposition'] = f'attachment; filename="{fname}"'
+    response['X-Filename'] = quote(fname)
     return response
 
 
@@ -3626,12 +3660,16 @@ class ProjectViewSet(viewsets.ModelViewSet):
         if not trees:
             # All items lack BOM — produce a minimal file
             ws.append(['备注', f'批次 "{batch_name}" 的所有条目均无BOM数据'])
-            safe = batch_name.replace(' ', '_').replace('-', '_')
+            from datetime import datetime
+            from urllib.parse import quote
+            operator = (request.user.get_full_name() or request.user.username).replace(' ', '_')
+            fname = f"{project.name}_{batch_name}_{operator}_{datetime.now().strftime('%Y%m%d')}.xlsx"
             from django.http import HttpResponse
             response = HttpResponse(
                 content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
             )
-            response['Content-Disposition'] = f'attachment; filename="{project.project_code}_{safe}.xlsx"'
+            response['Content-Disposition'] = f'attachment; filename="{fname}"'
+            response['X-Filename'] = quote(fname)
             wb.save(response)
             return response
 
@@ -3735,10 +3773,11 @@ class ProjectViewSet(viewsets.ModelViewSet):
                         or child.get('IPN', '')
                         or ''
                     )
-                    qty = (
+                    unit_qty = (
                         child.get('calculated_quantity')
                         or child.get('quantity', 1)
                     ) * parent_qty
+                    total_qty = unit_qty * batch_qty
                     ref = str(child.get('reference', '') or child.get('reference_formula', '') or '')
                     units = child.get('unit', '')
 
@@ -3763,19 +3802,19 @@ class ProjectViewSet(viewsets.ModelViewSet):
                         p_weight = param_data[pid].get('重量', '')
 
                     # Supplier brand name
-                    brand_name = part_supplier_map.get(pid, '')
+                    brand_name = part_supplier_map.get(pid, '') or '无'
 
                     row_num += 1
                     vals = [
                         seq, root_cat, '', ipn, pname,
-                        brand_name, units, round(qty, 2), '', '',
+                        brand_name, units, round(unit_qty, 2), '', '',
                         p_material, p_finish, p_color, p_weight, part_notes,
                         '',
                         batch_meta.get('storage_dest', ''),
                         batch_meta.get('make_buy', ''),
                         batch_meta.get('reason', ''),
                         '有图' if pid in dwg_parts else '无图',
-                        round(qty, 2), '', '',
+                        round(total_qty, 2), '', '',
                     ]
                     for col, v in enumerate(vals, 1):
                         cell = ws.cell(row=row_num, column=col, value=v)
@@ -3785,23 +3824,27 @@ class ProjectViewSet(viewsets.ModelViewSet):
                             cell.number_format = '#,##0'
                         cell.alignment = style_center
 
-                    flatten(child, qty)
+                    flatten(child, unit_qty)
 
-            flatten(tree, batch_qty)
+            flatten(tree, 1.0)
 
-        safe = batch_name.replace(' ', '_').replace('-', '_')
+        from datetime import datetime
+        from urllib.parse import quote
+        operator = (request.user.get_full_name() or request.user.username).replace(' ', '_')
+        fname = f"{project.name}_{batch_name}_{operator}_{datetime.now().strftime('%Y%m%d')}.xlsx"
         from django.http import HttpResponse
         response = HttpResponse(
             content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
         )
-        response['Content-Disposition'] = f'attachment; filename="{project.project_code}_{safe}.xlsx"'
+        response['Content-Disposition'] = f'attachment; filename="{fname}"'
+        response['X-Filename'] = quote(fname)
         wb.save(response)
         return response
 
     @action(detail=True, methods=['get'], url_path='export-batch-zip')
     def export_batch_zip(self, request, pk=None):
-        """Export batch items as ZIP: each item has its own BOM XLSX via _build_bom_xlsx."""
-        import zipfile, io
+        """Export batch: each product → full-format XLSX + 附件/ folder with all part files."""
+        import zipfile, io, os
 
         project = self.get_object()
         batch_name = request.query_params.get('batch_name', '').strip()
@@ -3811,23 +3854,319 @@ class ProjectViewSet(viewsets.ModelViewSet):
             return Response({'error': f'批次 "{batch_name}" 无条目'}, status=404)
 
         buf = io.BytesIO()
-        safe = batch_name.replace(' ', '_').replace('-', '_')
+        from datetime import datetime
+        from urllib.parse import quote
+        operator = (request.user.get_full_name() or request.user.username).replace(' ', '_')
+        fname = f"{project.name}_{batch_name}_{operator}_{datetime.now().strftime('%Y%m%d')}.zip"
+
+        from part.models import Part
+        from common.models import Attachment, Parameter, ParameterTemplate
+        from django.contrib.contenttypes.models import ContentType
+        from company.models import SupplierPart
+        from parametric_bom.models import ProjectBatch
+
+        # ── Batch metadata ──
+        try:
+            pb = ProjectBatch.objects.get(project=project, name=batch_name)
+            batch_meta = {
+                'storage_dest': pb.storage_dest or '入仓库，车间领用',
+                'make_buy': pb.make_buy or '采购',
+                'reason': pb.reason or '按合同下单',
+            }
+        except ProjectBatch.DoesNotExist:
+            batch_meta = {
+                'storage_dest': '入仓库，车间领用',
+                'make_buy': '采购',
+                'reason': '按合同下单',
+            }
+
+        # ── Collect all part IDs and trees across all items ──
+        all_part_ids = set()
+        all_trees = []  # (item_title, bom_tree, quantity)
+
+        def _collect_part_ids(node):
+            for child in node.get('children', []):
+                if child.get('excluded'):
+                    continue
+                pid = child.get('actual_part_id') or child.get('part_id')
+                if pid:
+                    all_part_ids.add(int(pid))
+                _collect_part_ids(child)
+
+        for item in items:
+            snap = item.bom_snapshot
+            if snap and snap.get('bom_tree'):
+                bom_tree = snap.get('bom_tree')
+                if isinstance(bom_tree, list):
+                    bom_tree = {'children': bom_tree}
+                elif not isinstance(bom_tree, dict) or 'children' not in bom_tree:
+                    continue
+            elif item.part_id:
+                children = [{
+                    'part_id': item.part_id,
+                    'part_name': item.title or '',
+                    'IPN': '',
+                    'unit': '',
+                    'quantity': float(item.quantity or 1),
+                    'reference': '',
+                    'children': [],
+                }]
+                bom_tree = {'children': children}
+            else:
+                children = [{
+                    'part_id': item.part_id,
+                    'part_name': item.title or '',
+                    'IPN': '',
+                    'unit': '',
+                    'quantity': float(item.quantity or 1),
+                    'reference': '',
+                    'children': [],
+                }]
+                bom_tree = {'children': children}
+
+            _collect_part_ids(bom_tree)
+            all_trees.append((item.title or 'item', bom_tree, item.quantity or 1, item.item_type))
+
+        # ── Bulk Part lookup ──
+        part_map = {}
+        if all_part_ids:
+            for p in Part.objects.filter(pk__in=all_part_ids).select_related('category').only(
+                'pk', 'IPN', 'units', 'name', 'category', 'notes',
+            ):
+                part_map[p.pk] = p
+
+        # ── Bulk DWG/DXF check ──
+        dwg_parts = set()
+        if all_part_ids:
+            for a in Attachment.objects.filter(model_type='part', model_id__in=all_part_ids).only('model_id', 'attachment'):
+                name = str(a.attachment or '')
+                if name.lower().endswith(('.dwg', '.dxf')):
+                    dwg_parts.add(a.model_id)
+
+        # ── Bulk supplier name lookup ──
+        part_supplier_map = {}
+        sp_ids = set()
+        for item in items:
+            if item.supplier_part_id and item.part_id:
+                sp_ids.add(item.supplier_part_id)
+        if sp_ids:
+            for sp in SupplierPart.objects.filter(pk__in=sp_ids).select_related(
+                'supplier', 'manufacturer_part__manufacturer'
+            ):
+                mp = sp.manufacturer_part
+                name = (mp.manufacturer.name if mp and mp.manufacturer else '') or sp.supplier.name
+                part_supplier_map[sp.part_id] = name
+
+        # ── Bulk param lookup ──
+        ct_part = ContentType.objects.get_for_model(Part)
+        param_names = ['材质（牌号）', '表面处理方式', '处理颜色', '重量']
+        param_tpl_map = {}
+        for pn in param_names:
+            try:
+                param_tpl_map[pn] = ParameterTemplate.objects.get(name=pn)
+            except ParameterTemplate.DoesNotExist:
+                pass
+        param_data = {}
+        if param_tpl_map and all_part_ids:
+            for par in Parameter.objects.filter(
+                model_type=ct_part, model_id__in=all_part_ids,
+                template__in=list(param_tpl_map.values()),
+            ).select_related('template'):
+                param_data.setdefault(par.model_id, {})[par.template.name] = par.data
+
+        # ── Styles ──
+        import openpyxl
+        from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
+        from openpyxl.utils import get_column_letter
+
+        style_header_font = Font(name='微软雅黑', bold=True, size=10, color='FFFFFF')
+        style_header_fill = PatternFill(start_color='2563EB', end_color='2563EB', fill_type='solid')
+        style_header_align = Alignment(horizontal='center', vertical='center', wrap_text=True)
+        style_cell_font = Font(name='微软雅黑', size=9)
+        style_center = Alignment(horizontal='center', vertical='center')
+        style_border = Border(
+            left=Side(style='thin', color='D1D5DB'),
+            right=Side(style='thin', color='D1D5DB'),
+            top=Side(style='thin', color='D1D5DB'),
+            bottom=Side(style='thin', color='D1D5DB'),
+        )
+
+        headers = [
+            '序号', '设备（大类）', '部装', '规格型号', '品名',
+            '品牌', '单位', '应需数量', '预期到货', '类别',
+            '材质（牌号）', '表面处理方式', '处理颜色', '重量', '备注',
+            '采购员', '入库去向', '制购类别', '申请理由', '附图',
+            '总数量', '问题环节', '技改原因分类',
+        ]
+        col_widths = [6, 14, 14, 16, 22, 8, 6, 10, 12, 8, 14, 14, 10, 8, 18, 8, 10, 10, 14, 8, 8, 10, 14]
+
+        def _write_xlsx_sheet(ws, tree, batch_qty, root_cat='', seq_counter=None):
+            """Write flattened BOM rows to an openpyxl worksheet.
+            
+            seq_counter: mutable [int] for cross-tree sequencing. If None, starts at 1.
+            """
+            if seq_counter is None:
+                seq_counter = [0]
+            row_num = ws.max_row  # Continue from last filled row
+
+            def flatten(node, parent_qty=1.0):
+                nonlocal row_num
+                for child in node.get('children', []):
+                    if child.get('excluded'):
+                        continue
+                    seq_counter[0] += 1
+                    seq_val = seq_counter[0]
+                    pid = child.get('actual_part_id') or child.get('part_id')
+                    pname = (
+                        child.get('calculated_name')
+                        or child.get('variant_name')
+                        or child.get('actual_part_name')
+                        or child.get('part_name')
+                        or ''
+                    )
+                    ipn = (
+                        child.get('calculated_ipn')
+                        or child.get('variant_ipn', '')
+                        or child.get('IPN', '')
+                        or ''
+                    )
+                    unit_qty = (
+                        child.get('calculated_quantity')
+                        or child.get('quantity', 1)
+                    ) * parent_qty
+                    total_qty = unit_qty * batch_qty
+                    units = child.get('unit', '')
+
+                    if pid and pid in part_map:
+                        p = part_map[pid]
+                        if not ipn:
+                            ipn = p.IPN or ''
+                        if not units:
+                            units = p.units or ''
+                        part_notes = (p.notes or '').strip()
+                    else:
+                        part_notes = ''
+
+                    p_material = param_data.get(pid, {}).get('材质（牌号）', '')
+                    p_finish = param_data.get(pid, {}).get('表面处理方式', '')
+                    p_color = param_data.get(pid, {}).get('处理颜色', '')
+                    p_weight = param_data.get(pid, {}).get('重量', '')
+                    brand_name = part_supplier_map.get(pid, '') or '无'
+
+                    row_num += 1
+                    vals = [
+                        seq_val, root_cat, '', ipn, pname,
+                        brand_name, units, round(unit_qty, 2), '', '',
+                        p_material, p_finish, p_color, p_weight, part_notes,
+                        '',
+                        batch_meta.get('storage_dest', ''),
+                        batch_meta.get('make_buy', ''),
+                        batch_meta.get('reason', ''),
+                        '有图' if pid in dwg_parts else '无图',
+                        round(total_qty, 2), '', '',
+                    ]
+                    for col, v in enumerate(vals, 1):
+                        cell = ws.cell(row=row_num, column=col, value=v)
+                        cell.font = style_cell_font
+                        cell.border = style_border
+                        if col in (8, 21):
+                            cell.number_format = '#,##0'
+                        cell.alignment = style_center
+                    flatten(child, unit_qty)
+
+            flatten(tree, 1.0)
+
+        def _get_root_info(tree, part_map):
+            """Extract root category and IPN from a BOM tree."""
+            root_cat = ''
+            root_ipn = ''
+            first_child = tree['children'][0] if tree.get('children') else {}
+            root_pid = first_child.get('actual_part_id') or first_child.get('part_id')
+            if root_pid and root_pid in part_map:
+                p = part_map[root_pid]
+                root_cat = (p.category and p.category.name) or ''
+                root_ipn = p.IPN or first_child.get('IPN', '') or ''
+            return root_cat, root_ipn
+
+        def _write_xlsx_headers(ws, headers, col_widths):
+            """Write header row to worksheet."""
+            for col, (h, w) in enumerate(zip(headers, col_widths), 1):
+                cell = ws.cell(row=1, column=col, value=h)
+                cell.font = style_header_font
+                cell.fill = style_header_fill
+                cell.alignment = style_header_align
+                cell.border = style_border
+                ws.column_dimensions[get_column_letter(col)].width = w
 
         with zipfile.ZipFile(buf, 'w', zipfile.ZIP_DEFLATED) as zf:
-            for item in items:
-                snap = item.bom_snapshot
-                if not snap or not snap.get('bom_tree'):
+            date_str = datetime.now().strftime('%Y%m%d')
+            part_trees = []  # (title, tree, qty) for part-type items → grouped
+            _zip_seq = [0]   # Mutable sequence counter for grouped sheets
+
+            # ── Products: one XLSX each ──
+            for title, tree, qty, item_type in all_trees:
+                if not tree.get('children'):
                     continue
 
-                # Use shared _build_bom_xlsx — identical to configurator export
-                xlsx_buf, part_name = _build_bom_xlsx(snap)
-                safe_title = part_name[:50].replace('/', '_').replace('\\', '_').replace(' ', '_')
-                zf.writestr(f'{safe_title}_BOM清单.xlsx', xlsx_buf.getvalue())
+                if item_type == 'part':
+                    # Collect for grouped "散件" sheet
+                    part_trees.append((title, tree, qty))
+                    continue
+
+                # Configuration item → independent XLSX
+                root_cat, root_ipn = _get_root_info(tree, part_map)
+
+                wb = openpyxl.Workbook()
+                ws = wb.active
+                ws.title = 'BOM清单'
+                _write_xlsx_headers(ws, headers, col_widths)
+                _write_xlsx_sheet(ws, tree, qty, root_cat)
+
+                model_str = f'-{root_ipn}' if root_ipn else ''
+                xlsx_name = f'{title[:30]}{model_str} {qty}台 {operator} {date_str}.xlsx'
+                xlsx_name = xlsx_name.replace('/', '_').replace('\\', '_')
+                xlsx_buf = io.BytesIO()
+                wb.save(xlsx_buf)
+                zf.writestr(xlsx_name, xlsx_buf.getvalue())
+
+            # ── Parts: grouped into one "散件.xlsx" ──
+            if part_trees:
+                wb = openpyxl.Workbook()
+                ws = wb.active
+                ws.title = '散件'
+                _write_xlsx_headers(ws, headers, col_widths)
+                for title, tree, qty in part_trees:
+                    root_cat, _ = _get_root_info(tree, part_map)
+                    _write_xlsx_sheet(ws, tree, qty, root_cat, seq_counter=_zip_seq)
+                xlsx_buf = io.BytesIO()
+                wb.save(xlsx_buf)
+                zf.writestr(f'散件 {operator} {date_str}.xlsx', xlsx_buf.getvalue())
+
+            # ── 附件/ folder ──
+            if all_part_ids:
+                atts = Attachment.objects.filter(model_type='part', model_id__in=all_part_ids).only(
+                    'model_id', 'attachment', 'comment'
+                )
+                for att in atts:
+                    try:
+                        file_path = att.attachment.path if att.attachment else None
+                        if not file_path or not os.path.isfile(file_path):
+                            continue
+                        fname_orig = os.path.basename(file_path)
+                        # Organise by part name
+                        part_name = part_map.get(att.model_id, None)
+                        part_label = part_name.name if part_name else str(att.model_id)
+                        safe_part = part_label[:30].replace('/', '_').replace('\\', '_').replace(' ', '_')
+                        arcname = f'附件/{safe_part}/{fname_orig}'
+                        zf.write(file_path, arcname)
+                    except Exception:
+                        pass
 
         buf.seek(0)
         from django.http import HttpResponse
         response = HttpResponse(buf, content_type='application/zip')
-        response['Content-Disposition'] = f'attachment; filename="{project.project_code}_{safe}.zip"'
+        response['Content-Disposition'] = f'attachment; filename="{fname}"'
+        response['X-Filename'] = quote(fname)
         return response
 
     @action(detail=True, methods=['post'], url_path='batch-to-cart')

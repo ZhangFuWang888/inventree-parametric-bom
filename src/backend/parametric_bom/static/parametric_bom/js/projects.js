@@ -383,7 +383,7 @@ async function showProjectDetail(projectId) {
               ${canEditBatch ? `<button class="btn btn-sm btn-secondary" onclick="showAddItemDialog(${p.id}, '${escHtml(batchName)}')">添加</button>` : ''}
               ${status === 'editing' && batchName !== '未分组' ? `<button class="btn btn-sm btn-secondary text-blue-600" onclick="lockBatch(${p.id}, '${safeBatch}')">锁定</button>` : ''}
               ${status === 'locked' ? `<button class="btn btn-sm btn-secondary" onclick="unlockBatch(${p.id}, '${safeBatch}')">反审</button>` : ''}
-              ${status === 'locked' || status === 'editing' ? `<button class="btn btn-sm btn-secondary text-green-600" onclick="completeBatch(${p.id}, '${safeBatch}')">✅ 完成</button>` : ''}
+              ${status === 'locked' || status === 'editing' ? `<button class="btn btn-sm btn-secondary text-green-600" onclick="completeBatch(${p.id}, '${safeBatch}')" title="自动生成采购订单并锁定批次">📋 下单</button>` : ''}
               <button class="btn btn-sm btn-secondary batch-export-btn" onclick="exportBatchCsv(${p.id}, '${safeBatch}')" title="导出 XLSX 订单表">
                 <span class="batch-export-icon"></span> XLSX
               </button>
@@ -1625,24 +1625,42 @@ function toggleAddMember() {
 // ── Batch export ──
 function exportBatchCsv(projectId, batchName) {
   const url = `/api/parametric-bom/projects/${projectId}/export-batch-csv/?batch_name=${batchName}`;
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = '';
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  setStatus('success', '正在下载 XLSX 订单表...');
+  fetch(url, { credentials: 'include' }).then(r => {
+    if (!r.ok) throw new Error('下载失败');
+    const fname = decodeURIComponent(r.headers.get('X-Filename') || 'export.xlsx');
+    return r.blob().then(blob => ({ blob, fname }));
+  }).then(({ blob, fname }) => {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = fname;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(a.href);
+    setStatus('success', '正在下载 XLSX 订单表...');
+  }).catch(e => {
+    setStatus('error', '导出失败: ' + e.message);
+  });
 }
 
 function exportBatchZip(projectId, batchName) {
   const url = `/api/parametric-bom/projects/${projectId}/export-batch-zip/?batch_name=${batchName}`;
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = '';
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  setStatus('success', '正在下载 ZIP 订单包...');
+  fetch(url, { credentials: 'include' }).then(r => {
+    if (!r.ok) throw new Error('下载失败');
+    const fname = decodeURIComponent(r.headers.get('X-Filename') || 'export.zip');
+    return r.blob().then(blob => ({ blob, fname }));
+  }).then(({ blob, fname }) => {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = fname;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(a.href);
+    setStatus('success', '正在下载 ZIP 订单包...');
+  }).catch(e => {
+    setStatus('error', '导出失败: ' + e.message);
+  });
 }
 
 async function batchToCart(projectId, batchName) {
@@ -1788,7 +1806,7 @@ async function unlockBatch(projectId, batchName) {
 
 async function completeBatch(projectId, batchName) {
   const name = decodeURIComponent(batchName);
-  if (!confirm(`确认完成批次「${name}」？将自动生成采购订单并锁定该批次。`)) return;
+  if (!confirm(`确认对批次「${name}」执行下单？\n\n将自动生成采购订单并按供应商分组，完成后批次锁定不可再编辑。`)) return;
   const result = await projectApi('POST', `/${projectId}/batch-complete/`, { batch_name: name });
   if (result.ok) {
     const msg = result.data.message || '批次已完成';
