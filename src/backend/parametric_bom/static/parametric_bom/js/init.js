@@ -392,6 +392,8 @@ async function cfgAddToCart() {
         var overlay = document.getElementById('cart-overlay');
         if (panel) panel.classList.add('open');
         if (overlay) overlay.classList.add('cart-show');
+        // Refresh cart content now
+        if (typeof cartLoad === 'function') { cartLoad(); }
       }
     } catch(e) {}
   } else {
