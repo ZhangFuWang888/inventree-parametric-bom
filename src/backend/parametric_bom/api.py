@@ -3427,26 +3427,31 @@ class ProjectViewSet(viewsets.ModelViewSet):
                     continue
                 root_pid = bom_tree.get('actual_part_id') or bom_tree.get('part_id')
             elif item.part_id:
-                # Part-type item — expand native InvenTree BOM
-                try:
-                    part = Part.objects.select_related('category').get(pk=item.part_id)
-                except Part.DoesNotExist:
-                    continue
-                children = []
-                for bi in part.bom_items.all().select_related('sub_part'):
-                    children.append({
-                        'part_id': bi.sub_part_id,
-                        'part_name': str(bi.sub_part),
-                        'IPN': bi.sub_part.IPN or '',
-                        'unit': bi.sub_part.units or '',
-                        'quantity': float(bi.quantity),
-                        'reference': bi.reference or '',
-                        'children': [],
-                    })
+                # Part-type item — treat the item itself as a BOM row
+                children = [{
+                    'part_id': item.part_id,
+                    'part_name': item.title or '',
+                    'IPN': '',
+                    'unit': '',
+                    'quantity': float(item.quantity or 1),
+                    'reference': '',
+                    'children': [],
+                }]
                 bom_tree = {'children': children}
                 root_pid = item.part_id
             else:
-                continue
+                # No BOM data — treat item itself as a single row
+                children = [{
+                    'part_id': item.part_id,
+                    'part_name': item.title or '',
+                    'IPN': '',
+                    'unit': '',
+                    'quantity': float(item.quantity or 1),
+                    'reference': '',
+                    'children': [],
+                }]
+                bom_tree = {'children': children}
+                root_pid = item.part_id or None
 
             # Collect part IDs
             def _collect(node):
