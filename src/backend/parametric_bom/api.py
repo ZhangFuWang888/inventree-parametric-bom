@@ -3516,6 +3516,19 @@ class ProjectViewSet(viewsets.ModelViewSet):
             ).select_related('template'):
                 param_data.setdefault(par.model_id, {})[par.template.name] = par.data
 
+        # ── Batch metadata (入库去向 / 制购类别 / 申请理由) ──
+        from parametric_bom.models import ProjectBatch
+        batch_meta = {}
+        try:
+            pb = ProjectBatch.objects.get(project=project, name=batch_name)
+            batch_meta = {
+                'storage_dest': pb.storage_dest or '',
+                'make_buy': pb.make_buy or '',
+                'reason': pb.reason or '',
+            }
+        except ProjectBatch.DoesNotExist:
+            pass
+
         # ── Write data rows ──
         row_num = 1
         seq = 0
@@ -3570,7 +3583,11 @@ class ProjectViewSet(viewsets.ModelViewSet):
                         seq, root_cat, '', ipn, pname,
                         '', units, round(qty, 2), '', '',
                         p_material, p_finish, p_color, p_weight, ref,
-                        '', '', '', '', '',
+                        '',
+                        batch_meta.get('storage_dest', ''),
+                        batch_meta.get('make_buy', ''),
+                        batch_meta.get('reason', ''),
+                        '',
                         round(qty, 2), '', '',
                     ]
                     for col, v in enumerate(vals, 1):
