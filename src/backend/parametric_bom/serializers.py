@@ -451,6 +451,7 @@ class ProjectListSerializer(serializers.ModelSerializer):
     )
     owner_name = serializers.SerializerMethodField()
     item_count = serializers.SerializerMethodField()
+    batch_count = serializers.SerializerMethodField()
     user_role = serializers.SerializerMethodField()
     user_permissions = serializers.SerializerMethodField()
 
@@ -459,6 +460,9 @@ class ProjectListSerializer(serializers.ModelSerializer):
 
     def get_item_count(self, obj):
         return obj.items.count()
+
+    def get_batch_count(self, obj):
+        return obj.items.exclude(batch_name__isnull=True).exclude(batch_name='').values('batch_name').distinct().count()
 
     def get_user_role(self, obj):
         request = self.context.get('request')
@@ -477,7 +481,7 @@ class ProjectListSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'name', 'project_code', 'customer', 'customer_name',
             'status', 'owner', 'owner_name', 'manager', 'deadline',
-            'is_public', 'item_count', 'user_role', 'user_permissions',
+            'is_public', 'item_count', 'batch_count', 'user_role', 'user_permissions',
             'created_at', 'updated_at', 'is_active',
         ]
         read_only_fields = ['project_code', 'created_at', 'updated_at', 'is_active']

@@ -1403,12 +1403,12 @@ async function submitCartAsProject() {
     filtered.forEach(function(p, i) {
       const code = p.project_code || 'P-' + p.id;
       const name = escHtml(p.name || '未命名');
-      const items = p.item_count != null ? p.item_count : (p.items_count || '-');
+      const items = p.batch_count != null ? p.batch_count : '-';
       html += '<label class="flex items-center gap-2 px-3 py-2 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0">' +
         '<input type="radio" name="cp-project" value="' + p.id + '" ' + (i === 0 ? 'checked' : '') + '>' +
         '<span class="text-xs font-mono text-gray-500">' + code + '</span>' +
         '<span class="text-sm flex-1">' + name + '</span>' +
-        '<span class="text-xs text-gray-400">' + items + ' 条</span>' +
+        '<span class="text-xs text-gray-400">' + items + ' 批</span>' +
         '</label>';
     });
     el.innerHTML = html;
