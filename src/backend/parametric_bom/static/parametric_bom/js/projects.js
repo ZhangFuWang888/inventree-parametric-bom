@@ -430,7 +430,7 @@ async function showProjectDetail(projectId) {
                   const hasBom = !!item.bom_snapshot;
                   const snapParams = item.part_snapshot?.parameters || [];
                   const snapAtts = item.part_snapshot?.attachments || [];
-                  const snapDesc = item.part_snapshot?.description || '';
+                  const snapDesc = item.part_snapshot?.notes || item.part_snapshot?.description || '';
                   const hasPartSnap = !!(snapParams.length || snapAtts.length || snapDesc);
                   const snapAttrCount = snapAtts.length;
                   const snapParamCount = snapParams.length;
@@ -1483,10 +1483,11 @@ function renderPartSnapshot(snapshot) {
 
   let html = '<div style="padding:8px 12px;font-size:11px">';
 
-  // Description
-  if (snapshot.description) {
+  // Notes
+  const notes = snapshot.notes || snapshot.description;
+  if (notes) {
     html += '<div class="mb-2"><span class="text-gray-400 text-[10px]">📝 备注：</span>';
-    html += '<span class="text-gray-700">' + escHtml(snapshot.description) + '</span></div>';
+    html += '<span class="text-gray-700">' + escHtml(notes) + '</span></div>';
   }
 
   // Parameters table
