@@ -1523,6 +1523,33 @@ async function batchToCart(projectId, batchName) {
   }
 }
 
+function showInputDialog(title, currentValue) {
+  return new Promise((resolve) => {
+    const overlay = document.createElement('div');
+    overlay.className = 'fixed inset-0 bg-black/30 z-[9999] flex items-center justify-center';
+    overlay.onclick = (e) => { if (e.target === overlay) { overlay.remove(); resolve(null); } };
+    
+    overlay.innerHTML = `
+      <div class="bg-white rounded-lg shadow-xl p-5 w-96" onclick="event.stopPropagation()">
+        <div class="text-sm font-semibold text-gray-700 mb-3">${title}</div>
+        <input id="_batchInp" type="text" value="${(currentValue||'').replace(/"/g,'&quot;')}" 
+          class="w-full border border-gray-300 rounded px-3 py-2 text-sm mb-4 focus:ring-2 focus:ring-blue-300 outline-none">
+        <div class="flex justify-end gap-2">
+          <button id="_batchCancel" class="px-3 py-1.5 text-xs border border-gray-300 rounded hover:bg-gray-50">取消</button>
+          <button id="_batchConfirm" class="px-3 py-1.5 text-xs bg-blue-500 text-white rounded hover:bg-blue-600">确定</button>
+        </div>
+      </div>`;
+    
+    document.body.appendChild(overlay);
+    const inp = overlay.querySelector('#_batchInp');
+    overlay.querySelector('#_batchCancel').onclick = () => { overlay.remove(); resolve(null); };
+    overlay.querySelector('#_batchConfirm').onclick = () => { overlay.remove(); resolve(inp.value); };
+    inp.focus();
+    inp.select();
+    inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') { overlay.remove(); resolve(inp.value); } });
+  });
+}
+
 function showSelectDialog(title, options, currentValue) {
   return new Promise((resolve) => {
     const overlay = document.createElement('div');
@@ -1570,7 +1597,7 @@ async function editBatchMeta(projectId, batchName, field, currentValue) {
       currentValue || '采购'
     );
   } else {
-    newValue = prompt(`批次「${name}」- 申请理由：`, currentValue);
+    newValue = await showInputDialog(`批次「${name}」- 申请理由`, currentValue);
   }
   
   if (newValue === null || newValue === currentValue) return;
