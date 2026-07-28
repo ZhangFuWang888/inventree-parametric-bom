@@ -512,7 +512,7 @@ async function showProjectDetail(projectId) {
       </div>`;
 
       return html;
-    })() : `<div class="card"><div class="empty-state p-4 text-center text-gray-400 text-sm">暂无项目条目</div></div>`}
+    })() : `<div class="card"><div class="empty-state p-4 text-center text-gray-400 text-sm">暂无项目条目${canEdit ? `<br><button class="btn btn-sm btn-secondary mt-3" onclick="showAddItemToProject(${p.id})">添加条目到项目</button>` : ''}</div></div>`}
   </div>
 
   <div id="project-tab-cost" class="proj-tab-panel" style="display:none">

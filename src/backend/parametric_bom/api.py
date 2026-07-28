@@ -1809,6 +1809,19 @@ def _build_bom_xlsx(result):
             if root_pid and p.pk == root_pid and p.category:
                 root_category_name = p.category.name
 
+    # Bulk DWG/DXF attachment check for 附图 column
+    dwg_parts = set()
+    if part_ids:
+        from common.models import Attachment
+        dwg_atts = Attachment.objects.filter(
+            model_type='part',
+            model_id__in=part_ids,
+        ).only('model_id', 'attachment')
+        for a in dwg_atts:
+            name = str(a.attachment or '')
+            if name.lower().endswith(('.dwg', '.dxf')):
+                dwg_parts.add(a.model_id)
+
     # Try to get material from PartParameterConfig (if a "材料" parameter exists)
     from parametric_bom.models import PartParameterConfig
     from common.models import ParameterTemplate
@@ -1915,7 +1928,7 @@ def _build_bom_xlsx(result):
                 '',  # 入库去向
                 '',  # 制购类别
                 '',  # 申请理由
-                '',  # 附图
+                '有图' if pid in dwg_parts else '无图',  # 附图
                 qty,  # 总数量
                 '',  # 问题环节
                 '',  # 技改原因分类
@@ -3577,6 +3590,19 @@ class ProjectViewSet(viewsets.ModelViewSet):
             ):
                 part_map[p.pk] = p
 
+        # ── Bulk DWG/DXF attachment check for 附图 column ──
+        dwg_parts = set()
+        if all_part_ids:
+            from common.models import Attachment
+            dwg_atts = Attachment.objects.filter(
+                model_type='part',
+                model_id__in=all_part_ids,
+            ).only('model_id', 'attachment')
+            for a in dwg_atts:
+                name = str(a.attachment or '')
+                if name.lower().endswith(('.dwg', '.dxf')):
+                    dwg_parts.add(a.model_id)
+
         # ── Bulk param lookup (same as _build_bom_xlsx) ──
         from common.models import Parameter, ParameterTemplate
         from django.contrib.contenttypes.models import ContentType
@@ -3667,7 +3693,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
                         batch_meta.get('storage_dest', ''),
                         batch_meta.get('make_buy', ''),
                         batch_meta.get('reason', ''),
-                        '',
+                        '有图' if pid in dwg_parts else '无图',
                         round(qty, 2), '', '',
                     ]
                     for col, v in enumerate(vals, 1):
