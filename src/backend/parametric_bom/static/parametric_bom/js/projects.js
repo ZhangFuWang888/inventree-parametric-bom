@@ -1609,8 +1609,24 @@ async function editBatchMeta(projectId, batchName, field, currentValue) {
     setStatus('error', result.error);
   } else {
     setStatus('success', `${field === 'storage_dest' ? '入库去向' : field === 'make_buy' ? '制购类别' : '申请理由'} 已更新`);
-    // Auto-refresh
-    setTimeout(() => showProjectDetail(projectId), 500);
+    // Update DOM directly — more reliable than re-fetching
+    if (result.data) {
+      const newVal = result.data[field] || newValue;
+      const allSpans = document.querySelectorAll('[onclick*="editBatchMeta"]');
+      allSpans.forEach(span => {
+        const onclick = span.getAttribute('onclick') || '';
+        if (onclick.includes(`'${field}'`) && onclick.includes(batchName)) {
+          // Replace the text node after the emoji
+          span.childNodes.forEach(node => {
+            if (node.nodeType === 3) { // Text node
+              node.textContent = ' ' + newVal;
+            }
+          });
+        }
+      });
+    }
+    // Also refresh in background for safety
+    setTimeout(() => showProjectDetail(projectId), 1200);
   }
 }
 
