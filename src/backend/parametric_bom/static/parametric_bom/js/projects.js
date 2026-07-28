@@ -1444,7 +1444,7 @@ async function submitCartAsProject() {
       if (result.ok) {
         setStatus('success', `已添加 ${ids.length} 条到项目 ${result.data.project_code || result.data.name}`);
         // Navigate first, then close modal — closeModal() removes DOM including this button's parent
-        var targetUrl = '/parametric-bom/projects/' + projectId + '/';
+        var targetUrl = '/web/project/' + projectId + '/';
         setTimeout(function() { window.location.href = targetUrl; }, 50);
         closeModal();
         // Reload cart in background (page is navigating away, but keep for robustness)
