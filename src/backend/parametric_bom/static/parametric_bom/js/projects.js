@@ -1523,14 +1523,52 @@ async function batchToCart(projectId, batchName) {
   }
 }
 
+function showSelectDialog(title, options, currentValue) {
+  return new Promise((resolve) => {
+    const overlay = document.createElement('div');
+    overlay.className = 'fixed inset-0 bg-black/30 z-[9999] flex items-center justify-center';
+    overlay.onclick = (e) => { if (e.target === overlay) { overlay.remove(); resolve(null); } };
+    
+    const optionsHtml = options.map(o => 
+      `<option value="${o}" ${o === currentValue ? 'selected' : ''}>${o}</option>`
+    ).join('');
+    
+    overlay.innerHTML = `
+      <div class="bg-white rounded-lg shadow-xl p-5 w-80" onclick="event.stopPropagation()">
+        <div class="text-sm font-semibold text-gray-700 mb-3">${title}</div>
+        <select id="_batchSel" class="w-full border border-gray-300 rounded px-3 py-2 text-sm mb-4 focus:ring-2 focus:ring-blue-300 outline-none">
+          ${optionsHtml}
+        </select>
+        <div class="flex justify-end gap-2">
+          <button id="_batchCancel" class="px-3 py-1.5 text-xs border border-gray-300 rounded hover:bg-gray-50">取消</button>
+          <button id="_batchConfirm" class="px-3 py-1.5 text-xs bg-blue-500 text-white rounded hover:bg-blue-600">确定</button>
+        </div>
+      </div>`;
+    
+    document.body.appendChild(overlay);
+    const sel = overlay.querySelector('#_batchSel');
+    overlay.querySelector('#_batchCancel').onclick = () => { overlay.remove(); resolve(null); };
+    overlay.querySelector('#_batchConfirm').onclick = () => { overlay.remove(); resolve(sel.value); };
+    sel.focus();
+  });
+}
+
 async function editBatchMeta(projectId, batchName, field, currentValue) {
   const name = decodeURIComponent(batchName);
   let newValue;
   
   if (field === 'storage_dest') {
-    newValue = prompt(`批次「${name}」- 入库去向：\n可选: 入仓库 / 车间领用 / 入仓库，车间领用 / 现场安装`, currentValue);
+    newValue = await showSelectDialog(
+      `批次「${name}」- 入库去向`,
+      ['入仓库', '车间领用', '入仓库，车间领用', '现场安装'],
+      currentValue || '入仓库，车间领用'
+    );
   } else if (field === 'make_buy') {
-    newValue = prompt(`批次「${name}」- 制购类别：\n可选: 采购 / 自制 / 外协 / 利旧`, currentValue);
+    newValue = await showSelectDialog(
+      `批次「${name}」- 制购类别`,
+      ['采购', '自制', '外协', '利旧'],
+      currentValue || '采购'
+    );
   } else {
     newValue = prompt(`批次「${name}」- 申请理由：`, currentValue);
   }
