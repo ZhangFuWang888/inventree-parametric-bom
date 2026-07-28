@@ -1447,8 +1447,8 @@ async function submitCartAsProject() {
         // Reload cart (should be empty now)
         if (typeof cartLoad === 'function') cartLoad();
         if (typeof loadCartCount === 'function') loadCartCount();
-        // Navigate to project detail
-        showProjectDetail(projectId);
+        // Navigate to project detail — use URL redirect (works in both SPA and standalone modes)
+        window.location.href = '/parametric-bom/projects/' + projectId + '/';
       } else {
         setStatus('error', result.data?.error || '提交失败');
       }
