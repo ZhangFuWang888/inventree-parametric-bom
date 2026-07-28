@@ -380,19 +380,10 @@ async function cfgAddToCart() {
   });
   if (res.ok) {
     setStatus('success', '✅ 已加入购物车');
-    // Update badge count only — don't auto-open panel (blocks UI)
-    try {
-      var cntRes = await fetch('/api/parametric-bom/cart/count/', {credentials: 'same-origin'});
-      if (cntRes.ok) {
-        var cntData = await cntRes.json();
-        var cnt = cntData.count || 0;
-        var badge = document.getElementById('cart-fab-count');
-        if (badge) badge.textContent = cnt;
-        // Refresh cart content in background so panel is up-to-date when opened
-        if (typeof cartLoad === 'function') { cartLoad(); }
-        if (typeof loadCartCount === 'function') { loadCartCount(); }
-      }
-    } catch(e) {}
+    // Auto-open cart panel (click outside to close)
+    if (typeof cartLoad === 'function') { cartLoad(); }
+    if (typeof loadCartCount === 'function') { loadCartCount(); }
+    cartToggle();
   } else {
     var err = await res.json();
     setStatus('error', '加入购物车失败: ' + JSON.stringify(err));
