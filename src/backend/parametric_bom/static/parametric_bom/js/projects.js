@@ -399,15 +399,16 @@ async function showProjectDetail(projectId) {
           <div class="overflow-x-auto">
             <table class="w-full text-xs batch-table">
               <colgroup>
-                <col style="width:18%">
-                <col style="width:11%">
-                <col style="width:11%">
-                <col style="width:7%">
-                <col style="width:9%">
-                <col style="width:9%">
-                <col style="width:7%">
-                <col style="width:7%">
+                <col style="width:16%">
+                <col style="width:10%">
+                <col style="width:10%">
                 <col style="width:6%">
+                <col style="width:8%">
+                <col style="width:8%">
+                <col style="width:6%">
+                <col style="width:6%">
+                <col style="width:7%">
+                <col style="width:8%">
                 ${isEditable ? '<col style="width:15%">' : ''}
               </colgroup>
               <thead>
@@ -421,6 +422,7 @@ async function showProjectDetail(projectId) {
                   <th class="p-2 text-center">📎附件</th>
                   <th class="p-2 text-center">📊参数</th>
                   <th class="p-2 text-left">📝备注</th>
+                  <th class="p-2 text-left">🏭品牌</th>
                   ${isEditable ? '<th class="p-2 text-center">操作</th>' : ''}
                 </tr>
               </thead>
@@ -431,11 +433,21 @@ async function showProjectDetail(projectId) {
                   const snapParams = item.part_snapshot?.parameters || [];
                   const snapAtts = item.part_snapshot?.attachments || [];
                   const snapDesc = item.part_snapshot?.notes || item.part_snapshot?.description || '';
+                  const suppliers = item.part_snapshot?.suppliers || [];
+                  const selSupplierId = item.supplier_part_id;
+                  let brandText = '<span class="text-gray-300">—</span>';
+                  if (selSupplierId && suppliers.length) {
+                    const sel = suppliers.find(s => s.id === selSupplierId);
+                    if (sel) {
+                      const brandName = sel.manufacturer_name || sel.supplier_name || '';
+                      brandText = escHtml(brandName) || '<span class="text-gray-300">—</span>';
+                    }
+                  }
                   const hasPartSnap = !!(snapParams.length || snapAtts.length || snapDesc);
                   const snapAttrCount = snapAtts.length;
                   const snapParamCount = snapParams.length;
-                  const colCount = isEditable ? 10 : 9;
-                  const baseTotalCols = 9;
+                  const colCount = isEditable ? 11 : 10;
+                  const baseTotalCols = 10;
                   return `<tr class="border-b border-gray-100${hasBom ? ' bom-parent-row' : ''}">
                     <td class="p-2 font-medium">
                       ${hasBom ? `<span id="bom-toggle-${item.id}" class="bom-toggle-icon" onclick="toggleBomTree(${item.id})">▶</span> ` : ''}
@@ -454,6 +466,7 @@ async function showProjectDetail(projectId) {
                       ${snapParamCount ? `<span class="cursor-pointer text-blue-500 hover:underline text-[11px]" onclick="togglePartSnapshot(${item.id})" title="查看参数详情">${snapParamCount}</span>` : '<span class="text-gray-300">—</span>'}
                     </td>
                     <td class="p-2 text-gray-500 text-[11px] max-w-[80px] truncate" title="${escHtml(snapDesc)}">${snapDesc ? escHtml(snapDesc).substring(0, 12) + (snapDesc.length > 12 ? '…' : '') : '<span class="text-gray-300">—</span>'}</td>
+                    <td class="p-2 text-gray-500 text-[11px] max-w-[60px] truncate" title="${brandText.replace(/<[^>]*>/g,'')}">${brandText}</td>
                     ${isEditable ? `<td class="p-2 text-center whitespace-nowrap">
                       <input type="checkbox" class="batch-item-cb" data-item-id="${item.id}" onchange="updateBatchActions()" style="vertical-align:middle;cursor:pointer">
                       <button class="text-blue-500 hover:text-blue-700 ml-1" onclick="event.stopPropagation(); editProjectItem(${p.id}, ${item.id})" title="编辑">✏️</button>
@@ -1191,6 +1204,33 @@ async function removeProjectItem(projectId, itemId) {
   }
 }
 
+function supplierHtml(item) {
+  const suppliers = item.part_snapshot?.suppliers || [];
+  if (!suppliers.length) return '';
+  if (suppliers.length === 1) {
+    // Single supplier — show name, no dropdown needed
+    const s = suppliers[0];
+    const name = s.manufacturer_name || s.supplier_name || '无';
+    return `<div>
+      <label class="block text-xs text-gray-500 mb-1">品牌</label>
+      <div class="text-sm text-gray-700 py-2">${escHtml(name)}</div>
+    </div>`;
+  }
+  // Multiple suppliers — show dropdown
+  const selId = item.supplier_part_id;
+  const options = suppliers.map(s => {
+    const name = s.manufacturer_name || s.supplier_name || '未知';
+    const sel = s.id === selId ? ' selected' : '';
+    return `<option value="${s.id}"${sel}>${escHtml(name)} (${escHtml(s.supplier_name)})</option>`;
+  }).join('');
+  return `<div>
+    <label class="block text-xs text-gray-500 mb-1">品牌 (${suppliers.length}个可选)</label>
+    <select id="edit-item-supplier" class="w-full border border-gray-300 rounded px-3 py-2 text-sm">
+      ${options}
+    </select>
+  </div>`;
+}
+
 async function editProjectItem(projectId, itemId) {
   // Fetch current item data from the detail view's rendered table
   const projectData = window._projectData;
@@ -1228,6 +1268,7 @@ async function editProjectItem(projectId, itemId) {
         <label class="block text-xs text-gray-500 mb-1">备注</label>
         <input id="edit-item-notes" class="w-full border border-gray-300 rounded px-3 py-2 text-sm" value="${escHtml(item.notes || '')}">
       </div>
+      ${supplierHtml(item)}
     </div>`;
   const buttons = [
     { text: '取消', cls: 'btn btn-sm btn-secondary', action: () => document.getElementById('hermes-modal-overlay')?.remove() },
@@ -1236,10 +1277,13 @@ async function editProjectItem(projectId, itemId) {
       const qty = parseInt(document.getElementById('edit-item-qty')?.value);
       const price = parseFloat(document.getElementById('edit-item-price')?.value);
       const notes = document.getElementById('edit-item-notes')?.value?.trim();
+      const supIdEl = document.getElementById('edit-item-supplier');
+      const supplierId = supIdEl ? parseInt(supIdEl.value) : null;
       if (!title || !qty || qty < 1) { setStatus('error', '名称和数量不能为空'); return; }
       const payload = { title, quantity: qty };
       if (price >= 0) payload.unit_price = String(price);
       payload.notes = notes || '';
+      if (supplierId && !isNaN(supplierId)) payload.supplier_part_id = supplierId;
       const result = await projectApi('PATCH', `/${projectId}/items/${itemId}/`, payload);
       if (result.ok) {
         document.getElementById('hermes-modal-overlay')?.remove();

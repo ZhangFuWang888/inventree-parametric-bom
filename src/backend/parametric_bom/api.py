@@ -139,13 +139,14 @@ def _collect_formula_fields(part_id):
 
 
 def _capture_part_snapshot(part):
-    """Capture a snapshot of a Part's parameters, attachments, and description.
+    """Capture a snapshot of a Part's parameters, attachments, description, and suppliers.
     
     Returns a dict:
     {
         'notes': str,
         'parameters': [{'name': str, 'value': str, 'unit': str}, ...],
         'attachments': [{'filename': str, 'comment': str, 'url': str}, ...],
+        'suppliers': [{'id': int, 'supplier_name': str, 'sku': str, ...}, ...],
     }
     """
     if part is None:
@@ -186,10 +187,28 @@ def _capture_part_snapshot(part):
     except Exception:
         pass
     
+    # Part suppliers (via supplier_parts reverse relation)
+    suppliers = []
+    try:
+        from company.models import SupplierPart
+        for sp in part.supplier_parts.select_related('supplier', 'manufacturer_part__manufacturer').all():
+            mp = sp.manufacturer_part
+            suppliers.append({
+                'id': sp.id,
+                'supplier_name': sp.supplier.name if sp.supplier else '',
+                'sku': sp.SKU or '',
+                'manufacturer_name': mp.manufacturer.name if mp and mp.manufacturer else '',
+                'mpn': mp.MPN if mp else '',
+                'is_primary': sp.primary,
+            })
+    except Exception:
+        pass
+    
     return {
         'notes': description,
         'parameters': parameters,
         'attachments': attachments,
+        'suppliers': suppliers,
     }
 
 
@@ -2735,6 +2754,25 @@ class ProjectViewSet(viewsets.ModelViewSet):
             except Exception:
                 pass
 
+        # Auto-select supplier_part_id when adding part items
+        if data.get('item_type') == 'part' and not data.get('supplier_part_id'):
+            try:
+                from part.models import Part
+                from company.models import SupplierPart
+                pid = data.get('part')
+                if pid:
+                    sps = SupplierPart.objects.filter(part_id=int(pid)).order_by('-primary', 'id')
+                    cnt = sps.count()
+                    if cnt == 1:
+                        data['supplier_part_id'] = sps[0].id
+                    elif cnt > 1:
+                        # Default to primary, or first active
+                        primary = sps.filter(primary=True).first() or sps.first()
+                        if primary:
+                            data['supplier_part_id'] = primary.id
+            except Exception:
+                pass
+
         serializer = ProjectItemSerializer(
             data=data,
             context={'request': request},
@@ -2766,11 +2804,22 @@ class ProjectViewSet(viewsets.ModelViewSet):
                         qty = bi.get('calculated_quantity', bi.get('quantity', 1))
                         up = bi.get('unit_price')
                         part_snap = None
+                        supplier_pid = None
                         if bi.get('part_id'):
                             try:
                                 from part.models import Part
                                 part = Part.objects.get(pk=int(bi['part_id']))
                                 part_snap = _capture_part_snapshot(part)
+                                # Auto-select supplier for BOM sub-item
+                                from company.models import SupplierPart
+                                sps = SupplierPart.objects.filter(part_id=part.pk).order_by('-primary', 'id')
+                                cnt = sps.count()
+                                if cnt == 1:
+                                    supplier_pid = sps[0].id
+                                elif cnt > 1:
+                                    primary = sps.filter(primary=True).first() or sps.first()
+                                    if primary:
+                                        supplier_pid = primary.id
                             except Exception:
                                 pass
                         child = ProjectItem.objects.create(
@@ -2782,6 +2831,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
                             unit_price=str(round(float(up), 4)) if up else None,
                             batch_name=batch_name,
                             part_snapshot=part_snap,
+                            supplier_part_id=supplier_pid,
                             created_by=request.user,
                         )
                         child_ser = ProjectItemSerializer(child, context={'request': request})
@@ -3606,6 +3656,25 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 if name.lower().endswith(('.dwg', '.dxf')):
                     dwg_parts.add(a.model_id)
 
+        # ── Bulk supplier name lookup for 品牌 column ──
+        part_supplier_map = {}  # {part_id: supplier_display_name}
+        # Collect supplier_part_ids from project items in this batch
+        sp_ids = set()
+        item_part_sp = {}  # {part_id: supplier_part_id}
+        for item in items:
+            if item.supplier_part_id and item.part_id:
+                sp_ids.add(item.supplier_part_id)
+                item_part_sp[item.part_id] = item.supplier_part_id
+        if sp_ids:
+            from company.models import SupplierPart
+            for sp in SupplierPart.objects.filter(pk__in=sp_ids).select_related(
+                'supplier', 'manufacturer_part__manufacturer'
+            ):
+                mp = sp.manufacturer_part
+                name = (mp.manufacturer.name if mp and mp.manufacturer else '') or sp.supplier.name
+                # Map the part to this supplier name
+                part_supplier_map[sp.part_id] = name
+
         # ── Bulk param lookup (same as _build_bom_xlsx) ──
         from common.models import Parameter, ParameterTemplate
         from django.contrib.contenttypes.models import ContentType
@@ -3693,10 +3762,13 @@ class ProjectViewSet(viewsets.ModelViewSet):
                         p_color = param_data[pid].get('处理颜色', '')
                         p_weight = param_data[pid].get('重量', '')
 
+                    # Supplier brand name
+                    brand_name = part_supplier_map.get(pid, '')
+
                     row_num += 1
                     vals = [
                         seq, root_cat, '', ipn, pname,
-                        '', units, round(qty, 2), '', '',
+                        brand_name, units, round(qty, 2), '', '',
                         p_material, p_finish, p_color, p_weight, part_notes,
                         '',
                         batch_meta.get('storage_dest', ''),

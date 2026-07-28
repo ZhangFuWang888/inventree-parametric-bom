@@ -1498,6 +1498,11 @@ class ProjectItem(models.Model):
         verbose_name=_('Batch name'),
         help_text=_('Group identifier for batch display'),
     )
+    supplier_part_id = models.IntegerField(
+        null=True, blank=True,
+        verbose_name=_('Supplier part ID'),
+        help_text=_('Selected supplier part for this item; editable until batch is completed'),
+    )
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
