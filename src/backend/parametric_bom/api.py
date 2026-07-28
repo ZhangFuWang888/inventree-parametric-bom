@@ -3522,9 +3522,9 @@ class ProjectViewSet(viewsets.ModelViewSet):
         try:
             pb = ProjectBatch.objects.get(project=project, name=batch_name)
             batch_meta = {
-                'storage_dest': pb.storage_dest or '',
-                'make_buy': pb.make_buy or '',
-                'reason': pb.reason or '',
+                'storage_dest': pb.storage_dest or '入仓库，车间领用',
+                'make_buy': pb.make_buy or '采购',
+                'reason': pb.reason or '按合同下单',
             }
         except ProjectBatch.DoesNotExist:
             pass

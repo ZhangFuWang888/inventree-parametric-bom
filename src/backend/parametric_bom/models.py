@@ -1676,6 +1676,7 @@ class ProjectBatch(models.Model):
     STORAGE_DEST_CHOICES = [
         ('入仓库', '入仓库'),
         ('车间领用', '车间领用'),
+        ('入仓库，车间领用', '入仓库，车间领用'),
         ('现场安装', '现场安装'),
     ]
 
@@ -1695,8 +1696,8 @@ class ProjectBatch(models.Model):
         default='editing', verbose_name=_('Status'),
     )
     storage_dest = models.CharField(
-        max_length=32, choices=STORAGE_DEST_CHOICES,
-        default='入仓库', verbose_name=_('Storage destination'),
+        max_length=64, choices=STORAGE_DEST_CHOICES,
+        default='入仓库，车间领用', verbose_name=_('Storage destination'),
         help_text=_('入库去向'),
     )
     make_buy = models.CharField(

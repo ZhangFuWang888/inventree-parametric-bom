@@ -1,0 +1,418 @@
+// ── Django template variables (used by external configurator.js) ──
+let configuratorPartId = null;
+let parts = [];
+let templates = [];
+let currentPartInfo = null;
+let currentParams = {};
+let currentParamConfigs = [];
+let currentBOMResult = null;
+let currentCostResult = null;
+let configs = [];
+let selectedConfigId = null;
+let savedConfigId = null;
+let currentStep = 1;
+let initialProductId = {% if initial_product_id %}{{ initial_product_id }}{% else %}null{% endif %};
+let initial_project_id = {% if initial_project_id %}{{ initial_project_id }}{% else %}null{% endif %};
+let initialPage = '{{ initial_page }}';
+let standalone = {% if standalone %}true{% else %}false{% endif %};
+</script>
+
+
+
+<!-- CodeMirror 5 Formula Editor -->
+<link rel="stylesheet" href="/static/parametric_bom/vendor/codemirror.min.css">
+<script src="/static/parametric_bom/vendor/codemirror.min.js"></script>
+<script src="/static/parametric_bom/vendor/show-hint.min.js"></script>
+<link rel="stylesheet" href="/static/parametric_bom/vendor/show-hint.min.css">
+<script type="module" src="/static/parametric_bom/js/codemirror-formula.js"></script>
+<script>
+// Initialize CodeMirror formula editors after page load
+document.addEventListener('DOMContentLoaded', function() {
+  // Patch selector list to include variable modal's formula field
+  const orig = window.CmFormulaEditor?.initFormulaEditors;
+  if (orig) {
+    // Auto-init formula editors on page load (BOM editor fields)
+    setTimeout(() => {
+      const params = window.configuratorPartData?.parameters || [];
+      window.CmFormulaEditor.initFormulaEditors(params);
+    }, 500);
+  }
+  // Load cart count on page load
+  setTimeout(loadCartCount, 300);
+});
+</script>
+<!-- ── Split JS modules (loaded in dependency order) ── -->
+<script src="/static/parametric_bom/js/core.js?v=20260722"></script>
+<script src="/static/parametric_bom/js/products.js?v=chkbox"></script>
+<script src="/static/parametric_bom/js/bom-functions.js?v=batchdel"></script>
+<script src="/static/parametric_bom/js/configurator.js?v=20260723"></script>
+<script src="/static/parametric_bom/js/projects.js?v=20260727"></script>
+<script src="/static/parametric_bom/js/formula-pages.js?v=20260812"></script>
+<script src="/static/parametric_bom/js/init.js?v=diag1"></script>
+<script>
+/* ── Cart Functions ── */
+
+const CART_API_BASE = '/api/parametric-bom/cart';
+
+function csrfSafeMethod(method) {
+  return /^(GET|HEAD|OPTIONS|TRACE)$/.test(method);
+}
+
+function getCookie(name) {
+  let cookieValue = null;
+  if (document.cookie && document.cookie !== '') {
+    const cookies = document.cookie.split(';');
+    for (let i = 0; i < cookies.length; i++) {
+      const cookie = cookies[i].trim();
+      if (cookie.substring(0, name.length + 1) === (name + '=')) {
+        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+        break;
+      }
+    }
+  }
+  return cookieValue;
+}
+
+async function cartApi(method, path, body, responseType) {
+  const url = CART_API_BASE + path;
+  const opts = { method, headers: {'Content-Type': 'application/json'} };
+  if (!csrfSafeMethod(method)) {
+    opts.headers['X-CSRFToken'] = getCookie('csrftoken');
+  }
+  if (body && method !== 'GET') opts.body = JSON.stringify(body);
+  try {
+    if (responseType === 'blob') {
+      delete opts.headers['Content-Type'];
+      const resp = await fetch(url, opts);
+      if (!resp.ok) return {ok:false, data:await resp.json().catch(()=>({}))};
+      return {ok:true, data:await resp.blob()};
+    }
+    const resp = await fetch(url, opts);
+    if (resp.status === 204) return {ok:true, data:null};
+    const data = await resp.json();
+    return {ok: resp.ok, data, status: resp.status};
+  } catch(e) {
+    return {ok:false, data:e.message};
+  }
+}
+
+async function loadCartCount() {
+  const r = await cartApi('GET', '/count/');
+  if (r.ok) {
+    const count = r.data.count || 0;
+    const sidebarBadge = document.getElementById('sidebar-cart-count');
+    if (sidebarBadge) sidebarBadge.textContent = count;
+    const fabBadge = document.getElementById('cart-fab-count');
+    if (fabBadge) fabBadge.textContent = count;
+  }
+}
+
+async function cartLoad() {
+  const r = await cartApi('GET', '/');
+  if (!r.ok) return;
+  const items = r.data;
+  const container = document.getElementById('cart-items');
+  const footer = document.getElementById('cart-footer');
+  if (!items || items.length === 0) {
+    container.innerHTML = '<div class="empty-state"><div class="icon">🛒</div><p>购物车是空的</p><p class="text-xs text-gray-400 mt-1">在配置器中展开BOM后点击「加入购物车」</p></div>';
+    footer.style.display = 'none';
+    return;
+  }
+  let html = '';
+  let totalQty = 0;
+  let totalAmount = 0;
+  items.forEach(item => {
+    totalQty += item.quantity || 1;
+    const lineTotal = (item.total_cost != null) ? item.total_cost : ((item.unit_price != null) ? item.unit_price * (item.quantity || 1) : 0);
+    totalAmount += lineTotal;
+    html += renderCartItem(item);
+  });
+  container.innerHTML = html;
+  document.getElementById('cart-total-items').textContent = totalQty + ' 件';
+  const amtEl = document.getElementById('cart-total-amount');
+  if (amtEl) amtEl.textContent = '¥' + totalAmount.toFixed(2);
+  footer.style.display = 'flex';
+  loadCartCount();
+}
+
+function renderCartItem(item) {
+  const isParametric = item.item_type === 'parametric';
+  const icon = isParametric ? '📦' : '⚙️';
+  const name = item.title || item.product_part_name || item.part_name || '未命名';
+  const meta = isParametric
+    ? `参数化产品 · ${item.product_part_ipn || ''}`
+    : `静态零件 · ${item.part_ipn || ''} · ${item.part_unit || ''}`;
+  const bomCount = item.bom_snapshot
+    ? (Array.isArray(item.bom_snapshot) ? item.bom_snapshot.length : (item.bom_snapshot.bom_tree ? item.bom_snapshot.bom_tree.length : 0))
+    : null;
+  const bomInfo = bomCount ? ` · BOM: ${bomCount}项物料` : '';
+  const unitPrice = item.unit_price != null ? parseFloat(item.unit_price) : null;
+  const lineTotal = item.total_cost != null ? parseFloat(item.total_cost) : (unitPrice != null ? unitPrice * (item.quantity || 1) : null);
+  const priceHtml = unitPrice != null
+    ? `<div class="ci-price">¥${unitPrice.toFixed(2)} × ${item.quantity || 1} = <strong>¥${lineTotal.toFixed(2)}</strong></div>`
+    : '';
+  return `<div class="cart-item" data-id="${item.id}">
+    <div class="ci-icon">${icon}</div>
+    <div class="ci-body">
+      <div class="ci-title">${name}</div>
+      <div class="ci-meta">${meta}${bomInfo}</div>
+      ${priceHtml}
+      <div class="ci-actions">
+        <div class="ci-qty">
+          <input type="number" min="1" max="9999" value="${item.quantity || 1}" onchange="cartUpdateQty(${item.id}, this.value)" onfocus="this.select()">
+        </div>
+        <button class="ci-del" onclick="cartDeleteItem(${item.id})">🗑️ 删除</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function cartToggle() {
+  const panel = document.getElementById('cart-panel');
+  const overlay = document.getElementById('cart-overlay');
+  const open = panel.classList.contains('open');
+  if (!open) {
+    cartLoad();
+    panel.classList.add('open');
+    overlay.classList.add('show');
+  } else {
+    panel.classList.remove('open');
+    overlay.classList.remove('show');
+  }
+}
+
+function cartClose() {
+  document.getElementById('cart-panel').classList.remove('open');
+  document.getElementById('cart-overlay').classList.remove('show');
+}
+
+async function cartUpdateQty(id, qty) {
+  qty = parseInt(qty) || 1;
+  if (qty < 1) qty = 1;
+  if (qty > 9999) qty = 9999;
+  const r = await cartApi('PATCH', '/' + id + '/', {quantity: qty});
+  if (r.ok) {
+    loadCartCount();
+    cartLoad();
+  }
+}
+
+async function cartDeleteItem(id) {
+  const r = await cartApi('DELETE', '/' + id + '/');
+  if (r.ok) {
+    loadCartCount();
+    cartLoad();
+  }
+}
+
+async function cartClear() {
+  if (!confirm('确认清空购物车吗？')) return;
+  const r = await cartApi('POST', '/clear/');
+  if (r.ok) {
+    loadCartCount();
+    cartLoad();
+  }
+}
+
+async function cartExportCSV() {
+  // 导单：下载CSV
+  const r = await cartApi('GET', '/export-csv/', null, 'blob');
+  if (!r.ok) return;
+  const blob = await r.data;
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = '购物车订单_' + new Date().toISOString().slice(0,10) + '.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+async function cartCreateOrder() {
+  // 下单：创建销售订单
+  if (!confirm('确认将购物车中的 ' + (document.getElementById('cart-total-items')?.textContent || '') + ' 物料创建为销售订单吗？')) return;
+  const r = await cartApi('POST', '/create-order/', {description: '参数化BOM购物车订单'});
+  if (!r.ok) {
+    const err = r.data?.error || '创建订单失败';
+    showToast('error', '❌ ' + err);
+    return;
+  }
+  const data = r.data;
+  showToast('success', '✅ 销售订单已创建！ 订单号: ' + (data.order_reference || data.order_id) + '，行项数: ' + data.line_items);
+  cartClose();
+  loadCartCount();
+  cartLoad();
+}
+
+// ═══ 批量导入 BOM — Excel 上传 ═══
+let _batchSelectedFile = null;
+
+function openBatchBomModal() {
+  var pid = configuratorPartId;
+  if (!pid) { setStatus('error', '请先选择产品'); return; }
+  var oldOverlay = document.getElementById('__batch_modal_overlay');
+  if (oldOverlay) oldOverlay.remove();
+
+  // Get product category info
+  var catName = '';
+  var product = parts.find(function(p) { return p.pk == pid; });
+  if (product && product.category_name) { catName = product.category_name; }
+
+  var overlay = document.createElement('div');
+  overlay.id = '__batch_modal_overlay';
+  overlay.style.cssText = 'position:fixed!important;top:0!important;left:0!important;width:100%!important;height:100%!important;background:rgba(0,0,0,0.4)!important;z-index:99999!important;display:flex!important;align-items:center!important;justify-content:center!important';
+  overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
+  var box = document.createElement('div');
+  box.className = 'modal-box';
+  box.style.cssText = 'max-width:680px;width:94%;max-height:90vh;overflow-y:auto;background:#fff;border-radius:12px;padding:1.25rem;box-shadow:0 20px 60px rgba(0,0,0,0.3)';
+  box.innerHTML = '\
+    <div class="flex items-center justify-between mb-3">\
+      <h3 class="text-base font-semibold text-gray-800">📋 批量导入BOM物料</h3>\
+      <button class="text-gray-400 hover:text-gray-600 text-xl leading-none" onclick="document.getElementById(\'__batch_modal_overlay\').remove()">&times;</button>\
+    </div>\
+    <div class="page-help mb-3" style="font-size:0.65rem"><span class="icon">💡</span><span class="text">上传Excel文件导入物料。新零件默认归入产品分类。<strong>' + (catName || '未分类') + '</strong></span></div>\
+\
+    <div class="flex items-center gap-2 mb-3">\
+      <span class="text-xs text-gray-500">下载模板：</span>\
+      <a href="/api/parametric-bom/bom-import-template/" class="text-xs text-blue-600 hover:text-blue-800 underline font-medium">📥 BOM导入模板.xlsx</a>\
+    </div>\
+\
+    <div id="batch-drop-zone" class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer hover:border-blue-400 hover:bg-blue-50/30 transition-colors mb-3" onclick="document.getElementById(\'batch-file-input\').click()">\
+      <div class="text-2xl mb-1">📁</div>\
+      <div class="text-sm text-gray-600 font-medium">点击选择或拖拽上传 Excel 文件</div>\
+      <div class="text-[10px] text-gray-400 mt-0.5">支持 .xlsx 格式，列：物料名称 / 物料型号 / 数量 / 描述</div>\
+    </div>\
+    <input type="file" id="batch-file-input" accept=".xlsx,.xls" style="display:none" onchange="handleBatchFile(this.files[0])">\
+    <div id="batch-file-name" class="text-xs text-blue-600 mb-3" style="display:none"></div>\
+\
+    <div class="flex items-center gap-3 mb-3">\
+      <label class="flex items-center gap-1.5 text-xs text-gray-500 cursor-pointer"><input type="checkbox" id="batch-create-missing" checked> 不存在则新建零件</label>\
+    </div>\
+\
+    <div class="flex justify-end gap-2 pt-2 border-t border-gray-100">\
+      <button class="btn btn-secondary btn-sm" id="batch-cancel-btn" onclick="document.getElementById(\'__batch_modal_overlay\').remove()">取消</button>\
+      <button class="btn btn-primary btn-sm" id="batch-import-btn" onclick="doBatchImportExcel()" disabled>确认导入</button>\
+    </div>\
+\
+    <!-- Import report (shown after import) -->\
+    <div id="batch-report" style="display:none" class="mt-3 pt-3 border-t border-gray-100"></div>';
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
+  _batchSelectedFile = null;
+  document.getElementById('batch-import-btn').disabled = true;
+
+  // Drag & drop
+  var dropZone = document.getElementById('batch-drop-zone');
+  dropZone.addEventListener('dragover', function(e) { e.preventDefault(); dropZone.style.borderColor = '#2563eb'; dropZone.style.background = '#f0f7ff'; });
+  dropZone.addEventListener('dragleave', function(e) { e.preventDefault(); dropZone.style.borderColor = '#d1d5db'; dropZone.style.background = ''; });
+  dropZone.addEventListener('drop', function(e) { e.preventDefault(); dropZone.style.borderColor = '#d1d5db'; dropZone.style.background = ''; handleBatchFile(e.dataTransfer.files[0]); });
+}
+
+function handleBatchFile(file) {
+  if (!file) return;
+  _batchSelectedFile = file;
+  var nameEl = document.getElementById('batch-file-name');
+  nameEl.textContent = '📎 ' + file.name + ' (' + (file.size/1024).toFixed(0) + ' KB)';
+  nameEl.style.display = '';
+  document.getElementById('batch-import-btn').disabled = false;
+}
+
+async function doBatchImportExcel() {
+  var pid = configuratorPartId;
+  var file = _batchSelectedFile;
+  if (!pid || !file) return;
+  var btn = document.getElementById('batch-import-btn');
+  btn.disabled = true; btn.textContent = '导入中...';
+  try {
+    var formData = new FormData();
+    formData.append('file', file);
+    formData.append('parent_part_id', pid);
+    formData.append('create_if_missing', document.getElementById('batch-create-missing').checked ? 'true' : 'false');
+    var resp = await fetch('/api/parametric-bom/create-bom-items-excel/', {
+      method: 'POST', headers: {'X-CSRFToken': getCsrfToken()}, credentials: 'same-origin',
+      body: formData,
+    });
+    var text = await resp.text();
+    var data;
+    try { data = JSON.parse(text); } catch(e) {
+      handleBatchResult({success: false, error: '服务器返回非JSON (状态' + resp.status + '): ' + text.substring(0, 200)});
+      btn.disabled = false; btn.textContent = '确认导入';
+      return;
+    }
+    handleBatchResult(data);
+  } catch(e) { handleBatchResult({success: false, error: '网络错误: ' + e.message}); }
+  btn.disabled = false; btn.textContent = '确认导入';
+}
+
+function handleBatchResult(data) {
+  var btn = document.getElementById('batch-import-btn');
+  var cancelBtn = document.getElementById('batch-cancel-btn');
+  var reportEl = document.getElementById('batch-report');
+  btn.disabled = false; btn.textContent = '确认导入';
+
+  if (!data.success) {
+    reportEl.style.display = '';
+    reportEl.innerHTML = '<div class=\"text-sm text-red-600 font-medium\">❌ 导入失败</div><div class=\"text-xs text-red-500 mt-1\">' + (data.error || '未知错误') + '</div>';
+    cancelBtn.textContent = '关闭';
+    return;
+  }
+
+  var created = data.created || [], skipped = data.skipped || [], failed = data.failed || [];
+  var newParts = created.filter(function(c) { return c.new_part; });
+  var existingParts = created.filter(function(c) { return !c.new_part; });
+  var hasIssues = failed.length > 0 || skipped.length > 0;
+
+  var html = '<div class=\"text-sm font-semibold mb-2\">📊 导入报告</div>';
+
+  // Summary bar
+  html += '<div class=\"flex gap-3 mb-3 text-xs\">';
+  html += '<span class=\"px-2 py-0.5 rounded bg-green-50 text-green-700\">✅ 成功 ' + created.length + ' 项' + (newParts.length ? '（新建' + newParts.length + '）' : '') + '</span>';
+  if (skipped.length) html += '<span class=\"px-2 py-0.5 rounded bg-yellow-50 text-yellow-700\">⏭ 跳过 ' + skipped.length + ' 项</span>';
+  if (failed.length) html += '<span class=\"px-2 py-0.5 rounded bg-red-50 text-red-700\">❌ 失败 ' + failed.length + ' 项</span>';
+  html += '</div>';
+
+  // Created items table
+  if (created.length) {
+    html += '<div class=\"text-xs font-medium text-gray-600 mb-1\">✅ 成功导入</div>';
+    html += '<table style=\"width:100%;font-size:0.7rem;border-collapse:collapse\"><thead style=\"background:#f9fafb\"><tr><th style=\"padding:3px 6px;text-align:left;border-bottom:1px solid #e5e7eb\">#</th><th style=\"padding:3px 6px;text-align:left;border-bottom:1px solid #e5e7eb\">物料名称</th><th style=\"padding:3px 6px;text-align:left;border-bottom:1px solid #e5e7eb\">型号</th><th style=\"padding:3px 6px;text-align:left;border-bottom:1px solid #e5e7eb\">状态</th></tr></thead><tbody>';
+    created.forEach(function(c) {
+      var statusHtml;
+      if (c.quantity_updated) {
+        statusHtml = '<span class=\"text-amber-600\">📊 已叠加：' + escHtml(c.old_quantity) + ' → ' + escHtml(c.new_quantity) + '</span>';
+      } else if (c.new_part) {
+        statusHtml = '<span class=\"text-blue-600\">🆕 新建</span>';
+      } else {
+        statusHtml = '<span class=\"text-green-600\">已导入</span>';
+      }
+      html += '<tr style=\"border-bottom:1px solid #f3f4f6\"><td style=\"padding:3px 6px;color:#9ca3af\">' + (c.index + 1) + '</td><td style=\"padding:3px 6px;font-weight:500\">' + escHtml(c.name) + '</td><td style=\"padding:3px 6px;color:#6b7280\">' + escHtml(c.ipn || '—') + '</td><td style=\"padding:3px 6px\">' + statusHtml + '</td></tr>';
+    });
+    html += '</tbody></table>';
+  }
+
+  // Skipped items
+  if (skipped.length) {
+    html += '<div class=\"text-xs font-medium text-yellow-600 mt-2 mb-1\">⏭ 跳过 ' + skipped.length + ' 项</div>';
+    html += '<table style=\"width:100%;font-size:0.7rem;border-collapse:collapse\"><thead style=\"background:#f9fafb\"><tr><th style=\"padding:3px 6px;text-align:left;border-bottom:1px solid #e5e7eb\">#</th><th style=\"padding:3px 6px;text-align:left;border-bottom:1px solid #e5e7eb\">物料名称</th><th style=\"padding:3px 6px;text-align:left;border-bottom:1px solid #e5e7eb\">型号</th><th style=\"padding:3px 6px;text-align:left;border-bottom:1px solid #e5e7eb\">跳过原因</th></tr></thead><tbody>';
+    skipped.forEach(function(s) {
+      html += '<tr style=\"border-bottom:1px solid #f3f4f6\"><td style=\"padding:3px 6px;color:#9ca3af\">' + (s.index + 1) + '</td><td style=\"padding:3px 6px\">' + escHtml(s.name) + '</td><td style=\"padding:3px 6px;color:#6b7280\">' + escHtml(s.ipn || '—') + '</td><td style=\"padding:3px 6px;color:#b45309;font-size:0.65rem\">' + escHtml(s.reason || '已跳过') + '</td></tr>';
+    });
+    html += '</tbody></table>';
+  }
+
+  // Failed items
+  if (failed.length) {
+    html += '<div class=\"text-xs font-medium text-red-600 mt-2 mb-1\">❌ 失败</div>';
+    html += '<table style=\"width:100%;font-size:0.7rem;border-collapse:collapse\"><thead style=\"background:#f9fafb\"><tr><th style=\"padding:3px 6px;text-align:left;border-bottom:1px solid #e5e7eb\">#</th><th style=\"padding:3px 6px;text-align:left;border-bottom:1px solid #e5e7eb\">物料名称</th><th style=\"padding:3px 6px;text-align:left;border-bottom:1px solid #e5e7eb\">失败原因</th></tr></thead><tbody>';
+    failed.forEach(function(f) {
+      html += '<tr style=\"border-bottom:1px solid #f3f4f6\"><td style=\"padding:3px 6px;color:#9ca3af\">' + (f.index + 1) + '</td><td style=\"padding:3px 6px\">' + escHtml(f.name || '—') + '</td><td style=\"padding:3px 6px;color:#ef4444;font-size:0.65rem\">' + escHtml(f.error) + '</td></tr>';
+    });
+    html += '</tbody></table>';
+  }
+
+  reportEl.innerHTML = html;
+  reportEl.style.display = '';
+  cancelBtn.textContent = '关闭';
+  loadPdBOMM();
+}
+</script>

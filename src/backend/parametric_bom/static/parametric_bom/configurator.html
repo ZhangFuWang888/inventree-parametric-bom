@@ -1,0 +1,15 @@
+{% comment %} configurator.html — loader {% endcomment %}
+{% load static %}
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+{% include "parametric_bom/configurator_head.html" %}
+</head>
+<body>
+<div id="status-bar" style="display:none;position:fixed;bottom:0;left:0;right:0;z-index:9998;padding:8px 16px;font-size:12px;text-align:center;background:#f9fafb;border-top:1px solid #e5e7eb"></div>
+{% include "parametric_bom/configurator_sidebar.html" %}
+{% include "parametric_bom/configurator_pages.html" %}
+{% include "parametric_bom/configurator_cart_modals.html" %}
+{% include "parametric_bom/configurator_scripts.html" %}
+</body>
+</html>

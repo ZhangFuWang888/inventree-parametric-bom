@@ -1528,7 +1528,7 @@ async function editBatchMeta(projectId, batchName, field, currentValue) {
   let newValue;
   
   if (field === 'storage_dest') {
-    newValue = prompt(`批次「${name}」- 入库去向：\n可选: 入仓库 / 车间领用 / 现场安装`, currentValue);
+    newValue = prompt(`批次「${name}」- 入库去向：\n可选: 入仓库 / 车间领用 / 入仓库，车间领用 / 现场安装`, currentValue);
   } else if (field === 'make_buy') {
     newValue = prompt(`批次「${name}」- 制购类别：\n可选: 采购 / 自制 / 外协`, currentValue);
   } else {
