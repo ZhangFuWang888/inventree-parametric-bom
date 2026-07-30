@@ -625,12 +625,12 @@ function renderParamCard(cfg, idx) {
           <span>${o}</span>
         </label>`).join('')}
       </div>
-      <div class="pc-opts-editor">
+      <div class="pc-opts-editor" id="pc-opts-${cfgId}">
         ${opts.map(o => `<span class="pc-opt-tag">${o}<span class="pc-opt-del" onclick="removeOption(${cfgId},'${o.replace(/'/g,"\\'")}')">✕</span></span>`).join('')}
         <span class="pc-opt-add-inline" onclick="startAddOption(${cfgId})">➕ 选项</span>
         <span class="pc-opt-add-inline" onclick="openBatchImport(${cfgId})" style="margin-left:2px;padding:2px 5px;background:#f0f9ff;color:#2563eb;border:1px dashed #93c5fd;border-radius:4px;font-size:0.65rem">📋 批量</span>
       </div>
-    </div>`;
+    </div>`;  /* multi_option */
     
   } else if (type === 'boolean') {
     const isTrue = defVal === 'true' || defVal === true || defVal === '1';
@@ -899,17 +899,52 @@ function updateMultiDefault(cfgId, mark) {
   showDirtyButtons();
 }
 
-// ── Batch Options Import ──
+// ── Batch Options Import (inline panel, no modal) ──
 let _batchImportCfgId = null;
 
 function openBatchImport(cfgId) {
+  // Close any existing panel first
+  closeBatchImport();
+  
   _batchImportCfgId = cfgId;
   const cfg = window.__paramConfigs.find(c => c.id === cfgId);
   if (!cfg) { setStatus('error', '参数配置未找到'); return; }
-  const ta = document.getElementById('batch-options-textarea');
-  if (ta) ta.value = '';
-  updateBatchPreview();
-  openModal('modal-batch-options');
+  
+  // Find the options editor div for this param
+  const optsEditor = document.getElementById('pc-opts-' + cfgId);
+  if (!optsEditor) { setStatus('error', '找不到选项编辑器'); return; }
+  
+  // Insert inline panel right after the options editor
+  const panel = document.createElement('div');
+  panel.id = 'batch-import-panel';
+  panel.style.cssText = 'margin-top:6px;padding:8px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px';
+  panel.innerHTML = 
+    '<textarea id="batch-options-textarea" rows="6" ' +
+    '  placeholder="每行输入一个选项&#10;红色&#10;蓝色&#10;绿色" ' +
+    '  style="width:100%;font-size:0.75rem;resize:vertical;font-family:monospace;padding:6px;border:1px solid #d1d5db;border-radius:4px" ' +
+    '  oninput="updateBatchPreview()"></textarea>' +
+    '<div id="batch-options-preview" style="margin-top:4px;font-size:0.7rem;color:#6b7280">' +
+    '  <span>共 <b id="batch-count">0</b> 个选项</span>' +
+    '  <span style="margin-left:6px;color:#f59e0b" id="batch-existing"></span>' +
+    '</div>' +
+    '<div style="margin-top:6px;display:flex;gap:6px;justify-content:flex-end">' +
+    '  <button class="btn btn-sm btn-secondary" onclick="closeBatchImport()" style="font-size:0.7rem">取消</button>' +
+    '  <button class="btn btn-sm btn-primary" onclick="batchImportOptions()" style="font-size:0.7rem">✅ 导入选项</button>' +
+    '</div>';
+  
+  optsEditor.after(panel);
+  
+  // Focus the textarea
+  setTimeout(function() {
+    var ta = document.getElementById('batch-options-textarea');
+    if (ta) ta.focus();
+  }, 50);
+}
+
+function closeBatchImport() {
+  var panel = document.getElementById('batch-import-panel');
+  if (panel) panel.remove();
+  _batchImportCfgId = null;
 }
 
 function updateBatchPreview() {
@@ -926,8 +961,6 @@ function updateBatchPreview() {
     existingEl.textContent = existing.length > 0
       ? (existing.length + ' 个已存在，将跳过')
       : '';
-  } else if (existingEl) {
-    existingEl.textContent = '';
   }
 }
 
@@ -954,9 +987,9 @@ function batchImportOptions() {
   cfg.options = merged;
   markDirty(cfgId, {options: merged});
   showDirtyButtons();
-  closeModal('modal-batch-options');
+  closeBatchImport();
   
-  setStatus('success', `✅ 已导入 ${newOptions.length} 个选项`);
+  setStatus('success', '✅ 已导入 ' + newOptions.length + ' 个选项');
   
   // Re-render the param card to show new tags
   const sorted = window.__paramConfigs.sort((a,b)=>(a.display_order||0)-(b.display_order||0));
@@ -2115,6 +2148,7 @@ async function loadVersion() {
     // Refresh all tabs (with error handling)
     try { await loadPdBOMM(); } catch(e) { console.error('BOM refresh error:', e); }
     try { await loadConfiguratorParams(configuratorPartId); } catch(e) { console.error('Params refresh error:', e); }
+    try { await loadPdParams(); } catch(e) { console.error('Params tab refresh error:', e); }
   } catch(e) {
     showToast('error', '加载版本出错: ' + e.message);
   }

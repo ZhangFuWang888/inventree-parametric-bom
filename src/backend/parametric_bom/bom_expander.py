@@ -465,6 +465,18 @@ def _expand_single_bom_item(
         except (ParseError, ReferenceError, EvaluationError, TimeoutError) as e:
             child_node['errors'].append(f"Name formula error: {e}")
 
+    # ── 3b) Reference formula — compute dynamic reference/notes ──
+    if parametric_cfg.reference_formula:
+        try:
+            ref_result = eval_formula(
+                parametric_cfg.reference_formula,
+                context=_ctx(params, parent_params),
+                timeout_ms=timeout_ms,
+            )
+            child_node['reference'] = str(ref_result)
+        except (ParseError, ReferenceError, EvaluationError, TimeoutError) as e:
+            child_node['errors'].append(f"Reference formula error: {e}")
+
     # ── 4) Recurse into sub-part's BOM ────────────────────────────
     _expand_sub_part(child_node, actual_sub_part, params, parent_params, depth, max_depth, timeout_ms)
 

@@ -3,7 +3,7 @@
  * 为 InvenTree 所有页面提供购物车浮动按钮和面板
  */
 
-const CART_API_BASE = '/api/parametric-bom/cart';
+var CART_API_BASE = '/api/parametric-bom/cart';
 
 function getCookie(name) {
   const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
@@ -55,10 +55,10 @@ function cartToggle() {
   if (!open) {
     cartLoad();
     panel.classList.add('open');
-    if (overlay) overlay.classList.add('cart-show');
+    if (overlay) overlay.classList.add('show');
   } else {
     panel.classList.remove('open');
-    if (overlay) overlay.classList.remove('cart-show');
+    if (overlay) overlay.classList.remove('show');
   }
 }
 
@@ -66,7 +66,7 @@ function cartClose() {
   const panel = document.getElementById('cart-panel');
   const overlay = document.getElementById('cart-overlay');
   if (panel) panel.classList.remove('open');
-  if (overlay) overlay.classList.remove('cart-show');
+  if (overlay) overlay.classList.remove('show');
 }
 
 // ===== Load =====
@@ -309,6 +309,11 @@ async function addPartToCart(partId, partName, qty) {
     fetch('/api/part/pricing/' + partId + '/', { credentials: 'same-origin' }).catch(function(){}),
     // [2] Current cart list (for dedup check)
     cartApi('GET', '/'),
+    // [3] Check if part is parametric (has PartParameterConfig)
+    fetch('/api/parametric-bom/part-config/?part=' + partId + '&is_driving=true', {
+      credentials: 'same-origin',
+      headers: {'X-CSRFToken': getCookie('csrftoken')}
+    }).catch(function(){}),
   ]);
 
   // Resolve part info
@@ -330,6 +335,23 @@ async function addPartToCart(partId, partName, qty) {
       unitPrice = parseFloat(pData.overall_min || pData.overall_max || pData.internal_cost_min || pData.bom_cost_min || 0) || null;
     } catch (e) {}
   }
+
+  // ── Parametric detection ──
+  var paramConfigs = [];
+  if (results[3].status === 'fulfilled' && results[3].value && results[3].value.ok) {
+    try {
+      var pcfgJson = await results[3].value.json();
+      paramConfigs = Array.isArray(pcfgJson) ? pcfgJson : (pcfgJson.results || []);
+    } catch (e) {}
+  }
+
+  if (paramConfigs.length > 0) {
+    // Part is parametric → show configurator modal
+    showParametricModal(partId, displayName, paramConfigs, qty, unitPrice);
+    return;
+  }
+
+  // ── Static part: add directly ──
 
   // Check if already in cart → increment
   if (results[2].status === 'fulfilled' && results[2].value && results[2].value.ok && Array.isArray(results[2].value.data)) {
@@ -360,4 +382,263 @@ async function addPartToCart(partId, partName, qty) {
     loadCartCount();
     cartToggle();
   }
+}
+
+
+// ── Parametric configurator modal ──
+
+function showParametricModal(partId, displayName, paramConfigs, qty, unitPrice) {
+  // Build modal HTML
+  var sorted = (paramConfigs || []).sort(function(a, b) { return (a.display_order || 0) - (b.display_order || 0); });
+
+  // Params in double-column grid
+  var inputsHtml = '';
+  sorted.forEach(function(cfg) {
+    var pname = cfg.template_name || cfg.name || ('param_' + cfg.id);
+    var defVal = cfg.default_value != null ? cfg.default_value : '';
+    inputsHtml += renderParamInput(cfg, pname, defVal);
+  });
+
+  var html = '<div id="pm-overlay" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.45);z-index:99999;display:flex;align-items:center;justify-content:center;" onclick="if(event.target===this)closeParamModal()">'
+    + '<div style="background:#fff;border-radius:12px;width:960px;max-width:98vw;max-height:92vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,0.3);padding:24px;">'
+    // ── Header ──
+    + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">'
+    + '<h3 style="font-size:18px;font-weight:700;margin:0;">🔧 配置参数</h3>'
+    + '<button onclick="closeParamModal()" style="background:none;border:none;font-size:20px;cursor:pointer;color:#999;line-height:1;">×</button>'
+    + '</div>'
+    + '<p style="color:#6b7280;font-size:13px;margin:0 0 16px 0;">' + escHtml(displayName) + ' &nbsp;<span style="font-size:11px;color:#9ca3af;">×' + qty + '</span></p>'
+    // ── Two-column body ──
+    + '<div style="flex:1;overflow:hidden;display:flex;gap:20px;min-height:0;">'
+    // LEFT column — BOM
+    + '<div style="flex:1;min-width:260px;overflow:hidden;display:flex;flex-direction:column;">'
+    + '<div id="pm-bom-result" style="flex:1;overflow-y:auto;font-size:12px;color:#9ca3af;padding-top:4px;min-height:0;">修改参数后自动展开BOM</div>'
+    + '</div>'
+    // RIGHT column — Parameters
+    + '<div style="flex:0 0 300px;min-width:240px;display:flex;flex-direction:column;border-left:1px solid #e5e7eb;padding-left:16px;">'
+    + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">' + inputsHtml + '</div>'
+    + '<div style="margin-top:auto;padding-top:14px;">'
+    + '<button id="pm-submit-btn" onclick="submitParametricCart(' + partId + ',\'' + escAttr(displayName) + '\',' + qty + ',' + (unitPrice !== null ? unitPrice : 'null') + ')" style="padding:6px 18px;background:#228be6;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600;">🛒 加入购物车</button>'
+    + '</div>'
+    + '</div>'
+    + '</div>'
+    + '</div></div>';
+
+  document.body.insertAdjacentHTML('beforeend', html);
+
+  // ── Auto-refresh BOM on parameter change (debounced 600ms) ──
+  var _pmDebounce = null;
+  document.querySelectorAll('#pm-overlay [data-pname]').forEach(function(el) {
+    el.addEventListener('input', function() {
+      clearTimeout(_pmDebounce);
+      _pmDebounce = setTimeout(function() { expandParamBOM(partId, qty); }, 600);
+    });
+  });
+
+  // Initial BOM expansion
+  expandParamBOM(partId, qty);
+}
+
+
+function closeParamModal() {
+  var el = document.getElementById('pm-overlay');
+  if (el) el.remove();
+}
+
+
+function renderParamInput(cfg, paramName, defVal) {
+  var type = cfg.parameter_type || 'number';
+  var options = cfg.options;
+  var hint = cfg.ui_hint ? '<span style="font-size:11px;color:#9ca3af;display:block;margin-top:2px;">' + escHtml(cfg.ui_hint) + '</span>' : '';
+  var safeName = paramName.replace(/\\s+/g, '_').replace(/[^A-Za-z0-9_\\u4e00-\\u9fff]/g, '_');
+  var inputId = 'pm-input-' + safeName;
+  var labelHtml = '<label style="font-size:13px;font-weight:600;color:#374151;display:block;margin-bottom:4px;" for="' + inputId + '">' + escHtml(paramName) + '</label>';
+
+  if (type === 'boolean') {
+    var checked = defVal === 'true' || defVal === true ? ' checked' : '';
+    return '<div>' + labelHtml + '<select id="' + inputId + '" data-pname="' + escAttr(paramName) + '" style="width:100%;padding:6px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:14px;">'
+      + '<option value="true"' + (defVal === 'true' || defVal === true ? ' selected' : '') + '>是</option>'
+      + '<option value="false"' + (defVal === 'false' || defVal === false ? ' selected' : '') + '>否</option>'
+      + '</select>' + hint + '</div>';
+  }
+
+  if (type === 'option' || type === 'multi_option') {
+    var opts = (options || '').toString().split(/[,;，；\\n]+/).filter(Boolean).map(function(s) { return s.trim(); });
+    if (opts.length === 0) opts = [''];
+    var selHtml = '<select id="' + inputId + '" data-pname="' + escAttr(paramName) + '" style="width:100%;padding:6px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:14px;">';
+    opts.forEach(function(o) {
+      selHtml += '<option value="' + escAttr(o) + '"' + (o === String(defVal) ? ' selected' : '') + '>' + escHtml(o) + '</option>';
+    });
+    selHtml += '</select>';
+    return '<div>' + labelHtml + selHtml + hint + '</div>';
+  }
+
+  if (type === 'text' || type === 'long_text') {
+    return '<div>' + labelHtml + '<input id="' + inputId + '" data-pname="' + escAttr(paramName) + '" type="text" value="' + escAttr(String(defVal)) + '" style="width:100%;padding:6px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:14px;" placeholder="请输入"/>' + hint + '</div>';
+  }
+
+  // number (default)
+  return '<div>' + labelHtml + '<input id="' + inputId + '" data-pname="' + escAttr(paramName) + '" type="number" value="' + escAttr(String(defVal)) + '" style="width:100%;padding:6px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:14px;" step="any"/>' + hint + '</div>';
+}
+
+
+async function submitParametricCart(partId, displayName, qty, unitPrice) {
+  var btn = document.getElementById('pm-submit-btn');
+  if (btn) { btn.disabled = true; btn.textContent = '添加中...'; }
+
+  // Collect parameter values from the modal
+  var params = {};
+  var inputs = document.querySelectorAll('#pm-overlay [data-pname]');
+  inputs.forEach(function(el) {
+    params[el.getAttribute('data-pname')] = el.value;
+  });
+
+  var body = {
+    item_type: 'parametric',
+    product_part: partId,
+    title: displayName,
+    quantity: qty,
+    parameters: params,
+  };
+  if (unitPrice !== null) body.unit_price = String(unitPrice);
+
+  var r = await cartApi('POST', '/add/', body);
+  if (r.ok) {
+    closeParamModal();
+    loadCartCount();
+    cartToggle();
+  } else {
+    if (btn) { btn.disabled = false; btn.textContent = '🛒 加入购物车'; }
+    var errMsg = '添加失败';
+    try {
+      var errData = await r.data;
+      if (errData && errData.error) errMsg = errData.error;
+      else if (errData && errData.detail) errMsg = errData.detail;
+    } catch(e) {}
+    alert('❌ ' + errMsg);
+  }
+}
+
+
+// ── BOM expansion in modal ──
+
+async function expandParamBOM(partId, batchQty) {
+  var btn = document.getElementById('pm-bom-btn');
+  var resultDiv = document.getElementById('pm-bom-result');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ 计算中...'; }
+  resultDiv.innerHTML = '<div style="color:#9ca3af;font-size:12px;padding:8px 0;">计算中...</div>';
+
+  // Collect current param values
+  var params = {};
+  var inputs = document.querySelectorAll('#pm-overlay [data-pname]');
+  inputs.forEach(function(el) {
+    params[el.getAttribute('data-pname')] = el.value;
+  });
+
+  try {
+    // Simultaneous BOM expand + cost estimate
+    var [bomRes, costRes] = await Promise.all([
+      fetch('/api/parametric-bom/evaluate/', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken')},
+        credentials: 'same-origin',
+        body: JSON.stringify({part_id: parseInt(partId), parameters: params}),
+      }),
+      fetch('/api/parametric-bom/estimate-cost/', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken')},
+        credentials: 'same-origin',
+        body: JSON.stringify({part_id: parseInt(partId), parameters: params}),
+      }),
+    ]);
+
+    var bomData = bomRes.ok ? (await bomRes.json()) : null;
+    var costData = costRes.ok ? (await costRes.json()) : null;
+
+    if (!bomData) {
+      resultDiv.innerHTML = '<div style="color:#dc2626;font-size:12px;padding:8px 0;">❌ BOM展开失败</div>';
+      if (btn) { btn.disabled = false; btn.textContent = '📊 展开BOM & 成本'; }
+      return;
+    }
+
+    var bomTree = bomData.bom_tree || {};
+    var children = Array.isArray(bomTree) ? bomTree : (bomTree.children || []);
+
+    // Flatten BOM tree
+    var flatRows = [];
+    function flatten(items, depth, parentQty) {
+      items.forEach(function(child) {
+        if (child.excluded) return;
+        var name = child.calculated_name || child.variant_name || child.actual_part_name || child.part_name || '—';
+        var ipn = child.calculated_ipn || child.variant_ipn || child.IPN || '';
+        var unitQty = child.calculated_quantity || child.quantity || 1;
+        var totalQty = unitQty * parentQty * batchQty;
+        var unitP = child.unit_price != null ? parseFloat(child.unit_price) : null;
+        var totalP = child.total_price != null ? parseFloat(child.total_price) : (unitP != null ? unitP * totalQty : null);
+        flatRows.push({name: name, ipn: ipn, qty: totalQty, unitPrice: unitP, totalPrice: totalP, depth: depth});
+        if (child.children && child.children.length > 0) {
+          flatten(child.children, depth + 1, unitQty * parentQty);
+        }
+      });
+    }
+    flatten(children, 0, 1);
+
+    // Render BOM table
+    if (flatRows.length === 0) {
+      resultDiv.innerHTML = '<div style="color:#9ca3af;font-size:12px;padding:8px 0;">BOM 展开为空</div>';
+    } else {
+      var totalCost = 0;
+      var rowsHtml = '';
+      flatRows.forEach(function(r) {
+        var indent = '&nbsp;&nbsp;'.repeat(r.depth) + (r.depth > 0 ? '└ ' : '');
+        var priceStr = r.totalPrice != null ? '¥' + r.totalPrice.toFixed(2) : '—';
+        if (r.totalPrice != null && !isNaN(r.totalPrice)) totalCost += r.totalPrice;
+        var qtyStr = (Math.round(r.qty * 100) / 100).toString();  // clean float
+        rowsHtml += '<tr style="border-bottom:1px solid #f0f0f0;">'
+          + '<td style="padding:4px 6px;white-space:nowrap;max-width:200px;overflow:hidden;text-overflow:ellipsis;">' + indent + escHtml(r.name) + '</td>'
+          + '<td style="padding:4px 6px;color:#9ca3af;font-size:11px;white-space:nowrap;">' + escHtml(r.ipn) + '</td>'
+          + '<td style="padding:4px 6px;text-align:right;white-space:nowrap;">' + qtyStr + '</td>'
+          + '<td style="padding:4px 6px;text-align:right;white-space:nowrap;">' + priceStr + '</td>'
+          + '</tr>';
+      });
+
+      var costSummary = '';
+      if (costData) {
+        costSummary = '<div style="margin-top:10px;padding:10px;background:#f0f9ff;border-radius:8px;">'
+          + '<span style="font-weight:600;">💰 成本估算</span>'
+          + '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:6px;font-size:12px;">'
+          + '<div>材料: <strong>' + (costData.material_cost != null ? '¥' + costData.material_cost : '—') + '</strong></div>'
+          + '<div>人工: <strong>' + (costData.labor_cost != null ? '¥' + costData.labor_cost : '—') + '</strong></div>'
+          + '<div>合计: <strong style="color:#228be6;">' + (costData.total_cost != null ? '¥' + costData.total_cost : '—') + '</strong></div>'
+          + '</div></div>';
+      }
+
+      resultDiv.innerHTML = '<div style="display:flex;flex-direction:column;height:100%;margin-top:4px;">'
+        + '<div style="flex-shrink:0;color:#6b7280;font-size:11px;margin-bottom:4px;">共 ' + flatRows.length + ' 项</div>'
+        + '<div style="flex:1;overflow-y:auto;min-height:0;">'
+        + '<table style="width:100%;border-collapse:collapse;font-size:12px;">'
+        + '<thead><tr style="background:#f9fafb;font-weight:600;text-align:left;border-bottom:2px solid #e5e7eb;position:sticky;top:0;z-index:1;">'
+        + '<th style="padding:4px 6px;">物料</th><th style="padding:4px 6px;">型号</th><th style="padding:4px 6px;text-align:right;">数量</th><th style="padding:4px 6px;text-align:right;">总价</th>'
+        + '</tr></thead><tbody>' + rowsHtml + '</tbody></table>'
+        + '</div>'
+        + (costSummary ? '<div style="flex-shrink:0;margin-top:8px;">' + costSummary + '</div>' : '')
+        + '</div>';
+    }
+  } catch(e) {
+    resultDiv.innerHTML = '<div style="color:#dc2626;font-size:12px;padding:8px 0;">❌ 展开出错: ' + escHtml(e.message) + '</div>';
+  }
+
+  if (btn) { btn.disabled = false; btn.textContent = '📊 展开BOM & 成本'; }
+}
+
+
+// ── Helpers ──
+
+function escHtml(s) {
+  var d = document.createElement('div');
+  d.appendChild(document.createTextNode(String(s)));
+  return d.innerHTML;
+}
+
+function escAttr(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }

@@ -5,8 +5,11 @@ referenced by parametric BOM formulas.
 """
 
 import re
-from django.db.models.signals import pre_delete
+from django.db.models.signals import pre_delete, pre_save
 from django.dispatch import receiver
+import logging
+
+logger = logging.getLogger('parametric_bom')
 
 
 # ── Helper: sanitize name like the frontend does ──
@@ -34,8 +37,6 @@ FORMULA_CHECK_FIELDS = [
     # ParametricRule
     ('ParametricRule', 'condition_formula'),
     ('ParametricRule', 'value_formula'),
-    # BomSpecification
-    ('BomSpecification', 'condition_formula'),
     # InheritanceMapping
     ('InheritanceMapping', 'formula'),
     # PartAttributeFormula
@@ -48,6 +49,7 @@ FORMULA_CHECK_FIELDS = [
     # VariantMapping — variant name/IPN templates
     ('VariantMapping', 'variant_name_template'),
     ('VariantMapping', 'variant_ipn_template'),
+    ('VariantMapping', 'param_mapping'),
 ]
 
 
@@ -242,9 +244,317 @@ def check_parameter_delete(sender, instance, **kwargs):
         raise ProtectedError((msg, {'product_urls': product_urls}), [instance])
 
 
+# ── Param rename: sync formulas ──
+
+
+def _get_param_ref_regex(name: str) -> re.Pattern:
+    """Build a regex that matches `param.NAME` where NAME is a full parameter name.
+
+    Uses a negative lookahead to avoid matching prefixes of longer param names.
+    Example: name='长' matches 'param.长+' but NOT 'param.长度'.
+    """
+    escaped = re.escape(name)
+    return re.compile(
+        r'(param\.\s*)' + escaped + r'(?![A-Za-z0-9_\u4e00-\u9fff])'
+    )
+
+
+def rename_param_in_formulas(old_name: str, new_name: str) -> tuple:
+    """Replace all `param.OLD_NAME` references with `param.NEW_NAME` across all formula fields.
+
+    Returns (total_updated_count, [field_label × count, ...]).
+    """
+    from parametric_bom import models as pm
+
+    pattern = _get_param_ref_regex(old_name)
+
+    field_label_map = {
+        'qty_formula': '数量公式',
+        'name_formula': '名称公式',
+        'condition_formula': '条件公式',
+        'reference_formula': '备注公式',
+        'price_formula': '价格公式',
+        'value_formula': '值公式',
+        'formula': '公式',
+        'drawing_ref_formula': '图纸参考公式',
+        'unit_cost_formula': '单位成本公式',
+        'variant_name_template': '变体名称模板',
+        'variant_ipn_template': '变体IPN模板',
+    }
+
+    total_updated = 0
+    updated_fields = []
+
+    for model_name, field_name in FORMULA_CHECK_FIELDS:
+        try:
+            Model = getattr(pm, model_name)
+        except AttributeError:
+            continue
+
+        # ── JSON field: VariantMapping.param_mapping ──
+        if field_name == 'param_mapping':
+            rows = Model.objects.exclude(**{field_name: {}}).exclude(**{field_name: None})
+            count = 0
+            for row in rows:
+                val = getattr(row, field_name, {}) or {}
+                if not isinstance(val, dict):
+                    continue
+                changed = False
+                new_dict = {}
+                for k, v in val.items():
+                    if isinstance(v, str) and f'param.{old_name}' in v:
+                        new_dict[k] = pattern.sub(r'\1' + new_name, v)
+                        changed = True
+                    else:
+                        new_dict[k] = v
+                if changed:
+                    setattr(row, field_name, new_dict)
+                    row.save(update_fields=[field_name])
+                    count += 1
+            if count > 0:
+                total_updated += count
+                updated_fields.append(f'参数映射×{count}')
+            continue
+
+        # ── Standard text field ──
+        filter_kwargs = {field_name + '__icontains': f'param.{old_name}'}
+        rows = Model.objects.filter(**filter_kwargs)
+
+        count = 0
+        for row in rows:
+            old_val = getattr(row, field_name, '') or ''
+            new_val = pattern.sub(r'\1' + new_name, old_val)
+            if new_val != old_val:
+                setattr(row, field_name, new_val)
+                row.save(update_fields=[field_name])
+                count += 1
+
+        if count > 0:
+            total_updated += count
+            label = field_label_map.get(field_name, field_name)
+            updated_fields.append(f'{label}×{count}')
+
+    # ── BomSpecification.spec_fields (JSON list of {name,formula,unit}) ──
+    try:
+        from parametric_bom.models import BomSpecification
+        specs = BomSpecification.objects.exclude(spec_fields=[]).exclude(spec_fields=None)
+        count = 0
+        for spec in specs:
+            fields = spec.spec_fields or []
+            if not isinstance(fields, list):
+                continue
+            changed = False
+            new_fields = []
+            for sf in fields:
+                if not isinstance(sf, dict):
+                    new_fields.append(sf)
+                    continue
+                formula = sf.get('formula', '') or ''
+                if f'param.{old_name}' in formula:
+                    sf = {**sf, 'formula': pattern.sub(r'\1' + new_name, formula)}
+                    changed = True
+                new_fields.append(sf)
+            if changed:
+                spec.spec_fields = new_fields
+                spec.save(update_fields=['spec_fields'])
+                count += 1
+        if count > 0:
+            total_updated += count
+            updated_fields.append(f'规格字段公式×{count}')
+    except Exception:
+        pass
+
+    return total_updated, updated_fields
+
+
+def _on_parameter_template_rename(sender, instance, **kwargs):
+    """pre_save handler: auto-update formulas when a ParameterTemplate is renamed."""
+    if not instance.pk:
+        return  # new record, not a rename
+
+    try:
+        old = sender.objects.only('name').get(pk=instance.pk)
+    except sender.DoesNotExist:
+        return
+
+    old_name = old.name
+    new_name = instance.name
+
+    if old_name == new_name:
+        return
+
+    count, fields = rename_param_in_formulas(old_name, new_name)
+    if count > 0:
+        logger.info(
+            'parameter_renamed old_name=%r new_name=%r updated=%d fields=%s',
+            old_name, new_name, count, fields,
+        )
+
+
+# ── Variable rename: sync formulas ──
+
+
+def _get_var_ref_regex(name: str) -> re.Pattern:
+    """Build a regex that matches a bare variable name as a standalone identifier.
+
+    Variable names are referenced without a prefix (unlike `param.xxx`).
+    Uses lookbehind/lookahead to avoid partial matches inside longer identifiers.
+    Example: name='总重量' matches 'CEIL(总重量/500)' but NOT '总重量系数'.
+    """
+    escaped = re.escape(name)
+    return re.compile(
+        r'(?<![A-Za-z0-9_\u4e00-\u9fff])' + escaped + r'(?![A-Za-z0-9_\u4e00-\u9fff])'
+    )
+
+
+def rename_variable_in_formulas(old_name: str, new_name: str) -> tuple:
+    """Replace all bare ``OLD_NAME`` references with ``NEW_NAME`` across all formula fields.
+
+    Returns (total_updated_count, [field_label × count, ...]).
+    """
+    from parametric_bom import models as pm
+
+    pattern = _get_var_ref_regex(old_name)
+
+    field_label_map = {
+        'qty_formula': '数量公式',
+        'name_formula': '名称公式',
+        'condition_formula': '条件公式',
+        'reference_formula': '备注公式',
+        'price_formula': '价格公式',
+        'value_formula': '值公式',
+        'formula': '公式',
+        'drawing_ref_formula': '图纸参考公式',
+        'unit_cost_formula': '单位成本公式',
+        'variant_name_template': '变体名称模板',
+        'variant_ipn_template': '变体IPN模板',
+    }
+
+    total_updated = 0
+    updated_fields = []
+
+    for model_name, field_name in FORMULA_CHECK_FIELDS:
+        try:
+            Model = getattr(pm, model_name)
+        except AttributeError:
+            continue
+
+        # Skip PartVariable's own formula field — self-referencing is invalid
+        if model_name == 'PartVariable' and field_name == 'formula':
+            continue
+
+        # ── JSON field: VariantMapping.param_mapping ──
+        if field_name == 'param_mapping':
+            rows = Model.objects.exclude(**{field_name: {}}).exclude(**{field_name: None})
+            count = 0
+            for row in rows:
+                val = getattr(row, field_name, {}) or {}
+                if not isinstance(val, dict):
+                    continue
+                changed = False
+                new_dict = {}
+                for k, v in val.items():
+                    if isinstance(v, str) and old_name in v:
+                        new_val = pattern.sub(new_name, v)
+                        if new_val != v:
+                            new_dict[k] = new_val
+                            changed = True
+                        else:
+                            new_dict[k] = v
+                    else:
+                        new_dict[k] = v
+                if changed:
+                    setattr(row, field_name, new_dict)
+                    row.save(update_fields=[field_name])
+                    count += 1
+            if count > 0:
+                total_updated += count
+                updated_fields.append(f'参数映射×{count}')
+            continue
+
+        # ── Standard text field ──
+        filter_kwargs = {field_name + '__icontains': old_name}
+        rows = Model.objects.filter(**filter_kwargs)
+
+        count = 0
+        for row in rows:
+            old_val = getattr(row, field_name, '') or ''
+            new_val = pattern.sub(new_name, old_val)
+            if new_val != old_val:
+                setattr(row, field_name, new_val)
+                row.save(update_fields=[field_name])
+                count += 1
+
+        if count > 0:
+            total_updated += count
+            label = field_label_map.get(field_name, field_name)
+            updated_fields.append(f'{label}×{count}')
+
+    # ── BomSpecification.spec_fields (JSON list) ──
+    try:
+        from parametric_bom.models import BomSpecification
+        specs = BomSpecification.objects.exclude(spec_fields=[]).exclude(spec_fields=None)
+        count = 0
+        for spec in specs:
+            fields = spec.spec_fields or []
+            if not isinstance(fields, list):
+                continue
+            changed = False
+            new_fields = []
+            for sf in fields:
+                if not isinstance(sf, dict):
+                    new_fields.append(sf)
+                    continue
+                formula = sf.get('formula', '') or ''
+                if old_name in formula:
+                    new_formula = pattern.sub(new_name, formula)
+                    if new_formula != formula:
+                        sf = {**sf, 'formula': new_formula}
+                        changed = True
+                new_fields.append(sf)
+            if changed:
+                spec.spec_fields = new_fields
+                spec.save(update_fields=['spec_fields'])
+                count += 1
+        if count > 0:
+            total_updated += count
+            updated_fields.append(f'规格字段公式×{count}')
+    except Exception:
+        pass
+
+    return total_updated, updated_fields
+
+
+def _on_variable_rename(sender, instance, **kwargs):
+    """pre_save handler: auto-update formulas when a PartVariable is renamed."""
+    if not instance.pk:
+        return
+
+    try:
+        old = sender.objects.only('name').get(pk=instance.pk)
+    except sender.DoesNotExist:
+        return
+
+    old_name = old.name
+    new_name = instance.name
+
+    if old_name == new_name:
+        return
+
+    count, fields = rename_variable_in_formulas(old_name, new_name)
+    if count > 0:
+        logger.info(
+            'variable_renamed old_name=%r new_name=%r updated=%d fields=%s',
+            old_name, new_name, count, fields,
+        )
+
+
 # ── Register signals ──
 
 def connect_signals():
     """Connect signal handlers. Called from AppConfig.ready()."""
-    from common.models import Parameter
+    from common.models import Parameter, ParameterTemplate
+    from parametric_bom.models import PartVariable
     pre_delete.connect(check_parameter_delete, sender=Parameter, weak=False)
+    pre_save.connect(_on_parameter_template_rename, sender=ParameterTemplate, weak=False)
+    pre_save.connect(_on_variable_rename, sender=PartVariable, weak=False)

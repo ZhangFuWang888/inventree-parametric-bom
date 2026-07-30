@@ -580,11 +580,8 @@ async function validateFormula() {
 
 // ===== MODAL HELPERS =====
 function openModal(id) {
-  console.log('[openModal] called with id:', id, 'element:', !!document.getElementById(id));
   const el = document.getElementById(id);
   if (el) {
-    // Keep modal-overlay class for proper CSS styling (flex centering, blur, etc.)
-    // But also apply critical styles inline as a fallback
     el.style.setProperty('display', 'flex', 'important');
     el.style.setProperty('position', 'fixed', 'important');
     el.style.setProperty('top', '0', 'important');
@@ -595,9 +592,9 @@ function openModal(id) {
     el.style.setProperty('z-index', '99999', 'important');
     el.style.setProperty('align-items', 'center', 'important');
     el.style.setProperty('justify-content', 'center', 'important');
-    console.log('[openModal] AFTER - styles applied');
-  } else {
-    console.error('[openModal] ELEMENT NOT FOUND! id:', id);
+    el.style.setProperty('opacity', '1', 'important');
+    el.style.setProperty('visibility', 'visible', 'important');
+    el.style.setProperty('backdrop-filter', 'none', 'important');
   }
   document.body.style.overflow = 'hidden';
 }

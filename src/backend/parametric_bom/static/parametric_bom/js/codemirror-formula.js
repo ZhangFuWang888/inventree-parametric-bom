@@ -111,7 +111,9 @@ export function attachCmToInput(inputEl, opts = {}) {
   inputEl.style.display = 'none'
   inputEl.dataset.cmInit = '1'
 
-  const editor = CodeMirror(container, {
+  let editor;
+
+  editor = CodeMirror(container, {
     value: inputEl.value || '',
     mode: 'formula',
     theme: 'default',

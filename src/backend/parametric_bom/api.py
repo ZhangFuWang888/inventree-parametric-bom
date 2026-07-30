@@ -212,6 +212,35 @@ def _capture_part_snapshot(part):
     }
 
 
+def _inject_bom_tree_notes(bom_tree):
+    """Inject Part.notes into each child node of a BOM tree for freezing at snapshot time."""
+    from part.models import Part
+
+    # Collect all part IDs from the tree
+    part_ids = set()
+    def _collect(node):
+        for child in node.get('children', []):
+            pid = child.get('actual_part_id') or child.get('part_id')
+            if pid:
+                part_ids.add(int(pid))
+            _collect(child)
+    _collect(bom_tree)
+
+    # Bulk fetch Part.notes
+    part_notes_map = {}
+    if part_ids:
+        for p in Part.objects.filter(pk__in=part_ids).only('pk', 'notes'):
+            part_notes_map[p.pk] = (p.notes or '').strip()
+
+    # Inject into each child
+    def _inject(node):
+        for child in node.get('children', []):
+            pid = child.get('actual_part_id') or child.get('part_id')
+            child['notes'] = part_notes_map.get(pid, '')
+            _inject(child)
+    _inject(bom_tree)
+
+
 def _find_param_references(part_id, param_name):
     """Check if param_name (referenced as param.xxx) is used in any formula.
     Returns list of {label, url, tab} dicts."""
@@ -1934,7 +1963,8 @@ def _build_bom_xlsx(result):
                     ipn = p.IPN or ''
                 if not units:
                     units = p.units or ''
-                part_notes = (p.notes or '').strip()
+                # Prefer reference formula result; fallback to Part.notes
+                part_notes = ref.strip() if ref else (p.notes or '').strip()
             else:
                 part_notes = ''
 
@@ -2318,6 +2348,7 @@ def cart_add(request):
                     data['parameters'] = params  # normalize field name
                     bom_tree = expand_bom_level(part, params, timeout_ms=1000)
                     data['bom_snapshot'] = bom_tree
+                    _inject_bom_tree_notes(bom_tree)
                     # Calculate total price from expanded BOM
                     total = _calc_tree_total(bom_tree)
                     if total and total > 0:
@@ -2802,6 +2833,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
                     params = data.get('parameters', {}) or {}
                     bom_tree = expand_bom_level(part, params, timeout_ms=1000)
                     data['bom_snapshot'] = bom_tree
+                    _inject_bom_tree_notes(bom_tree)
                     # Calculate price
                     total = _calc_tree_total(bom_tree)
                     if total and total > 0:
@@ -3867,7 +3899,14 @@ class ProjectViewSet(viewsets.ModelViewSet):
                             ipn = p.IPN or ''
                         if not units:
                             units = p.units or ''
-                        part_notes = (p.notes or '').strip()
+                        # Priority: reference formula > snapshot notes > live Part.notes
+                        ref_val = child.get('reference', '') or ''
+                        if ref_val:
+                            part_notes = ref_val.strip()
+                        else:
+                            part_notes = child.get('notes', '')
+                            if not part_notes:
+                                part_notes = (p.notes or '').strip()
                     else:
                         part_notes = ''
 
@@ -4123,7 +4162,14 @@ class ProjectViewSet(viewsets.ModelViewSet):
                             ipn = p.IPN or ''
                         if not units:
                             units = p.units or ''
-                        part_notes = (p.notes or '').strip()
+                        # Priority: reference formula > snapshot notes > live Part.notes
+                        ref_val = child.get('reference', '') or ''
+                        if ref_val:
+                            part_notes = ref_val.strip()
+                        else:
+                            part_notes = child.get('notes', '')
+                            if not part_notes:
+                                part_notes = (p.notes or '').strip()
                     else:
                         part_notes = ''
 
