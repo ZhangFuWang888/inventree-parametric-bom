@@ -375,4 +375,4 @@ window.CmFormulaEditor = {
   refreshAllEditors, destroyAllEditors, FORMULA_FUNCTIONS,
 }
 
-console.log('🔧 CmFormulaEditor (CM5) loaded, CodeMirror available:', typeof CodeMirror !== 'undefined')
+console.warn('🔧 CmFormulaEditor v=cfgid2 (CM5) CodeMirror:', typeof CodeMirror !== 'undefined')

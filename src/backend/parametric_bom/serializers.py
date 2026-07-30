@@ -332,6 +332,7 @@ class PartVariableSerializer(serializers.ModelSerializer):
                     except (ValueError, TypeError):
                         pass
                     param_ctx[param_name] = val
+                    param_ctx[f'cfg_{cfg.id}'] = val  # ID-based alias
             result = evaluate_formula(obj.formula, {'param': param_ctx})
             return str(result) if result is not None else None
         except (EvaluationError, ParseError, ReferenceError, Exception):
