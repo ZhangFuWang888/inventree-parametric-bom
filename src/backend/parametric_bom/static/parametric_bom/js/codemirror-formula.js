@@ -259,12 +259,16 @@ function setupAutocomplete(parameters) {
     if (isParamContext) {
       for (const p of paramList) {
         const name = p.name || p.parameter_name || p.key || ''
-        // Only show if word matches param name OR word is very short (just started typing)
-        if (name.toLowerCase().includes(lower) || lower.length <= 1) {
+        const cfgId = p.id || p.parameter_config_id || ''
+        const cfgRef = `cfg_${cfgId}`
+        // Match against both the human name and cfg_{id} reference
+        const nameMatch = name.toLowerCase().includes(lower) || lower.length <= 1
+        const idMatch = cfgRef.toLowerCase().includes(lower)
+        if (nameMatch || idMatch) {
           options.push({
-            text: `param.${name}`,
-            displayText: `param.${name}`,
-            hint: `${p.data_type || '?'}`,
+            text: `param.${cfgRef}`,
+            displayText: name || cfgRef,
+            hint: `${cfgRef} · ${p.data_type || '?'}`,
           })
         }
       }

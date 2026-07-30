@@ -272,7 +272,9 @@ async function loadFormulaEditorParams(partId) {
   let html = '';
   configs.forEach(c => {
     const paramName = c.param_name || c.param_template_detail?.name || 'unknown';
-    html += `<span class="fe-param-pill" onclick="insertParam('${paramName.replace(/'/g, "\\'")}')">${paramName}</span>`;
+    const cfgId = c.id;
+    const safeName = paramName.replace(/'/g, "\\'");
+    html += `<span class="fe-param-pill" onclick="insertParam(${cfgId},'${safeName}')" title="cfg_${cfgId}">${paramName}</span>`;
   });
   container.innerHTML = html;
 }
@@ -286,10 +288,10 @@ function getActiveTextarea() {
   return document.getElementById(map[feState.activeField]);
 }
 
-function insertParam(paramName) {
+function insertParam(cfgId, paramName) {
   const ta = getActiveTextarea();
   if (!ta) return;
-  const insertText = `param.${paramName}`;
+  const insertText = `param.cfg_${cfgId}`;
   const start = ta.selectionStart;
   const end = ta.selectionEnd;
   const val = ta.value;

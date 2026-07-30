@@ -737,7 +737,13 @@ async function showParamReferences(cfgId, paramName, kind) {
   pop.innerHTML = '<div style="color:#9ca3af">⏳ 查询引用...</div>';
   document.body.appendChild(pop);
 
-  var res = await apiCall('GET', 'param-references/?part=' + parseInt(pid) + '&name=' + encodeURIComponent(paramName) + '&kind=' + (kind || 'param'));
+  var params = 'part=' + parseInt(pid) + '&kind=' + (kind || 'param');
+  if (kind === 'variable') {
+    params += '&name=' + encodeURIComponent(paramName);
+  } else {
+    params += '&cfg_id=' + cfgId;
+  }
+  var res = await apiCall('GET', 'param-references/?' + params);
   if (res.error) {
     pop.innerHTML = '<div style="color:#ef4444">❌ 查询失败</div>';
     setTimeout(function() { pop.remove(); }, 2000);

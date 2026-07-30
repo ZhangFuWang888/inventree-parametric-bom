@@ -241,13 +241,13 @@ def _inject_bom_tree_notes(bom_tree):
     _inject(bom_tree)
 
 
-def _find_param_references(part_id, param_name):
-    """Check if param_name (referenced as param.xxx) is used in any formula.
+def _find_param_references(part_id, cfg_id):
+    """Check if cfg_{id} is referenced in any formula (as param.cfg_{id}).
     Returns list of {label, url, tab} dicts."""
     results = []
     for prefix, label, formula, url, tab in _collect_formula_fields(part_id):
         import re
-        pattern = re.compile(r'param\.\s*' + re.escape(param_name) + r'\b')
+        pattern = re.compile(r'param\.\s*cfg_' + re.escape(str(cfg_id)) + r'\b')
         if pattern.search(formula):
             results.append({'label': f'{prefix} → {label}', 'url': url, 'tab': tab})
     return results
@@ -275,15 +275,22 @@ def param_references(request):
 
     Query params:
         part (int): Part ID.
-        name (str): Parameter name (without param. prefix) or variable name.
+        name (str, optional): Variable name (for kind='variable').
+        cfg_id (int, optional): PartParameterConfig ID (for kind='param').
         kind (str): 'param' or 'variable' (default 'param').
     """
     part_id = request.query_params.get('part')
     name = request.query_params.get('name', '').strip()
+    cfg_id = request.query_params.get('cfg_id', '').strip()
     kind = request.query_params.get('kind', 'param')
 
-    if not part_id or not name:
-        return Response({'error': '请提供 part 和 name 参数'}, status=400)
+    if not part_id:
+        return Response({'error': '请提供 part 参数'}, status=400)
+
+    if kind == 'variable' and not name:
+        return Response({'error': '请提供 name 参数'}, status=400)
+    if kind == 'param' and not cfg_id:
+        return Response({'error': '请提供 cfg_id 参数'}, status=400)
 
     try:
         part_id = int(part_id)
@@ -293,11 +300,11 @@ def param_references(request):
     if kind == 'variable':
         refs = _find_variable_references(part_id, name)
     else:
-        refs = _find_param_references(part_id, name)
+        refs = _find_param_references(part_id, int(cfg_id))
 
     return Response({
         'part': part_id,
-        'name': name,
+        'name': name or f'cfg_{cfg_id}',
         'kind': kind,
         'count': len(refs),
         'references': refs,
@@ -371,7 +378,7 @@ class PartParameterConfigViewSet(viewsets.ModelViewSet):
     def perform_destroy(self, instance):
         """Soft-delete: set is_deleted flag instead of removing from DB."""
         refs = _find_param_references(
-            instance.part_id, instance.name or (instance.template.name if instance.template else '')
+            instance.part_id, instance.id
         )
         if refs:
             detail = '该参数被以下公式引用，无法删除：\n' + '\n'.join(refs)

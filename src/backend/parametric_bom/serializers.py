@@ -47,11 +47,8 @@ class PartParameterConfigSerializer(serializers.ModelSerializer):
     reference_count = serializers.SerializerMethodField()
 
     def get_reference_count(self, obj):
-        """Count how many formulas reference this parameter."""
-        param_name = obj.name or (obj.template.name if obj.template else '')
-        if not param_name or not obj.part_id:
-            return 0
-        return _count_param_refs(obj.part_id, param_name)
+        """Count how many formulas reference this parameter (by cfg_{id})."""
+        return _count_param_refs(obj.part_id, obj.id)
 
     class Meta:
         """Meta options."""
@@ -685,10 +682,10 @@ def _collect_formula_texts(part_id):
     return refs
 
 
-def _count_param_refs(part_id, param_name):
-    """Count how many formulas reference param.param_name."""
+def _count_param_refs(part_id, cfg_id):
+    """Count how many formulas reference param.cfg_{id}."""
     import re
-    pattern = re.compile(r'param\.\s*' + re.escape(param_name) + r'\b')
+    pattern = re.compile(r'param\.\s*cfg_' + re.escape(str(cfg_id)) + r'\b')
     count = 0
     for formula in _collect_formula_texts(part_id):
         if pattern.search(formula):

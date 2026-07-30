@@ -117,9 +117,13 @@ def compute_parameters(
     for cfg in configs:
         param_name = cfg.template.name if cfg.template else (cfg.name or f'param_{cfg.id}')
         if param_name in user_params:
+            # User provided value under this name — still register cfg_{id} alias
+            all_params[f'cfg_{cfg.id}'] = all_params.get(param_name, cfg.default_value)
             continue
         if cfg.default_value:
             all_params[param_name] = cfg.default_value
+            # ID-based reference: formula uses param.cfg_{id} (stable, survives renames)
+            all_params[f'cfg_{cfg.id}'] = cfg.default_value
 
     # ── 2) Apply InheritanceMapping ────────────────────────────
     if parent_params:
