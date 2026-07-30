@@ -420,8 +420,9 @@ class FormulaParser:
         if token.type == IDENTIFIER and token.value.lower() in PARAM_PREFIXES:
             prefix = self._advance().value.lower()
             self._expect(DOT)
-            name_token = self._expect(IDENTIFIER)
-            name = name_token.value
+            # Accept both IDENTIFIER and NUMBER as param names (e.g. param.111)
+            name_token = self._expect(IDENTIFIER, NUMBER)
+            name = str(name_token.value)
 
             # 参考零件 requires two levels: 参考零件.零件名__参数名
             if prefix == '参考零件':

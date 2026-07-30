@@ -266,7 +266,7 @@ function setupAutocomplete(parameters) {
         const idMatch = cfgRef.toLowerCase().includes(lower)
         if (nameMatch || idMatch) {
           options.push({
-            text: `param.${cfgRef}`,
+            text: `param.${name}`,
             displayText: name || cfgRef,
             hint: `${cfgRef} · ${p.data_type || '?'}`,
           })
@@ -375,4 +375,4 @@ window.CmFormulaEditor = {
   refreshAllEditors, destroyAllEditors, FORMULA_FUNCTIONS,
 }
 
-console.warn('🔧 CmFormulaEditor v=cfgid2 (CM5) CodeMirror:', typeof CodeMirror !== 'undefined')
+console.warn('🔧 CmFormulaEditor v=cfgid7 (CM5) CodeMirror:', typeof CodeMirror !== 'undefined')

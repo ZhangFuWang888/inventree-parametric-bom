@@ -17,7 +17,62 @@ let initialPage = '{{ initial_page }}';
 let standalone = {% if standalone %}true{% else %}false{% endif %};
 </script>
 
+<script>
+// ── Formula parameter ID↔name translation helpers ──
+// _paramCfgToName: { '433': '辊筒直径', '434': '长度' }
+// _paramNameToCfg: { '辊筒直径': '433', '长度': '434' }
+window._paramCfgToName = {};
+window._paramNameToCfg = {};
 
+// Populate maps from loaded parameter configs
+// configs: array of {id, name|template_name}
+window._populateParamMap = function(configs) {
+  window._paramCfgToName = {};
+  window._paramNameToCfg = {};
+  if (!configs) return;
+  configs.forEach(function(c) {
+    var name = c.name || c.template_name || '';
+    var id = c.id || c.parameter_config_id || '';
+    if (id && name) {
+      window._paramCfgToName[String(id)] = name;
+      window._paramNameToCfg[name] = String(id);
+    }
+  });
+};
+
+// Convert formula for display: param.cfg_433 → param.辊筒直径
+window._formulaForDisplay = function(formula) {
+  if (!formula) return formula;
+  return formula.replace(/param\.cfg_(\d+)/g, function(match, id) {
+    var name = window._paramCfgToName[id];
+    return name ? 'param.' + name : match;
+  });
+};
+
+// Convert formula for storage: param.辊筒直径 → param.cfg_433
+// Matches param. followed by letters/Chinese/underscore/digits (non-whitespace, non-paren)
+window._formulaForStorage = function(formula) {
+  if (!formula) return formula;
+  return formula.replace(/param\.([^\s(),+\-*\/=<>!&|^%]+)/g, function(match, name) {
+    var id = window._paramNameToCfg[name];
+    if (id) return 'param.cfg_' + id;
+    // If name is already cfg_XXX format, leave it
+    if (/^cfg_\d+$/.test(name)) return match;
+    return match; // unknown name, leave as-is
+  });
+};
+</script>
+
+<script>
+// ── Name validation for parameters and variables ──
+window._validateIdentifier = function(name) {
+  if (!name) return '名称不能为空';
+  if (!/^[A-Za-z_\u4e00-\u9fff][A-Za-z0-9_\u4e00-\u9fff]*$/.test(name)) {
+    return '名称必须以字母、下划线或中文开头，只能包含字母、数字、下划线和中文，不能使用纯数字或特殊字符';
+  }
+  return null; // null = valid
+};
+</script>
 
 <!-- CodeMirror 5 Formula Editor -->
 <link rel="stylesheet" href="/static/parametric_bom/vendor/codemirror.min.css">
@@ -43,11 +98,11 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 <!-- ── Split JS modules (loaded in dependency order) ── -->
 <script src="/static/parametric_bom/js/core.js?v=20260722"></script>
-<script src="/static/parametric_bom/js/products.js?v=cfgid5"></script>
-<script src="/static/parametric_bom/js/bom-functions.js?v=cfgid5"></script>
-<script src="/static/parametric_bom/js/configurator.js?v=cfgid5"></script>
-<script src="/static/parametric_bom/js/projects.js?v=cfgid5"></script>
-<script src="/static/parametric_bom/js/formula-pages.js?v=cfgid5"></script>
+<script src="/static/parametric_bom/js/products.js?v=cfgid7"></script>
+<script src="/static/parametric_bom/js/bom-functions.js?v=cfgid7"></script>
+<script src="/static/parametric_bom/js/configurator.js?v=cfgid8"></script>
+<script src="/static/parametric_bom/js/projects.js?v=cfgid7"></script>
+<script src="/static/parametric_bom/js/formula-pages.js?v=cfgid7"></script>
 <script src="/static/parametric_bom/js/init.js?v=diag1"></script>
 <script>
 /* ── Cart Functions ── */

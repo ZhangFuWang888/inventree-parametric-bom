@@ -50,6 +50,16 @@ class PartParameterConfigSerializer(serializers.ModelSerializer):
         """Count how many formulas reference this parameter (by cfg_{id})."""
         return _count_param_refs(obj.part_id, obj.id)
 
+    def validate_name(self, value):
+        """Validate parameter name follows identifier naming rules."""
+        if not value:
+            return value
+        if not re.match(r'^[A-Za-z_\u4e00-\u9fff][A-Za-z0-9_\u4e00-\u9fff]*$', value):
+            raise serializers.ValidationError(
+                '参数名必须以字母、下划线或中文开头，只能包含字母、数字、下划线和中文，不能使用纯数字或特殊字符。'
+            )
+        return value
+
     class Meta:
         """Meta options."""
         model = PartParameterConfig
@@ -299,6 +309,16 @@ class PartVariableSerializer(serializers.ModelSerializer):
     reference_count = serializers.SerializerMethodField()
     part_name = serializers.CharField(source='part.name', read_only=True)
     computed_value = serializers.SerializerMethodField()
+
+    def validate_name(self, value):
+        """Validate variable name follows identifier naming rules."""
+        if not value:
+            raise serializers.ValidationError('变量名不能为空。')
+        if not re.match(r'^[A-Za-z_\u4e00-\u9fff][A-Za-z0-9_\u4e00-\u9fff]*$', value):
+            raise serializers.ValidationError(
+                '变量名必须以字母、下划线或中文开头，只能包含字母、数字、下划线和中文，不能使用纯数字或特殊字符。'
+            )
+        return value
 
     class Meta:
         """Meta options."""
