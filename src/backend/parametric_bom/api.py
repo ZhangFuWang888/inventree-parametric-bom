@@ -2798,12 +2798,17 @@ class ProjectViewSet(viewsets.ModelViewSet):
         serializer = ProjectItemSerializer(items, many=True, context={'request': request})
         return Response(serializer.data)
 
-    @action(detail=True, methods=['post'])
-    def add_item(self, request, pk=None):
-        """Add an item to a project."""
-        project = self.get_object()
-        data = {**request.data, 'project': project.id}
+    def _add_single_item(self, project, data, user, log_prefix=''):
+        """Core logic: add one item to a project. Returns (items, status, error).
 
+        Args:
+            project: Project instance
+            data: dict with item data (must include 'project')
+            user: request.user
+            log_prefix: optional prefix for log messages (e.g. '[批量] ')
+
+        Returns: (created_items: list[dict], status_code: int, error: str|None)
+        """
         # ── Merge: 同一批次内名称+型号相同则叠加数量 ──
         batch_name = data.get('batch_name', '')
         title = data.get('title', '')
@@ -2821,12 +2826,12 @@ class ProjectViewSet(viewsets.ModelViewSet):
         if existing:
             add_qty = int(data.get('quantity', 1))
             existing.quantity += add_qty
-            existing.created_by = request.user
+            existing.created_by = user
             existing.save(update_fields=['quantity', 'created_by'])
             self._log(project, 'item_merged',
-                      f'合并条目: {title} 数量 +{add_qty} → {existing.quantity}')
-            serializer = ProjectItemSerializer(existing, context={'request': request})
-            return Response(serializer.data, status=200)
+                      f'{log_prefix}合并条目: {title} 数量 +{add_qty} → {existing.quantity}')
+            serializer = ProjectItemSerializer(existing, context={'request': type('Req', (), {'user': user})()})
+            return [serializer.data], 200, None
 
         # Auto-expand BOM for configuration items
         if data.get('item_type') == 'configuration':
@@ -2838,7 +2843,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
                     from parametric_bom.models import ProductConfiguration
                     part = Part.objects.get(pk=int(product_part_id))
                     params = data.get('parameters', {}) or {}
-                    bom_tree = expand_bom_level(part, params, timeout_ms=1000)
+                    bom_tree = expand_bom_level(part, params, timeout_ms=3000)
                     data['bom_snapshot'] = bom_tree
                     _inject_bom_tree_notes(bom_tree)
                     # Calculate price
@@ -2851,18 +2856,18 @@ class ProjectViewSet(viewsets.ModelViewSet):
                         title=data.get('title', part.name),
                         params_snapshot=params,
                         generated_bom=bom_tree,
-                        created_by=request.user,
+                        created_by=user,
                     )
                     data['product_config'] = config.id
-                except Exception:
-                    pass
+                except Exception as e:
+                    return [], 400, f'展开BOM失败(product_part_id={product_part_id}): {e}'
 
         # Capture part snapshot for part-type items
         part_id_for_snapshot = data.get('part')
         if part_id_for_snapshot and data.get('item_type') == 'part':
             try:
-                from part.models import Part
-                part = Part.objects.get(pk=int(part_id_for_snapshot))
+                from part.models import Part as PartModel
+                part = PartModel.objects.get(pk=int(part_id_for_snapshot))
                 data['part_snapshot'] = _capture_part_snapshot(part)
             except Exception:
                 pass
@@ -2870,7 +2875,6 @@ class ProjectViewSet(viewsets.ModelViewSet):
         # Auto-select supplier_part_id when adding part items
         if data.get('item_type') == 'part' and not data.get('supplier_part_id'):
             try:
-                from part.models import Part
                 from company.models import SupplierPart
                 pid = data.get('part')
                 if pid:
@@ -2879,82 +2883,160 @@ class ProjectViewSet(viewsets.ModelViewSet):
                     if cnt == 1:
                         data['supplier_part_id'] = sps[0].id
                     elif cnt > 1:
-                        # Default to primary, or first active
                         primary = sps.filter(primary=True).first() or sps.first()
                         if primary:
                             data['supplier_part_id'] = primary.id
             except Exception:
                 pass
 
-        serializer = ProjectItemSerializer(
-            data=data,
-            context={'request': request},
-        )
-        if serializer.is_valid():
-            item = serializer.save()
-            # Set created_by on the item (not in serializer fields)
-            item.created_by = request.user
-            item.save(update_fields=['created_by'])
-            self._log(project, 'item_added', f'添加条目: {item.title} x{item.quantity}')
+        serializer = ProjectItemSerializer(data=data)
+        if not serializer.is_valid():
+            return [], 400, str(serializer.errors)
 
-            # Re-serialize to include created_by_name
-            serializer = ProjectItemSerializer(item, context={'request': request})
+        item = serializer.save()
+        item.created_by = user
+        item.save(update_fields=['created_by'])
+        self._log(project, 'item_added',
+                  f'{log_prefix}添加条目: {item.title} x{item.quantity}')
 
-            # Auto-expand BOM sub-items into project
-            created_items = [serializer.data]
-            bom_snapshot = getattr(item, 'bom_snapshot', None) or data.get('bom_snapshot')
-            if bom_snapshot:
-                # Handle both flat format {bom_tree: [...]} and tree format {children: [...]}
-                bom_items = None
-                if isinstance(bom_snapshot, dict):
-                    if 'bom_tree' in bom_snapshot and isinstance(bom_snapshot['bom_tree'], list):
-                        bom_items = bom_snapshot['bom_tree']
-                    elif 'children' in bom_snapshot:
-                        bom_items = _flatten_bom_subtree(bom_snapshot['children'])
-                if bom_items:
-                    batch_name = data.get('batch_name', '') or item.batch_name or ''
-                    for bi in bom_items:
-                        qty = bi.get('calculated_quantity', bi.get('quantity', 1))
-                        up = bi.get('unit_price')
-                        part_snap = None
-                        supplier_pid = None
-                        if bi.get('part_id'):
-                            try:
-                                from part.models import Part
-                                part = Part.objects.get(pk=int(bi['part_id']))
-                                part_snap = _capture_part_snapshot(part)
-                                # Auto-select supplier for BOM sub-item
-                                from company.models import SupplierPart
-                                sps = SupplierPart.objects.filter(part_id=part.pk).order_by('-primary', 'id')
-                                cnt = sps.count()
-                                if cnt == 1:
-                                    supplier_pid = sps[0].id
-                                elif cnt > 1:
-                                    primary = sps.filter(primary=True).first() or sps.first()
-                                    if primary:
-                                        supplier_pid = primary.id
-                            except Exception:
-                                pass
-                        child = ProjectItem.objects.create(
-                            project=project,
-                            item_type='part',
-                            title=bi.get('part_name', bi.get('calculated_name', '')),
-                            part_id=bi.get('part_id'),
-                            quantity=int(qty) if qty == int(qty) else qty,
-                            unit_price=str(round(float(up), 4)) if up else None,
-                            batch_name=batch_name,
-                            part_snapshot=part_snap,
-                            supplier_part_id=supplier_pid,
-                            created_by=request.user,
-                        )
-                        child_ser = ProjectItemSerializer(child, context={'request': request})
-                        created_items.append(child_ser.data)
-                    self._log(project, 'item_added',
-                              f'并展开 {len(bom_items)} 个BOM子件')
+        # Re-serialize to include created_by_name
+        serializer = ProjectItemSerializer(item, context={'request': type('Req', (), {'user': user})()})
 
-            return Response(created_items if len(created_items) > 1 else created_items[0],
-                          status=201)
-        return Response(serializer.errors, status=400)
+        # Auto-expand BOM sub-items into project
+        created_items = [serializer.data]
+        bom_snapshot = getattr(item, 'bom_snapshot', None) or data.get('bom_snapshot')
+        if bom_snapshot:
+            bom_items = None
+            if isinstance(bom_snapshot, dict):
+                if 'bom_tree' in bom_snapshot and isinstance(bom_snapshot['bom_tree'], list):
+                    bom_items = bom_snapshot['bom_tree']
+                elif 'children' in bom_snapshot:
+                    bom_items = _flatten_bom_subtree(bom_snapshot['children'])
+            if bom_items:
+                batch_name = data.get('batch_name', '') or ''
+                for bi in bom_items:
+                    qty = bi.get('calculated_quantity', bi.get('quantity', 1))
+                    up = bi.get('unit_price')
+                    part_snap = None
+                    supplier_pid = None
+                    if bi.get('part_id'):
+                        try:
+                            from part.models import Part as PartModel
+                            from company.models import SupplierPart
+                            part = PartModel.objects.get(pk=int(bi['part_id']))
+                            part_snap = _capture_part_snapshot(part)
+                            sps = SupplierPart.objects.filter(part_id=part.pk).order_by('-primary', 'id')
+                            cnt = sps.count()
+                            if cnt == 1:
+                                supplier_pid = sps[0].id
+                            elif cnt > 1:
+                                primary = sps.filter(primary=True).first() or sps.first()
+                                if primary:
+                                    supplier_pid = primary.id
+                        except Exception:
+                            pass
+                    child = ProjectItem.objects.create(
+                        project=project,
+                        item_type='part',
+                        title=bi.get('part_name', bi.get('calculated_name', '')),
+                        part_id=bi.get('part_id'),
+                        quantity=int(qty) if qty == int(qty) else qty,
+                        unit_price=str(round(float(up), 4)) if up else None,
+                        batch_name=batch_name,
+                        part_snapshot=part_snap,
+                        supplier_part_id=supplier_pid,
+                        created_by=user,
+                    )
+                    child_ser = ProjectItemSerializer(child,
+                        context={'request': type('Req', (), {'user': user})()})
+                    created_items.append(child_ser.data)
+                self._log(project, 'item_added',
+                          f'{log_prefix}并展开 {len(bom_items)} 个BOM子件')
+
+        return created_items, 201, None
+
+    @action(detail=True, methods=['post'])
+    def add_item(self, request, pk=None):
+        """Add a single item to a project.
+
+        Request body: {item_type, title, product_part_id/part, parameters, quantity, ...}
+        """
+        project = self.get_object()
+        data = {**request.data, 'project': project.id}
+        items, status, error = self._add_single_item(project, data, request.user)
+        if error:
+            return Response({'error': error}, status=status)
+        if status == 200:
+            return Response(items[0], status=200)
+        return Response(items if len(items) > 1 else items[0], status=201)
+
+    @action(detail=True, methods=['post'])
+    def add_items_batch(self, request, pk=None):
+        """Batch-add multiple items to a project.
+
+        Accepts mixed configuration (with BOM expansion) and static part items.
+
+        Request body:
+        {
+            "items": [
+                {"item_type": "configuration", "product_part_id": 2864, "title": "辊道机-1200",
+                 "parameters": {"L": 1200, "W": 600}, "quantity": 2, "batch_name": "车间A"},
+                {"item_type": "part", "part": 150, "title": "电机-0.75kW", "quantity": 4, "batch_name": "车间A"}
+            ]
+        }
+
+        Response:
+        {
+            "success": true,
+            "created": 5,          // total items created (including BOM sub-items)
+            "item_count": 2,       // number of top-level items requested
+            "items": [...],
+            "errors": []           // only present if any item failed
+        }
+        """
+        project = self.get_object()
+        items_data = request.data.get('items', [])
+
+        if not items_data or not isinstance(items_data, list):
+            return Response({'error': 'items 必须是数组'}, status=400)
+
+        all_items = []
+        errors = []
+
+        for idx, item_data in enumerate(items_data):
+            if not isinstance(item_data, dict):
+                errors.append({'index': idx, 'error': '每条必须是JSON对象'})
+                continue
+
+            data = {**item_data, 'project': project.id}
+            try:
+                items, status, error = self._add_single_item(
+                    project, data, request.user, log_prefix=f'[批量 {idx+1}/{len(items_data)}] ')
+                if error:
+                    errors.append({'index': idx, 'title': data.get('title', ''),
+                                   'error': error})
+                else:
+                    all_items.extend(items)
+            except Exception as e:
+                errors.append({'index': idx, 'title': data.get('title', ''),
+                               'error': str(e)})
+
+        # Batch log
+        self._log(project, 'batch_added',
+                  f'批量添加 {len(items_data)} 条 → 创建 {len(all_items)} 条'
+                  + (f'，{len(errors)} 条失败' if errors else ''))
+
+        response_data = {
+            'success': len(errors) == 0,
+            'created': len(all_items),
+            'item_count': len(items_data),
+            'items': all_items,
+        }
+        if errors:
+            response_data['errors'] = errors
+
+        status_code = 201 if not errors else 207
+        return Response(response_data, status=status_code)
 
     @action(detail=True, methods=['patch', 'delete'], url_path='items/(?P<item_id>[^/.]+)')
     def update_item(self, request, pk=None, item_id=None):
