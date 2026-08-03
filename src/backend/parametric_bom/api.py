@@ -2908,7 +2908,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 if part_created:
                     created_parts.append({'pk': part.pk, 'name': part.name, 'ipn': part.IPN or ''})
             elif not data.get('part') and not data.get('name'):
-                return [], 400, 'part 条目必须提供 part ID 或 name'
+                return [], 400, 'part 条目必须提供 part ID 或 name', created_parts
         elif item_type == 'configuration':
             # Resolve product part: by ID, or by name/IPN with auto-create
             if not data.get('product_part_id') and not data.get('product_part'):
@@ -2919,7 +2919,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
                     if product_created:
                         created_parts.append({'pk': product.pk, 'name': product.name, 'ipn': product.IPN or ''})
                 elif not data.get('name'):
-                    return [], 400, 'configuration 条目必须提供 product_part_id 或 name'
+                    return [], 400, 'configuration 条目必须提供 product_part_id 或 name', created_parts
 
             # Auto-create BOM children for configuration products
             children = data.get('children') or []
@@ -3000,7 +3000,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
                     )
                     data['product_config'] = config.id
                 except Exception as e:
-                    return [], 400, f'展开BOM失败(product_part_id={product_part_id}): {e}'
+                    return [], 400, f'展开BOM失败(product_part_id={product_part_id}): {e}', created_parts
 
         # Capture part snapshot for part-type items
         part_id_for_snapshot = data.get('part')
