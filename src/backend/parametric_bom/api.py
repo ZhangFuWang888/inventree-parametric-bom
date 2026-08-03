@@ -2798,6 +2798,91 @@ class ProjectViewSet(viewsets.ModelViewSet):
         serializer = ProjectItemSerializer(items, many=True, context={'request': request})
         return Response(serializer.data)
 
+    def _get_or_create_category(self, name):
+        """Find or create a PartCategory by name (top-level or under '外部导入').
+
+        Args:
+            name: category name. None/empty → use '外部导入' root category.
+
+        Returns: PartCategory instance.
+        """
+        from part.models import PartCategory
+
+        if not name or not str(name).strip():
+            name = '外部导入'
+        name = str(name).strip()
+
+        # Exact name match at top level
+        cat = PartCategory.objects.filter(name=name, parent=None).first()
+        if cat:
+            return cat
+
+        # Check under 外部导入
+        ext_root = PartCategory.objects.filter(name='外部导入', parent=None).first()
+        if ext_root:
+            cat = PartCategory.objects.filter(name=name, parent=ext_root).first()
+            if cat:
+                return cat
+            return PartCategory.objects.create(name=name, parent=ext_root, description='外部导入物料分类')
+
+        # Create 外部导入 root + child
+        ext_root = PartCategory.objects.create(name='外部导入', parent=None, description='外部系统导入物料分类')
+        if name == '外部导入':
+            return ext_root
+        return PartCategory.objects.create(name=name, parent=ext_root, description='外部导入物料分类')
+
+    def _resolve_part(self, data, user=None, category_name=None, assembly=False, component=True):
+        """Resolve a Part by ID, or by name/IPN (auto-create when missing).
+
+        Args:
+            data: dict with part resolution fields:
+                - part / product_part_id: existing Part ID (used directly)
+                - name: part name (required for auto-create)
+                - ipn: internal part number (optional, matched exactly)
+                - description: part description (optional)
+            user: request user (optional, unused for now)
+            category_name: category name for auto-created parts (default '外部导入')
+            assembly: whether auto-created part is an assembly (product)
+            component: whether auto-created part is a component (raw material)
+
+        Returns: (part, created) where created is True if a new Part was created.
+        """
+        from part.models import Part
+
+        # 1. By ID
+        pid = data.get('part') or data.get('product_part_id')
+        if pid:
+            part = Part.objects.filter(pk=int(pid)).first()
+            if part:
+                return part, False
+            return None, False
+
+        # 2. By name / IPN
+        name = (data.get('name') or '').strip()
+        if not name:
+            return None, False
+
+        ipn = (data.get('ipn') or '').strip()
+        if name and ipn:
+            part = Part.objects.filter(name=name, IPN=ipn).first()
+        else:
+            part = Part.objects.filter(name=name, IPN='').first()
+        if part:
+            return part, False
+
+        # 3. Auto-create
+        cat = self._get_or_create_category(category_name or data.get('category'))
+        part = Part.objects.create(
+            name=name,
+            IPN=ipn or '',
+            description=data.get('description', ''),
+            category=cat,
+            component=component,
+            assembly=assembly,
+            active=True,
+        )
+        return part, True
+
     def _add_single_item(self, project, data, user, log_prefix=''):
         """Core logic: add one item to a project. Returns (items, status, error).
 
@@ -2809,11 +2894,66 @@ class ProjectViewSet(viewsets.ModelViewSet):
 
         Returns: (created_items: list[dict], status_code: int, error: str|None)
         """
+        # ── Resolve part (by ID or name/IPN with auto-create) ──
+        item_type = data.get('item_type', 'configuration')
+        created_parts = []
+        # Fallback title to name (client may send name instead of title)
+        if not data.get('title') and data.get('name'):
+            data['title'] = data.get('name')
+        if item_type == 'part':
+            part, part_created = self._resolve_part(
+                data, user, assembly=False, component=True)
+            if part:
+                data['part'] = part.pk
+                if part_created:
+                    created_parts.append({'pk': part.pk, 'name': part.name, 'ipn': part.IPN or ''})
+            elif not data.get('part') and not data.get('name'):
+                return [], 400, 'part 条目必须提供 part ID 或 name'
+        elif item_type == 'configuration':
+            # Resolve product part: by ID, or by name/IPN with auto-create
+            if not data.get('product_part_id') and not data.get('product_part'):
+                product, product_created = self._resolve_part(
+                    data, user, assembly=True, component=False)
+                if product:
+                    data['product_part_id'] = product.pk
+                    if product_created:
+                        created_parts.append({'pk': product.pk, 'name': product.name, 'ipn': product.IPN or ''})
+                elif not data.get('name'):
+                    return [], 400, 'configuration 条目必须提供 product_part_id 或 name'
+
+            # Auto-create BOM children for configuration products
+            children = data.get('children') or []
+            if children and data.get('product_part_id'):
+                from part.models import Part as PartModel, BomItem
+                parent = PartModel.objects.filter(pk=int(data['product_part_id'])).first()
+                if parent:
+                    for child in children:
+                        if not isinstance(child, dict):
+                            continue
+                        child_part, child_created = self._resolve_part(
+                            child, user, assembly=False, component=True)
+                        if not child_part:
+                            continue
+                        if child_created:
+                            created_parts.append({'pk': child_part.pk, 'name': child_part.name, 'ipn': child_part.IPN or ''})
+                        # ── Refresh from DB: MPTT updates tree_id after later inserts,
+                        #    stale in-memory tree_id causes false 'recursive' errors ──
+                        parent.refresh_from_db()
+                        child_part.refresh_from_db()
+                        qty = child.get('quantity', 1)
+                        existing_bom = BomItem.objects.filter(part=parent, sub_part=child_part).first()
+                        if existing_bom:
+                            existing_bom.quantity = existing_bom.quantity + int(qty)
+                            existing_bom.save()
+                        else:
+                            BomItem.objects.create(part=parent, sub_part=child_part, quantity=int(qty))
+                        # Also record for later ProjectItem child expansion
+                        child['part_id'] = child_part.pk
+
         # ── Merge: 同一批次内名称+型号相同则叠加数量 ──
         batch_name = data.get('batch_name', '')
         title = data.get('title', '')
         part_id = data.get('part')
-        item_type = data.get('item_type', 'configuration')
         merge_filter = {
             'project': project,
             'batch_name': batch_name or None,
@@ -2831,7 +2971,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
             self._log(project, 'item_merged',
                       f'{log_prefix}合并条目: {title} 数量 +{add_qty} → {existing.quantity}')
             serializer = ProjectItemSerializer(existing, context={'request': type('Req', (), {'user': user})()})
-            return [serializer.data], 200, None
+            return [serializer.data], 200, None, created_parts
 
         # Auto-expand BOM for configuration items
         if data.get('item_type') == 'configuration':
@@ -2891,7 +3031,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
 
         serializer = ProjectItemSerializer(data=data)
         if not serializer.is_valid():
-            return [], 400, str(serializer.errors)
+            return [], 400, str(serializer.errors), created_parts
 
         item = serializer.save()
         item.created_by = user
@@ -2953,7 +3093,11 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 self._log(project, 'item_added',
                           f'{log_prefix}并展开 {len(bom_items)} 个BOM子件')
 
-        return created_items, 201, None
+        # Mark newly-created parts on the top-level item response
+        if created_parts and created_items:
+            created_items[0]['created_parts'] = created_parts
+
+        return created_items, 201, None, created_parts
 
     @action(detail=True, methods=['post'])
     def add_item(self, request, pk=None):
@@ -2963,9 +3107,9 @@ class ProjectViewSet(viewsets.ModelViewSet):
         """
         project = self.get_object()
         data = {**request.data, 'project': project.id}
-        items, status, error = self._add_single_item(project, data, request.user)
+        items, status, error, created_parts = self._add_single_item(project, data, request.user)
         if error:
-            return Response({'error': error}, status=status)
+            return Response({'error': error, 'created_parts': created_parts}, status=status)
         if status == 200:
             return Response(items[0], status=200)
         return Response(items if len(items) > 1 else items[0], status=201)
@@ -3002,6 +3146,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
 
         all_items = []
         errors = []
+        all_created_parts = []
 
         for idx, item_data in enumerate(items_data):
             if not isinstance(item_data, dict):
@@ -3010,13 +3155,14 @@ class ProjectViewSet(viewsets.ModelViewSet):
 
             data = {**item_data, 'project': project.id}
             try:
-                items, status, error = self._add_single_item(
+                items, status, error, created_parts = self._add_single_item(
                     project, data, request.user, log_prefix=f'[批量 {idx+1}/{len(items_data)}] ')
                 if error:
                     errors.append({'index': idx, 'title': data.get('title', ''),
                                    'error': error})
                 else:
                     all_items.extend(items)
+                    all_created_parts.extend(created_parts or [])
             except Exception as e:
                 errors.append({'index': idx, 'title': data.get('title', ''),
                                'error': str(e)})
@@ -3024,7 +3170,8 @@ class ProjectViewSet(viewsets.ModelViewSet):
         # Batch log
         self._log(project, 'batch_added',
                   f'批量添加 {len(items_data)} 条 → 创建 {len(all_items)} 条'
-                  + (f'，{len(errors)} 条失败' if errors else ''))
+                  + (f'，{len(errors)} 条失败' if errors else '')
+                  + (f'，新建物料 {len(all_created_parts)} 个' if all_created_parts else ''))
 
         response_data = {
             'success': len(errors) == 0,
@@ -3032,6 +3179,8 @@ class ProjectViewSet(viewsets.ModelViewSet):
             'item_count': len(items_data),
             'items': all_items,
         }
+        if all_created_parts:
+            response_data['created_parts'] = all_created_parts
         if errors:
             response_data['errors'] = errors
 
