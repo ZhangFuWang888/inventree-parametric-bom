@@ -4855,8 +4855,16 @@ def client_login(request):
     user = authenticate(request, username=username, password=password)
 
     if user is None:
+        # 区分「账号不存在」与「密码错误」，方便 C# 客户端提示
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        if not User.objects.filter(username=username).exists():
+            return Response(
+                {'error': '账号不存在'},
+                status=401
+            )
         return Response(
-            {'error': '用户名或密码错误'},
+            {'error': '密码错误'},
             status=401
         )
 
