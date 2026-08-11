@@ -2895,7 +2895,16 @@ class ProjectViewSet(viewsets.ModelViewSet):
         Returns: (created_items: list[dict], status_code: int, error: str|None)
         """
         # ── Resolve part (by ID or name/IPN with auto-create) ──
-        item_type = data.get('item_type', 'configuration')
+        # Normalize item_type: clients may send enum member names ("Configuration"/"Part"),
+        # raw enum ints ("1"/"0"), or the canonical lowercase strings.
+        raw_type = str(data.get('item_type', 'configuration')).strip().lower()
+        if raw_type in ('configuration', 'config', '1', 'product'):
+            item_type = 'configuration'
+        elif raw_type in ('part', 'static', '0', 'component'):
+            item_type = 'part'
+        else:
+            item_type = raw_type  # keep original so serializer reports the real value
+        data['item_type'] = item_type
         created_parts = []
         # Fallback title to name (client may send name instead of title)
         if not data.get('title') and data.get('name'):

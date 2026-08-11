@@ -429,7 +429,10 @@ async function showProjectDetail(projectId) {
               <tbody>
                 ${items.map(item => {
                   const subtotal = (parseFloat(item.unit_price || 0) * item.quantity).toFixed(2);
-                  const hasBom = !!item.bom_snapshot;
+                  const bs = item.bom_snapshot;
+                  // 只有 BOM 快照含子件时才显示展开BOM（无BOM产品不显示展开链接）
+                  const bsChildren = bs?.children?.length || bs?.bom_tree?.length || 0;
+                  const hasBom = bsChildren > 0;
                   const snapParams = item.part_snapshot?.parameters || [];
                   const snapAtts = item.part_snapshot?.attachments || [];
                   const snapDesc = item.part_snapshot?.notes || item.part_snapshot?.description || '';

@@ -428,12 +428,26 @@ class ProjectItemSerializer(serializers.ModelSerializer):
     """Serializer for ProjectItem."""
 
     part_name = serializers.CharField(source='part.name', read_only=True, default=None)
-    part_ipn = serializers.CharField(source='part.IPN', read_only=True, default=None)
+    part_ipn = serializers.SerializerMethodField()
     config_title = serializers.CharField(
         source='product_config.title', read_only=True, default=None
     )
     created_by_name = serializers.SerializerMethodField()
     user_role = serializers.SerializerMethodField()
+
+    def get_part_ipn(self, obj):
+        """型号列: 静态零件取 part.IPN; configuration 取模板物料 IPN 或 BOM 快照 IPN."""
+        if obj.part and obj.part.IPN:
+            return obj.part.IPN
+        # configuration: 优先 product_config 模板物料, 其次 bom_snapshot.calculated_ipn
+        if obj.product_config and obj.product_config.template_part:
+            ipn = obj.product_config.template_part.IPN
+            if ipn:
+                return ipn
+        bs = obj.bom_snapshot or {}
+        if isinstance(bs, dict) and bs.get('calculated_ipn'):
+            return bs['calculated_ipn']
+        return None
 
     def get_created_by_name(self, obj):
         if not obj.created_by:
