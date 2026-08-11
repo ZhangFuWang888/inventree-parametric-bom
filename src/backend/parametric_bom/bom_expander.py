@@ -129,6 +129,58 @@ def compute_parameters(
     if parent_params:
         _apply_inheritance(part, all_params, parent_params, timeout_ms, errors)
 
+    # ── 2.5) Compute PartVariable (中间变量) ──────────────────
+    # Variables are named expressions computed from params (and other variables),
+    # injected into all_params so formulas (qty/condition/variant name/IPN etc.)
+    # can reference them by name. Evaluated in display_order, iterating to
+    # resolve variables that depend on other variables.
+    from parametric_bom.models import PartVariable
+    variables = list(
+        PartVariable.objects.filter(part=part).order_by('display_order', 'id')
+    )
+    if variables:
+        # Refresh formula context each round so newly computed variables are visible
+        for _round in range(len(variables) + 1):
+            formula_context = {'param': all_params}
+            if parent_params:
+                formula_context['parent'] = parent_params
+            progress = False
+            for var in variables:
+                vname = var.name
+                if vname in all_params:
+                    continue  # already computed
+                try:
+                    raw = eval_formula(
+                        var.formula,
+                        context=formula_context,
+                        timeout_ms=timeout_ms,
+                    )
+                    value = raw
+                    # Cast per declared var_type
+                    if var.var_type == 'integer':
+                        value = int(round(float(raw)))
+                    elif var.var_type == 'number':
+                        value = float(raw)
+                    elif var.var_type == 'boolean':
+                        value = bool(raw)
+                    else:  # string
+                        value = str(raw)
+                    all_params[vname] = value
+                    # expose both bare name and param.<name> for formula engine
+                    all_params[f'param.{vname}'] = value
+                    progress = True
+                except (ParseError, ReferenceError, EvaluationError, TimeoutError) as e:
+                    errors.append(f'变量「{vname}」计算失败: {e}')
+                    all_params[vname] = None
+                    all_params[f'param.{vname}'] = None
+                    progress = True  # mark so we don't retry infinitely
+            if not progress:
+                break
+        # Drop the param.* aliases to keep params dict clean (formula engine
+        # adds param. prefix itself when resolving bare identifiers)
+        for var in variables:
+            all_params.pop(f'param.{var.name}', None)
+
     # ── 3) Compute PartAttributeFormula ─────────────────────────
     _compute_attributes(part, all_params, parent_params, timeout_ms, errors)
 
