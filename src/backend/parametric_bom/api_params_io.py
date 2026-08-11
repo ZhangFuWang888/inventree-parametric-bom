@@ -92,7 +92,7 @@ def export_params_excel(request):
             str(cfg.max_value) if cfg.max_value is not None else '',
             str(cfg.step_value) if cfg.step_value is not None else '',
             opts,
-            cfg.description or '',
+            cfg.ui_hint or '',
             '是' if cfg.is_driving else '否',
         ]
         for col_idx, val in enumerate(row_data, 1):
@@ -115,7 +115,8 @@ def export_params_excel(request):
         output.read(),
         content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     )
-    response['Content-Disposition'] = f'attachment; filename*=UTF-8\'\'{quote(filename)}'
+    response['Content-Disposition'] = f"attachment; filename*=UTF-8''{quote(filename)}"
+    response['X-Filename'] = quote(filename)
     return response
 
 
@@ -268,7 +269,7 @@ def import_params_excel(request):
                 existing.max_value = max_val
                 existing.step_value = step_val
                 existing.options = options
-                existing.description = item['desc']
+                existing.ui_hint = item['desc']
                 existing.is_driving = is_driving
                 existing.save()
                 updated.append({'index': idx, 'name': name, 'status': '已更新'})
@@ -286,7 +287,7 @@ def import_params_excel(request):
                     max_value=max_val,
                     step_value=step_val,
                     options=options,
-                    description=item['desc'],
+                    ui_hint=item['desc'],
                     is_driving=is_driving,
                 )
                 created.append({'index': idx, 'name': name, 'status': '新建'})

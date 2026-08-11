@@ -1856,15 +1856,30 @@ async function createParamConfig() {
 }
 
 // ── 参数导入/导出 ──
-function exportParamsExcel() {
+async function exportParamsExcel() {
   var partId = window.__currentPartId || configuratorPartId;
   if (!partId) { showToast('error', '请先选择产品'); return; }
-  var a = document.createElement('a');
-  a.href = '/api/parametric-bom/export-params/?part=' + partId;
-  a.download = '';
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
+  // fetch + blob 下载（与 BOM 导出一致），避免 http 明文被浏览器 HTTPS-only 拦截
+  try {
+    const r = await fetch('/api/parametric-bom/export-params/?part=' + partId, { credentials: 'include' });
+    if (!r.ok) {
+      let msg = '导出失败 (HTTP ' + r.status + ')';
+      try { const j = await r.json(); if (j.error) msg = j.error; } catch (e) {}
+      showToast('error', msg);
+      return;
+    }
+    const blob = await r.blob();
+    const fname = decodeURIComponent(r.headers.get('X-Filename') || '参数配置.xlsx');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = fname;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(a.href);
+  } catch (e) {
+    showToast('error', '导出失败: ' + e.message);
+  }
 }
 
 function openImportParamsModal() {
