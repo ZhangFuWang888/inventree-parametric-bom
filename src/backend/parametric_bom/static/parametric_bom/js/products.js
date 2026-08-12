@@ -1238,7 +1238,8 @@ function renderBOMTable(items, pcfgMap, vmByPbi, paramCtx) {
       let display;
       if (c.isQty) {
         if (val) {
-          display = '<span class="fmla-text" title="' + val.replace(/"/g,'&quot;') + '">×' + staticQty + ' → 📐 ' + val + '</span><span class="fmla-result hidden" id="' + cellId + '-res"></span>';
+          // 有公式时不显示默认静态数量 ×n，只显示公式（绿色结果为计算后的动态数量）
+          display = '<span class="fmla-text" title="' + val.replace(/"/g,'&quot;') + '">📐 ' + val + '</span><span class="fmla-result hidden" id="' + cellId + '-res"></span>';
         } else {
           display = '<span class="pbs-qty">×' + staticQty + '</span>';
         }

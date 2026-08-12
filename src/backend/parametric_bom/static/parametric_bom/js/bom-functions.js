@@ -571,8 +571,9 @@ function openCellEditor(itemPk, field, currentVal, isQty, mappingId, expectedTyp
     input.value = currentVal || '';
     input.placeholder = placeholders[field] || '输入模板，用{参数名}引用...';
   } else if (isQty) {
-    const qtyText = currentVal ? ('当前: ×' + _ceState.staticQty + ' + 公式「' + currentVal + '」') : ('当前: ×' + _ceState.staticQty + '（静态数量）');
-    title.innerHTML = '📐 ' + escHtml(qtyText) + ' <span style="font-size:11px;background:#fde68a;color:#78350f;padding:2px 7px;border-radius:4px;margin-left:6px;font-family:monospace;font-weight:700;border:2px solid #d97706;white-space:nowrap">v=cfgid7</span>';
+    // 有公式时不显示默认静态数量（×n），只显示公式
+    const qtyText = currentVal ? ('📐 公式「' + currentVal + '」') : ('当前: ×' + _ceState.staticQty + '（静态数量）');
+    title.innerHTML = '📐 ' + escHtml(qtyText) + ' <span style="font-size:11px;background:#fde68a;color:#78350f;padding:2px 7px;border-radius:4px;margin-left:6px;font-family:monospace;font-weight:700;border:2px solid #d97706;white-space:nowrap">v=cfgid9</span>';
     input.value = currentVal || '';
     input.placeholder = '输入纯数字=改静态数量，输入公式=动态计算';
   } else {
