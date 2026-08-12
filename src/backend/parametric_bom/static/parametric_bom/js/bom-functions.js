@@ -862,6 +862,10 @@ async function saveCellFormula() {
   const exCfg = exList[0];
   const data = {};
   data[st.field] = storageFormula;
+  // 保存对应模式开关：填了公式就确保 enable 打开，否则展开器 mode 判定为 standard
+  if (st.field === 'qty_formula') data.enable_qty_formula = true;
+  else if (st.field === 'condition_formula') data.enable_conditional = true;
+  else if (st.field === 'name_formula') data.enable_name_formula = true;
   if (exCfg) {
     ['name_formula','qty_formula','condition_formula','reference_formula','price_formula'].forEach(function(f) {
       if (f !== st.field && exCfg[f]) data[f] = exCfg[f];
