@@ -1267,7 +1267,11 @@ async function evaluateBomFormulas(paramCtx) {
     var cellDiv = el.parentElement;
     var fmlaSpan = cellDiv.querySelector('.fmla-text');
     if (!fmlaSpan) return;
-    var formula = fmlaSpan.getAttribute('title') || '';
+    // 用 .title 属性读取（自动解码 HTML 实体 &quot;→"），不能用 getAttribute('title')
+    // （返回原始属性值，动态公式里的双引号被转义成 &quot; 会导致服务端 ParseError）
+    var formula = fmlaSpan.title || '';
+    // 处理渲染时对单引号的转义 (\' → ')
+    formula = formula.replace(/\\'/g, "'");
     if (!formula) return;
     if (!formulaMap[formula]) formulaMap[formula] = [];
     formulaMap[formula].push(el);
