@@ -447,8 +447,13 @@ def _expand_single_bom_item(
                     except (ParseError, ReferenceError, EvaluationError, TimeoutError):
                         dynamic_ipn = sub_part.IPN or ''
                     child_node['variant_ipn'] = str(dynamic_ipn)
-                child_node['template_part_id'] = _part_pk(sub_part)
-                child_node['template_part_name'] = _part_display(sub_part)
+                # 参考模板零件：优先用映射里指定的 template_part（用户可复制映射后更换），
+                # 而不是 BOM 项关联的 sub_part — 否则复制映射后修改关联不生效
+                tpl_part = variant_mapping.template_part
+                if tpl_part is None:
+                    tpl_part = sub_part
+                child_node['template_part_id'] = _part_pk(tpl_part)
+                child_node['template_part_name'] = _part_display(tpl_part)
         except ObjectDoesNotExist:
             pass
 
