@@ -1184,6 +1184,7 @@ function renderBOMTable(items, pcfgMap, vmByPbi, paramCtx) {
       var tplId = vm.template_part || 0;
       var tplName = vm.template_part_name || '#部件';
       tplRef = '<div class=\"text-[9px] text-purple-400 mt-0.5\">🧬参考: <span class=\"cursor-pointer hover:text-purple-600 underline decoration-dotted\" onclick=\"changeTemplatePart(' + mappingId + ',' + tplId + ')\" title=\"点击更换模板零件\">' + tplName + '</span></div>';
+      tplIpn = '<div class=\"text-[9px] text-purple-400 mt-0.5\">🧬参考: <span class=\"cursor-pointer hover:text-purple-600 underline decoration-dotted\" onclick=\"changeTemplatePart(' + mappingId + ',' + tplId + ')\" title=\"点击更换模板零件\">' + (vm.template_part_ipn || '—') + '</span></div>';
       nameCell = '<td><div class="pbs-formula-cell" ondblclick="openCellEditor(' + item.pk + ",'variant_name','" + escNameVal + "',false," + mappingId + ')" title="双击编辑动态名称">'
         + (vm.variant_name_template ? '<span class="fmla-text" title="' + escNameVal + '">' + escHtml(vm.variant_name_template) + '</span><span class="fmla-result hidden" id="bom-cell-' + item.pk + '-variant_name-res"></span>' : '<span class="fmla-empty">—</span>')
         + '<span class="fmla-hint">双击编辑</span>'
