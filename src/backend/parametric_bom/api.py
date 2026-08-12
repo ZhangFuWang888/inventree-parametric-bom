@@ -2350,10 +2350,14 @@ def cart_add(request):
                 part = Part.objects.get(pk=int(product_part_id))
                 # Server-side BOM expansion for price calculation
                 try:
-                    from parametric_bom.bom_expander import expand_bom_level
+                    from parametric_bom.bom_expander import expand_bom_level, compute_parameters
                     params = data.get('parameters', {}) or data.get('params', {}) or {}
                     data['parameters'] = params  # normalize field name
-                    bom_tree = expand_bom_level(part, params, timeout_ms=1000)
+                    # 必须先 compute_parameters 构建 cfg_{id} 别名与 PartVariable 变量，
+                    # 否则 variant 公式里的 param.cfg_442 / 链条机宽度 不在 context，
+                    # 求值失败会 fallback 到 sub_part 静态 IPN
+                    all_params, _param_errors = compute_parameters(part, params, timeout_ms=1000)
+                    bom_tree = expand_bom_level(part, all_params, timeout_ms=1000)
                     data['bom_snapshot'] = bom_tree
                     _inject_bom_tree_notes(bom_tree)
                     # Calculate total price from expanded BOM
@@ -2988,11 +2992,13 @@ class ProjectViewSet(viewsets.ModelViewSet):
             if product_part_id:
                 try:
                     from part.models import Part
-                    from parametric_bom.bom_expander import expand_bom_level
+                    from parametric_bom.bom_expander import expand_bom_level, compute_parameters
                     from parametric_bom.models import ProductConfiguration
                     part = Part.objects.get(pk=int(product_part_id))
                     params = data.get('parameters', {}) or {}
-                    bom_tree = expand_bom_level(part, params, timeout_ms=3000)
+                    # 先 compute_parameters 构建 cfg_{id} 别名与变量，避免公式 fallback 静态 IPN
+                    all_params, _param_errors = compute_parameters(part, params, timeout_ms=3000)
+                    bom_tree = expand_bom_level(part, all_params, timeout_ms=3000)
                     data['bom_snapshot'] = bom_tree
                     _inject_bom_tree_notes(bom_tree)
                     # Calculate price
@@ -3300,16 +3306,30 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 item_kwargs['item_type'] = 'configuration'
                 # Create ProductConfiguration from CartItem data
                 from parametric_bom.models import ProductConfiguration
+                # 重新展开 BOM：购物车快照可能是旧代码生成的（公式 fallback 静态 IPN），
+                # 转项目时用参数重新展开，确保 variant IPN/名称/数量是公式计算结果
+                try:
+                    from parametric_bom.bom_expander import expand_bom_level, compute_parameters
+                    all_params, _pe = compute_parameters(ci.product_part, ci.parameters or {}, timeout_ms=3000)
+                    fresh_tree = expand_bom_level(ci.product_part, all_params, timeout_ms=3000)
+                    _inject_bom_tree_notes(fresh_tree)
+                    bom_snapshot = fresh_tree
+                    if fresh_tree:
+                        total = _calc_tree_total(fresh_tree)
+                        if total and total > 0:
+                            item_kwargs['unit_cost'] = str(round(total, 4))
+                except Exception:
+                    # 展开失败则回退购物车快照
+                    bom_snapshot = ci.bom_snapshot
                 config = ProductConfiguration.objects.create(
                     template_part=ci.product_part,
                     title=ci.title or ci.product_part.name,
                     params_snapshot=ci.parameters,
-                    generated_bom=ci.bom_snapshot,
+                    generated_bom=bom_snapshot,
                     created_by=request.user,
                 )
                 item_kwargs['product_config'] = config
-                item_kwargs['bom_snapshot'] = ci.bom_snapshot
-                item_kwargs['unit_cost'] = ci.unit_price
+                item_kwargs['bom_snapshot'] = bom_snapshot
             else:
                 item_kwargs['item_type'] = 'part'
                 item_kwargs['part'] = ci.part
