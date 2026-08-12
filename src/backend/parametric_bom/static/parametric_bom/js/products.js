@@ -1057,11 +1057,12 @@ async function loadPdBOMM() {
   container.innerHTML = '<div class="flex items-center justify-center py-6"><span class="spinner mr-2"></span><span class="text-sm text-gray-400">加载中...</span></div>';
   
   try {
-  const [bomRes, pcfgRes, vmRes, paramRes] = await Promise.all([
+  const [bomRes, pcfgRes, vmRes, paramRes, varRes] = await Promise.all([
     fetch('/api/bom/?part=' + pid + '&sub_part_detail=True&part_detail=True', {headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken()}, credentials: 'same-origin'}),
     apiCall('GET', 'bom-item-config/?bom_item__part=' + pid),
     apiCall('GET', 'variant-mappings/'),
     apiCall('GET', 'part-config/?part=' + pid),
+    apiCall('GET', 'part-variables/?part=' + pid + '&limit=9999'),
   ]);
   
   const bomItems = bomRes.ok ? (await bomRes.json()) : [];
@@ -1081,6 +1082,17 @@ async function loadPdBOMM() {
     if (pn && dv != null && String(dv).trim() !== '') {
       paramCtx[pn] = dv;
       paramCtx['cfg_' + pc.id] = dv;  // ID-based alias for param.cfg_{id}
+    }
+  });
+
+  // PartVariable（中间变量）也加入上下文 — 动态名称/型号公式常引用变量
+  // 如 STR(链条机宽度)，缺了会导致 formula/preview ReferenceError 无绿色结果
+  var varConfigs = varRes.error ? [] : (Array.isArray(varRes.data) ? varRes.data : (varRes.data.results || []));
+  varConfigs.forEach(function(v) {
+    var vn = v.name || '';
+    var vv = v.computed_value;
+    if (vn && vv != null && String(vv).trim() !== '') {
+      paramCtx[vn] = vv;
     }
   });
   
